@@ -36,6 +36,9 @@ class MafiaGame : ApplicationAdapter() {
     // 2D Player (but positioned in 3D space)
     private lateinit var playerTexture: Texture
     private lateinit var playerSprite: TextureRegion
+    private lateinit var playerModel: Model
+    private lateinit var playerInstance: ModelInstance
+    private lateinit var playerMaterial: Material
 
     // Game objects
     private val blocks = Array<ModelInstance>()
@@ -120,9 +123,31 @@ class MafiaGame : ApplicationAdapter() {
             (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
         )
 
-        // Load 2D player texture
+        // Load player texture
         playerTexture = Texture(Gdx.files.internal("textures/player/pig_character.png"))
-        playerSprite = TextureRegion(playerTexture)
+
+        // Create player material with the texture
+        playerMaterial = Material(
+            com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute.createDiffuse(playerTexture),
+            com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+        )
+
+        // Create a 3D plane/quad for the player (billboard)
+        // Make it 4x4 to match your block size, but you can adjust as needed
+        val playerSize = 4f
+        playerModel = modelBuilder.createRect(
+            -playerSize/2, -playerSize/2, 0f,  // bottom left
+            playerSize/2, -playerSize/2, 0f,   // bottom right
+            playerSize/2, playerSize/2, 0f,    // top right
+            -playerSize/2, playerSize/2, 0f,   // top left
+            0f, 0f, 1f,                        // normal (facing camera)
+            playerMaterial,
+            (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
+        )
+
+        // Create player instance
+        playerInstance = ModelInstance(playerModel)
+        updatePlayerTransform()
     }
 
     private fun setupUI() {
@@ -429,32 +454,28 @@ class MafiaGame : ApplicationAdapter() {
         blocks.add(blockInstance)
     }
 
-    private fun render2DPlayer() {
-        // Calculate screen position of player in 3D world
-        val screenCoords = Vector3()
-        camera.project(screenCoords.set(playerPosition.x, playerPosition.y, playerPosition.z))
+    private fun updatePlayerTransform() {
+        // Simple approach: just set position and make it face camera
+        playerInstance.transform.idt() // Reset to identity matrix
 
-        // Calculate sprite size based on distance from camera for consistent sizing
-        val baseSize = 64f
-        val heightDifference = abs(playerPosition.y - 2f) // 2f is the base reference height
-        val scaleFactor = 1f - (heightDifference * 0.05f) // Adjust 0.05f to control scaling
-        val spriteSize = baseSize * scaleFactor.coerceIn(0.5f, 3f) // Limit scaling
+        // Set position
+        playerInstance.transform.setTranslation(playerPosition)
 
-        // Start 2D rendering with depth testing disabled for proper layering
-        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
-        spriteBatch.begin()
+        // Calculate direction from player to camera
+        val directionToCamera = Vector3()
+        directionToCamera.set(camera.position).sub(playerPosition)
+        directionToCamera.y = 0f
+        directionToCamera.nor()
 
-        // Draw player sprite at screen position
-        spriteBatch.draw(
-            playerSprite,
-            screenCoords.x - spriteSize/2,
-            screenCoords.y - spriteSize/2,
-            spriteSize,
-            spriteSize
-        )
+        // Calculate rotation angle around Y axis
+        val angle = Math.atan2(directionToCamera.x.toDouble(), directionToCamera.z.toDouble())
+        val angleDegrees = Math.toDegrees(angle).toFloat()
 
-        spriteBatch.end()
-        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
+        // Apply rotation around Y axis to face camera
+        playerInstance.transform.rotate(Vector3.Y, angleDegrees)
+
+        // Apply position again (sometimes rotation can affect position)
+        playerInstance.transform.setTranslation(playerPosition)
     }
 
     override fun render() {
@@ -465,7 +486,8 @@ class MafiaGame : ApplicationAdapter() {
         // Handle player input
         handlePlayerInput()
 
-        // Our camera is now handled manually, no need for cameraController.update()
+        // Update player billboard transformation
+        updatePlayerTransform()
 
         // Render 3D scene
         modelBatch.begin(camera)
@@ -475,10 +497,10 @@ class MafiaGame : ApplicationAdapter() {
             modelBatch.render(block, environment)
         }
 
-        modelBatch.end()
+        // Render 3D player
+        modelBatch.render(playerInstance, environment)
 
-        // Render 2D player sprite (after 3D scene for proper layering)
-        render2DPlayer()
+        modelBatch.end()
 
         // Render UI
         if (isUIVisible) {
@@ -498,6 +520,7 @@ class MafiaGame : ApplicationAdapter() {
         modelBatch.dispose()
         spriteBatch.dispose()
         blockModel.dispose()
+        playerModel.dispose()
         playerTexture.dispose()
         stage.dispose()
         skin.dispose()
