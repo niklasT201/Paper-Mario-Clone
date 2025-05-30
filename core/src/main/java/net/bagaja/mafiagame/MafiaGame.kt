@@ -18,7 +18,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.viewport.ScreenViewport
-import kotlin.math.abs
 import kotlin.math.floor
 
 class MafiaGame : ApplicationAdapter() {
@@ -35,7 +34,6 @@ class MafiaGame : ApplicationAdapter() {
 
     // 2D Player (but positioned in 3D space)
     private lateinit var playerTexture: Texture
-    private lateinit var playerSprite: TextureRegion
     private lateinit var playerModel: Model
     private lateinit var playerInstance: ModelInstance
     private lateinit var playerMaterial: Material
@@ -44,6 +42,12 @@ class MafiaGame : ApplicationAdapter() {
     private val blocks = Array<ModelInstance>()
     private val playerPosition = Vector3(0f, 2f, 0f)
     private val playerSpeed = 8f // Units per second
+
+    // Player rotation variables for Paper Mario effect
+    private var playerTargetRotationY = 0f // Target rotation in degrees
+    private var playerCurrentRotationY = 0f // Current rotation in degrees
+    private val rotationSpeed = 360f // Degrees per second for smooth rotation
+    private var lastMovementDirection = 0f // -1 for left, 1 for right, 0 for none
 
     // UI state
     private var selectedTool = Tool.BLOCK
@@ -213,7 +217,7 @@ class MafiaGame : ApplicationAdapter() {
         • WASD to move player
         • H to toggle this UI
         • Blocks snap to 4x4 grid
-        • Paper Mario style side view!
+        • Paper Mario style rotation!
         """.trimIndent()
 
         val instructionText = Label(instructions, skin)
@@ -368,15 +372,18 @@ class MafiaGame : ApplicationAdapter() {
     private fun handlePlayerInput() {
         val deltaTime = Gdx.graphics.deltaTime
         var moved = false
+        var currentMovementDirection = 0f
 
         // Handle WASD input for player movement
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
             playerPosition.x -= playerSpeed * deltaTime
             moved = true
+            currentMovementDirection = -1f // Moving left
         }
         if (Gdx.input.isKeyPressed(Input.Keys.D)) {
             playerPosition.x += playerSpeed * deltaTime
             moved = true
+            currentMovementDirection = 1f // Moving right
         }
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
             playerPosition.z -= playerSpeed * deltaTime
@@ -387,10 +394,60 @@ class MafiaGame : ApplicationAdapter() {
             moved = true
         }
 
+        // Update target rotation based on horizontal movement
+        if (currentMovementDirection != 0f && currentMovementDirection != lastMovementDirection) {
+            // Player changed direction or started moving horizontally
+            if (currentMovementDirection < 0f) {
+                // Moving left - rotate to show left side (180 degrees)
+                playerTargetRotationY = 180f
+            } else {
+                // Moving right - rotate to show right side (0 degrees)
+                playerTargetRotationY = 0f
+            }
+            lastMovementDirection = currentMovementDirection
+        } else if (currentMovementDirection == 0f && (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.S))) {
+            // Only moving vertically, keep last horizontal direction or face forward
+        }
+
+        // Smoothly interpolate current rotation towards target rotation
+        updatePlayerRotation(deltaTime)
+
         // Update player model position if moved
         if (moved) {
             // Keep player slightly above ground level
             playerPosition.y = 2f
+        }
+    }
+
+    private fun updatePlayerRotation(deltaTime: Float) {
+        // Calculate the shortest rotation path
+        var rotationDifference = playerTargetRotationY - playerCurrentRotationY
+
+        // Handle wrap-around (e.g., from 350° to 10°)
+        if (rotationDifference > 180f) {
+            rotationDifference -= 360f
+        } else if (rotationDifference < -180f) {
+            rotationDifference += 360f
+        }
+
+        // Apply smooth rotation
+        if (kotlin.math.abs(rotationDifference) > 1f) { // Small threshold to avoid jittering
+            val rotationStep = rotationSpeed * deltaTime
+            if (rotationDifference > 0f) {
+                playerCurrentRotationY += kotlin.math.min(rotationStep, rotationDifference)
+            } else {
+                playerCurrentRotationY += kotlin.math.max(-rotationStep, rotationDifference)
+            }
+
+            // Keep rotation in 0-360 range
+            if (playerCurrentRotationY >= 360f) {
+                playerCurrentRotationY -= 360f
+            } else if (playerCurrentRotationY < 0f) {
+                playerCurrentRotationY += 360f
+            }
+        } else {
+            // Snap to target if close enough
+            playerCurrentRotationY = playerTargetRotationY
         }
     }
 
@@ -455,27 +512,14 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun updatePlayerTransform() {
-        // Simple approach: just set position and make it face camera
-        playerInstance.transform.idt() // Reset to identity matrix
+        // Reset transform matrix
+        playerInstance.transform.idt()
 
         // Set position
         playerInstance.transform.setTranslation(playerPosition)
 
-        // Calculate direction from player to camera
-        val directionToCamera = Vector3()
-        directionToCamera.set(camera.position).sub(playerPosition)
-        directionToCamera.y = 0f
-        directionToCamera.nor()
-
-        // Calculate rotation angle around Y axis
-        val angle = Math.atan2(directionToCamera.x.toDouble(), directionToCamera.z.toDouble())
-        val angleDegrees = Math.toDegrees(angle).toFloat()
-
-        // Apply rotation around Y axis to face camera
-        playerInstance.transform.rotate(Vector3.Y, angleDegrees)
-
-        // Apply position again (sometimes rotation can affect position)
-        playerInstance.transform.setTranslation(playerPosition)
+        // Apply Y-axis rotation for Paper Mario effect
+        playerInstance.transform.rotate(Vector3.Y, playerCurrentRotationY)
     }
 
     override fun render() {
