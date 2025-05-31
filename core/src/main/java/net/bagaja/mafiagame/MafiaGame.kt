@@ -5,7 +5,6 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.*
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
-import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
@@ -29,6 +28,14 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var cameraController: CameraInputController
     private lateinit var stage: Stage
     private lateinit var skin: Skin
+
+    private var isFreeCameraMode = false
+    private var freeCameraPosition = Vector3(0f, 8f, 20f)
+    private var freeCameraTarget = Vector3(0f, 2f, 0f)
+    private val freeCameraSpeed = 15f
+    private var freeCameraYaw = 0f // Horizontal rotation (left/right)
+    private var freeCameraPitch = 0f // Vertical rotation (up/down)
+    private val cameraRotationSpeed = 90f // Degrees per second for rotation
 
     // 3D Models
     private lateinit var blockModel: Model
@@ -113,16 +120,18 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun updateCameraPosition() {
-        // Calculate camera position based on angle and distance
-        val radians = Math.toRadians(cameraAngleY.toDouble())
-        val x = (Math.cos(radians) * cameraDistance).toFloat()
-        val z = (Math.sin(radians) * cameraDistance).toFloat()
+        if (!isFreeCameraMode) {
+            // Original camera positioning code (orbiting around player/scene)
+            val radians = Math.toRadians(cameraAngleY.toDouble())
+            val x = (Math.cos(radians) * cameraDistance).toFloat()
+            val z = (Math.sin(radians) * cameraDistance).toFloat()
 
-        // Position camera at calculated position, elevated to see the scene
-        camera.position.set(x, 8f, z)
-        camera.lookAt(0f, 2f, 0f) // Look at the center of the action
-        camera.up.set(0f, 1f, 0f) // Ensure up vector is correct
-        camera.update()
+            camera.position.set(x, 8f, z)
+            camera.lookAt(0f, 2f, 0f)
+            camera.up.set(0f, 1f, 0f)
+            camera.update()
+        }
+        // If in free camera mode, the camera position is handled by handleFreeCameraInput()
     }
 
     private fun setupModels() {
@@ -380,6 +389,30 @@ class MafiaGame : ApplicationAdapter() {
                 if (keycode == Input.Keys.H) {
                     isUIVisible = !isUIVisible
                     return true
+                } else if (keycode == Input.Keys.C) {
+                    // Toggle between free camera and normal camera
+                    isFreeCameraMode = !isFreeCameraMode
+
+                    if (isFreeCameraMode) {
+                        // Entering free camera mode - store current camera position
+                        freeCameraPosition.set(camera.position)
+
+                        // Calculate initial yaw based on current camera direction
+                        val currentDirection = Vector3(camera.direction).nor()
+                        freeCameraYaw = Math.toDegrees(Math.atan2(currentDirection.x.toDouble(), currentDirection.z.toDouble())).toFloat()
+                        freeCameraPitch = Math.toDegrees(Math.asin(currentDirection.y.toDouble())).toFloat()
+
+                        // Set initial target
+                        freeCameraTarget.set(freeCameraPosition).add(currentDirection)
+
+                        println("Free Camera Mode: ON")
+                        println("Controls: Arrow Keys (Up/Down=Move, Left/Right=Rotate), Space=Up, Shift=Down")
+                    } else {
+                        // Returning to normal camera mode
+                        updateCameraPosition()
+                        println("Free Camera Mode: OFF - Back to normal camera")
+                    }
+                    return true
                 }
                 return false
             }
@@ -392,68 +425,151 @@ class MafiaGame : ApplicationAdapter() {
 
     private fun handlePlayerInput() {
         val deltaTime = Gdx.graphics.deltaTime
-        var moved = false
-        var currentMovementDirection = 0f
 
-        // Store the original position in case we need to revert due to collision
-        val originalPosition = Vector3(playerPosition)
+        if (isFreeCameraMode) {
+            // Handle free camera movement with arrow keys
+            handleFreeCameraInput(deltaTime)
+        } else {
+            // Original player movement code
+            var moved = false
+            var currentMovementDirection = 0f
+            val originalPosition = Vector3(playerPosition)
 
-        // Handle WASD input for player movement
-        if (Gdx.input.isKeyPressed(Input.Keys.A)) {
-            val newX = playerPosition.x - playerSpeed * deltaTime
-            if (canMoveTo(newX, playerPosition.y, playerPosition.z)) {
-                playerPosition.x = newX
-                moved = true
-                currentMovementDirection = -1f // Moving left
+            // Handle WASD input for player movement
+            if (Gdx.input.isKeyPressed(Input.Keys.A)) {
+                val newX = playerPosition.x - playerSpeed * deltaTime
+                if (canMoveTo(newX, playerPosition.y, playerPosition.z)) {
+                    playerPosition.x = newX
+                    moved = true
+                    currentMovementDirection = -1f
+                }
+            }
+            if (Gdx.input.isKeyPressed(Input.Keys.D)) {
+                val newX = playerPosition.x + playerSpeed * deltaTime
+                if (canMoveTo(newX, playerPosition.y, playerPosition.z)) {
+                    playerPosition.x = newX
+                    moved = true
+                    currentMovementDirection = 1f
+                }
+            }
+            if (Gdx.input.isKeyPressed(Input.Keys.W)) {
+                val newZ = playerPosition.z - playerSpeed * deltaTime
+                if (canMoveTo(playerPosition.x, playerPosition.y, newZ)) {
+                    playerPosition.z = newZ
+                    moved = true
+                }
+            }
+            if (Gdx.input.isKeyPressed(Input.Keys.S)) {
+                val newZ = playerPosition.z + playerSpeed * deltaTime
+                if (canMoveTo(playerPosition.x, playerPosition.y, newZ)) {
+                    playerPosition.z = newZ
+                    moved = true
+                }
+            }
+
+            // Update target rotation based on horizontal movement
+            if (currentMovementDirection != 0f && currentMovementDirection != lastMovementDirection) {
+                if (currentMovementDirection < 0f) {
+                    playerTargetRotationY = 180f
+                } else {
+                    playerTargetRotationY = 0f
+                }
+                lastMovementDirection = currentMovementDirection
+            }
+
+            // Smoothly interpolate current rotation towards target rotation
+            updatePlayerRotation(deltaTime)
+
+            // Update player model position if moved
+            if (moved) {
+                playerPosition.y = 2f
+                updatePlayerBounds()
             }
         }
-        if (Gdx.input.isKeyPressed(Input.Keys.D)) {
-            val newX = playerPosition.x + playerSpeed * deltaTime
-            if (canMoveTo(newX, playerPosition.y, playerPosition.z)) {
-                playerPosition.x = newX
-                moved = true
-                currentMovementDirection = 1f // Moving right
-            }
+    }
+
+    private fun handleFreeCameraInput(deltaTime: Float) {
+        val moveDistance = freeCameraSpeed * deltaTime
+        val rotationAmount = cameraRotationSpeed * deltaTime
+
+        // Handle rotation with left/right arrow keys
+        if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
+            freeCameraYaw += rotationAmount
         }
+        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
+            freeCameraYaw -= rotationAmount
+        }
+
+        // Handle pitch rotation
+        if (Gdx.input.isKeyPressed(Input.Keys.COMMA)) { // Look down
+            freeCameraPitch -= rotationAmount
+            freeCameraPitch = freeCameraPitch.coerceIn(-89f, 89f) // Prevent camera flip
+        }
+        if (Gdx.input.isKeyPressed(Input.Keys.PERIOD)) { // Look up
+            freeCameraPitch += rotationAmount
+            freeCameraPitch = freeCameraPitch.coerceIn(-89f, 89f) // Prevent camera flip
+        }
+
+
+        // Calculate forward, right, and up vectors based on current rotation
+        val yawRadians = Math.toRadians(freeCameraYaw.toDouble())
+        val pitchRadians = Math.toRadians(freeCameraPitch.toDouble())
+
+        // Forward vector (where the camera is looking)
+        val forward = Vector3(
+            (Math.cos(pitchRadians) * Math.sin(yawRadians)).toFloat(),
+            Math.sin(pitchRadians).toFloat(),
+            (Math.cos(pitchRadians) * Math.cos(yawRadians)).toFloat()
+        )
+
+        // Right vector (perpendicular to forward, for strafing)
+        val right = Vector3(forward).crs(Vector3.Y).nor()
+
+        // Up vector
+        val up = Vector3.Y
+
+        // Handle movement with arrow keys and space/shift
+        if (Gdx.input.isKeyPressed(Input.Keys.UP)) {
+            // Move forward in the direction the camera is looking
+            freeCameraPosition.add(Vector3(forward).scl(moveDistance))
+        }
+        if (Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
+            // Move backward (opposite of forward direction)
+            freeCameraPosition.sub(Vector3(forward).scl(moveDistance))
+        }
+
+        // Vertical movement
+        if (Gdx.input.isKeyPressed(Input.Keys.SPACE)) {
+            // Move up
+            freeCameraPosition.add(Vector3(up).scl(moveDistance))
+        }
+        if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) {
+            // Move down
+            freeCameraPosition.sub(Vector3(up).scl(moveDistance))
+        }
+
+        // Optional: Add WASD controls for those who prefer them
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
-            val newZ = playerPosition.z - playerSpeed * deltaTime
-            if (canMoveTo(playerPosition.x, playerPosition.y, newZ)) {
-                playerPosition.z = newZ
-                moved = true
-            }
+            freeCameraPosition.add(Vector3(forward).scl(moveDistance))
         }
         if (Gdx.input.isKeyPressed(Input.Keys.S)) {
-            val newZ = playerPosition.z + playerSpeed * deltaTime
-            if (canMoveTo(playerPosition.x, playerPosition.y, newZ)) {
-                playerPosition.z = newZ
-                moved = true
-            }
+            freeCameraPosition.sub(Vector3(forward).scl(moveDistance))
+        }
+        if (Gdx.input.isKeyPressed(Input.Keys.A)) {
+            freeCameraYaw += rotationAmount
+        }
+        if (Gdx.input.isKeyPressed(Input.Keys.D)) {
+            freeCameraYaw -= rotationAmount
         }
 
-        // Update target rotation based on horizontal movement
-        if (currentMovementDirection != 0f && currentMovementDirection != lastMovementDirection) {
-            // Player changed direction or started moving horizontally
-            if (currentMovementDirection < 0f) {
-                // Moving left - rotate to show left side (180 degrees)
-                playerTargetRotationY = 180f
-            } else {
-                // Moving right - rotate to show right side (0 degrees)
-                playerTargetRotationY = 0f
-            }
-            lastMovementDirection = currentMovementDirection
-        } else if (currentMovementDirection == 0f && (Gdx.input.isKeyPressed(Input.Keys.W) || Gdx.input.isKeyPressed(Input.Keys.S))) {
-            // Only moving vertically, keep last horizontal direction or face forward
-        }
+        // Update camera target based on position and rotation
+        freeCameraTarget.set(freeCameraPosition).add(forward)
 
-        // Smoothly interpolate current rotation towards target rotation
-        updatePlayerRotation(deltaTime)
-
-        // Update player model position if moved
-        if (moved) {
-            // Keep player slightly above ground level
-            playerPosition.y = 2f
-            updatePlayerBounds()
-        }
+        // Apply the new position and rotation to the camera
+        camera.position.set(freeCameraPosition)
+        camera.lookAt(freeCameraTarget)
+        camera.up.set(0f, 1f, 0f)
+        camera.update()
     }
 
     private fun canMoveTo(x: Float, y: Float, z: Float): Boolean {
