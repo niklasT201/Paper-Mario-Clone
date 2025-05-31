@@ -36,7 +36,6 @@ public class Lwjgl3Launcher {
 
 // arrow keys for moving around in world
 
-// right clicking removes blocks
 // camera follows player
 // player can jump
 // in editor mode, camera is free to use

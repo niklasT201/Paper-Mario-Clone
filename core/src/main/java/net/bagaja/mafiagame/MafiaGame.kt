@@ -321,10 +321,21 @@ class MafiaGame : ApplicationAdapter() {
                     handleLeftClick(screenX, screenY)
                     return true
                 } else if (button == Input.Buttons.RIGHT) {
-                    isRightMousePressed = true
-                    lastMouseX = screenX.toFloat()
-                    lastMouseY = screenY.toFloat()
-                    return true
+                    // Check if we're starting a drag operation or clicking on a block
+                    val ray = camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+                    val blockToRemove = getBlockAtRay(ray)
+
+                    if (blockToRemove != null) {
+                        // Remove the block
+                        removeBlock(blockToRemove)
+                        return true
+                    } else {
+                        // No block hit, start camera drag
+                        isRightMousePressed = true
+                        lastMouseX = screenX.toFloat()
+                        lastMouseY = screenY.toFloat()
+                        return true
+                    }
                 }
                 return false
             }
@@ -549,6 +560,45 @@ class MafiaGame : ApplicationAdapter() {
         } else {
             println("No intersection found with ground plane") // Debug output
         }
+    }
+
+    private fun getBlockAtRay(ray: Ray): ModelInstance? {
+        var closestBlock: ModelInstance? = null
+        var closestDistance = Float.MAX_VALUE
+
+        for (block in blocks) {
+            val blockPosition = Vector3()
+            block.transform.getTranslation(blockPosition)
+
+            // Create bounding box for the block
+            val blockBounds = BoundingBox()
+            blockBounds.set(
+                Vector3(blockPosition.x - blockSize/2, blockPosition.y - blockSize/2, blockPosition.z - blockSize/2),
+                Vector3(blockPosition.x + blockSize/2, blockPosition.y + blockSize/2, blockPosition.z + blockSize/2)
+            )
+
+            // Check if ray intersects with this block's bounding box
+            val intersection = Vector3()
+            if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, blockBounds, intersection)) {
+                val distance = ray.origin.dst(intersection)
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestBlock = block
+                }
+            }
+        }
+
+        return closestBlock
+    }
+
+    private fun removeBlock(blockToRemove: ModelInstance) {
+        val blockPosition = Vector3()
+        blockToRemove.transform.getTranslation(blockPosition)
+
+        // Remove from the blocks array
+        blocks.removeValue(blockToRemove, true)
+
+        println("Block removed at: ${blockPosition.x - blockSize/2}, ${blockPosition.y - blockSize/2}, ${blockPosition.z - blockSize/2}")
     }
 
     private fun placePlayer(ray: Ray) {
