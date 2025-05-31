@@ -13,6 +13,7 @@ import com.badlogic.gdx.graphics.g3d.utils.CameraInputController
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.Ray
+import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
@@ -42,6 +43,10 @@ class MafiaGame : ApplicationAdapter() {
     private val blocks = Array<ModelInstance>()
     private val playerPosition = Vector3(0f, 2f, 0f)
     private val playerSpeed = 8f // Units per second
+
+    // Player collision box
+    private val playerBounds = BoundingBox()
+    private val playerSize = Vector3(3f, 4f, 3f) // Width, Height, Depth - slightly smaller than block size for better feel
 
     // Player rotation variables for Paper Mario effect
     private var playerTargetRotationY = 0f // Target rotation in degrees
@@ -77,6 +82,9 @@ class MafiaGame : ApplicationAdapter() {
         addBlock(0f, 0f, 0f)
         addBlock(blockSize, 0f, 0f)
         addBlock(0f, 0f, blockSize)
+
+        // Initialize player bounding box
+        updatePlayerBounds()
     }
 
     private fun setupGraphics() {
@@ -139,12 +147,12 @@ class MafiaGame : ApplicationAdapter() {
 
         // Create a 3D plane/quad for the player (billboard)
         // Make it 4x4 to match your block size, but you can adjust as needed
-        val playerSize = 4f
+        val playerSizeVisual = 4f
         playerModel = modelBuilder.createRect(
-            -playerSize/2, -playerSize/2, 0f,  // bottom left
-            playerSize/2, -playerSize/2, 0f,   // bottom right
-            playerSize/2, playerSize/2, 0f,    // top right
-            -playerSize/2, playerSize/2, 0f,   // top left
+            -playerSizeVisual/2, -playerSizeVisual/2, 0f,  // bottom left
+            playerSizeVisual/2, -playerSizeVisual/2, 0f,   // bottom right
+            playerSizeVisual/2, playerSizeVisual/2, 0f,    // top right
+            -playerSizeVisual/2, playerSizeVisual/2, 0f,   // top left
             0f, 0f, 1f,                        // normal (facing camera)
             playerMaterial,
             (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
@@ -219,6 +227,7 @@ class MafiaGame : ApplicationAdapter() {
         • H to toggle this UI
         • Blocks snap to 4x4 grid
         • Paper Mario style rotation!
+        • Player has collision detection!
         """.trimIndent()
 
         val instructionText = Label(instructions, skin)
@@ -375,24 +384,39 @@ class MafiaGame : ApplicationAdapter() {
         var moved = false
         var currentMovementDirection = 0f
 
+        // Store the original position in case we need to revert due to collision
+        val originalPosition = Vector3(playerPosition)
+
         // Handle WASD input for player movement
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
-            playerPosition.x -= playerSpeed * deltaTime
-            moved = true
-            currentMovementDirection = -1f // Moving left
+            val newX = playerPosition.x - playerSpeed * deltaTime
+            if (canMoveTo(newX, playerPosition.y, playerPosition.z)) {
+                playerPosition.x = newX
+                moved = true
+                currentMovementDirection = -1f // Moving left
+            }
         }
         if (Gdx.input.isKeyPressed(Input.Keys.D)) {
-            playerPosition.x += playerSpeed * deltaTime
-            moved = true
-            currentMovementDirection = 1f // Moving right
+            val newX = playerPosition.x + playerSpeed * deltaTime
+            if (canMoveTo(newX, playerPosition.y, playerPosition.z)) {
+                playerPosition.x = newX
+                moved = true
+                currentMovementDirection = 1f // Moving right
+            }
         }
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
-            playerPosition.z -= playerSpeed * deltaTime
-            moved = true
+            val newZ = playerPosition.z - playerSpeed * deltaTime
+            if (canMoveTo(playerPosition.x, playerPosition.y, newZ)) {
+                playerPosition.z = newZ
+                moved = true
+            }
         }
         if (Gdx.input.isKeyPressed(Input.Keys.S)) {
-            playerPosition.z += playerSpeed * deltaTime
-            moved = true
+            val newZ = playerPosition.z + playerSpeed * deltaTime
+            if (canMoveTo(playerPosition.x, playerPosition.y, newZ)) {
+                playerPosition.z = newZ
+                moved = true
+            }
         }
 
         // Update target rotation based on horizontal movement
@@ -417,7 +441,44 @@ class MafiaGame : ApplicationAdapter() {
         if (moved) {
             // Keep player slightly above ground level
             playerPosition.y = 2f
+            updatePlayerBounds()
         }
+    }
+
+    private fun canMoveTo(x: Float, y: Float, z: Float): Boolean {
+        // Create a temporary bounding box for the new position
+        val tempBounds = BoundingBox()
+        tempBounds.set(
+            Vector3(x - playerSize.x/2, y - playerSize.y/2, z - playerSize.z/2),
+            Vector3(x + playerSize.x/2, y + playerSize.y/2, z + playerSize.z/2)
+        )
+
+        // Check collision with all blocks
+        for (block in blocks) {
+            val blockPosition = Vector3()
+            block.transform.getTranslation(blockPosition)
+
+            // Create bounding box for the block
+            val blockBounds = BoundingBox()
+            blockBounds.set(
+                Vector3(blockPosition.x - blockSize/2, blockPosition.y - blockSize/2, blockPosition.z - blockSize/2),
+                Vector3(blockPosition.x + blockSize/2, blockPosition.y + blockSize/2, blockPosition.z + blockSize/2)
+            )
+
+            // Check if the temporary player bounds intersect with the block bounds
+            if (tempBounds.intersects(blockBounds)) {
+                return false // Collision detected
+            }
+        }
+
+        return true // No collision
+    }
+
+    private fun updatePlayerBounds() {
+        playerBounds.set(
+            Vector3(playerPosition.x - playerSize.x/2, playerPosition.y - playerSize.y/2, playerPosition.z - playerSize.z/2),
+            Vector3(playerPosition.x + playerSize.x/2, playerPosition.y + playerSize.y/2, playerPosition.z + playerSize.z/2)
+        )
     }
 
     private fun updatePlayerRotation(deltaTime: Float) {
@@ -499,8 +560,14 @@ class MafiaGame : ApplicationAdapter() {
             val gridX = floor(intersection.x / blockSize) * blockSize + blockSize/2
             val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize/2
 
-            playerPosition.set(gridX, 2f, gridZ)
-            println("Player placed at: $gridX, 2, $gridZ") // Debug output
+            // Check if the new position would cause a collision
+            if (canMoveTo(gridX, 2f, gridZ)) {
+                playerPosition.set(gridX, 2f, gridZ)
+                updatePlayerBounds()
+                println("Player placed at: $gridX, 2, $gridZ") // Debug output
+            } else {
+                println("Cannot place player here - collision with block") // Debug output
+            }
         } else {
             println("No intersection found for player placement") // Debug output
         }

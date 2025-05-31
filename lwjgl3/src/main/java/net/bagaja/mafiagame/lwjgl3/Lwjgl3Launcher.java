@@ -34,8 +34,10 @@ public class Lwjgl3Launcher {
     }
 }
 
-// player moves slower when y position changes
-// player doesnt check collisions when screen size changes
-// players collision have space between player and blocks
-// add remove blocks
 // arrow keys for moving around in world
+
+// right clicking removes blocks
+// camera follows player
+// player can jump
+// in editor mode, camera is free to use
+// add block assets
