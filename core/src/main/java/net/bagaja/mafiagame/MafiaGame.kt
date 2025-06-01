@@ -7,8 +7,8 @@ import com.badlogic.gdx.graphics.*
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
+import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
-import com.badlogic.gdx.graphics.g3d.utils.CameraInputController
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.Ray
@@ -28,8 +28,8 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var skin: Skin
     private lateinit var cameraManager: CameraManager
 
-    // 3D Models
-    private lateinit var blockModel: Model
+    // Block system
+    private lateinit var blockSystem: BlockSystem
 
     // 2D Player (but positioned in 3D space)
     private lateinit var playerTexture: Texture
@@ -38,13 +38,13 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var playerMaterial: Material
 
     // Game objects
-    private val blocks = Array<ModelInstance>()
+    private val gameBlocks = Array<GameBlock>()
     private val playerPosition = Vector3(0f, 2f, 0f)
-    private val playerSpeed = 8f // Units per second
+    private val playerSpeed = 8f
 
     // Player collision box
     private val playerBounds = BoundingBox()
-    private val playerSize = Vector3(3f, 4f, 3f) // Width, Height, Depth - slightly smaller than block size for better feel
+    private val playerSize = Vector3(3f, 4f, 3f)
 
     // Player rotation variables for Paper Mario effect
     private var playerTargetRotationY = 0f // Target rotation in degrees
@@ -55,8 +55,9 @@ class MafiaGame : ApplicationAdapter() {
     // UI state
     private var selectedTool = Tool.BLOCK
     private var isUIVisible = true
+    private var isBlockSelectionMode = false
 
-    // Block size (4x4 like you requested)
+    // Block size
     private val blockSize = 4f
 
     // Input handling
@@ -64,20 +65,118 @@ class MafiaGame : ApplicationAdapter() {
     private var lastMouseX = 0f
     private var lastMouseY = 0f
 
+    // UI Elements for block selection
+    private lateinit var blockSelectionTable: Table
+    private lateinit var currentBlockLabel: Label
+    private lateinit var blockPreviewImage: Image
+
     enum class Tool {
         BLOCK, PLAYER
     }
 
+    // Block type definitions
+    enum class BlockType(val displayName: String, val texturePath: String) {
+        GRASS("Grass", "textures/objects/grass.png"),
+        COBBLESTONE("Cobblestone", "textures/objects/cobblestone_tile.png"),
+        ROOM_FLOOR("Room Floor", "textures/objects/room_floor_tile.png")
+    }
+
+    // Game block class to store block data
+    data class GameBlock(
+        val modelInstance: ModelInstance,
+        val blockType: BlockType,
+        val position: Vector3
+    )
+
+    // Block system class to manage different block types
+    class BlockSystem {
+        private val blockModels = mutableMapOf<BlockType, Model>()
+        private val blockTextures = mutableMapOf<BlockType, Texture>()
+        var currentSelectedBlock = BlockType.GRASS
+            private set
+
+        fun initialize(blockSize: Float) {
+            val modelBuilder = ModelBuilder()
+
+            // Load textures and create models for each block type
+            for (blockType in BlockType.values()) {
+                try {
+                    // Load texture
+                    val texture = Texture(Gdx.files.internal(blockType.texturePath))
+                    blockTextures[blockType] = texture
+
+                    // Create material with texture
+                    val material = Material(TextureAttribute.createDiffuse(texture))
+
+                    // Create cube model
+                    val model = modelBuilder.createBox(
+                        blockSize, blockSize, blockSize,
+                        material,
+                        (VertexAttributes.Usage.Position or
+                            VertexAttributes.Usage.Normal or
+                            VertexAttributes.Usage.TextureCoordinates).toLong()
+                    )
+                    blockModels[blockType] = model
+
+                    println("Loaded block type: ${blockType.displayName}")
+                } catch (e: Exception) {
+                    println("Failed to load texture for ${blockType.displayName}: ${e.message}")
+                    // Create fallback colored block
+                    val fallbackColor = when (blockType) {
+                        BlockType.GRASS -> Color.GREEN
+                        BlockType.COBBLESTONE -> Color.GRAY
+                        BlockType.ROOM_FLOOR -> Color.BROWN
+                    }
+                    val material = Material(ColorAttribute.createDiffuse(fallbackColor))
+                    val model = modelBuilder.createBox(
+                        blockSize, blockSize, blockSize,
+                        material,
+                        (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
+                    )
+                    blockModels[blockType] = model
+                }
+            }
+        }
+
+        fun nextBlock() {
+            val values = BlockType.values()
+            val currentIndex = values.indexOf(currentSelectedBlock)
+            currentSelectedBlock = values[(currentIndex + 1) % values.size]
+            println("Selected block: ${currentSelectedBlock.displayName}")
+        }
+
+        fun previousBlock() {
+            val values = BlockType.values()
+            val currentIndex = values.indexOf(currentSelectedBlock)
+            currentSelectedBlock = values[(currentIndex - 1 + values.size) % values.size]
+            println("Selected block: ${currentSelectedBlock.displayName}")
+        }
+
+        fun createBlockInstance(blockType: BlockType): ModelInstance? {
+            val model = blockModels[blockType]
+            return model?.let { ModelInstance(it) }
+        }
+
+        fun getCurrentBlockTexture(): Texture? {
+            return blockTextures[currentSelectedBlock]
+        }
+
+        fun dispose() {
+            blockModels.values.forEach { it.dispose() }
+            blockTextures.values.forEach { it.dispose() }
+        }
+    }
+
     override fun create() {
         setupGraphics()
+        setupBlockSystem()
         setupModels()
         setupUI()
         setupInputHandling()
 
-        // Add some initial blocks for reference
-        addBlock(0f, 0f, 0f)
-        addBlock(blockSize, 0f, 0f)
-        addBlock(0f, 0f, blockSize)
+        addBlock(0f, 0f, 0f, BlockType.GRASS)
+        addBlock(blockSize, 0f, 0f, BlockType.COBBLESTONE)
+        addBlock(0f, 0f, blockSize, BlockType.ROOM_FLOOR)
 
         // Initialize player bounding box
         updatePlayerBounds()
@@ -97,35 +196,32 @@ class MafiaGame : ApplicationAdapter() {
         environment.add(DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f))
     }
 
+    private fun setupBlockSystem() {
+        blockSystem = BlockSystem()
+        blockSystem.initialize(blockSize)
+    }
+
     private fun setupModels() {
         val modelBuilder = ModelBuilder()
-
-        // Create block model (4x4x4 cube)
-        blockModel = modelBuilder.createBox(
-            blockSize, blockSize, blockSize,
-            Material(ColorAttribute.createDiffuse(Color.BROWN)),
-            (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
-        )
 
         // Load player texture
         playerTexture = Texture(Gdx.files.internal("textures/player/pig_character.png"))
 
         // Create player material with the texture
         playerMaterial = Material(
-            com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute.createDiffuse(playerTexture),
+            TextureAttribute.createDiffuse(playerTexture),
             com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
             com.badlogic.gdx.graphics.g3d.attributes.IntAttribute.createCullFace(GL20.GL_NONE)
         )
 
         // Create a 3D plane/quad for the player (billboard)
-        // Make it 4x4 to match your block size, but you can adjust as needed
         val playerSizeVisual = 4f
         playerModel = modelBuilder.createRect(
-            -playerSizeVisual/2, -playerSizeVisual/2, 0f,  // bottom left
-            playerSizeVisual/2, -playerSizeVisual/2, 0f,   // bottom right
-            playerSizeVisual/2, playerSizeVisual/2, 0f,    // top right
-            -playerSizeVisual/2, playerSizeVisual/2, 0f,   // top left
-            0f, 0f, 1f,                        // normal (facing camera)
+            -playerSizeVisual/2, -playerSizeVisual/2, 0f,
+            playerSizeVisual/2, -playerSizeVisual/2, 0f,
+            playerSizeVisual/2, playerSizeVisual/2, 0f,
+            -playerSizeVisual/2, playerSizeVisual/2, 0f,
+            0f, 0f, 1f,
             playerMaterial,
             (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
         )
@@ -194,9 +290,10 @@ class MafiaGame : ApplicationAdapter() {
         val instructions = """
         • Left click to place
         • Hold Right click + drag to rotate camera
-        • Mouse wheel to zoom in/out
+        • Mouse wheel to zoom in/out (or block selection)
         • WASD to move player
         • H to toggle this UI
+        • B to toggle Block Selection Mode
         • C to toggle Free Camera
         • 1 for Orbiting Camera (building)
         • 2 for Player Camera (Paper Mario)
@@ -205,6 +302,7 @@ class MafiaGame : ApplicationAdapter() {
         • Blocks snap to 4x4 grid
         • Paper Mario style rotation!
         • Player has collision detection!
+        • Block Selection: Hold B + scroll to choose blocks!
         """.trimIndent()
 
         val instructionText = Label(instructions, skin)
@@ -219,6 +317,43 @@ class MafiaGame : ApplicationAdapter() {
         mainTable.add(statsText).width(200f).row()
 
         stage.addActor(mainTable)
+
+        // Create block selection UI (top center)
+        setupBlockSelectionUI()
+    }
+
+    private fun setupBlockSelectionUI() {
+        // Create block selection table at the top center
+        blockSelectionTable = Table()
+        blockSelectionTable.setFillParent(true)
+        blockSelectionTable.top()
+        blockSelectionTable.pad(20f)
+
+        // Create background for the block selection
+        val backgroundTable = Table()
+        backgroundTable.background = skin.getDrawable("default-round")
+
+        // Current block label
+        currentBlockLabel = Label("Current Block: ${blockSystem.currentSelectedBlock.displayName}", skin)
+        currentBlockLabel.setFontScale(1.2f)
+
+        // Add some spacing and styling
+        backgroundTable.pad(15f)
+        backgroundTable.add(currentBlockLabel).padBottom(10f).row()
+
+        // Instructions for block selection
+        val blockInstructions = Label("Hold [B] + Mouse Wheel to change blocks", skin)
+        blockInstructions.setFontScale(0.8f)
+        backgroundTable.add(blockInstructions)
+
+        blockSelectionTable.add(backgroundTable)
+        blockSelectionTable.setVisible(false) // Initially hidden
+
+        stage.addActor(blockSelectionTable)
+    }
+
+    private fun updateBlockSelectionUI() {
+        currentBlockLabel.setText("Current Block: ${blockSystem.currentSelectedBlock.displayName}")
     }
 
     private fun createDefaultSkin(): Skin {
@@ -240,6 +375,9 @@ class MafiaGame : ApplicationAdapter() {
         // Create drawable for buttons
         val buttonTexture = com.badlogic.gdx.graphics.g2d.TextureRegion(texture)
         val buttonDrawable = com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(buttonTexture)
+
+        // Add background drawable
+        skin.add("default-round", buttonDrawable.tint(Color(0.2f, 0.2f, 0.2f, 0.8f)))
 
         // Button styles
         val buttonStyle = Button.ButtonStyle()
@@ -281,7 +419,7 @@ class MafiaGame : ApplicationAdapter() {
     private fun setupInputHandling() {
         val inputMultiplexer = com.badlogic.gdx.InputMultiplexer()
 
-        // Add custom input processor first (before stage) so clicks work properly
+        // Add custom input processor first
         inputMultiplexer.addProcessor(object : com.badlogic.gdx.InputAdapter() {
             override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
                 // Check if click is over UI
@@ -290,7 +428,7 @@ class MafiaGame : ApplicationAdapter() {
 
                 // If we clicked on UI, let the stage handle it
                 if (actorHit != null && isUIVisible) {
-                    return false // Let stage handle it
+                    return false
                 }
 
                 // Handle mouse input
@@ -338,8 +476,21 @@ class MafiaGame : ApplicationAdapter() {
             }
 
             override fun scrolled(amountX: Float, amountY: Float): Boolean {
-                cameraManager.handleMouseScroll(amountY)
-                return true
+                // Check if block selection mode is active
+                if (isBlockSelectionMode) {
+                    // Use mouse scroll to change blocks
+                    if (amountY > 0) {
+                        blockSystem.nextBlock()
+                    } else if (amountY < 0) {
+                        blockSystem.previousBlock()
+                    }
+                    updateBlockSelectionUI()
+                    return true
+                } else {
+                    // Normal camera zoom
+                    cameraManager.handleMouseScroll(amountY)
+                    return true
+                }
             }
 
             override fun keyDown(keycode: Int): Boolean {
@@ -348,11 +499,16 @@ class MafiaGame : ApplicationAdapter() {
                         isUIVisible = !isUIVisible
                         return true
                     }
+                    Input.Keys.B -> {
+                        isBlockSelectionMode = true
+                        blockSelectionTable.setVisible(true)
+                        return true
+                    }
                     Input.Keys.C -> {
                         cameraManager.toggleFreeCameraMode()
                         return true
                     }
-                    // NEW: Add camera mode switching
+                    // Camera mode switching
                     Input.Keys.NUM_1 -> {
                         cameraManager.switchToOrbitingCamera()
                         return true
@@ -364,10 +520,20 @@ class MafiaGame : ApplicationAdapter() {
                 }
                 return false
             }
+
+            override fun keyUp(keycode: Int): Boolean {
+                when (keycode) {
+                    Input.Keys.B -> {
+                        isBlockSelectionMode = false
+                        blockSelectionTable.setVisible(false)
+                        return true
+                    }
+                }
+                return false
+            }
         })
 
         inputMultiplexer.addProcessor(stage)
-        // Note: We're not adding cameraController to avoid conflicts with our custom camera handling
         Gdx.input.inputProcessor = inputMultiplexer
     }
 
@@ -433,14 +599,14 @@ class MafiaGame : ApplicationAdapter() {
                 playerPosition.y = 2f
                 updatePlayerBounds()
 
-                // NEW: Update camera manager with player position
+                // Update camera manager with player position
                 cameraManager.setPlayerPosition(playerPosition)
 
-                // NEW: Auto-switch to player camera when moving (optional)
+                // Auto-switch to player camera when moving (optional)
                 cameraManager.switchToPlayerCamera()
             }
 
-            // NEW: Handle camera input for player camera mode
+            // Handle camera input for player camera mode
             cameraManager.handleInput(deltaTime)
         }
     }
@@ -453,21 +619,16 @@ class MafiaGame : ApplicationAdapter() {
             Vector3(x + playerSize.x/2, y + playerSize.y/2, z + playerSize.z/2)
         )
 
-        // Check collision with all blocks
-        for (block in blocks) {
-            val blockPosition = Vector3()
-            block.transform.getTranslation(blockPosition)
-
-            // Create bounding box for the block
+        for (gameBlock in gameBlocks) {
             val blockBounds = BoundingBox()
             blockBounds.set(
-                Vector3(blockPosition.x - blockSize/2, blockPosition.y - blockSize/2, blockPosition.z - blockSize/2),
-                Vector3(blockPosition.x + blockSize/2, blockPosition.y + blockSize/2, blockPosition.z + blockSize/2)
+                Vector3(gameBlock.position.x - blockSize/2, gameBlock.position.y - blockSize/2, gameBlock.position.z - blockSize/2),
+                Vector3(gameBlock.position.x + blockSize/2, gameBlock.position.y + blockSize/2, gameBlock.position.z + blockSize/2)
             )
 
             // Check if the temporary player bounds intersect with the block bounds
             if (tempBounds.intersects(blockBounds)) {
-                return false // Collision detected
+                return false
             }
         }
 
@@ -485,7 +646,7 @@ class MafiaGame : ApplicationAdapter() {
         // Calculate the shortest rotation path
         var rotationDifference = playerTargetRotationY - playerCurrentRotationY
 
-        // Handle wrap-around (e.g., from 350° to 10°)
+        // Handle wrap-around
         if (rotationDifference > 180f) {
             rotationDifference -= 360f
         } else if (rotationDifference < -180f) {
@@ -501,7 +662,7 @@ class MafiaGame : ApplicationAdapter() {
                 playerCurrentRotationY += kotlin.math.max(-rotationStep, rotationDifference)
             }
 
-            // Keep rotation in 0-360 range
+            // Rotation in 0-360 range
             if (playerCurrentRotationY >= 360f) {
                 playerCurrentRotationY -= 360f
             } else if (playerCurrentRotationY < 0f) {
@@ -533,37 +694,29 @@ class MafiaGame : ApplicationAdapter() {
             val gridZ = floor(intersection.z / blockSize) * blockSize
 
             // Check if block already exists at this position
-            val existingBlock = blocks.find { instance ->
-                val pos = Vector3()
-                instance.transform.getTranslation(pos)
-                kotlin.math.abs(pos.x - (gridX + blockSize/2)) < 0.1f &&
-                    kotlin.math.abs(pos.z - (gridZ + blockSize/2)) < 0.1f
+            val existingBlock = gameBlocks.find { gameBlock ->
+                kotlin.math.abs(gameBlock.position.x - (gridX + blockSize/2)) < 0.1f &&
+                    kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize/2)) < 0.1f
             }
 
             if (existingBlock == null) {
-                addBlock(gridX, 0f, gridZ)
-                println("Block placed at: $gridX, 0, $gridZ") // Debug output
+                addBlock(gridX, 0f, gridZ, blockSystem.currentSelectedBlock)
+                println("${blockSystem.currentSelectedBlock.displayName} block placed at: $gridX, 0, $gridZ")
             } else {
-                println("Block already exists at this position") // Debug output
+                println("Block already exists at this position")
             }
-        } else {
-            println("No intersection found with ground plane") // Debug output
         }
     }
 
-    private fun getBlockAtRay(ray: Ray): ModelInstance? {
-        var closestBlock: ModelInstance? = null
+    private fun getBlockAtRay(ray: Ray): GameBlock? {
+        var closestBlock: GameBlock? = null
         var closestDistance = Float.MAX_VALUE
 
-        for (block in blocks) {
-            val blockPosition = Vector3()
-            block.transform.getTranslation(blockPosition)
-
-            // Create bounding box for the block
+        for (gameBlock in gameBlocks) {
             val blockBounds = BoundingBox()
             blockBounds.set(
-                Vector3(blockPosition.x - blockSize/2, blockPosition.y - blockSize/2, blockPosition.z - blockSize/2),
-                Vector3(blockPosition.x + blockSize/2, blockPosition.y + blockSize/2, blockPosition.z + blockSize/2)
+                Vector3(gameBlock.position.x - blockSize/2, gameBlock.position.y - blockSize/2, gameBlock.position.z - blockSize/2),
+                Vector3(gameBlock.position.x + blockSize/2, gameBlock.position.y + blockSize/2, gameBlock.position.z + blockSize/2)
             )
 
             // Check if ray intersects with this block's bounding box
@@ -572,7 +725,7 @@ class MafiaGame : ApplicationAdapter() {
                 val distance = ray.origin.dst(intersection)
                 if (distance < closestDistance) {
                     closestDistance = distance
-                    closestBlock = block
+                    closestBlock = gameBlock
                 }
             }
         }
@@ -580,14 +733,9 @@ class MafiaGame : ApplicationAdapter() {
         return closestBlock
     }
 
-    private fun removeBlock(blockToRemove: ModelInstance) {
-        val blockPosition = Vector3()
-        blockToRemove.transform.getTranslation(blockPosition)
-
-        // Remove from the blocks array
-        blocks.removeValue(blockToRemove, true)
-
-        println("Block removed at: ${blockPosition.x - blockSize/2}, ${blockPosition.y - blockSize/2}, ${blockPosition.z - blockSize/2}")
+    private fun removeBlock(blockToRemove: GameBlock) {
+        gameBlocks.removeValue(blockToRemove, true)
+        println("${blockToRemove.blockType.displayName} block removed at: ${blockToRemove.position}")
     }
 
     private fun placePlayer(ray: Ray) {
@@ -603,19 +751,22 @@ class MafiaGame : ApplicationAdapter() {
             if (canMoveTo(gridX, 2f, gridZ)) {
                 playerPosition.set(gridX, 2f, gridZ)
                 updatePlayerBounds()
-                println("Player placed at: $gridX, 2, $gridZ") // Debug output
+                println("Player placed at: $gridX, 2, $gridZ")
             } else {
-                println("Cannot place player here - collision with block") // Debug output
+                println("Cannot place player here - collision with block")
             }
-        } else {
-            println("No intersection found for player placement") // Debug output
         }
     }
 
-    private fun addBlock(x: Float, y: Float, z: Float) {
-        val blockInstance = ModelInstance(blockModel)
-        blockInstance.transform.setTranslation(x + blockSize/2, y + blockSize/2, z + blockSize/2)
-        blocks.add(blockInstance)
+    private fun addBlock(x: Float, y: Float, z: Float, blockType: BlockType) {
+        val blockInstance = blockSystem.createBlockInstance(blockType)
+        if (blockInstance != null) {
+            val position = Vector3(x + blockSize/2, y + blockSize/2, z + blockSize/2)
+            blockInstance.transform.setTranslation(position)
+
+            val gameBlock = GameBlock(blockInstance, blockType, position)
+            gameBlocks.add(gameBlock)
+        }
     }
 
     private fun updatePlayerTransform() {
@@ -636,16 +787,14 @@ class MafiaGame : ApplicationAdapter() {
 
         // Handle player input
         handlePlayerInput()
-
-        // Update player billboard transformation
         updatePlayerTransform()
 
         // Render 3D scene
         modelBatch.begin(cameraManager.camera)
 
         // Render all blocks
-        for (block in blocks) {
-            modelBatch.render(block, environment)
+        for (gameBlock in gameBlocks) {
+            modelBatch.render(gameBlock.modelInstance, environment)
         }
 
         // Render 3D player
@@ -657,6 +806,12 @@ class MafiaGame : ApplicationAdapter() {
         if (isUIVisible) {
             stage.act()
             stage.draw()
+        } else {
+            // Always show block selection UI when it's active, even if main UI is hidden
+            if (isBlockSelectionMode) {
+                blockSelectionTable.act(Gdx.graphics.deltaTime)
+                blockSelectionTable.draw(stage.batch, 1f)
+            }
         }
     }
 
@@ -668,7 +823,7 @@ class MafiaGame : ApplicationAdapter() {
     override fun dispose() {
         modelBatch.dispose()
         spriteBatch.dispose()
-        blockModel.dispose()
+        blockSystem.dispose()
         playerModel.dispose()
         playerTexture.dispose()
         stage.dispose()
