@@ -34,6 +34,5 @@ public class Lwjgl3Launcher {
     }
 }
 
-// camera follows player
 // player can jump
 // add block assets

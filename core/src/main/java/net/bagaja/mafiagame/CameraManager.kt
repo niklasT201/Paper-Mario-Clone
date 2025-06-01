@@ -44,7 +44,7 @@ class CameraManager {
     private var playerPosition = Vector3(0f, 2f, 0f) // This will be updated from the game
 
     // Paper Mario style settings
-    private val paperMarioSideAngle = 75f // Slightly angled side view (not exactly 90°)
+    private val paperMarioSideAngle = 85f // Slightly angled side view
     private val paperMarioDistance = 15f
     private val paperMarioHeight = 8f
 
@@ -58,7 +58,7 @@ class CameraManager {
         playerCameraHeight = paperMarioHeight
 
         // Start in orbiting mode
-        currentCameraMode = CameraMode.ORBITING
+        currentCameraMode = CameraMode.PLAYER
         updateCameraPosition()
 
         camera.near = 1f
