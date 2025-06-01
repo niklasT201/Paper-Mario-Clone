@@ -24,18 +24,9 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var modelBatch: ModelBatch
     private lateinit var spriteBatch: SpriteBatch
     private lateinit var environment: Environment
-    private lateinit var camera: PerspectiveCamera
-    private lateinit var cameraController: CameraInputController
     private lateinit var stage: Stage
     private lateinit var skin: Skin
-
-    private var isFreeCameraMode = false
-    private var freeCameraPosition = Vector3(0f, 8f, 20f)
-    private var freeCameraTarget = Vector3(0f, 2f, 0f)
-    private val freeCameraSpeed = 15f
-    private var freeCameraYaw = 0f // Horizontal rotation (left/right)
-    private var freeCameraPitch = 0f // Vertical rotation (up/down)
-    private val cameraRotationSpeed = 90f // Degrees per second for rotation
+    private lateinit var cameraManager: CameraManager
 
     // 3D Models
     private lateinit var blockModel: Model
@@ -72,8 +63,6 @@ class MafiaGame : ApplicationAdapter() {
     private var isRightMousePressed = false
     private var lastMouseX = 0f
     private var lastMouseY = 0f
-    private var cameraDistance = 20f // Distance from the action
-    private var cameraAngleY = 0f // Horizontal rotation around the scene
 
     enum class Tool {
         BLOCK, PLAYER
@@ -98,40 +87,14 @@ class MafiaGame : ApplicationAdapter() {
         modelBatch = ModelBatch()
         spriteBatch = SpriteBatch()
 
-        // Setup camera for Paper Mario style (side view)
-        camera = PerspectiveCamera(67f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
-
-        // Position camera for side view - looking from the side at an angle
-        cameraDistance = 20f
-        cameraAngleY = 90f // Start looking from the side (90 degrees)
-        updateCameraPosition()
-
-        camera.near = 1f
-        camera.far = 300f
-        camera.update()
-
-        // Create camera controller but we'll handle input manually for better control
-        cameraController = CameraInputController(camera)
+        // Initialize camera manager
+        cameraManager = CameraManager()
+        cameraManager.initialize()
 
         // Setup environment and lighting
         environment = Environment()
         environment.set(ColorAttribute(ColorAttribute.AmbientLight, 0.4f, 0.4f, 0.4f, 1f))
         environment.add(DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f))
-    }
-
-    private fun updateCameraPosition() {
-        if (!isFreeCameraMode) {
-            // Original camera positioning code (orbiting around player/scene)
-            val radians = Math.toRadians(cameraAngleY.toDouble())
-            val x = (Math.cos(radians) * cameraDistance).toFloat()
-            val z = (Math.sin(radians) * cameraDistance).toFloat()
-
-            camera.position.set(x, 8f, z)
-            camera.lookAt(0f, 2f, 0f)
-            camera.up.set(0f, 1f, 0f)
-            camera.update()
-        }
-        // If in free camera mode, the camera position is handled by handleFreeCameraInput()
     }
 
     private fun setupModels() {
@@ -331,7 +294,7 @@ class MafiaGame : ApplicationAdapter() {
                     return true
                 } else if (button == Input.Buttons.RIGHT) {
                     // Check if we're starting a drag operation or clicking on a block
-                    val ray = camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+                    val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
                     val blockToRemove = getBlockAtRay(ray)
 
                     if (blockToRemove != null) {
@@ -357,61 +320,32 @@ class MafiaGame : ApplicationAdapter() {
                 return false
             }
 
+            // In the touchDragged method:
             override fun touchDragged(screenX: Int, screenY: Int, pointer: Int): Boolean {
                 if (isRightMousePressed) {
-                    // Calculate mouse movement
                     val deltaX = screenX - lastMouseX
+                    cameraManager.handleMouseDrag(deltaX)
 
-                    // Update camera angle based on horizontal mouse movement
-                    cameraAngleY += deltaX * 0.2f // Sensitivity factor
-
-                    // Update camera position
-                    updateCameraPosition()
-
-                    // Update last mouse position
                     lastMouseX = screenX.toFloat()
                     lastMouseY = screenY.toFloat()
-
                     return true
                 }
                 return false
             }
 
+            // In the scrolled method:
             override fun scrolled(amountX: Float, amountY: Float): Boolean {
-                // Zoom in/out with mouse wheel
-                cameraDistance += amountY * 2f
-                cameraDistance = cameraDistance.coerceIn(5f, 50f) // Limit zoom range
-                updateCameraPosition()
+                cameraManager.handleMouseScroll(amountY)
                 return true
             }
 
+            // In the keyDown method, replace the 'C' key handling:
             override fun keyDown(keycode: Int): Boolean {
                 if (keycode == Input.Keys.H) {
                     isUIVisible = !isUIVisible
                     return true
                 } else if (keycode == Input.Keys.C) {
-                    // Toggle between free camera and normal camera
-                    isFreeCameraMode = !isFreeCameraMode
-
-                    if (isFreeCameraMode) {
-                        // Entering free camera mode - store current camera position
-                        freeCameraPosition.set(camera.position)
-
-                        // Calculate initial yaw based on current camera direction
-                        val currentDirection = Vector3(camera.direction).nor()
-                        freeCameraYaw = Math.toDegrees(Math.atan2(currentDirection.x.toDouble(), currentDirection.z.toDouble())).toFloat()
-                        freeCameraPitch = Math.toDegrees(Math.asin(currentDirection.y.toDouble())).toFloat()
-
-                        // Set initial target
-                        freeCameraTarget.set(freeCameraPosition).add(currentDirection)
-
-                        println("Free Camera Mode: ON")
-                        println("Controls: Arrow Keys (Up/Down=Move, Left/Right=Rotate), Space=Up, Shift=Down")
-                    } else {
-                        // Returning to normal camera mode
-                        updateCameraPosition()
-                        println("Free Camera Mode: OFF - Back to normal camera")
-                    }
+                    cameraManager.toggleFreeCameraMode()
                     return true
                 }
                 return false
@@ -426,11 +360,11 @@ class MafiaGame : ApplicationAdapter() {
     private fun handlePlayerInput() {
         val deltaTime = Gdx.graphics.deltaTime
 
-        if (isFreeCameraMode) {
-            // Handle free camera movement with arrow keys
-            handleFreeCameraInput(deltaTime)
+        if (cameraManager.isFreeCameraMode) {
+            // Handle free camera movement
+            cameraManager.handleInput(deltaTime)
         } else {
-            // Original player movement code
+            // Original player movement code (keep all the existing WASD logic here)
             var moved = false
             var currentMovementDirection = 0f
             val originalPosition = Vector3(playerPosition)
@@ -486,90 +420,6 @@ class MafiaGame : ApplicationAdapter() {
                 updatePlayerBounds()
             }
         }
-    }
-
-    private fun handleFreeCameraInput(deltaTime: Float) {
-        val moveDistance = freeCameraSpeed * deltaTime
-        val rotationAmount = cameraRotationSpeed * deltaTime
-
-        // Handle rotation with left/right arrow keys
-        if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
-            freeCameraYaw += rotationAmount
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
-            freeCameraYaw -= rotationAmount
-        }
-
-        // Handle pitch rotation
-        if (Gdx.input.isKeyPressed(Input.Keys.COMMA)) { // Look down
-            freeCameraPitch -= rotationAmount
-            freeCameraPitch = freeCameraPitch.coerceIn(-89f, 89f) // Prevent camera flip
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.PERIOD)) { // Look up
-            freeCameraPitch += rotationAmount
-            freeCameraPitch = freeCameraPitch.coerceIn(-89f, 89f) // Prevent camera flip
-        }
-
-
-        // Calculate forward, right, and up vectors based on current rotation
-        val yawRadians = Math.toRadians(freeCameraYaw.toDouble())
-        val pitchRadians = Math.toRadians(freeCameraPitch.toDouble())
-
-        // Forward vector (where the camera is looking)
-        val forward = Vector3(
-            (Math.cos(pitchRadians) * Math.sin(yawRadians)).toFloat(),
-            Math.sin(pitchRadians).toFloat(),
-            (Math.cos(pitchRadians) * Math.cos(yawRadians)).toFloat()
-        )
-
-        // Right vector (perpendicular to forward, for strafing)
-        val right = Vector3(forward).crs(Vector3.Y).nor()
-
-        // Up vector
-        val up = Vector3.Y
-
-        // Handle movement with arrow keys and space/shift
-        if (Gdx.input.isKeyPressed(Input.Keys.UP)) {
-            // Move forward in the direction the camera is looking
-            freeCameraPosition.add(Vector3(forward).scl(moveDistance))
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
-            // Move backward (opposite of forward direction)
-            freeCameraPosition.sub(Vector3(forward).scl(moveDistance))
-        }
-
-        // Vertical movement
-        if (Gdx.input.isKeyPressed(Input.Keys.SPACE)) {
-            // Move up
-            freeCameraPosition.add(Vector3(up).scl(moveDistance))
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) {
-            // Move down
-            freeCameraPosition.sub(Vector3(up).scl(moveDistance))
-        }
-
-        // Optional: Add WASD controls for those who prefer them
-        if (Gdx.input.isKeyPressed(Input.Keys.W)) {
-            freeCameraPosition.add(Vector3(forward).scl(moveDistance))
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.S)) {
-            freeCameraPosition.sub(Vector3(forward).scl(moveDistance))
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.A)) {
-            freeCameraYaw += rotationAmount
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.D)) {
-            freeCameraYaw -= rotationAmount
-        }
-
-        // Update camera target based on position and rotation
-        freeCameraTarget.set(freeCameraPosition).add(forward)
-
-        // Apply the new position and rotation to the camera
-        camera.position.set(freeCameraPosition)
-        camera.lookAt(freeCameraTarget)
-        camera.up.set(0f, 1f, 0f)
-        camera.update()
     }
 
     private fun canMoveTo(x: Float, y: Float, z: Float): Boolean {
@@ -641,7 +491,7 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun handleLeftClick(screenX: Int, screenY: Int) {
-        val ray = camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+        val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
 
         when (selectedTool) {
             Tool.BLOCK -> placeBlock(ray)
@@ -768,7 +618,7 @@ class MafiaGame : ApplicationAdapter() {
         updatePlayerTransform()
 
         // Render 3D scene
-        modelBatch.begin(camera)
+        modelBatch.begin(cameraManager.camera)
 
         // Render all blocks
         for (block in blocks) {
@@ -789,9 +639,7 @@ class MafiaGame : ApplicationAdapter() {
 
     override fun resize(width: Int, height: Int) {
         stage.viewport.update(width, height, true)
-        camera.viewportWidth = width.toFloat()
-        camera.viewportHeight = height.toFloat()
-        camera.update()
+        cameraManager.resize(width, height)
     }
 
     override fun dispose() {
