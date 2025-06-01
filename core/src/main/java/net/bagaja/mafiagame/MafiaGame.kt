@@ -197,6 +197,11 @@ class MafiaGame : ApplicationAdapter() {
         • Mouse wheel to zoom in/out
         • WASD to move player
         • H to toggle this UI
+        • C to toggle Free Camera
+        • 1 for Orbiting Camera (building)
+        • 2 for Player Camera (Paper Mario)
+        • Q/E to adjust camera angle (player mode)
+        • R/T to adjust camera height (player mode)
         • Blocks snap to 4x4 grid
         • Paper Mario style rotation!
         • Player has collision detection!
@@ -320,7 +325,6 @@ class MafiaGame : ApplicationAdapter() {
                 return false
             }
 
-            // In the touchDragged method:
             override fun touchDragged(screenX: Int, screenY: Int, pointer: Int): Boolean {
                 if (isRightMousePressed) {
                     val deltaX = screenX - lastMouseX
@@ -333,20 +337,30 @@ class MafiaGame : ApplicationAdapter() {
                 return false
             }
 
-            // In the scrolled method:
             override fun scrolled(amountX: Float, amountY: Float): Boolean {
                 cameraManager.handleMouseScroll(amountY)
                 return true
             }
 
-            // In the keyDown method, replace the 'C' key handling:
             override fun keyDown(keycode: Int): Boolean {
-                if (keycode == Input.Keys.H) {
-                    isUIVisible = !isUIVisible
-                    return true
-                } else if (keycode == Input.Keys.C) {
-                    cameraManager.toggleFreeCameraMode()
-                    return true
+                when (keycode) {
+                    Input.Keys.H -> {
+                        isUIVisible = !isUIVisible
+                        return true
+                    }
+                    Input.Keys.C -> {
+                        cameraManager.toggleFreeCameraMode()
+                        return true
+                    }
+                    // NEW: Add camera mode switching
+                    Input.Keys.NUM_1 -> {
+                        cameraManager.switchToOrbitingCamera()
+                        return true
+                    }
+                    Input.Keys.NUM_2 -> {
+                        cameraManager.switchToPlayerCamera()
+                        return true
+                    }
                 }
                 return false
             }
@@ -364,7 +378,7 @@ class MafiaGame : ApplicationAdapter() {
             // Handle free camera movement
             cameraManager.handleInput(deltaTime)
         } else {
-            // Original player movement code (keep all the existing WASD logic here)
+            // Player movement code
             var moved = false
             var currentMovementDirection = 0f
             val originalPosition = Vector3(playerPosition)
@@ -418,7 +432,16 @@ class MafiaGame : ApplicationAdapter() {
             if (moved) {
                 playerPosition.y = 2f
                 updatePlayerBounds()
+
+                // NEW: Update camera manager with player position
+                cameraManager.setPlayerPosition(playerPosition)
+
+                // NEW: Auto-switch to player camera when moving (optional)
+                cameraManager.switchToPlayerCamera()
             }
+
+            // NEW: Handle camera input for player camera mode
+            cameraManager.handleInput(deltaTime)
         }
     }
 
