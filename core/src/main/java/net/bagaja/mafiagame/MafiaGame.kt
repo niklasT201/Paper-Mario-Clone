@@ -558,7 +558,17 @@ class MafiaGame : ApplicationAdapter() {
 
             // Check if the temporary player bounds intersect with the block bounds
             if (tempBounds.intersects(blockBounds)) {
-                return false
+                // Additional check: if player is standing on top of the block, allow movement
+                val playerBottom = tempBounds.min.y
+                val blockTop = blockBounds.max.y
+                val tolerance = 0.5f // Small tolerance for floating point precision
+
+                // If player's bottom is at or above the block's top (standing on it), allow movement
+                if (playerBottom >= blockTop - tolerance) {
+                    continue // Skip this collision, player is standing on the block
+                }
+
+                return false // Real collision detected
             }
         }
 
