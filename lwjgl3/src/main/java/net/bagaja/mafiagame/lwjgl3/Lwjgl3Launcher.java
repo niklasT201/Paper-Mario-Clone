@@ -35,4 +35,3 @@ public class Lwjgl3Launcher {
 }
 
 // player can jump
-// add block assets
