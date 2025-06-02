@@ -49,6 +49,9 @@ class BlockSystem {
                     BlockType.GRASS -> Color.GREEN
                     BlockType.COBBLESTONE -> Color.GRAY
                     BlockType.ROOM_FLOOR -> Color.BROWN
+                    BlockType.STONE -> Color.GRAY
+                    BlockType.WINDOW_OPENED -> Color.WHITE
+                    BlockType.WINDOW_CLOSE -> Color.WHITE
                 }
                 val material = Material(ColorAttribute.createDiffuse(fallbackColor))
                 val model = modelBuilder.createBox(
