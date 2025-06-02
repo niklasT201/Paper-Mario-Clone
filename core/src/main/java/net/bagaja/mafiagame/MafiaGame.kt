@@ -31,6 +31,12 @@ class MafiaGame : ApplicationAdapter() {
     // Block system
     private lateinit var blockSystem: BlockSystem
 
+    private var highlightModel: Model? = null
+    private var highlightInstance: ModelInstance? = null
+    private var highlightMaterial: Material? = null
+    private var isHighlightVisible = false
+    private var highlightPosition = Vector3()
+
     // 2D Player (but positioned in 3D space)
     private lateinit var playerTexture: Texture
     private lateinit var playerModel: Model
@@ -78,6 +84,7 @@ class MafiaGame : ApplicationAdapter() {
         setupGraphics()
         setupBlockSystem()
         setupModels()
+        setupHighlight()
         setupUI()
         setupInputHandling()
 
@@ -136,6 +143,30 @@ class MafiaGame : ApplicationAdapter() {
         // Create player instance
         playerInstance = ModelInstance(playerModel)
         updatePlayerTransform()
+    }
+
+    private fun setupHighlight() {
+        val modelBuilder = ModelBuilder()
+
+        // Create a transparent material with blending
+        highlightMaterial = Material(
+            ColorAttribute.createDiffuse(Color.GREEN),
+            com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute(
+                com.badlogic.gdx.graphics.GL20.GL_SRC_ALPHA,
+                com.badlogic.gdx.graphics.GL20.GL_ONE_MINUS_SRC_ALPHA,
+                0.3f  // Alpha value (0.0 = fully transparent, 1.0 = fully opaque)
+            )
+        )
+
+        // Create a wireframe box that's slightly larger than regular blocks
+        val highlightSize = blockSize + 0.2f
+        highlightModel = modelBuilder.createBox(
+            highlightSize, highlightSize, highlightSize,
+            highlightMaterial!!,
+            (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
+        )
+
+        highlightInstance = ModelInstance(highlightModel!!)
     }
 
     private fun setupUI() {
@@ -277,6 +308,53 @@ class MafiaGame : ApplicationAdapter() {
 
     private fun updateBlockSelectionUI() {
         currentBlockLabel.setText("Current Block: ${blockSystem.currentSelectedBlock.displayName}")
+    }
+
+    private fun updateHighlight() {
+        val mouseX = Gdx.input.x.toFloat()
+        val mouseY = Gdx.input.y.toFloat()
+        val ray = cameraManager.camera.getPickRay(mouseX, mouseY)
+
+        // Check if we're hovering over an existing block (for removal)
+        val hitBlock = getBlockAtRay(ray)
+
+        if (hitBlock != null) {
+            // Show transparent red highlight for block removal
+            isHighlightVisible = true
+            highlightPosition.set(hitBlock.position)
+            val transparentRed = Color(1f, 0f, 0f, 0.3f) // Red with 30% opacity
+            highlightMaterial?.set(ColorAttribute.createDiffuse(transparentRed))
+            highlightInstance?.transform?.setTranslation(highlightPosition)
+        } else {
+            // Show transparent green highlight for block placement
+            val intersection = Vector3()
+            val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+                // Snap to grid
+                val gridX = floor(intersection.x / blockSize) * blockSize
+                val gridZ = floor(intersection.z / blockSize) * blockSize
+
+                // Check if there's already a block at this position
+                val existingBlock = gameBlocks.find { gameBlock ->
+                    kotlin.math.abs(gameBlock.position.x - (gridX + blockSize/2)) < 0.1f &&
+                        kotlin.math.abs(gameBlock.position.y - (blockSize/2)) < 0.1f &&
+                        kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize/2)) < 0.1f
+                }
+
+                if (existingBlock == null && selectedTool == Tool.BLOCK) {
+                    isHighlightVisible = true
+                    highlightPosition.set(gridX + blockSize/2, blockSize/2, gridZ + blockSize/2)
+                    val transparentGreen = Color(0f, 1f, 0f, 0.3f) // Green with 30% opacity
+                    highlightMaterial?.set(ColorAttribute.createDiffuse(transparentGreen))
+                    highlightInstance?.transform?.setTranslation(highlightPosition)
+                } else {
+                    isHighlightVisible = false
+                }
+            } else {
+                isHighlightVisible = false
+            }
+        }
     }
 
     private fun createDefaultSkin(): Skin {
@@ -797,6 +875,9 @@ class MafiaGame : ApplicationAdapter() {
         handlePlayerInput()
         updatePlayerTransform()
 
+        // Update highlight effect
+        updateHighlight()
+
         // Render 3D scene
         modelBatch.begin(cameraManager.camera)
 
@@ -809,6 +890,24 @@ class MafiaGame : ApplicationAdapter() {
         modelBatch.render(playerInstance, environment)
 
         modelBatch.end()
+
+        // Render transparent highlight separately with proper blending
+        if (isHighlightVisible && highlightInstance != null) {
+            // Enable blending for transparency
+            Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
+            Gdx.gl.glBlendFunc(com.badlogic.gdx.graphics.GL20.GL_SRC_ALPHA, com.badlogic.gdx.graphics.GL20.GL_ONE_MINUS_SRC_ALPHA)
+
+            // Disable depth writing but keep depth testing
+            Gdx.gl.glDepthMask(false)
+
+            modelBatch.begin(cameraManager.camera)
+            modelBatch.render(highlightInstance!!, environment)
+            modelBatch.end()
+
+            // Restore depth writing and disable blending
+            Gdx.gl.glDepthMask(true)
+            Gdx.gl.glDisable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
+        }
 
         // Render UI
         if (isUIVisible) {
@@ -834,6 +933,7 @@ class MafiaGame : ApplicationAdapter() {
         blockSystem.dispose()
         playerModel.dispose()
         playerTexture.dispose()
+        highlightModel?.dispose()
         stage.dispose()
         skin.dispose()
     }
