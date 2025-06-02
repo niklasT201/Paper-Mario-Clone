@@ -543,10 +543,11 @@ class MafiaGame : ApplicationAdapter() {
 
     private fun canMoveTo(x: Float, y: Float, z: Float): Boolean {
         // Create a temporary bounding box for the new position
+        val horizontalShrink = 0.3f
         val tempBounds = BoundingBox()
         tempBounds.set(
-            Vector3(x - playerSize.x/2, y - playerSize.y/2, z - playerSize.z/2),
-            Vector3(x + playerSize.x/2, y + playerSize.y/2, z + playerSize.z/2)
+            Vector3(x - (playerSize.x/2 - horizontalShrink), y - playerSize.y/2, z - (playerSize.z/2 - horizontalShrink)),
+            Vector3(x + (playerSize.x/2 - horizontalShrink), y + playerSize.y/2, z + (playerSize.z/2 - horizontalShrink))
         )
 
         for (gameBlock in gameBlocks) {
