@@ -614,24 +614,91 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeBlock(ray: Ray) {
-        // Find intersection with Y=0 plane or existing blocks
-        val intersection = Vector3()
-        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+        // First, try to find intersection with existing blocks
+        val hitBlock = getBlockAtRay(ray)
 
-        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+        if (hitBlock != null) {
+            // We hit an existing block, place new block adjacent to it
+            placeBlockAdjacentTo(ray, hitBlock)
+        } else {
+            // No block hit, place on ground (existing logic)
+            val intersection = Vector3()
+            val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+                // Snap to grid
+                val gridX = floor(intersection.x / blockSize) * blockSize
+                val gridZ = floor(intersection.z / blockSize) * blockSize
+
+                // Check if block already exists at this position
+                val existingBlock = gameBlocks.find { gameBlock ->
+                    kotlin.math.abs(gameBlock.position.x - (gridX + blockSize/2)) < 0.1f &&
+                        kotlin.math.abs(gameBlock.position.y - (blockSize/2)) < 0.1f &&
+                        kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize/2)) < 0.1f
+                }
+
+                if (existingBlock == null) {
+                    addBlock(gridX, 0f, gridZ, blockSystem.currentSelectedBlock)
+                    println("${blockSystem.currentSelectedBlock.displayName} block placed at: $gridX, 0, $gridZ")
+                } else {
+                    println("Block already exists at this position")
+                }
+            }
+        }
+    }
+
+    private fun placeBlockAdjacentTo(ray: Ray, hitBlock: GameBlock) {
+        // Calculate intersection point with the hit block
+        val blockBounds = BoundingBox()
+        blockBounds.set(
+            Vector3(hitBlock.position.x - blockSize/2, hitBlock.position.y - blockSize/2, hitBlock.position.z - blockSize/2),
+            Vector3(hitBlock.position.x + blockSize/2, hitBlock.position.y + blockSize/2, hitBlock.position.z + blockSize/2)
+        )
+
+        val intersection = Vector3()
+        if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, blockBounds, intersection)) {
+            // Determine which face was hit by finding the closest face
+            val relativePos = Vector3(intersection).sub(hitBlock.position)
+
+            var newX = hitBlock.position.x
+            var newY = hitBlock.position.y
+            var newZ = hitBlock.position.z
+
+            // Find the dominant axis (which face was hit)
+            val absX = kotlin.math.abs(relativePos.x)
+            val absY = kotlin.math.abs(relativePos.y)
+            val absZ = kotlin.math.abs(relativePos.z)
+
+            when {
+                absY >= absX && absY >= absZ -> {
+                    // Hit top or bottom face
+                    newY += if (relativePos.y > 0) blockSize else -blockSize
+                }
+                absX >= absY && absX >= absZ -> {
+                    // Hit left or right face
+                    newX += if (relativePos.x > 0) blockSize else -blockSize
+                }
+                else -> {
+                    // Hit front or back face
+                    newZ += if (relativePos.z > 0) blockSize else -blockSize
+                }
+            }
+
             // Snap to grid
-            val gridX = floor(intersection.x / blockSize) * blockSize
-            val gridZ = floor(intersection.z / blockSize) * blockSize
+            val gridX = floor(newX / blockSize) * blockSize
+            val gridY = floor(newY / blockSize) * blockSize
+            val gridZ = floor(newZ / blockSize) * blockSize
 
             // Check if block already exists at this position
             val existingBlock = gameBlocks.find { gameBlock ->
                 kotlin.math.abs(gameBlock.position.x - (gridX + blockSize/2)) < 0.1f &&
+                    kotlin.math.abs(gameBlock.position.y - (gridY + blockSize/2)) < 0.1f &&
                     kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize/2)) < 0.1f
             }
 
             if (existingBlock == null) {
-                addBlock(gridX, 0f, gridZ, blockSystem.currentSelectedBlock)
-                println("${blockSystem.currentSelectedBlock.displayName} block placed at: $gridX, 0, $gridZ")
+                addBlock(gridX, gridY, gridZ, blockSystem.currentSelectedBlock)
+                println("${blockSystem.currentSelectedBlock.displayName} block placed adjacent at: $gridX, $gridY, $gridZ")
             } else {
                 println("Block already exists at this position")
             }
