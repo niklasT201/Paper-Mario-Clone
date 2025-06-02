@@ -141,11 +141,27 @@ class MafiaGame : ApplicationAdapter() {
     private fun setupUI() {
         stage = Stage(ScreenViewport())
 
-        // Try to load UI skin from assets/ui/ folder, fallback to default if not available
+        // Load UI skin with custom font handling
         skin = try {
-            Skin(Gdx.files.internal("ui/uiskin.json"))
+            val loadedSkin = Skin(Gdx.files.internal("ui/uiskin.json"))
+
+            // Try to load and set custom font
+            try {
+                val customFont = com.badlogic.gdx.graphics.g2d.BitmapFont(Gdx.files.internal("ui/default.fnt"))
+                loadedSkin.add("default-font", customFont, com.badlogic.gdx.graphics.g2d.BitmapFont::class.java)
+
+                // Update existing styles to use the new font
+                loadedSkin.get(Label.LabelStyle::class.java).font = customFont
+                loadedSkin.get(TextButton.TextButtonStyle::class.java).font = customFont
+
+                println("Custom font loaded successfully from ui/default.fnt")
+            } catch (e: Exception) {
+                println("Could not load custom font from ui/default.fnt: ${e.message}")
+            }
+
+            loadedSkin
         } catch (e: Exception) {
-            println("Could not load UI skin from assets/ui/, using default skin")
+            println("Could not load UI skin from assets/ui/, using default skin with custom font")
             createDefaultSkin()
         }
 
@@ -273,8 +289,15 @@ class MafiaGame : ApplicationAdapter() {
         val texture = Texture(pixmap)
         pixmap.dispose()
 
-        // Create font
-        val font = com.badlogic.gdx.graphics.g2d.BitmapFont()
+        // Try to load custom font first, fallback to default
+        val font = try {
+            val customFont = com.badlogic.gdx.graphics.g2d.BitmapFont(Gdx.files.internal("ui/default.fnt"))
+            println("Custom font loaded successfully from ui/default.fnt (fallback)")
+            customFont
+        } catch (e: Exception) {
+            println("Could not load custom font from ui/default.fnt, using system default: ${e.message}")
+            com.badlogic.gdx.graphics.g2d.BitmapFont()
+        }
 
         // Add font to skin
         skin.add("default-font", font)

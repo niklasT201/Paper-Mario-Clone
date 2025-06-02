@@ -35,3 +35,5 @@ public class Lwjgl3Launcher {
 }
 
 // player can jump
+// new blocks
+// experimenting with block style
