@@ -281,33 +281,202 @@ class MafiaGame : ApplicationAdapter() {
         blockSelectionTable = Table()
         blockSelectionTable.setFillParent(true)
         blockSelectionTable.top()
-        blockSelectionTable.pad(20f)
+        blockSelectionTable.pad(40f)
 
-        // Create background for the block selection
-        val backgroundTable = Table()
-        backgroundTable.background = skin.getDrawable("default-round")
+        // Create main container with modern styling
+        val mainContainer = Table()
 
-        // Current block label
-        currentBlockLabel = Label("Current Block: ${blockSystem.currentSelectedBlock.displayName}", skin)
-        currentBlockLabel.setFontScale(1.2f)
+        // Create a more modern background with rounded corners and shadow effect
+        val backgroundStyle = createModernBackground()
+        mainContainer.background = backgroundStyle
+        mainContainer.pad(20f, 30f, 20f, 30f)
 
-        // Add some spacing and styling
-        backgroundTable.pad(15f)
-        backgroundTable.add(currentBlockLabel).padBottom(10f).row()
+        // Title with modern styling
+        val titleLabel = Label("Block Selection", skin)
+        titleLabel.setFontScale(1.4f)
+        titleLabel.color = Color(0.9f, 0.9f, 0.9f, 1f) // Light gray
+        mainContainer.add(titleLabel).padBottom(15f).row()
 
-        // Instructions for block selection
-        val blockInstructions = Label("Hold [B] + Mouse Wheel to change blocks", skin)
-        blockInstructions.setFontScale(0.8f)
-        backgroundTable.add(blockInstructions)
+        // Create horizontal container for block items
+        val blockContainer = Table()
+        blockContainer.pad(10f)
 
-        blockSelectionTable.add(backgroundTable)
-        blockSelectionTable.setVisible(false) // Initially hidden
+        // Create block items for each block type
+        val blockItems = mutableListOf<BlockSelectionItem>()
+        val blockTypes = BlockType.values()
+
+        for (i in blockTypes.indices) {
+            val blockType = blockTypes[i]
+            val item = createBlockItem(blockType, i == blockSystem.currentSelectedBlockIndex)
+            blockItems.add(item)
+
+            // Add spacing between items
+            if (i > 0) {
+                blockContainer.add().width(15f) // Spacer
+            }
+            blockContainer.add(item.container).size(80f, 100f)
+        }
+
+        mainContainer.add(blockContainer).padBottom(10f).row()
+
+        // Instructions with modern styling
+        val instructionLabel = Label("Hold [B] + Mouse Wheel to change blocks", skin)
+        instructionLabel.setFontScale(0.9f)
+        instructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f) // Darker gray
+        mainContainer.add(instructionLabel)
+
+        blockSelectionTable.add(mainContainer)
+        blockSelectionTable.setVisible(false)
+
+        // Store block items for animation
+        this.blockItems = blockItems
 
         stage.addActor(blockSelectionTable)
     }
 
+    // Data class to hold block selection item components
+    private data class BlockSelectionItem(
+        val container: Table,
+        val iconImage: Image,
+        val nameLabel: Label,
+        val background: com.badlogic.gdx.scenes.scene2d.utils.Drawable,
+        val selectedBackground: com.badlogic.gdx.scenes.scene2d.utils.Drawable,
+        val blockType: BlockType
+    )
+
+    // Add this property to your class
+    private lateinit var blockItems: MutableList<BlockSelectionItem>
+
+    private fun createBlockItem(blockType: BlockType, isSelected: Boolean): BlockSelectionItem {
+        val container = Table()
+        container.pad(8f)
+
+        // Create backgrounds for normal and selected states
+        val normalBg = createItemBackground(Color(0.3f, 0.3f, 0.35f, 0.9f))
+        val selectedBg = createItemBackground(Color(0.4f, 0.6f, 0.8f, 0.95f))
+
+        container.background = if (isSelected) selectedBg else normalBg
+
+        // Block icon (you can replace this with actual block textures)
+        val iconTexture = createBlockIcon(blockType)
+        val iconImage = Image(iconTexture)
+        container.add(iconImage).size(40f, 40f).padBottom(8f).row()
+
+        // Block name
+        val nameLabel = Label(blockType.displayName, skin)
+        nameLabel.setFontScale(0.7f)
+        nameLabel.setWrap(true)
+        nameLabel.setAlignment(com.badlogic.gdx.utils.Align.center)
+        nameLabel.color = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
+        container.add(nameLabel).width(70f).center()
+
+        return BlockSelectionItem(container, iconImage, nameLabel, normalBg, selectedBg, blockType)
+    }
+
+    private fun createModernBackground(): com.badlogic.gdx.scenes.scene2d.utils.Drawable {
+        // Create a modern dark background with subtle transparency
+        val pixmap = Pixmap(100, 60, Pixmap.Format.RGBA8888)
+
+        // Gradient effect
+        for (y in 0 until 60) {
+            val alpha = 0.85f + (y / 60f) * 0.1f // Subtle gradient
+            pixmap.setColor(0.1f, 0.1f, 0.15f, alpha)
+            pixmap.drawLine(0, y, 99, y)
+        }
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+
+        return com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(
+            com.badlogic.gdx.graphics.g2d.TextureRegion(texture)
+        )
+    }
+
+    private fun createItemBackground(color: Color): com.badlogic.gdx.scenes.scene2d.utils.Drawable {
+        val pixmap = Pixmap(80, 100, Pixmap.Format.RGBA8888)
+        pixmap.setColor(color)
+        pixmap.fill()
+
+        // Add subtle border
+        pixmap.setColor(color.r + 0.1f, color.g + 0.1f, color.b + 0.1f, color.a)
+        pixmap.drawRectangle(0, 0, 80, 100)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+
+        return com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(
+            com.badlogic.gdx.graphics.g2d.TextureRegion(texture)
+        )
+    }
+
+    private fun createBlockIcon(blockType: BlockType): com.badlogic.gdx.graphics.g2d.TextureRegion {
+        // Create colored squares representing different block types
+        val pixmap = Pixmap(32, 32, Pixmap.Format.RGBA8888)
+
+        val color = when (blockType) {
+            BlockType.GRASS -> Color(0.4f, 0.8f, 0.2f, 1f)
+            BlockType.COBBLESTONE -> Color(0.6f, 0.6f, 0.6f, 1f)
+            BlockType.ROOM_FLOOR -> Color(0.8f, 0.7f, 0.5f, 1f)
+            // Add more block types as needed
+            else -> Color.GRAY
+        }
+
+        // Fill with base color
+        pixmap.setColor(color)
+        pixmap.fill()
+
+        // Add some texture/pattern
+        pixmap.setColor(color.r * 0.8f, color.g * 0.8f, color.b * 0.8f, 1f)
+        for (i in 0 until 32 step 4) {
+            pixmap.drawLine(i, 0, i, 31)
+            pixmap.drawLine(0, i, 31, i)
+        }
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+
+        return com.badlogic.gdx.graphics.g2d.TextureRegion(texture)
+    }
+
     private fun updateBlockSelectionUI() {
-        currentBlockLabel.setText("Current Block: ${blockSystem.currentSelectedBlock.displayName}")
+        val currentIndex = blockSystem.currentSelectedBlockIndex
+
+        // Animate all block items
+        for (i in blockItems.indices) {
+            val item = blockItems[i]
+            val isSelected = i == currentIndex
+
+            // Create smooth transition animations
+            val targetScale = if (isSelected) 1.1f else 1.0f
+            val targetColor = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
+            val targetBackground = if (isSelected) item.selectedBackground else item.background
+
+            // Apply animations using LibGDX actions
+            item.container.clearActions()
+            item.container.addAction(
+                com.badlogic.gdx.scenes.scene2d.actions.Actions.parallel(
+                    com.badlogic.gdx.scenes.scene2d.actions.Actions.scaleTo(targetScale, targetScale, 0.2f,
+                        com.badlogic.gdx.math.Interpolation.smooth),
+                    com.badlogic.gdx.scenes.scene2d.actions.Actions.run {
+                        item.container.background = targetBackground
+                        item.nameLabel.color = targetColor
+                    }
+                )
+            )
+
+            // Add a subtle bounce effect for the selected item
+            if (isSelected) {
+                item.iconImage.clearActions()
+                item.iconImage.addAction(
+                    com.badlogic.gdx.scenes.scene2d.actions.Actions.sequence(
+                        com.badlogic.gdx.scenes.scene2d.actions.Actions.scaleTo(1.2f, 1.2f, 0.1f,
+                            com.badlogic.gdx.math.Interpolation.bounceOut),
+                        com.badlogic.gdx.scenes.scene2d.actions.Actions.scaleTo(1.0f, 1.0f, 0.1f,
+                            com.badlogic.gdx.math.Interpolation.smooth)
+                    )
+                )
+            }
+        }
     }
 
     private fun updateHighlight() {

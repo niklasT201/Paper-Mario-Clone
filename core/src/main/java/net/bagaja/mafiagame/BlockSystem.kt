@@ -17,6 +17,8 @@ class BlockSystem {
     private val blockTextures = mutableMapOf<BlockType, Texture>()
     var currentSelectedBlock = BlockType.GRASS
         private set
+    var currentSelectedBlockIndex = 0
+        private set
 
     fun initialize(blockSize: Float) {
         val modelBuilder = ModelBuilder()
@@ -65,16 +67,18 @@ class BlockSystem {
     }
 
     fun nextBlock() {
-        val values = BlockType.values()
-        val currentIndex = values.indexOf(currentSelectedBlock)
-        currentSelectedBlock = values[(currentIndex + 1) % values.size]
+        currentSelectedBlockIndex = (currentSelectedBlockIndex + 1) % BlockType.values().size
+        currentSelectedBlock = BlockType.values()[currentSelectedBlockIndex]
         println("Selected block: ${currentSelectedBlock.displayName}")
     }
 
     fun previousBlock() {
-        val values = BlockType.values()
-        val currentIndex = values.indexOf(currentSelectedBlock)
-        currentSelectedBlock = values[(currentIndex - 1 + values.size) % values.size]
+        currentSelectedBlockIndex = if (currentSelectedBlockIndex > 0) {
+            currentSelectedBlockIndex - 1
+        } else {
+            BlockType.values().size - 1
+        }
+        currentSelectedBlock = BlockType.values()[currentSelectedBlockIndex]
         println("Selected block: ${currentSelectedBlock.displayName}")
     }
 
