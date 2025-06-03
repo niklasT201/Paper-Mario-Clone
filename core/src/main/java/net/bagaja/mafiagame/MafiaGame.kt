@@ -13,20 +13,18 @@ import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.math.collision.BoundingBox
-import com.badlogic.gdx.scenes.scene2d.Stage
-import com.badlogic.gdx.scenes.scene2d.ui.*
-import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.utils.Array
-import com.badlogic.gdx.utils.viewport.ScreenViewport
 import kotlin.math.floor
 
 class MafiaGame : ApplicationAdapter() {
     private lateinit var modelBatch: ModelBatch
     private lateinit var spriteBatch: SpriteBatch
     private lateinit var environment: Environment
-    private lateinit var stage: Stage
-    private lateinit var skin: Skin
     private lateinit var cameraManager: CameraManager
+
+    // UI and Input Managers
+    private lateinit var uiManager: UIManager
+    private lateinit var inputHandler: InputHandler
 
     // Block system
     private lateinit var blockSystem: BlockSystem
@@ -53,40 +51,34 @@ class MafiaGame : ApplicationAdapter() {
     private val playerSize = Vector3(3f, 4f, 3f)
 
     // Player rotation variables for Paper Mario effect
-    private var playerTargetRotationY = 0f // Target rotation in degrees
-    private var playerCurrentRotationY = 0f // Current rotation in degrees
-    private val rotationSpeed = 360f // Degrees per second for smooth rotation
-    private var lastMovementDirection = 0f // -1 for left, 1 for right, 0 for none
-
-    // UI state
-    private var selectedTool = Tool.BLOCK
-    private var isUIVisible = true
-    private var isBlockSelectionMode = false
+    private var playerTargetRotationY = 0f
+    private var playerCurrentRotationY = 0f
+    private val rotationSpeed = 360f
+    private var lastMovementDirection = 0f
 
     // Block size
     private val blockSize = 4f
 
-    // Input handling
-    private var isRightMousePressed = false
-    private var lastMouseX = 0f
-    private var lastMouseY = 0f
-
-    // UI Elements for block selection
-    private lateinit var blockSelectionTable: Table
-    private lateinit var currentBlockLabel: Label
-    private lateinit var blockPreviewImage: Image
-
-    enum class Tool {
-        BLOCK, PLAYER
-    }
-
     override fun create() {
         setupGraphics()
         setupBlockSystem()
+
+        // Initialize UI Manager
+        uiManager = UIManager(blockSystem)
+        uiManager.initialize()
+
+        // Initialize Input Handler
+        inputHandler = InputHandler(
+            uiManager,
+            cameraManager,
+            blockSystem,
+            this::handleLeftClickAction,
+            this::handleRightClickAndRemoveBlockAction
+        )
+        inputHandler.initialize()
+
         setupModels()
         setupHighlight()
-        setupUI()
-        setupInputHandling()
 
         addBlock(0f, 0f, 0f, BlockType.GRASS)
         addBlock(blockSize, 0f, 0f, BlockType.COBBLESTONE)
@@ -131,10 +123,10 @@ class MafiaGame : ApplicationAdapter() {
         // Create a 3D plane/quad for the player (billboard)
         val playerSizeVisual = 4f
         playerModel = modelBuilder.createRect(
-            -playerSizeVisual/2, -playerSizeVisual/2, 0f,
-            playerSizeVisual/2, -playerSizeVisual/2, 0f,
-            playerSizeVisual/2, playerSizeVisual/2, 0f,
-            -playerSizeVisual/2, playerSizeVisual/2, 0f,
+            -playerSizeVisual / 2, -playerSizeVisual / 2, 0f,
+            playerSizeVisual / 2, -playerSizeVisual / 2, 0f,
+            playerSizeVisual / 2, playerSizeVisual / 2, 0f,
+            -playerSizeVisual / 2, playerSizeVisual / 2, 0f,
             0f, 0f, 1f,
             playerMaterial,
             (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
@@ -152,9 +144,7 @@ class MafiaGame : ApplicationAdapter() {
         highlightMaterial = Material(
             ColorAttribute.createDiffuse(Color.GREEN),
             com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute(
-                com.badlogic.gdx.graphics.GL20.GL_SRC_ALPHA,
-                com.badlogic.gdx.graphics.GL20.GL_ONE_MINUS_SRC_ALPHA,
-                0.3f  // Alpha value (0.0 = fully transparent, 1.0 = fully opaque)
+                GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.3f  // Alpha value (0.0 = fully transparent, 1.0 = fully opaque)
             )
         )
 
@@ -165,318 +155,7 @@ class MafiaGame : ApplicationAdapter() {
             highlightMaterial!!,
             (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
         )
-
         highlightInstance = ModelInstance(highlightModel!!)
-    }
-
-    private fun setupUI() {
-        stage = Stage(ScreenViewport())
-
-        // Load UI skin with custom font handling
-        skin = try {
-            val loadedSkin = Skin(Gdx.files.internal("ui/uiskin.json"))
-
-            // Try to load and set custom font
-            try {
-                val customFont = com.badlogic.gdx.graphics.g2d.BitmapFont(Gdx.files.internal("ui/default.fnt"))
-                loadedSkin.add("default-font", customFont, com.badlogic.gdx.graphics.g2d.BitmapFont::class.java)
-
-                // Update existing styles to use the new font
-                loadedSkin.get(Label.LabelStyle::class.java).font = customFont
-                loadedSkin.get(TextButton.TextButtonStyle::class.java).font = customFont
-
-                println("Custom font loaded successfully from ui/default.fnt")
-            } catch (e: Exception) {
-                println("Could not load custom font from ui/default.fnt: ${e.message}")
-            }
-
-            loadedSkin
-        } catch (e: Exception) {
-            println("Could not load UI skin from assets/ui/, using default skin with custom font")
-            createDefaultSkin()
-        }
-
-        // Create main UI table
-        val mainTable = Table()
-        mainTable.setFillParent(true)
-        mainTable.top().left()
-        mainTable.pad(20f)
-
-        // Title
-        val titleLabel = Label("World Builder", skin)
-        titleLabel.setFontScale(1.5f)
-        mainTable.add(titleLabel).colspan(2).padBottom(20f).row()
-
-        // Tool selection
-        val toolLabel = Label("Select Tool:", skin)
-        mainTable.add(toolLabel).padBottom(10f).row()
-
-        val blockButton = TextButton("Ground Block", skin, "toggle")
-        val playerButton = TextButton("Player", skin, "toggle")
-
-        blockButton.isChecked = true
-
-        blockButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: com.badlogic.gdx.scenes.scene2d.Actor?) {
-                if (blockButton.isChecked) {
-                    selectedTool = Tool.BLOCK
-                    playerButton.isChecked = false
-                }
-            }
-        })
-
-        playerButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: com.badlogic.gdx.scenes.scene2d.Actor?) {
-                if (playerButton.isChecked) {
-                    selectedTool = Tool.PLAYER
-                    blockButton.isChecked = false
-                }
-            }
-        })
-
-        mainTable.add(blockButton).width(120f).padBottom(5f).row()
-        mainTable.add(playerButton).width(120f).padBottom(20f).row()
-
-        // Instructions
-        val instructionLabel = Label("Instructions:", skin)
-        mainTable.add(instructionLabel).padBottom(10f).row()
-
-        val instructions = """
-        • Left click to place
-        • Hold Right click + drag to rotate camera
-        • Mouse wheel to zoom in/out (or block selection)
-        • WASD to move player
-        • H to toggle this UI
-        • B to toggle Block Selection Mode
-        • C to toggle Free Camera
-        • 1 for Orbiting Camera (building)
-        • 2 for Player Camera (Paper Mario)
-        • Q/E to adjust camera angle (player mode)
-        • R/T to adjust camera height (player mode)
-        • Blocks snap to 4x4 grid
-        • Paper Mario style rotation!
-        • Player has collision detection!
-        • Block Selection: Hold B + scroll to choose blocks!
-        """.trimIndent()
-
-        val instructionText = Label(instructions, skin)
-        instructionText.setWrap(true)
-        mainTable.add(instructionText).width(200f).padBottom(20f).row()
-
-        // Stats
-        val statsLabel = Label("Stats:", skin)
-        mainTable.add(statsLabel).padBottom(10f).row()
-
-        val statsText = Label("Blocks: 3\nPlayer: Placed", skin)
-        mainTable.add(statsText).width(200f).row()
-
-        stage.addActor(mainTable)
-
-        // Create block selection UI (top center)
-        setupBlockSelectionUI()
-    }
-
-    private fun setupBlockSelectionUI() {
-        // Create block selection table at the top center
-        blockSelectionTable = Table()
-        blockSelectionTable.setFillParent(true)
-        blockSelectionTable.top()
-        blockSelectionTable.pad(40f)
-
-        // Create main container with modern styling
-        val mainContainer = Table()
-
-        // Create a more modern background with rounded corners and shadow effect
-        val backgroundStyle = createModernBackground()
-        mainContainer.background = backgroundStyle
-        mainContainer.pad(20f, 30f, 20f, 30f)
-
-        // Title with modern styling
-        val titleLabel = Label("Block Selection", skin)
-        titleLabel.setFontScale(1.4f)
-        titleLabel.color = Color(0.9f, 0.9f, 0.9f, 1f) // Light gray
-        mainContainer.add(titleLabel).padBottom(15f).row()
-
-        // Create horizontal container for block items
-        val blockContainer = Table()
-        blockContainer.pad(10f)
-
-        // Create block items for each block type
-        val blockItems = mutableListOf<BlockSelectionItem>()
-        val blockTypes = BlockType.values()
-
-        for (i in blockTypes.indices) {
-            val blockType = blockTypes[i]
-            val item = createBlockItem(blockType, i == blockSystem.currentSelectedBlockIndex)
-            blockItems.add(item)
-
-            // Add spacing between items
-            if (i > 0) {
-                blockContainer.add().width(15f) // Spacer
-            }
-            blockContainer.add(item.container).size(80f, 100f)
-        }
-
-        mainContainer.add(blockContainer).padBottom(10f).row()
-
-        // Instructions with modern styling
-        val instructionLabel = Label("Hold [B] + Mouse Wheel to change blocks", skin)
-        instructionLabel.setFontScale(0.9f)
-        instructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f) // Darker gray
-        mainContainer.add(instructionLabel)
-
-        blockSelectionTable.add(mainContainer)
-        blockSelectionTable.setVisible(false)
-
-        // Store block items for animation
-        this.blockItems = blockItems
-
-        stage.addActor(blockSelectionTable)
-    }
-
-    // Data class to hold block selection item components
-    private data class BlockSelectionItem(
-        val container: Table,
-        val iconImage: Image,
-        val nameLabel: Label,
-        val background: com.badlogic.gdx.scenes.scene2d.utils.Drawable,
-        val selectedBackground: com.badlogic.gdx.scenes.scene2d.utils.Drawable,
-        val blockType: BlockType
-    )
-
-    // Add this property to your class
-    private lateinit var blockItems: MutableList<BlockSelectionItem>
-
-    private fun createBlockItem(blockType: BlockType, isSelected: Boolean): BlockSelectionItem {
-        val container = Table()
-        container.pad(8f)
-
-        // Create backgrounds for normal and selected states
-        val normalBg = createItemBackground(Color(0.3f, 0.3f, 0.35f, 0.9f))
-        val selectedBg = createItemBackground(Color(0.4f, 0.6f, 0.8f, 0.95f))
-
-        container.background = if (isSelected) selectedBg else normalBg
-
-        // Block icon (you can replace this with actual block textures)
-        val iconTexture = createBlockIcon(blockType)
-        val iconImage = Image(iconTexture)
-        container.add(iconImage).size(40f, 40f).padBottom(8f).row()
-
-        // Block name
-        val nameLabel = Label(blockType.displayName, skin)
-        nameLabel.setFontScale(0.7f)
-        nameLabel.setWrap(true)
-        nameLabel.setAlignment(com.badlogic.gdx.utils.Align.center)
-        nameLabel.color = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
-        container.add(nameLabel).width(70f).center()
-
-        return BlockSelectionItem(container, iconImage, nameLabel, normalBg, selectedBg, blockType)
-    }
-
-    private fun createModernBackground(): com.badlogic.gdx.scenes.scene2d.utils.Drawable {
-        // Create a modern dark background with subtle transparency
-        val pixmap = Pixmap(100, 60, Pixmap.Format.RGBA8888)
-
-        // Gradient effect
-        for (y in 0 until 60) {
-            val alpha = 0.85f + (y / 60f) * 0.1f // Subtle gradient
-            pixmap.setColor(0.1f, 0.1f, 0.15f, alpha)
-            pixmap.drawLine(0, y, 99, y)
-        }
-
-        val texture = Texture(pixmap)
-        pixmap.dispose()
-
-        return com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(
-            com.badlogic.gdx.graphics.g2d.TextureRegion(texture)
-        )
-    }
-
-    private fun createItemBackground(color: Color): com.badlogic.gdx.scenes.scene2d.utils.Drawable {
-        val pixmap = Pixmap(80, 100, Pixmap.Format.RGBA8888)
-        pixmap.setColor(color)
-        pixmap.fill()
-
-        // Add subtle border
-        pixmap.setColor(color.r + 0.1f, color.g + 0.1f, color.b + 0.1f, color.a)
-        pixmap.drawRectangle(0, 0, 80, 100)
-
-        val texture = Texture(pixmap)
-        pixmap.dispose()
-
-        return com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(
-            com.badlogic.gdx.graphics.g2d.TextureRegion(texture)
-        )
-    }
-
-    private fun createBlockIcon(blockType: BlockType): com.badlogic.gdx.graphics.g2d.TextureRegion {
-        // Create colored squares representing different block types
-        val pixmap = Pixmap(32, 32, Pixmap.Format.RGBA8888)
-
-        val color = when (blockType) {
-            BlockType.GRASS -> Color(0.4f, 0.8f, 0.2f, 1f)
-            BlockType.COBBLESTONE -> Color(0.6f, 0.6f, 0.6f, 1f)
-            BlockType.ROOM_FLOOR -> Color(0.8f, 0.7f, 0.5f, 1f)
-            // Add more block types as needed
-            else -> Color.GRAY
-        }
-
-        // Fill with base color
-        pixmap.setColor(color)
-        pixmap.fill()
-
-        // Add some texture/pattern
-        pixmap.setColor(color.r * 0.8f, color.g * 0.8f, color.b * 0.8f, 1f)
-        for (i in 0 until 32 step 4) {
-            pixmap.drawLine(i, 0, i, 31)
-            pixmap.drawLine(0, i, 31, i)
-        }
-
-        val texture = Texture(pixmap)
-        pixmap.dispose()
-
-        return com.badlogic.gdx.graphics.g2d.TextureRegion(texture)
-    }
-
-    private fun updateBlockSelectionUI() {
-        val currentIndex = blockSystem.currentSelectedBlockIndex
-
-        // Animate all block items
-        for (i in blockItems.indices) {
-            val item = blockItems[i]
-            val isSelected = i == currentIndex
-
-            // Create smooth transition animations
-            val targetScale = if (isSelected) 1.1f else 1.0f
-            val targetColor = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
-            val targetBackground = if (isSelected) item.selectedBackground else item.background
-
-            // Apply animations using LibGDX actions
-            item.container.clearActions()
-            item.container.addAction(
-                com.badlogic.gdx.scenes.scene2d.actions.Actions.parallel(
-                    com.badlogic.gdx.scenes.scene2d.actions.Actions.scaleTo(targetScale, targetScale, 0.2f,
-                        com.badlogic.gdx.math.Interpolation.smooth),
-                    com.badlogic.gdx.scenes.scene2d.actions.Actions.run {
-                        item.container.background = targetBackground
-                        item.nameLabel.color = targetColor
-                    }
-                )
-            )
-
-            // Add a subtle bounce effect for the selected item
-            if (isSelected) {
-                item.iconImage.clearActions()
-                item.iconImage.addAction(
-                    com.badlogic.gdx.scenes.scene2d.actions.Actions.sequence(
-                        com.badlogic.gdx.scenes.scene2d.actions.Actions.scaleTo(1.2f, 1.2f, 0.1f,
-                            com.badlogic.gdx.math.Interpolation.bounceOut),
-                        com.badlogic.gdx.scenes.scene2d.actions.Actions.scaleTo(1.0f, 1.0f, 0.1f,
-                            com.badlogic.gdx.math.Interpolation.smooth)
-                    )
-                )
-            }
-        }
     }
 
     private fun updateHighlight() {
@@ -506,15 +185,15 @@ class MafiaGame : ApplicationAdapter() {
 
                 // Check if there's already a block at this position
                 val existingBlock = gameBlocks.find { gameBlock ->
-                    kotlin.math.abs(gameBlock.position.x - (gridX + blockSize/2)) < 0.1f &&
-                        kotlin.math.abs(gameBlock.position.y - (blockSize/2)) < 0.1f &&
-                        kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize/2)) < 0.1f
+                    kotlin.math.abs(gameBlock.position.x - (gridX + blockSize / 2)) < 0.1f &&
+                        kotlin.math.abs(gameBlock.position.y - (blockSize / 2)) < 0.1f &&
+                        kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize / 2)) < 0.1f
                 }
-
-                if (existingBlock == null && selectedTool == Tool.BLOCK) {
+                // Use uiManager.selectedTool
+                if (existingBlock == null && uiManager.selectedTool == UIManager.Tool.BLOCK) {
                     isHighlightVisible = true
-                    highlightPosition.set(gridX + blockSize/2, blockSize/2, gridZ + blockSize/2)
-                    val transparentGreen = Color(0f, 1f, 0f, 0.3f) // Green with 30% opacity
+                    highlightPosition.set(gridX + blockSize / 2, blockSize / 2, gridZ + blockSize / 2)
+                    val transparentGreen = Color(0f, 1f, 0f, 0.3f)
                     highlightMaterial?.set(ColorAttribute.createDiffuse(transparentGreen))
                     highlightInstance?.transform?.setTranslation(highlightPosition)
                 } else {
@@ -524,194 +203,6 @@ class MafiaGame : ApplicationAdapter() {
                 isHighlightVisible = false
             }
         }
-    }
-
-    private fun createDefaultSkin(): Skin {
-        val skin = Skin()
-
-        // Create a 1x1 white texture
-        val pixmap = Pixmap(1, 1, Pixmap.Format.RGBA8888)
-        pixmap.setColor(Color.WHITE)
-        pixmap.fill()
-        val texture = Texture(pixmap)
-        pixmap.dispose()
-
-        // Try to load custom font first, fallback to default
-        val font = try {
-            val customFont = com.badlogic.gdx.graphics.g2d.BitmapFont(Gdx.files.internal("ui/default.fnt"))
-            println("Custom font loaded successfully from ui/default.fnt (fallback)")
-            customFont
-        } catch (e: Exception) {
-            println("Could not load custom font from ui/default.fnt, using system default: ${e.message}")
-            com.badlogic.gdx.graphics.g2d.BitmapFont()
-        }
-
-        // Add font to skin
-        skin.add("default-font", font)
-
-        // Create drawable for buttons
-        val buttonTexture = com.badlogic.gdx.graphics.g2d.TextureRegion(texture)
-        val buttonDrawable = com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable(buttonTexture)
-
-        // Add background drawable
-        skin.add("default-round", buttonDrawable.tint(Color(0.2f, 0.2f, 0.2f, 0.8f)))
-
-        // Button styles
-        val buttonStyle = Button.ButtonStyle()
-        buttonStyle.up = buttonDrawable.tint(Color.GRAY)
-        buttonStyle.down = buttonDrawable.tint(Color.DARK_GRAY)
-        skin.add("default", buttonStyle)
-
-        val toggleButtonStyle = Button.ButtonStyle()
-        toggleButtonStyle.up = buttonDrawable.tint(Color.GRAY)
-        toggleButtonStyle.down = buttonDrawable.tint(Color.DARK_GRAY)
-        toggleButtonStyle.checked = buttonDrawable.tint(Color.GREEN)
-        skin.add("toggle", toggleButtonStyle)
-
-        // Text button styles
-        val textButtonStyle = TextButton.TextButtonStyle()
-        textButtonStyle.up = buttonDrawable.tint(Color.GRAY)
-        textButtonStyle.down = buttonDrawable.tint(Color.DARK_GRAY)
-        textButtonStyle.font = font
-        textButtonStyle.fontColor = Color.WHITE
-        skin.add("default", textButtonStyle)
-
-        val toggleTextButtonStyle = TextButton.TextButtonStyle()
-        toggleTextButtonStyle.up = buttonDrawable.tint(Color.GRAY)
-        toggleTextButtonStyle.down = buttonDrawable.tint(Color.DARK_GRAY)
-        toggleTextButtonStyle.checked = buttonDrawable.tint(Color.GREEN)
-        toggleTextButtonStyle.font = font
-        toggleTextButtonStyle.fontColor = Color.WHITE
-        skin.add("toggle", toggleTextButtonStyle)
-
-        // Label style
-        val labelStyle = Label.LabelStyle()
-        labelStyle.font = font
-        labelStyle.fontColor = Color.WHITE
-        skin.add("default", labelStyle)
-
-        return skin
-    }
-
-    private fun setupInputHandling() {
-        val inputMultiplexer = com.badlogic.gdx.InputMultiplexer()
-
-        // Add custom input processor first
-        inputMultiplexer.addProcessor(object : com.badlogic.gdx.InputAdapter() {
-            override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
-                // Check if click is over UI
-                val stageCoords = stage.screenToStageCoordinates(com.badlogic.gdx.math.Vector2(screenX.toFloat(), screenY.toFloat()))
-                val actorHit = stage.hit(stageCoords.x, stageCoords.y, true)
-
-                // If we clicked on UI, let the stage handle it
-                if (actorHit != null && isUIVisible) {
-                    return false
-                }
-
-                // Handle mouse input
-                if (button == Input.Buttons.LEFT) {
-                    handleLeftClick(screenX, screenY)
-                    return true
-                } else if (button == Input.Buttons.RIGHT) {
-                    // Check if we're starting a drag operation or clicking on a block
-                    val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
-                    val blockToRemove = getBlockAtRay(ray)
-
-                    if (blockToRemove != null) {
-                        // Remove the block
-                        removeBlock(blockToRemove)
-                        return true
-                    } else {
-                        // No block hit, start camera drag
-                        isRightMousePressed = true
-                        lastMouseX = screenX.toFloat()
-                        lastMouseY = screenY.toFloat()
-                        return true
-                    }
-                }
-                return false
-            }
-
-            override fun touchUp(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
-                if (button == Input.Buttons.RIGHT) {
-                    isRightMousePressed = false
-                    return true
-                }
-                return false
-            }
-
-            override fun touchDragged(screenX: Int, screenY: Int, pointer: Int): Boolean {
-                if (isRightMousePressed) {
-                    val deltaX = screenX - lastMouseX
-                    cameraManager.handleMouseDrag(deltaX)
-
-                    lastMouseX = screenX.toFloat()
-                    lastMouseY = screenY.toFloat()
-                    return true
-                }
-                return false
-            }
-
-            override fun scrolled(amountX: Float, amountY: Float): Boolean {
-                // Check if block selection mode is active
-                if (isBlockSelectionMode) {
-                    // Use mouse scroll to change blocks
-                    if (amountY > 0) {
-                        blockSystem.nextBlock()
-                    } else if (amountY < 0) {
-                        blockSystem.previousBlock()
-                    }
-                    updateBlockSelectionUI()
-                    return true
-                } else {
-                    // Normal camera zoom
-                    cameraManager.handleMouseScroll(amountY)
-                    return true
-                }
-            }
-
-            override fun keyDown(keycode: Int): Boolean {
-                when (keycode) {
-                    Input.Keys.H -> {
-                        isUIVisible = !isUIVisible
-                        return true
-                    }
-                    Input.Keys.B -> {
-                        isBlockSelectionMode = true
-                        blockSelectionTable.setVisible(true)
-                        return true
-                    }
-                    Input.Keys.C -> {
-                        cameraManager.toggleFreeCameraMode()
-                        return true
-                    }
-                    // Camera mode switching
-                    Input.Keys.NUM_1 -> {
-                        cameraManager.switchToOrbitingCamera()
-                        return true
-                    }
-                    Input.Keys.NUM_2 -> {
-                        cameraManager.switchToPlayerCamera()
-                        return true
-                    }
-                }
-                return false
-            }
-
-            override fun keyUp(keycode: Int): Boolean {
-                when (keycode) {
-                    Input.Keys.B -> {
-                        isBlockSelectionMode = false
-                        blockSelectionTable.setVisible(false)
-                        return true
-                    }
-                }
-                return false
-            }
-        })
-
-        inputMultiplexer.addProcessor(stage)
-        Gdx.input.inputProcessor = inputMultiplexer
     }
 
     private fun handlePlayerInput() {
@@ -724,47 +215,36 @@ class MafiaGame : ApplicationAdapter() {
             // Player movement code
             var moved = false
             var currentMovementDirection = 0f
-            val originalPosition = Vector3(playerPosition)
+            val originalPosition = Vector3(playerPosition) // Not used
 
-            // Handle WASD input for player movement
             if (Gdx.input.isKeyPressed(Input.Keys.A)) {
                 val newX = playerPosition.x - playerSpeed * deltaTime
                 if (canMoveTo(newX, playerPosition.y, playerPosition.z)) {
-                    playerPosition.x = newX
-                    moved = true
-                    currentMovementDirection = -1f
+                    playerPosition.x = newX; moved = true; currentMovementDirection = -1f
                 }
             }
             if (Gdx.input.isKeyPressed(Input.Keys.D)) {
                 val newX = playerPosition.x + playerSpeed * deltaTime
                 if (canMoveTo(newX, playerPosition.y, playerPosition.z)) {
-                    playerPosition.x = newX
-                    moved = true
-                    currentMovementDirection = 1f
+                    playerPosition.x = newX; moved = true; currentMovementDirection = 1f
                 }
             }
             if (Gdx.input.isKeyPressed(Input.Keys.W)) {
                 val newZ = playerPosition.z - playerSpeed * deltaTime
                 if (canMoveTo(playerPosition.x, playerPosition.y, newZ)) {
-                    playerPosition.z = newZ
-                    moved = true
+                    playerPosition.z = newZ; moved = true
                 }
             }
             if (Gdx.input.isKeyPressed(Input.Keys.S)) {
                 val newZ = playerPosition.z + playerSpeed * deltaTime
                 if (canMoveTo(playerPosition.x, playerPosition.y, newZ)) {
-                    playerPosition.z = newZ
-                    moved = true
+                    playerPosition.z = newZ; moved = true
                 }
             }
 
             // Update target rotation based on horizontal movement
             if (currentMovementDirection != 0f && currentMovementDirection != lastMovementDirection) {
-                if (currentMovementDirection < 0f) {
-                    playerTargetRotationY = 180f
-                } else {
-                    playerTargetRotationY = 0f
-                }
+                playerTargetRotationY = if (currentMovementDirection < 0f) 180f else 0f
                 lastMovementDirection = currentMovementDirection
             }
 
@@ -793,15 +273,15 @@ class MafiaGame : ApplicationAdapter() {
         val horizontalShrink = 0.3f
         val tempBounds = BoundingBox()
         tempBounds.set(
-            Vector3(x - (playerSize.x/2 - horizontalShrink), y - playerSize.y/2, z - (playerSize.z/2 - horizontalShrink)),
-            Vector3(x + (playerSize.x/2 - horizontalShrink), y + playerSize.y/2, z + (playerSize.z/2 - horizontalShrink))
+            Vector3(x - (playerSize.x / 2 - horizontalShrink), y - playerSize.y / 2, z - (playerSize.z / 2 - horizontalShrink)),
+            Vector3(x + (playerSize.x / 2 - horizontalShrink), y + playerSize.y / 2, z + (playerSize.z / 2 - horizontalShrink))
         )
 
         for (gameBlock in gameBlocks) {
             val blockBounds = BoundingBox()
             blockBounds.set(
-                Vector3(gameBlock.position.x - blockSize/2, gameBlock.position.y - blockSize/2, gameBlock.position.z - blockSize/2),
-                Vector3(gameBlock.position.x + blockSize/2, gameBlock.position.y + blockSize/2, gameBlock.position.z + blockSize/2)
+                Vector3(gameBlock.position.x - blockSize / 2, gameBlock.position.y - blockSize / 2, gameBlock.position.z - blockSize / 2),
+                Vector3(gameBlock.position.x + blockSize / 2, gameBlock.position.y + blockSize / 2, gameBlock.position.z + blockSize / 2)
             )
 
             // Check if the temporary player bounds intersect with the block bounds
@@ -825,50 +305,47 @@ class MafiaGame : ApplicationAdapter() {
 
     private fun updatePlayerBounds() {
         playerBounds.set(
-            Vector3(playerPosition.x - playerSize.x/2, playerPosition.y - playerSize.y/2, playerPosition.z - playerSize.z/2),
-            Vector3(playerPosition.x + playerSize.x/2, playerPosition.y + playerSize.y/2, playerPosition.z + playerSize.z/2)
+            Vector3(playerPosition.x - playerSize.x / 2, playerPosition.y - playerSize.y / 2, playerPosition.z - playerSize.z / 2),
+            Vector3(playerPosition.x + playerSize.x / 2, playerPosition.y + playerSize.y / 2, playerPosition.z + playerSize.z / 2)
         )
     }
 
     private fun updatePlayerRotation(deltaTime: Float) {
         // Calculate the shortest rotation path
         var rotationDifference = playerTargetRotationY - playerCurrentRotationY
+        if (rotationDifference > 180f) rotationDifference -= 360f
+        else if (rotationDifference < -180f) rotationDifference += 360f
 
-        // Handle wrap-around
-        if (rotationDifference > 180f) {
-            rotationDifference -= 360f
-        } else if (rotationDifference < -180f) {
-            rotationDifference += 360f
-        }
-
-        // Apply smooth rotation
-        if (kotlin.math.abs(rotationDifference) > 1f) { // Small threshold to avoid jittering
+        if (kotlin.math.abs(rotationDifference) > 1f) {
             val rotationStep = rotationSpeed * deltaTime
-            if (rotationDifference > 0f) {
-                playerCurrentRotationY += kotlin.math.min(rotationStep, rotationDifference)
-            } else {
-                playerCurrentRotationY += kotlin.math.max(-rotationStep, rotationDifference)
-            }
-
-            // Rotation in 0-360 range
-            if (playerCurrentRotationY >= 360f) {
-                playerCurrentRotationY -= 360f
-            } else if (playerCurrentRotationY < 0f) {
-                playerCurrentRotationY += 360f
-            }
+            if (rotationDifference > 0f) playerCurrentRotationY += kotlin.math.min(rotationStep, rotationDifference)
+            else playerCurrentRotationY += kotlin.math.max(-rotationStep, rotationDifference)
+            if (playerCurrentRotationY >= 360f) playerCurrentRotationY -= 360f
+            else if (playerCurrentRotationY < 0f) playerCurrentRotationY += 360f
         } else {
             // Snap to target if close enough
             playerCurrentRotationY = playerTargetRotationY
         }
     }
 
-    private fun handleLeftClick(screenX: Int, screenY: Int) {
+    // Callback for InputHandler for left mouse click
+    private fun handleLeftClickAction(screenX: Int, screenY: Int) {
         val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
-
-        when (selectedTool) {
-            Tool.BLOCK -> placeBlock(ray)
-            Tool.PLAYER -> placePlayer(ray)
+        when (uiManager.selectedTool) {
+            UIManager.Tool.BLOCK -> placeBlock(ray)
+            UIManager.Tool.PLAYER -> placePlayer(ray)
         }
+    }
+
+    // Callback for InputHandler for right mouse click (attempt to remove block)
+    private fun handleRightClickAndRemoveBlockAction(screenX: Int, screenY: Int): Boolean {
+        val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+        val blockToRemove = getBlockAtRay(ray)
+        if (blockToRemove != null) {
+            removeBlock(blockToRemove)
+            return true // Block was removed
+        }
+        return false // No block removed
     }
 
     private fun placeBlock(ray: Ray) {
@@ -879,7 +356,7 @@ class MafiaGame : ApplicationAdapter() {
             // We hit an existing block, place new block adjacent to it
             placeBlockAdjacentTo(ray, hitBlock)
         } else {
-            // No block hit, place on ground (existing logic)
+            // No block hit, place on ground
             val intersection = Vector3()
             val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
@@ -890,9 +367,9 @@ class MafiaGame : ApplicationAdapter() {
 
                 // Check if block already exists at this position
                 val existingBlock = gameBlocks.find { gameBlock ->
-                    kotlin.math.abs(gameBlock.position.x - (gridX + blockSize/2)) < 0.1f &&
-                        kotlin.math.abs(gameBlock.position.y - (blockSize/2)) < 0.1f &&
-                        kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize/2)) < 0.1f
+                    kotlin.math.abs(gameBlock.position.x - (gridX + blockSize / 2)) < 0.1f &&
+                        kotlin.math.abs(gameBlock.position.y - (blockSize / 2)) < 0.1f &&
+                        kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize / 2)) < 0.1f
                 }
 
                 if (existingBlock == null) {
@@ -909,15 +386,14 @@ class MafiaGame : ApplicationAdapter() {
         // Calculate intersection point with the hit block
         val blockBounds = BoundingBox()
         blockBounds.set(
-            Vector3(hitBlock.position.x - blockSize/2, hitBlock.position.y - blockSize/2, hitBlock.position.z - blockSize/2),
-            Vector3(hitBlock.position.x + blockSize/2, hitBlock.position.y + blockSize/2, hitBlock.position.z + blockSize/2)
+            Vector3(hitBlock.position.x - blockSize / 2, hitBlock.position.y - blockSize / 2, hitBlock.position.z - blockSize / 2),
+            Vector3(hitBlock.position.x + blockSize / 2, hitBlock.position.y + blockSize / 2, hitBlock.position.z + blockSize / 2)
         )
 
         val intersection = Vector3()
         if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, blockBounds, intersection)) {
             // Determine which face was hit by finding the closest face
             val relativePos = Vector3(intersection).sub(hitBlock.position)
-
             var newX = hitBlock.position.x
             var newY = hitBlock.position.y
             var newZ = hitBlock.position.z
@@ -928,30 +404,22 @@ class MafiaGame : ApplicationAdapter() {
             val absZ = kotlin.math.abs(relativePos.z)
 
             when {
-                absY >= absX && absY >= absZ -> {
-                    // Hit top or bottom face
-                    newY += if (relativePos.y > 0) blockSize else -blockSize
-                }
-                absX >= absY && absX >= absZ -> {
-                    // Hit left or right face
-                    newX += if (relativePos.x > 0) blockSize else -blockSize
-                }
-                else -> {
-                    // Hit front or back face
-                    newZ += if (relativePos.z > 0) blockSize else -blockSize
-                }
+                // Hit top or bottom face
+                absY >= absX && absY >= absZ -> newY += if (relativePos.y > 0) blockSize else -blockSize
+                // Hit left or right face
+                absX >= absY && absX >= absZ -> newX += if (relativePos.x > 0) blockSize else -blockSize
+                // Hit front or back face
+                else -> newZ += if (relativePos.z > 0) blockSize else -blockSize
             }
-
-            // Snap to grid
             val gridX = floor(newX / blockSize) * blockSize
             val gridY = floor(newY / blockSize) * blockSize
             val gridZ = floor(newZ / blockSize) * blockSize
 
             // Check if block already exists at this position
             val existingBlock = gameBlocks.find { gameBlock ->
-                kotlin.math.abs(gameBlock.position.x - (gridX + blockSize/2)) < 0.1f &&
-                    kotlin.math.abs(gameBlock.position.y - (gridY + blockSize/2)) < 0.1f &&
-                    kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize/2)) < 0.1f
+                kotlin.math.abs(gameBlock.position.x - (gridX + blockSize / 2)) < 0.1f &&
+                    kotlin.math.abs(gameBlock.position.y - (gridY + blockSize / 2)) < 0.1f &&
+                    kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize / 2)) < 0.1f
             }
 
             if (existingBlock == null) {
@@ -970,8 +438,8 @@ class MafiaGame : ApplicationAdapter() {
         for (gameBlock in gameBlocks) {
             val blockBounds = BoundingBox()
             blockBounds.set(
-                Vector3(gameBlock.position.x - blockSize/2, gameBlock.position.y - blockSize/2, gameBlock.position.z - blockSize/2),
-                Vector3(gameBlock.position.x + blockSize/2, gameBlock.position.y + blockSize/2, gameBlock.position.z + blockSize/2)
+                Vector3(gameBlock.position.x - blockSize / 2, gameBlock.position.y - blockSize / 2, gameBlock.position.z - blockSize / 2),
+                Vector3(gameBlock.position.x + blockSize / 2, gameBlock.position.y + blockSize / 2, gameBlock.position.z + blockSize / 2)
             )
 
             // Check if ray intersects with this block's bounding box
@@ -999,8 +467,8 @@ class MafiaGame : ApplicationAdapter() {
 
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
             // Snap to grid
-            val gridX = floor(intersection.x / blockSize) * blockSize + blockSize/2
-            val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize/2
+            val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
 
             // Check if the new position would cause a collision
             if (canMoveTo(gridX, 2f, gridZ)) {
@@ -1063,8 +531,8 @@ class MafiaGame : ApplicationAdapter() {
         // Render transparent highlight separately with proper blending
         if (isHighlightVisible && highlightInstance != null) {
             // Enable blending for transparency
-            Gdx.gl.glEnable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
-            Gdx.gl.glBlendFunc(com.badlogic.gdx.graphics.GL20.GL_SRC_ALPHA, com.badlogic.gdx.graphics.GL20.GL_ONE_MINUS_SRC_ALPHA)
+            Gdx.gl.glEnable(GL20.GL_BLEND)
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
 
             // Disable depth writing but keep depth testing
             Gdx.gl.glDepthMask(false)
@@ -1075,24 +543,16 @@ class MafiaGame : ApplicationAdapter() {
 
             // Restore depth writing and disable blending
             Gdx.gl.glDepthMask(true)
-            Gdx.gl.glDisable(com.badlogic.gdx.graphics.GL20.GL_BLEND)
+            Gdx.gl.glDisable(GL20.GL_BLEND)
         }
 
-        // Render UI
-        if (isUIVisible) {
-            stage.act()
-            stage.draw()
-        } else {
-            // Always show block selection UI when it's active, even if main UI is hidden
-            if (isBlockSelectionMode) {
-                blockSelectionTable.act(Gdx.graphics.deltaTime)
-                blockSelectionTable.draw(stage.batch, 1f)
-            }
-        }
+        // Render UI using UIManager
+        uiManager.render()
     }
 
     override fun resize(width: Int, height: Int) {
-        stage.viewport.update(width, height, true)
+        // Resize UIManager's viewport
+        uiManager.resize(width, height)
         cameraManager.resize(width, height)
     }
 
@@ -1103,7 +563,8 @@ class MafiaGame : ApplicationAdapter() {
         playerModel.dispose()
         playerTexture.dispose()
         highlightModel?.dispose()
-        stage.dispose()
-        skin.dispose()
+
+        // Dispose UIManager
+        uiManager.dispose()
     }
 }
