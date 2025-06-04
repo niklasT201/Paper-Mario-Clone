@@ -5,6 +5,7 @@ import com.badlogic.gdx.Input
 import com.badlogic.gdx.InputAdapter
 import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.math.Vector2
+import net.bagaja.mafiagame.UIManager.Tool
 
 class InputHandler(
     private val uiManager: UIManager,
@@ -141,6 +142,15 @@ class InputHandler(
                     Input.Keys.NUM_2 -> {
                         cameraManager.switchToPlayerCamera()
                         return true
+                    }
+                    Input.Keys.NUMPAD_1 -> {
+                        uiManager.selectedTool = Tool.BLOCK
+                    }
+                    Input.Keys.NUMPAD_2 -> {
+                        uiManager.selectedTool = Tool.PLAYER
+                    }
+                    Input.Keys.NUMPAD_3 -> {
+                        uiManager.selectedTool = Tool.OBJECT
                     }
                 }
                 return false

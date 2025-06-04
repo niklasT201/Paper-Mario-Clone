@@ -28,6 +28,8 @@ class MafiaGame : ApplicationAdapter() {
 
     // Block system
     private lateinit var blockSystem: BlockSystem
+    private lateinit var objectSystem: ObjectSystem
+    private val gameObjects = Array<GameObject>()
 
     private var highlightModel: Model? = null
     private var highlightInstance: ModelInstance? = null
@@ -62,6 +64,7 @@ class MafiaGame : ApplicationAdapter() {
     override fun create() {
         setupGraphics()
         setupBlockSystem()
+        setupObjectSystem()
 
         // Initialize UI Manager
         uiManager = UIManager(blockSystem)
@@ -105,6 +108,11 @@ class MafiaGame : ApplicationAdapter() {
     private fun setupBlockSystem() {
         blockSystem = BlockSystem()
         blockSystem.initialize(blockSize)
+    }
+
+    private fun setupObjectSystem() {
+        objectSystem = ObjectSystem()
+        objectSystem.initialize()
     }
 
     private fun setupModels() {
@@ -166,15 +174,32 @@ class MafiaGame : ApplicationAdapter() {
         // Check if we're hovering over an existing block (for removal)
         val hitBlock = getBlockAtRay(ray)
 
-        if (hitBlock != null) {
+        if (hitBlock != null && uiManager.selectedTool == UIManager.Tool.BLOCK) {
             // Show transparent red highlight for block removal
             isHighlightVisible = true
             highlightPosition.set(hitBlock.position)
-            val transparentRed = Color(1f, 0f, 0f, 0.3f) // Red with 30% opacity
+            val transparentRed = Color(1f, 0f, 0f, 0.3f)
             highlightMaterial?.set(ColorAttribute.createDiffuse(transparentRed))
             highlightInstance?.transform?.setTranslation(highlightPosition)
+        } else if (uiManager.selectedTool == UIManager.Tool.OBJECT) {
+            // Show green highlight for object placement
+            val intersection = Vector3()
+            val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+                val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
+                val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+
+                isHighlightVisible = true
+                highlightPosition.set(gridX, 0.5f, gridZ)
+                val transparentBlue = Color(0f, 0f, 1f, 0.3f)
+                highlightMaterial?.set(ColorAttribute.createDiffuse(transparentBlue))
+                highlightInstance?.transform?.setTranslation(highlightPosition)
+            } else {
+                isHighlightVisible = false
+            }
         } else {
-            // Show transparent green highlight for block placement
+            // Show transparent green highlight for player placement
             val intersection = Vector3()
             val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
@@ -189,7 +214,7 @@ class MafiaGame : ApplicationAdapter() {
                         kotlin.math.abs(gameBlock.position.y - (blockSize / 2)) < 0.1f &&
                         kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize / 2)) < 0.1f
                 }
-                // Use uiManager.selectedTool
+
                 if (existingBlock == null && uiManager.selectedTool == UIManager.Tool.BLOCK) {
                     isHighlightVisible = true
                     highlightPosition.set(gridX + blockSize / 2, blockSize / 2, gridZ + blockSize / 2)
@@ -334,6 +359,7 @@ class MafiaGame : ApplicationAdapter() {
         when (uiManager.selectedTool) {
             UIManager.Tool.BLOCK -> placeBlock(ray)
             UIManager.Tool.PLAYER -> placePlayer(ray)
+            UIManager.Tool.OBJECT -> placeObject(ray)
         }
     }
 
@@ -481,6 +507,41 @@ class MafiaGame : ApplicationAdapter() {
         }
     }
 
+    private fun placeObject(ray: Ray) {
+        val intersection = Vector3()
+        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            // Snap to grid (optional - you might want objects to be placed more freely)
+            val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+
+            // Check if there's already an object at this position (optional)
+            val existingObject = gameObjects.find { gameObject ->
+                kotlin.math.abs(gameObject.position.x - gridX) < 1f &&
+                    kotlin.math.abs(gameObject.position.z - gridZ) < 1f
+            }
+
+            if (existingObject == null) {
+                addObject(gridX, 0f, gridZ, objectSystem.currentSelectedObject)
+                println("${objectSystem.currentSelectedObject.displayName} placed at: $gridX, 0, $gridZ")
+            } else {
+                println("Object already exists near this position")
+            }
+        }
+    }
+
+    private fun addObject(x: Float, y: Float, z: Float, objectType: ObjectType) {
+        val objectInstance = objectSystem.createObjectInstance(objectType)
+        if (objectInstance != null) {
+            val position = Vector3(x, y, z)
+            objectInstance.transform.setTranslation(position)
+
+            val gameObject = GameObject(objectInstance, objectType, position)
+            gameObjects.add(gameObject)
+        }
+    }
+
     private fun addBlock(x: Float, y: Float, z: Float, blockType: BlockType) {
         val blockInstance = blockSystem.createBlockInstance(blockType)
         if (blockInstance != null) {
@@ -529,6 +590,11 @@ class MafiaGame : ApplicationAdapter() {
             modelBatch.render(gameBlock.modelInstance, environment)
         }
 
+        // Render all objects
+        for (gameObject in gameObjects) {
+            modelBatch.render(gameObject.modelInstance, environment)
+        }
+
         // Render 3D player
         modelBatch.render(playerInstance, environment)
 
@@ -566,6 +632,7 @@ class MafiaGame : ApplicationAdapter() {
         modelBatch.dispose()
         spriteBatch.dispose()
         blockSystem.dispose()
+        objectSystem.dispose()
         playerModel.dispose()
         playerTexture.dispose()
         highlightModel?.dispose()

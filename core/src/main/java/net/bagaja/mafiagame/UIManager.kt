@@ -22,10 +22,9 @@ class UIManager(private val blockSystem: BlockSystem) {
     var isUIVisible = true
         private set
     var selectedTool = Tool.BLOCK
-        private set
 
     enum class Tool {
-        BLOCK, PLAYER
+        BLOCK, PLAYER, OBJECT
     }
 
     fun initialize() {
@@ -41,7 +40,6 @@ class UIManager(private val blockSystem: BlockSystem) {
         // Set initial visibility for the main UI panel
         mainTable.isVisible = isUIVisible
     }
-
 
     private fun setupMainUI() {
         // Create main UI table
@@ -61,29 +59,46 @@ class UIManager(private val blockSystem: BlockSystem) {
 
         val blockButton = TextButton("Ground Block", skin, "toggle")
         val playerButton = TextButton("Player", skin, "toggle")
+        val objectButton = TextButton("Object", skin, "toggle")
 
         blockButton.isChecked = true
 
+        // Block button listener
         blockButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 if (blockButton.isChecked) {
                     selectedTool = Tool.BLOCK
                     playerButton.isChecked = false
+                    objectButton.isChecked = false
                 }
             }
         })
 
+        // Player button listener
         playerButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 if (playerButton.isChecked) {
                     selectedTool = Tool.PLAYER
                     blockButton.isChecked = false
+                    objectButton.isChecked = false
+                }
+            }
+        })
+
+        // Object button listener
+        objectButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                if (objectButton.isChecked) {
+                    selectedTool = Tool.OBJECT
+                    blockButton.isChecked = false
+                    playerButton.isChecked = false
                 }
             }
         })
 
         mainTable.add(blockButton).width(120f).padBottom(5f).row()
-        mainTable.add(playerButton).width(120f).padBottom(20f).row()
+        mainTable.add(playerButton).width(120f).padBottom(5f).row()
+        mainTable.add(objectButton).width(120f).padBottom(20f).row()
 
         // Instructions
         val instructionLabel = Label("Instructions:", skin)
@@ -91,6 +106,7 @@ class UIManager(private val blockSystem: BlockSystem) {
 
         val instructions = """
         • Left click to place
+        • Right click to remove blocks
         • Hold Right click + drag to rotate camera
         • Mouse wheel to zoom in/out (or block selection)
         • WASD to move player
@@ -105,6 +121,7 @@ class UIManager(private val blockSystem: BlockSystem) {
         • Paper Mario style rotation!
         • Player has collision detection!
         • Block Selection: Hold B + scroll to choose blocks!
+        • Object Tool: Place 3D cross-shaped objects!
         """.trimIndent()
 
         val instructionText = Label(instructions, skin)
@@ -115,7 +132,7 @@ class UIManager(private val blockSystem: BlockSystem) {
         val statsLabel = Label("Stats:", skin)
         mainTable.add(statsLabel).padBottom(10f).row()
 
-        val statsText = Label("Blocks: 3\nPlayer: Placed", skin)
+        val statsText = Label("Blocks: 3\nPlayer: Placed\nObjects: 0", skin)
         mainTable.add(statsText).width(200f).row()
 
         stage.addActor(mainTable)
