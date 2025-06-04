@@ -38,13 +38,13 @@ class CameraManager {
     private var playerCameraDistance = 12f // Distance behind/beside the player
     private var playerCameraHeight = 6f // Height above the player
     private var playerCameraAngle = 25f // Side view angle (0° = behind, 90° = side view)
-    private val playerCameraSmoothing = 8f // How smoothly the camera follows
+    private val playerCameraSmoothing = 20f // How smoothly the camera follows
     private var currentPlayerCameraPosition = Vector3()
     private var targetPlayerCameraPosition = Vector3()
     private var playerPosition = Vector3(0f, 2f, 0f) // This will be updated from the game
 
     // Paper Mario style settings
-    private val paperMarioSideAngle = 85f // Slightly angled side view
+    private val paperMarioSideAngle = 90f // Slightly angled side view
     private val paperMarioDistance = 15f
     private val paperMarioHeight = 8f
 

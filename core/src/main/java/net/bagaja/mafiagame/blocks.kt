@@ -18,4 +18,7 @@ enum class BlockType(val displayName: String, val texturePath: String) {
     STONE("Stone", "textures/objects/stone_tile.png"),
     WINDOW_OPENED("Window Opened","textures/objects/window.png"),
     WINDOW_CLOSE("Window Closed","textures/objects/window_closed.png"),
+    RESTAURANT_FLOOR("Restaurant Floor","textures/objects/floor_tile.png"),
+    CARGO_FLOOR("Cargo Floor","textures/objects/cargo_tile.png"),
+    BRICK_WALL("Brick Wall","textures/objects/wall_brick.png"),
 }
