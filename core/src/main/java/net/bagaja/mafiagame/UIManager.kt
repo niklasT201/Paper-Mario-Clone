@@ -6,10 +6,8 @@ import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.TextureRegion
-import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.ui.*
-import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.viewport.ScreenViewport
 
@@ -48,63 +46,29 @@ class UIManager(private val blockSystem: BlockSystem) {
         mainTable.top().left()
         mainTable.pad(20f)
 
-        // Title
+        // Title - removed font scaling to prevent pixelation
         val titleLabel = Label("World Builder", skin)
-        titleLabel.setFontScale(1.5f)
         mainTable.add(titleLabel).colspan(2).padBottom(20f).row()
 
-        // Tool selection
-        val toolLabel = Label("Select Tool:", skin)
-        mainTable.add(toolLabel).padBottom(10f).row()
+        // Current tool display
+        val currentToolLabel = Label("Current Tool:", skin)
+        mainTable.add(currentToolLabel).padBottom(10f).row()
 
-        val blockButton = TextButton("Ground Block", skin, "toggle")
-        val playerButton = TextButton("Player", skin, "toggle")
-        val objectButton = TextButton("Object", skin, "toggle")
-
-        blockButton.isChecked = true
-
-        // Block button listener
-        blockButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) {
-                if (blockButton.isChecked) {
-                    selectedTool = Tool.BLOCK
-                    playerButton.isChecked = false
-                    objectButton.isChecked = false
-                }
-            }
-        })
-
-        // Player button listener
-        playerButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) {
-                if (playerButton.isChecked) {
-                    selectedTool = Tool.PLAYER
-                    blockButton.isChecked = false
-                    objectButton.isChecked = false
-                }
-            }
-        })
-
-        // Object button listener
-        objectButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) {
-                if (objectButton.isChecked) {
-                    selectedTool = Tool.OBJECT
-                    blockButton.isChecked = false
-                    playerButton.isChecked = false
-                }
-            }
-        })
-
-        mainTable.add(blockButton).width(120f).padBottom(5f).row()
-        mainTable.add(playerButton).width(120f).padBottom(5f).row()
-        mainTable.add(objectButton).width(120f).padBottom(20f).row()
+        val toolDisplayLabel = Label("Ground Block", skin)
+        toolDisplayLabel.name = "toolDisplay" // Give it a name so we can find it later
+        mainTable.add(toolDisplayLabel).padBottom(20f).row()
 
         // Instructions
         val instructionLabel = Label("Instructions:", skin)
         mainTable.add(instructionLabel).padBottom(10f).row()
 
         val instructions = """
+        Tool Selection:
+        • 1 - Block Tool (place/remove blocks)
+        • 2 - Player Tool (move player)
+        • 3 - Object Tool (place objects)
+
+        Controls:
         • Left click to place
         • Right click to remove blocks
         • Hold Right click + drag to rotate camera
@@ -126,7 +90,7 @@ class UIManager(private val blockSystem: BlockSystem) {
 
         val instructionText = Label(instructions, skin)
         instructionText.setWrap(true)
-        mainTable.add(instructionText).width(200f).padBottom(20f).row()
+        mainTable.add(instructionText).width(250f).padBottom(20f).row()
 
         // Stats
         val statsLabel = Label("Stats:", skin)
@@ -149,7 +113,13 @@ class UIManager(private val blockSystem: BlockSystem) {
 
                 // Update existing styles to use the new font
                 loadedSkin.get(Label.LabelStyle::class.java).font = customFont
-                loadedSkin.get(TextButton.TextButtonStyle::class.java).font = customFont
+
+                // Only update TextButton style if it exists
+                try {
+                    loadedSkin.get(TextButton.TextButtonStyle::class.java).font = customFont
+                } catch (e: Exception) {
+                    // TextButton style might not exist in the skin, that's okay
+                }
 
                 println("Custom font loaded successfully from ui/default.fnt")
             } catch (e: Exception) {
@@ -186,40 +156,12 @@ class UIManager(private val blockSystem: BlockSystem) {
         // Add font to skin
         skin.add("default-font", font)
 
-        // Create drawable for buttons
+        // Create drawable for UI elements
         val buttonTexture = TextureRegion(texture)
         val buttonDrawable = TextureRegionDrawable(buttonTexture)
 
         // Add background drawable
         skin.add("default-round", buttonDrawable.tint(Color(0.2f, 0.2f, 0.2f, 0.8f)))
-
-        // Button styles
-        val buttonStyle = Button.ButtonStyle()
-        buttonStyle.up = buttonDrawable.tint(Color.GRAY)
-        buttonStyle.down = buttonDrawable.tint(Color.DARK_GRAY)
-        skin.add("default", buttonStyle)
-
-        val toggleButtonStyle = Button.ButtonStyle()
-        toggleButtonStyle.up = buttonDrawable.tint(Color.GRAY)
-        toggleButtonStyle.down = buttonDrawable.tint(Color.DARK_GRAY)
-        toggleButtonStyle.checked = buttonDrawable.tint(Color.GREEN)
-        skin.add("toggle", toggleButtonStyle)
-
-        // Text button styles
-        val textButtonStyle = TextButton.TextButtonStyle()
-        textButtonStyle.up = buttonDrawable.tint(Color.GRAY)
-        textButtonStyle.down = buttonDrawable.tint(Color.DARK_GRAY)
-        textButtonStyle.font = font
-        textButtonStyle.fontColor = Color.WHITE
-        skin.add("default", textButtonStyle)
-
-        val toggleTextButtonStyle = TextButton.TextButtonStyle()
-        toggleTextButtonStyle.up = buttonDrawable.tint(Color.GRAY)
-        toggleTextButtonStyle.down = buttonDrawable.tint(Color.DARK_GRAY)
-        toggleTextButtonStyle.checked = buttonDrawable.tint(Color.GREEN)
-        toggleTextButtonStyle.font = font
-        toggleTextButtonStyle.fontColor = Color.WHITE
-        skin.add("toggle", toggleTextButtonStyle)
 
         // Label style
         val labelStyle = Label.LabelStyle()
@@ -245,6 +187,16 @@ class UIManager(private val blockSystem: BlockSystem) {
 
     fun updateBlockSelection() {
         blockSelectionUI.update()
+    }
+
+    // Method to update the tool display when tool changes
+    fun updateToolDisplay() {
+        val toolDisplayLabel = mainTable.findActor<Label>("toolDisplay")
+            toolDisplayLabel.setText(when (selectedTool) {
+                Tool.BLOCK -> "Ground Block"
+                Tool.PLAYER -> "Player"
+                Tool.OBJECT -> "Object"
+            })
     }
 
     fun getStage(): Stage = stage

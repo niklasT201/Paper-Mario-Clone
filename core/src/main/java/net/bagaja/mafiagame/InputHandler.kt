@@ -145,12 +145,15 @@ class InputHandler(
                     }
                     Input.Keys.NUMPAD_1 -> {
                         uiManager.selectedTool = Tool.BLOCK
+                        uiManager.updateToolDisplay()
                     }
                     Input.Keys.NUMPAD_2 -> {
                         uiManager.selectedTool = Tool.PLAYER
+                        uiManager.updateToolDisplay()
                     }
                     Input.Keys.NUMPAD_3 -> {
                         uiManager.selectedTool = Tool.OBJECT
+                        uiManager.updateToolDisplay()
                     }
                 }
                 return false
