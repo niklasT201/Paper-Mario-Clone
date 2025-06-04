@@ -1,5 +1,6 @@
 package net.bagaja.mafiagame
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
@@ -19,6 +20,7 @@ class BlockSelectionUI(
 ) {
     private lateinit var blockSelectionTable: Table
     private lateinit var blockItems: MutableList<BlockSelectionItem>
+    private val loadedTextures = mutableMapOf<String, Texture>() // Cache for loaded textures
 
     // Data class to hold block selection item components
     private data class BlockSelectionItem(
@@ -85,8 +87,6 @@ class BlockSelectionUI(
         mainContainer.add(instructionLabel)
 
         blockSelectionTable.add(mainContainer)
-        //blockSelectionTable.setVisible(false)
-
         stage.addActor(blockSelectionTable)
     }
 
@@ -100,8 +100,8 @@ class BlockSelectionUI(
 
         container.background = if (isSelected) selectedBg else normalBg
 
-        // Block icon (you can replace this with actual block textures)
-        val iconTexture = createBlockIcon(blockType)
+        // Block icon - try to load actual texture first, fallback to generated icon
+        val iconTexture = loadBlockTexture(blockType)
         val iconImage = Image(iconTexture)
         container.add(iconImage).size(40f, 40f).padBottom(8f).row()
 
@@ -114,6 +114,32 @@ class BlockSelectionUI(
         container.add(nameLabel).width(70f).center()
 
         return BlockSelectionItem(container, iconImage, nameLabel, normalBg, selectedBg, blockType)
+    }
+
+    private fun loadBlockTexture(blockType: BlockType): TextureRegion {
+        val texturePath = blockType.texturePath
+
+        // Check if we already have this texture cached
+        if (loadedTextures.containsKey(texturePath)) {
+            return TextureRegion(loadedTextures[texturePath]!!)
+        }
+
+        // Try to load the actual texture file
+        return try {
+            val fileHandle = Gdx.files.internal(texturePath)
+            if (fileHandle.exists()) {
+                val texture = Texture(fileHandle)
+                loadedTextures[texturePath] = texture // Cache it
+                println("Loaded block texture: $texturePath")
+                TextureRegion(texture)
+            } else {
+                println("Texture not found: $texturePath, using fallback")
+                createBlockIcon(blockType)
+            }
+        } catch (e: Exception) {
+            println("Failed to load texture: $texturePath, error: ${e.message}, using fallback")
+            createBlockIcon(blockType)
+        }
     }
 
     private fun createModernBackground(): Drawable {
@@ -149,15 +175,19 @@ class BlockSelectionUI(
     }
 
     private fun createBlockIcon(blockType: BlockType): TextureRegion {
-        // Create colored squares representing different block types
+        // Create colored squares representing different block types (fallback)
         val pixmap = Pixmap(32, 32, Pixmap.Format.RGBA8888)
 
         val color = when (blockType) {
             BlockType.GRASS -> Color(0.4f, 0.8f, 0.2f, 1f)
             BlockType.COBBLESTONE -> Color(0.6f, 0.6f, 0.6f, 1f)
             BlockType.ROOM_FLOOR -> Color(0.8f, 0.7f, 0.5f, 1f)
-            // Add more block types as needed
-            else -> Color.GRAY
+            BlockType.STONE -> Color(0.5f, 0.5f, 0.5f, 1f)
+            BlockType.WINDOW_OPENED -> Color(0.7f, 0.9f, 1f, 1f)
+            BlockType.WINDOW_CLOSE -> Color(0.5f, 0.7f, 0.9f, 1f)
+            BlockType.RESTAURANT_FLOOR -> Color(0.9f, 0.8f, 0.6f, 1f)
+            BlockType.CARGO_FLOOR -> Color(0.7f, 0.6f, 0.4f, 1f)
+            BlockType.BRICK_WALL -> Color(0.8f, 0.4f, 0.3f, 1f)
         }
 
         // Fill with base color
@@ -216,17 +246,18 @@ class BlockSelectionUI(
     }
 
     fun show() {
-        //isVisible = true
         blockSelectionTable.setVisible(true)
     }
 
     fun hide() {
-        //isVisible = false
         blockSelectionTable.setVisible(false)
     }
 
     fun dispose() {
-        // Dispose any textures created for block icons if needed
-        // This would be expanded if you're storing textures that need disposal
+        // Dispose cached textures
+        for (texture in loadedTextures.values) {
+            texture.dispose()
+        }
+        loadedTextures.clear()
     }
 }

@@ -39,4 +39,3 @@ public class Lwjgl3Launcher {
 // experimenting with block style
 // physics
 // sky color change
-// adding block selectiom preview image
