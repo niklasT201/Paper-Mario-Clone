@@ -508,6 +508,12 @@ class MafiaGame : ApplicationAdapter() {
         Gdx.gl.glViewport(0, 0, Gdx.graphics.width, Gdx.graphics.height)
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
 
+        // Get delta time for this frame
+        val deltaTime = Gdx.graphics.deltaTime
+
+        // Update input handler for continuous actions
+        inputHandler.update(deltaTime)
+
         // Handle player input
         handlePlayerInput()
         updatePlayerTransform()
