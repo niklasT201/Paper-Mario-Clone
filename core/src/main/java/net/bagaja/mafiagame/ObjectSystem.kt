@@ -77,26 +77,30 @@ class ObjectSystem {
     private fun createInvisibleLightSource(modelBuilder: ModelBuilder, objectType: ObjectType) {
         // Create completely transparent material for invisible light source
         val invisibleMaterial = Material(
-            ColorAttribute.createDiffuse(Color.CLEAR),
-            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.0f)
+            ColorAttribute.createDiffuse(0f, 0f, 0f, 0f), // Completely transparent
+            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.0f),
+            IntAttribute.createCullFace(GL20.GL_NONE) // Disable culling so it doesn't interfere
         )
 
-        // Create a small invisible cube for the hitbox
+        // Create a tiny invisible point - use a very small size to minimize interference
         val invisibleModel = modelBuilder.createBox(
-            objectType.width, objectType.height, objectType.width,
+            0.1f, 0.1f, 0.1f, // Very small size
             invisibleMaterial,
             (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
         )
         objectModels[objectType] = invisibleModel
 
-        // Create debug visualization (semi-transparent yellow cube with light bulb icon effect)
+        // Create debug visualization (semi-transparent bright yellow sphere for better visibility)
         val debugMaterial = Material(
             ColorAttribute.createDiffuse(Color.YELLOW),
-            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.5f)
+            ColorAttribute.createEmissive(0.3f, 0.3f, 0f, 1f), // Add emissive glow
+            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.7f) // More visible
         )
 
-        val debugModel = modelBuilder.createBox(
+        // Use sphere instead of box for better light source representation
+        val debugModel = modelBuilder.createSphere(
             objectType.width, objectType.height, objectType.width,
+            12, 12, // segments for sphere
             debugMaterial,
             (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
         )
@@ -205,7 +209,7 @@ data class GameObject(
     val modelInstance: ModelInstance,
     val objectType: ObjectType,
     val position: Vector3,
-    val debugInstance: ModelInstance? = null, // For debug visualization of invisible objects
+    var debugInstance: ModelInstance? = null, // For debug visualization of invisible objects
     var pointLight: PointLight? = null, // Actual light source for lighting effects
     var isBroken: Boolean = false // For future lantern breaking functionality
 ) {
@@ -234,7 +238,7 @@ data class GameObject(
         } else if (!objectType.isInvisible) {
             modelInstance
         } else {
-            null // Invisible object not in debug mode
+            null // Invisible object not in debug mode - don't render at all
         }
     }
 
@@ -245,7 +249,7 @@ data class GameObject(
             light.set(
                 Color(1f, 0.9f, 0.7f, 1f), // Warm white light
                 position.x, position.y + objectType.height / 2f, position.z, // Position at center of light source
-                12f // Light intensity/range
+                15f // Increased light intensity/range for better visibility
             )
             pointLight = light
             light

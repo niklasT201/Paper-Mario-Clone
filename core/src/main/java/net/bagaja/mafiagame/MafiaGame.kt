@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
+import com.badlogic.gdx.graphics.g3d.environment.PointLight
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.Ray
@@ -46,6 +47,10 @@ class MafiaGame : ApplicationAdapter() {
     // Block size
     private val blockSize = 4f
 
+    // Light management
+    private val activeLights = Array<PointLight>()
+    private val maxLights = 8
+
     override fun create() {
         setupGraphics()
         setupBlockSystem()
@@ -62,7 +67,7 @@ class MafiaGame : ApplicationAdapter() {
             blockSystem,
             objectSystem,
             this::handleLeftClickAction,
-            this::handleRightClickAndRemoveBlockAction
+            this::handleRightClickAndRemoveAction
         )
         inputHandler.initialize()
 
@@ -218,14 +223,29 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     // Callback for InputHandler for right mouse click (attempt to remove block)
-    private fun handleRightClickAndRemoveBlockAction(screenX: Int, screenY: Int): Boolean {
+    private fun handleRightClickAndRemoveAction(screenX: Int, screenY: Int): Boolean {
         val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
-        val blockToRemove = getBlockAtRay(ray)
-        if (blockToRemove != null) {
-            removeBlock(blockToRemove)
-            return true // Block was removed
+
+        when (uiManager.selectedTool) {
+            UIManager.Tool.BLOCK -> {
+                val blockToRemove = getBlockAtRay(ray)
+                if (blockToRemove != null) {
+                    removeBlock(blockToRemove)
+                    return true
+                }
+            }
+            UIManager.Tool.OBJECT -> {
+                val objectToRemove = getObjectAtRay(ray)
+                if (objectToRemove != null) {
+                    removeObject(objectToRemove)
+                    return true
+                }
+            }
+            UIManager.Tool.PLAYER -> {
+                return false
+            }
         }
-        return false // No block removed
+        return false
     }
 
     private fun placeBlock(ray: Ray) {
@@ -311,6 +331,33 @@ class MafiaGame : ApplicationAdapter() {
         }
     }
 
+    private fun getObjectAtRay(ray: Ray): GameObject? {
+        var closestObject: GameObject? = null
+        var closestDistance = Float.MAX_VALUE
+
+        for (gameObject in gameObjects) {
+            // Create a bounding box for the object (adjust size as needed)
+            val objectBounds = BoundingBox()
+            val objectSize = 2f // Adjust this based on your object sizes
+            objectBounds.set(
+                Vector3(gameObject.position.x - objectSize / 2, gameObject.position.y, gameObject.position.z - objectSize / 2),
+                Vector3(gameObject.position.x + objectSize / 2, gameObject.position.y + objectSize, gameObject.position.z + objectSize / 2)
+            )
+
+            // Check if ray intersects with this object's bounding box
+            val intersection = Vector3()
+            if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, objectBounds, intersection)) {
+                val distance = ray.origin.dst(intersection)
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestObject = gameObject
+                }
+            }
+        }
+
+        return closestObject
+    }
+
     private fun getBlockAtRay(ray: Ray): GameBlock? {
         var closestBlock: GameBlock? = null
         var closestDistance = Float.MAX_VALUE
@@ -339,6 +386,18 @@ class MafiaGame : ApplicationAdapter() {
     private fun removeBlock(blockToRemove: GameBlock) {
         gameBlocks.removeValue(blockToRemove, true)
         println("${blockToRemove.blockType.displayName} block removed at: ${blockToRemove.position}")
+    }
+
+    private fun removeObject(objectToRemove: GameObject) {
+        // Remove light from environment if it exists
+        if (objectToRemove.pointLight != null) {
+            environment.remove(objectToRemove.pointLight)
+            activeLights.removeValue(objectToRemove.pointLight, true)
+            println("Light removed. Remaining lights: ${activeLights.size}")
+        }
+
+        gameObjects.removeValue(objectToRemove, true)
+        println("${objectToRemove.objectType.displayName} removed at: ${objectToRemove.position}")
     }
 
     private fun placePlayer(ray: Ray) {
@@ -376,6 +435,26 @@ class MafiaGame : ApplicationAdapter() {
             objectInstance.transform.setTranslation(position)
 
             val gameObject = GameObject(objectInstance, objectType, position)
+
+            // Create debug instance for invisible objects
+            if (objectType.isInvisible) {
+                val debugInstance = objectSystem.createDebugInstance(objectType)
+                gameObject.debugInstance = debugInstance
+                debugInstance?.transform?.setTranslation(position)
+            }
+
+            // Create and add light source if it's a light object
+            if (objectType == ObjectType.LIGHT_SOURCE) {
+                val light = gameObject.createLight()
+                if (light != null && activeLights.size < maxLights) {
+                    environment.add(light)
+                    activeLights.add(light)
+                    println("Light source added at position: $position (Total lights: ${activeLights.size})")
+                } else if (activeLights.size >= maxLights) {
+                    println("Warning: Maximum number of lights ($maxLights) reached!")
+                }
+            }
+
             gameObjects.add(gameObject)
         }
     }
@@ -417,9 +496,12 @@ class MafiaGame : ApplicationAdapter() {
             modelBatch.render(gameBlock.modelInstance, environment)
         }
 
-        // Render all objects
+        // Render all objects (modified to handle invisible objects properly)
         for (gameObject in gameObjects) {
-            modelBatch.render(gameObject.modelInstance, environment)
+            val renderInstance = gameObject.getRenderInstance(objectSystem.debugMode)
+            if (renderInstance != null) {
+                modelBatch.render(renderInstance, environment)
+            }
         }
 
         // Render 3D player

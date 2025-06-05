@@ -157,7 +157,7 @@ class InputHandler(
                         objectSystem.toggleFinePosMode()
                         return true
                     }
-                    Input.Keys.D -> {
+                    Input.Keys.G -> {
                         // Toggle debug mode for objects (to see invisible ones)
                         objectSystem.toggleDebugMode()
                         return true
