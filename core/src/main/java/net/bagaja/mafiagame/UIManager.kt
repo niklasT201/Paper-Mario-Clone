@@ -419,13 +419,6 @@ class UIManager(private val blockSystem: BlockSystem) {
         return skin
     }
 
-    fun updateToolSelection(newTool: Tool) {
-        if (selectedTool != newTool) {
-            selectedTool = newTool
-            updateToolButtons()
-        }
-    }
-
     private fun updateToolButtons() {
         val tools = Tool.values()
 
@@ -461,12 +454,6 @@ class UIManager(private val blockSystem: BlockSystem) {
             val nameLabel = toolButton.children.get(1) as Label
             nameLabel.color = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
         }
-    }
-
-    fun updateStats(blocks: Int, playerPlaced: Boolean, objects: Int) {
-        statsLabels["Blocks"]?.setText(blocks.toString())
-        statsLabels["Player"]?.setText(if (playerPlaced) "Placed" else "Not Placed")
-        statsLabels["Objects"]?.setText(objects.toString())
     }
 
     fun toggleVisibility() {
