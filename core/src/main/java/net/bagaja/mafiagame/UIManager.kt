@@ -6,8 +6,11 @@ import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.TextureRegion
+import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.scenes.scene2d.Stage
+import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
+import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.viewport.ScreenViewport
 
@@ -16,6 +19,8 @@ class UIManager(private val blockSystem: BlockSystem) {
     private lateinit var skin: Skin
     private lateinit var blockSelectionUI: BlockSelectionUI
     private lateinit var mainTable: Table
+    private lateinit var toolButtons: MutableList<Table>
+    private lateinit var statsLabels: MutableMap<String, Label>
 
     var isUIVisible = true
         private set
@@ -29,77 +34,275 @@ class UIManager(private val blockSystem: BlockSystem) {
         stage = Stage(ScreenViewport())
         skin = createSkin()
 
-        // Initialize mainTable first as blockSelectionUI might depend on the stage already having some base setup
-        setupMainUI() // This creates mainTable and adds it to the stage
+        setupMainUI()
 
         blockSelectionUI = BlockSelectionUI(blockSystem, skin, stage)
-        blockSelectionUI.initialize() // This creates blockSelectionTable and adds it to the stage
+        blockSelectionUI.initialize()
 
         // Set initial visibility for the main UI panel
         mainTable.isVisible = isUIVisible
     }
 
     private fun setupMainUI() {
-        // Create main UI table
-        mainTable = Table() // Assign here
+        mainTable = Table()
         mainTable.setFillParent(true)
         mainTable.top().left()
         mainTable.pad(20f)
 
-        // Title - removed font scaling to prevent pixelation
-        val titleLabel = Label("World Builder", skin)
-        mainTable.add(titleLabel).colspan(2).padBottom(20f).row()
+        // Create main container with modern background
+        val mainContainer = Table()
+        mainContainer.background = createModernPanelBackground()
+        mainContainer.pad(25f)
 
-        // Current tool display
-        val currentToolLabel = Label("Current Tool:", skin)
-        mainTable.add(currentToolLabel).padBottom(10f).row()
+        // Title with modern styling
+        val titleLabel = Label("World Builder", skin, "title")
+        mainContainer.add(titleLabel).padBottom(25f).row()
 
-        val toolDisplayLabel = Label("Ground Block", skin)
-        toolDisplayLabel.name = "toolDisplay" // Give it a name so we can find it later
-        mainTable.add(toolDisplayLabel).padBottom(20f).row()
+        // Tool selection section
+        createToolSelectionSection(mainContainer)
 
-        // Instructions
-        val instructionLabel = Label("Instructions:", skin)
-        mainTable.add(instructionLabel).padBottom(10f).row()
+        // Instructions section
+        createInstructionsSection(mainContainer)
 
-        val instructions = """
-        Tool Selection:
-        • 1 - Block Tool (place/remove blocks)
-        • 2 - Player Tool (move player)
-        • 3 - Object Tool (place objects)
+        // Stats section
+        createStatsSection(mainContainer)
+
+        mainTable.add(mainContainer).top().left()
+        stage.addActor(mainTable)
+    }
+
+    private fun createToolSelectionSection(container: Table) {
+        // Section title
+        val toolSectionLabel = Label("Tools", skin, "section")
+        container.add(toolSectionLabel).padBottom(15f).left().row()
+
+        // Tool buttons container
+        val toolContainer = Table()
+        toolContainer.pad(10f)
+
+        toolButtons = mutableListOf()
+        val tools = Tool.values()
+
+        for (i in tools.indices) {
+            val tool = tools[i]
+            val toolButton = createToolButton(tool, tool == selectedTool)
+            toolButtons.add(toolButton)
+
+            toolContainer.add(toolButton).size(80f, 70f).pad(5f)
+            if (i < tools.size - 1) {
+                toolContainer.add().width(10f) // Spacer
+            }
+        }
+
+        container.add(toolContainer).padBottom(20f).left().row()
+    }
+
+    private fun createToolButton(tool: Tool, isSelected: Boolean): Table {
+        val buttonContainer = Table()
+        buttonContainer.pad(8f)
+
+        // Set background based on selection
+        val normalBg = createToolButtonBackground(Color(0.25f, 0.25f, 0.3f, 0.9f))
+        val selectedBg = createToolButtonBackground(Color(0.4f, 0.6f, 0.8f, 0.95f))
+        buttonContainer.background = if (isSelected) selectedBg else normalBg
+
+        // Tool icon (using colored squares as placeholders)
+        val iconTexture = createToolIcon(tool)
+        val iconImage = Image(iconTexture)
+        buttonContainer.add(iconImage).size(30f, 30f).padBottom(5f).row()
+
+        // Tool name
+        val nameLabel = Label(getToolDisplayName(tool), skin, "small")
+        nameLabel.color = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
+        buttonContainer.add(nameLabel)
+
+        return buttonContainer
+    }
+
+    private fun createInstructionsSection(container: Table) {
+        // Section title
+        val instructionSectionLabel = Label("Controls", skin, "section")
+        container.add(instructionSectionLabel).padBottom(15f).left().row()
+
+        // Instructions container with modern background
+        val instructionsContainer = Table()
+        instructionsContainer.background = createInstructionsBackground()
+        instructionsContainer.pad(15f)
+
+        val instructions = """Tool Selection:
+        1/2/3 - Switch tools
 
         Controls:
-        • Left click to place
-        • Right click to remove blocks
-        • Hold Right click + drag to rotate camera
-        • Mouse wheel to zoom in/out (or block selection)
-        • WASD to move player
-        • H to toggle this UI
-        • B to toggle Block Selection Mode
-        • C to toggle Free Camera
-        • 1 for Orbiting Camera (building)
-        • 2 for Player Camera (Paper Mario)
-        • Q/E to adjust camera angle (player mode)
-        • R/T to adjust camera height (player mode)
-        • Blocks snap to 4x4 grid
-        • Paper Mario style rotation!
-        • Player has collision detection!
-        • Block Selection: Hold B + scroll to choose blocks!
-        • Object Tool: Place 3D cross-shaped objects!
-        """.trimIndent()
+        • Left click - Place/Action
+        • Right click - Remove blocks
+        • Right drag - Rotate camera
+        • Mouse wheel - Zoom/Block select
+        • WASD - Move player
+        • H - Toggle UI
+        • B - Block selection mode
+        • C - Free camera mode
+        • Q/E - Camera angle (player)
+        • R/T - Camera height (player)
 
-        val instructionText = Label(instructions, skin)
+        Features:
+        • 4x4 grid snapping
+        • Paper Mario rotation
+        • Collision detection
+        • Hold B + scroll for blocks"""
+
+        val instructionText = Label(instructions, skin, "instruction")
         instructionText.setWrap(true)
-        mainTable.add(instructionText).width(250f).padBottom(20f).row()
+        instructionsContainer.add(instructionText).width(280f)
 
-        // Stats
-        val statsLabel = Label("Stats:", skin)
-        mainTable.add(statsLabel).padBottom(10f).row()
+        container.add(instructionsContainer).width(320f).padBottom(20f).left().row()
+    }
 
-        val statsText = Label("Blocks: 3\nPlayer: Placed\nObjects: 0", skin)
-        mainTable.add(statsText).width(200f).row()
+    private fun createStatsSection(container: Table) {
+        // Section title
+        val statsSectionLabel = Label("Statistics", skin, "section")
+        container.add(statsSectionLabel).padBottom(15f).left().row()
 
-        stage.addActor(mainTable)
+        // Stats container
+        val statsContainer = Table()
+        statsContainer.background = createStatsBackground()
+        statsContainer.pad(15f)
+
+        statsLabels = mutableMapOf()
+
+        // Create individual stat items
+        val statItems = listOf(
+            "Blocks" to "3",
+            "Player" to "Placed",
+            "Objects" to "0"
+        )
+
+        for ((key, value) in statItems) {
+            val statRow = Table()
+
+            val keyLabel = Label("$key:", skin, "stat-key")
+            val valueLabel = Label(value, skin, "stat-value")
+            statsLabels[key] = valueLabel
+
+            statRow.add(keyLabel).left().padRight(10f)
+            statRow.add(valueLabel).left().expandX()
+
+            statsContainer.add(statRow).fillX().padBottom(5f).row()
+        }
+
+        container.add(statsContainer).width(250f).left()
+    }
+
+    private fun createModernPanelBackground(): Drawable {
+        val pixmap = Pixmap(200, 400, Pixmap.Format.RGBA8888)
+
+        // Create gradient background
+        for (y in 0 until 400) {
+            val alpha = 0.88f + (y / 400f) * 0.07f
+            pixmap.setColor(0.08f, 0.08f, 0.12f, alpha)
+            pixmap.drawLine(0, y, 199, y)
+        }
+
+        // Add subtle border
+        pixmap.setColor(0.3f, 0.3f, 0.4f, 0.6f)
+        pixmap.drawRectangle(0, 0, 200, 400)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun createToolButtonBackground(color: Color): Drawable {
+        val pixmap = Pixmap(80, 70, Pixmap.Format.RGBA8888)
+        pixmap.setColor(color)
+        pixmap.fill()
+
+        // Add border
+        pixmap.setColor(color.r + 0.1f, color.g + 0.1f, color.b + 0.1f, color.a)
+        pixmap.drawRectangle(0, 0, 80, 70)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun createInstructionsBackground(): Drawable {
+        val pixmap = Pixmap(300, 200, Pixmap.Format.RGBA8888)
+        pixmap.setColor(0.12f, 0.12f, 0.18f, 0.85f)
+        pixmap.fill()
+
+        // Add border
+        pixmap.setColor(0.25f, 0.25f, 0.35f, 0.8f)
+        pixmap.drawRectangle(0, 0, 300, 200)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun createStatsBackground(): Drawable {
+        val pixmap = Pixmap(250, 100, Pixmap.Format.RGBA8888)
+        pixmap.setColor(0.15f, 0.15f, 0.2f, 0.9f)
+        pixmap.fill()
+
+        // Add border
+        pixmap.setColor(0.3f, 0.4f, 0.5f, 0.7f)
+        pixmap.drawRectangle(0, 0, 250, 100)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun createToolIcon(tool: Tool): TextureRegion {
+        val pixmap = Pixmap(30, 30, Pixmap.Format.RGBA8888)
+
+        val color = when (tool) {
+            Tool.BLOCK -> Color(0.4f, 0.8f, 0.2f, 1f)
+            Tool.PLAYER -> Color(0.8f, 0.6f, 0.2f, 1f)
+            Tool.OBJECT -> Color(0.6f, 0.4f, 0.8f, 1f)
+        }
+
+        pixmap.setColor(color)
+        pixmap.fill()
+
+        // Add simple pattern
+        pixmap.setColor(color.r * 0.7f, color.g * 0.7f, color.b * 0.7f, 1f)
+        when (tool) {
+            Tool.BLOCK -> {
+                // Grid pattern for blocks
+                for (i in 0 until 30 step 6) {
+                    pixmap.drawLine(i, 0, i, 29)
+                    pixmap.drawLine(0, i, 29, i)
+                }
+            }
+            Tool.PLAYER -> {
+                // Simple figure for player
+                pixmap.fillCircle(15, 20, 8)
+                pixmap.fillRectangle(11, 8, 8, 12)
+            }
+            Tool.OBJECT -> {
+                // Plus sign for objects
+                pixmap.fillRectangle(12, 5, 6, 20)
+                pixmap.fillRectangle(5, 12, 20, 6)
+            }
+        }
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+
+        return TextureRegion(texture)
+    }
+
+    private fun getToolDisplayName(tool: Tool): String {
+        return when (tool) {
+            Tool.BLOCK -> "Block"
+            Tool.PLAYER -> "Player"
+            Tool.OBJECT -> "Object"
+        }
     }
 
     private fun createSkin(): Skin {
@@ -118,19 +321,61 @@ class UIManager(private val blockSystem: BlockSystem) {
                 try {
                     loadedSkin.get(TextButton.TextButtonStyle::class.java).font = customFont
                 } catch (e: Exception) {
-                    // TextButton style might not exist in the skin, that's okay
+                    // TextButton style might not exist
                 }
+
+                // Add custom label styles
+                addCustomLabelStyles(loadedSkin, customFont)
 
                 println("Custom font loaded successfully from ui/default.fnt")
             } catch (e: Exception) {
-                println("Could not load custom font from ui/default.fnt: ${e.message}")
+                println("Could not load custom font: ${e.message}")
+                addCustomLabelStyles(loadedSkin, loadedSkin.get(BitmapFont::class.java))
             }
 
             loadedSkin
         } catch (e: Exception) {
-            println("Could not load UI skin from assets/ui/, using default skin with custom font")
+            println("Could not load UI skin, using default")
             createDefaultSkin()
         }
+    }
+
+    private fun addCustomLabelStyles(skin: Skin, font: BitmapFont) {
+        // Title style
+        val titleStyle = Label.LabelStyle()
+        titleStyle.font = font
+        titleStyle.fontColor = Color(0.9f, 0.9f, 1f, 1f)
+        skin.add("title", titleStyle)
+
+        // Section header style
+        val sectionStyle = Label.LabelStyle()
+        sectionStyle.font = font
+        sectionStyle.fontColor = Color(0.8f, 0.9f, 1f, 1f)
+        skin.add("section", sectionStyle)
+
+        // Small text style
+        val smallStyle = Label.LabelStyle()
+        smallStyle.font = font
+        smallStyle.fontColor = Color(0.8f, 0.8f, 0.8f, 1f)
+        skin.add("small", smallStyle)
+
+        // Instruction text style
+        val instructionStyle = Label.LabelStyle()
+        instructionStyle.font = font
+        instructionStyle.fontColor = Color(0.85f, 0.85f, 0.9f, 1f)
+        skin.add("instruction", instructionStyle)
+
+        // Stats key style
+        val statKeyStyle = Label.LabelStyle()
+        statKeyStyle.font = font
+        statKeyStyle.fontColor = Color(0.7f, 0.8f, 0.9f, 1f)
+        skin.add("stat-key", statKeyStyle)
+
+        // Stats value style
+        val statValueStyle = Label.LabelStyle()
+        statValueStyle.font = font
+        statValueStyle.fontColor = Color(0.9f, 0.9f, 1f, 1f)
+        skin.add("stat-value", statValueStyle)
     }
 
     private fun createDefaultSkin(): Skin {
@@ -146,10 +391,10 @@ class UIManager(private val blockSystem: BlockSystem) {
         // Try to load custom font first, fallback to default
         val font = try {
             val customFont = BitmapFont(Gdx.files.internal("ui/default.fnt"))
-            println("Custom font loaded successfully from ui/default.fnt (fallback)")
+            println("Custom font loaded successfully (fallback)")
             customFont
         } catch (e: Exception) {
-            println("Could not load custom font from ui/default.fnt, using system default: ${e.message}")
+            println("Using system default font: ${e.message}")
             BitmapFont()
         }
 
@@ -169,7 +414,59 @@ class UIManager(private val blockSystem: BlockSystem) {
         labelStyle.fontColor = Color.WHITE
         skin.add("default", labelStyle)
 
+        addCustomLabelStyles(skin, font)
+
         return skin
+    }
+
+    fun updateToolSelection(newTool: Tool) {
+        if (selectedTool != newTool) {
+            selectedTool = newTool
+            updateToolButtons()
+        }
+    }
+
+    private fun updateToolButtons() {
+        val tools = Tool.values()
+
+        for (i in toolButtons.indices) {
+            val toolButton = toolButtons[i]
+            val tool = tools[i]
+            val isSelected = tool == selectedTool
+
+            // Create smooth transition
+            val targetBackground = if (isSelected) {
+                createToolButtonBackground(Color(0.4f, 0.6f, 0.8f, 0.95f))
+            } else {
+                createToolButtonBackground(Color(0.25f, 0.25f, 0.3f, 0.9f))
+            }
+
+            // Animate the selection
+            toolButton.clearActions()
+            toolButton.addAction(
+                Actions.sequence(
+                    Actions.run { toolButton.background = targetBackground },
+                    if (isSelected) {
+                        Actions.sequence(
+                            Actions.scaleTo(1.1f, 1.1f, 0.1f, Interpolation.bounceOut),
+                            Actions.scaleTo(1.0f, 1.0f, 0.1f, Interpolation.smooth)
+                        )
+                    } else {
+                        Actions.scaleTo(1.0f, 1.0f, 0.1f, Interpolation.smooth)
+                    }
+                )
+            )
+
+            // Update label color
+            val nameLabel = toolButton.children.get(1) as Label
+            nameLabel.color = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
+        }
+    }
+
+    fun updateStats(blocks: Int, playerPlaced: Boolean, objects: Int) {
+        statsLabels["Blocks"]?.setText(blocks.toString())
+        statsLabels["Player"]?.setText(if (playerPlaced) "Placed" else "Not Placed")
+        statsLabels["Objects"]?.setText(objects.toString())
     }
 
     fun toggleVisibility() {
@@ -191,12 +488,7 @@ class UIManager(private val blockSystem: BlockSystem) {
 
     // Method to update the tool display when tool changes
     fun updateToolDisplay() {
-        val toolDisplayLabel = mainTable.findActor<Label>("toolDisplay")
-            toolDisplayLabel.setText(when (selectedTool) {
-                Tool.BLOCK -> "Ground Block"
-                Tool.PLAYER -> "Player"
-                Tool.OBJECT -> "Object"
-            })
+        updateToolButtons()
     }
 
     fun getStage(): Stage = stage

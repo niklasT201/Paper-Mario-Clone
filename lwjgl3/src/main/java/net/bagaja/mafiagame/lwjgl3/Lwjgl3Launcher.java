@@ -39,3 +39,9 @@ public class Lwjgl3Launcher {
 // experimenting with block style
 // physics
 // sky color change
+// adding items
+// adding saving for world building
+// adding guns
+// adding ammunition
+// adding health
+// adding multiple city areas
