@@ -14,10 +14,14 @@ import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.viewport.ScreenViewport
 
-class UIManager(private val blockSystem: BlockSystem) {
+class UIManager(
+    private val blockSystem: BlockSystem,
+    private val objectSystem: ObjectSystem // Add objectSystem parameter
+) {
     private lateinit var stage: Stage
     private lateinit var skin: Skin
     private lateinit var blockSelectionUI: BlockSelectionUI
+    private lateinit var objectSelectionUI: ObjectSelectionUI // Add object selection UI
     private lateinit var mainTable: Table
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
@@ -38,6 +42,10 @@ class UIManager(private val blockSystem: BlockSystem) {
 
         blockSelectionUI = BlockSelectionUI(blockSystem, skin, stage)
         blockSelectionUI.initialize()
+
+        // Initialize object selection UI
+        objectSelectionUI = ObjectSelectionUI(objectSystem, skin, stage)
+        objectSelectionUI.initialize()
 
         // Set initial visibility for the main UI panel
         mainTable.isVisible = isUIVisible
@@ -140,15 +148,22 @@ class UIManager(private val blockSystem: BlockSystem) {
         • WASD - Move player
         • H - Toggle UI
         • B - Block selection mode
+        • O - Object selection mode
         • C - Free camera mode
         • Q/E - Camera angle (player)
         • R/T - Camera height (player)
+
+        Object Controls:
+        • F - Fine positioning mode
+        • D - Debug mode (show invisible)
+        • Arrow keys - Fine position adjust
 
         Features:
         • 4x4 grid snapping
         • Paper Mario rotation
         • Collision detection
-        • Hold B + scroll for blocks"""
+        • Hold B + scroll for blocks
+        • Hold O + scroll for objects"""
 
         val instructionText = Label(instructions, skin, "instruction")
         instructionText.setWrap(true)
@@ -456,11 +471,19 @@ class UIManager(private val blockSystem: BlockSystem) {
         }
     }
 
+    // Update stats with current values
+    fun updateStats(blockCount: Int, playerPlaced: Boolean, objectCount: Int) {
+        statsLabels["Blocks"]?.setText(blockCount.toString())
+        statsLabels["Player"]?.setText(if (playerPlaced) "Placed" else "Not Placed")
+        statsLabels["Objects"]?.setText(objectCount.toString())
+    }
+
     fun toggleVisibility() {
         isUIVisible = !isUIVisible
         mainTable.isVisible = isUIVisible
     }
 
+    // Block selection methods
     fun showBlockSelection() {
         blockSelectionUI.show()
     }
@@ -471,6 +494,19 @@ class UIManager(private val blockSystem: BlockSystem) {
 
     fun updateBlockSelection() {
         blockSelectionUI.update()
+    }
+
+    // Object selection methods
+    fun showObjectSelection() {
+        objectSelectionUI.show()
+    }
+
+    fun hideObjectSelection() {
+        objectSelectionUI.hide()
+    }
+
+    fun updateObjectSelection() {
+        objectSelectionUI.update()
     }
 
     // Method to update the tool display when tool changes
@@ -491,6 +527,7 @@ class UIManager(private val blockSystem: BlockSystem) {
 
     fun dispose() {
         blockSelectionUI.dispose()
+        objectSelectionUI.dispose() // Dispose object selection UI
         stage.dispose()
         skin.dispose()
     }

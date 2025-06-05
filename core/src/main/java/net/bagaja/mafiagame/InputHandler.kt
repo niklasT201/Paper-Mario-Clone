@@ -11,6 +11,7 @@ class InputHandler(
     private val uiManager: UIManager,
     private val cameraManager: CameraManager,
     private val blockSystem: BlockSystem,
+    private val objectSystem: ObjectSystem, // Add object system
     private val onLeftClick: (screenX: Int, screenY: Int) -> Unit,
     private val onRightClickAttemptBlockRemove: (screenX: Int, screenY: Int) -> Boolean
 ) {
@@ -19,6 +20,7 @@ class InputHandler(
     private var lastMouseX = 0f
     private var lastMouseY = 0f
     private var isBlockSelectionMode = false
+    private var isObjectSelectionMode = false // Add object selection mode
 
     // Variables for continuous block placement/removal
     private var continuousActionTimer = 0f
@@ -112,6 +114,15 @@ class InputHandler(
                     }
                     uiManager.updateBlockSelection()
                     return true
+                } else if (isObjectSelectionMode) {
+                    // Use mouse scroll to change objects
+                    if (amountY > 0) {
+                        objectSystem.nextObject()
+                    } else if (amountY < 0) {
+                        objectSystem.previousObject()
+                    }
+                    uiManager.updateObjectSelection()
+                    return true
                 } else {
                     // Normal camera zoom
                     cameraManager.handleMouseScroll(amountY)
@@ -126,8 +137,29 @@ class InputHandler(
                         return true
                     }
                     Input.Keys.B -> {
-                        isBlockSelectionMode = true
-                        uiManager.showBlockSelection()
+                        // Only activate block selection if not in object selection mode
+                        if (!isObjectSelectionMode) {
+                            isBlockSelectionMode = true
+                            uiManager.showBlockSelection()
+                        }
+                        return true
+                    }
+                    Input.Keys.O -> {
+                        // Object selection mode (similar to B for blocks)
+                        if (!isBlockSelectionMode) {
+                            isObjectSelectionMode = true
+                            uiManager.showObjectSelection()
+                        }
+                        return true
+                    }
+                    Input.Keys.F -> {
+                        // Toggle fine positioning mode for objects
+                        objectSystem.toggleFinePosMode()
+                        return true
+                    }
+                    Input.Keys.D -> {
+                        // Toggle debug mode for objects (to see invisible ones)
+                        objectSystem.toggleDebugMode()
                         return true
                     }
                     Input.Keys.C -> {
@@ -143,6 +175,7 @@ class InputHandler(
                         cameraManager.switchToPlayerCamera()
                         return true
                     }
+                    // Tool selection
                     Input.Keys.NUMPAD_1 -> {
                         uiManager.selectedTool = Tool.BLOCK
                         uiManager.updateToolDisplay()
@@ -155,6 +188,34 @@ class InputHandler(
                         uiManager.selectedTool = Tool.OBJECT
                         uiManager.updateToolDisplay()
                     }
+                    Input.Keys.LEFT -> {
+                        if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
+                            // Handle fine positioning left
+                            handleFinePositioning(-objectSystem.getFineStep(), 0f)
+                            return true
+                        }
+                    }
+                    Input.Keys.RIGHT -> {
+                        if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
+                            // Handle fine positioning right
+                            handleFinePositioning(objectSystem.getFineStep(), 0f)
+                            return true
+                        }
+                    }
+                    Input.Keys.UP -> {
+                        if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
+                            // Handle fine positioning forward
+                            handleFinePositioning(0f, objectSystem.getFineStep())
+                            return true
+                        }
+                    }
+                    Input.Keys.DOWN -> {
+                        if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
+                            // Handle fine positioning backward
+                            handleFinePositioning(0f, -objectSystem.getFineStep())
+                            return true
+                        }
+                    }
                 }
                 return false
             }
@@ -164,6 +225,11 @@ class InputHandler(
                     Input.Keys.B -> {
                         isBlockSelectionMode = false
                         uiManager.hideBlockSelection()
+                        return true
+                    }
+                    Input.Keys.O -> {
+                        isObjectSelectionMode = false
+                        uiManager.hideObjectSelection()
                         return true
                     }
                 }
@@ -212,5 +278,10 @@ class InputHandler(
     private fun isBlockBeingRemoved(): Boolean {
         // We're in block removal mode if the last removal position is set
         return lastRemovalX != -1 && lastRemovalY != -1
+    }
+
+    // Helper method for fine positioning objects
+    private fun handleFinePositioning(deltaX: Float, deltaZ: Float) {
+        println("Fine positioning: deltaX=$deltaX, deltaZ=$deltaZ")
     }
 }

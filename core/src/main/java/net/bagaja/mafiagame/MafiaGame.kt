@@ -52,7 +52,7 @@ class MafiaGame : ApplicationAdapter() {
         setupObjectSystem()
 
         // Initialize UI Manager
-        uiManager = UIManager(blockSystem)
+        uiManager = UIManager(blockSystem, objectSystem)
         uiManager.initialize()
 
         // Initialize Input Handler
@@ -60,6 +60,7 @@ class MafiaGame : ApplicationAdapter() {
             uiManager,
             cameraManager,
             blockSystem,
+            objectSystem,
             this::handleLeftClickAction,
             this::handleRightClickAndRemoveBlockAction
         )
