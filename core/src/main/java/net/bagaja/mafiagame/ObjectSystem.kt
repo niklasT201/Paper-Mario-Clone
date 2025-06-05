@@ -17,7 +17,7 @@ import com.badlogic.gdx.math.Vector3
 class ObjectSystem {
     private val objectModels = mutableMapOf<ObjectType, Model>()
     private val objectTextures = mutableMapOf<ObjectType, Texture>()
-    var currentSelectedObject = ObjectType.TREE
+    var currentSelectedObject = ObjectType.LANTERN
         private set
     var currentSelectedObjectIndex = 0
         private set
@@ -151,7 +151,7 @@ enum class ObjectType(
     val height: Float
 ) {
     TREE("Tree", "textures/objects/models/tree.png", 14.5f, 15.6f), // Scaled down from 278x405
-    // Add more objects here as needed
+    LANTERN("Lantern","textures/objects/models/lantern.png", 3f, 11f)
     // FLOWER("Flower", "textures/objects/flower.png", 1f, 1.5f),
     // BUSH("Bush", "textures/objects/bush.png", 2f, 1.5f),
 }
