@@ -228,16 +228,16 @@ class CameraManager {
         val adjustmentSpeed = 30f * deltaTime
 
         // Allow fine-tuning of the camera angle with Q and E keys
-        if (Gdx.input.isKeyPressed(Input.Keys.Q)) {
-            playerCameraAngle += adjustmentSpeed
-            playerCameraAngle = playerCameraAngle.coerceIn(0f, 180f)
-            calculatePlayerCameraTarget()
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.E)) {
-            playerCameraAngle -= adjustmentSpeed
-            playerCameraAngle = playerCameraAngle.coerceIn(0f, 180f)
-            calculatePlayerCameraTarget()
-        }
+//        if (Gdx.input.isKeyPressed(Input.Keys.Q)) {
+//            playerCameraAngle += adjustmentSpeed
+//            playerCameraAngle = playerCameraAngle.coerceIn(0f, 180f)
+//            calculatePlayerCameraTarget()
+//        }
+//        if (Gdx.input.isKeyPressed(Input.Keys.E)) {
+//            playerCameraAngle -= adjustmentSpeed
+//            playerCameraAngle = playerCameraAngle.coerceIn(0f, 180f)
+//            calculatePlayerCameraTarget()
+//        }
 
         // Allow height adjustment with R and T keys
         if (Gdx.input.isKeyPressed(Input.Keys.R)) {

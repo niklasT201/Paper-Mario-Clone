@@ -99,30 +99,10 @@ class MafiaGame : ApplicationAdapter() {
         cameraManager = CameraManager()
         cameraManager.initialize()
 
-        // Setup environment with bright, uniform lighting
+        // Setup environment and lighting
         environment = Environment()
-
-        // Set very bright ambient light - this ensures everything is well-lit from all angles
-        environment.set(ColorAttribute(ColorAttribute.AmbientLight, 0.9f, 0.9f, 0.9f, 1f))
-
-        // Add multiple directional lights from different angles to eliminate shadows
-        // Top-down light (like the sun)
-        environment.add(DirectionalLight().set(0.8f, 0.8f, 0.8f, 0f, -1f, 0f))
-
-        // Light from the front
-        environment.add(DirectionalLight().set(0.6f, 0.6f, 0.6f, 0f, 0f, -1f))
-
-        // Light from the back
-        environment.add(DirectionalLight().set(0.6f, 0.6f, 0.6f, 0f, 0f, 1f))
-
-        // Light from the left
-        environment.add(DirectionalLight().set(0.6f, 0.6f, 0.6f, -1f, 0f, 0f))
-
-        // Light from the right
-        environment.add(DirectionalLight().set(0.6f, 0.6f, 0.6f, 1f, 0f, 0f))
-
-        // Optional: Add a subtle upward light to brighten bottom faces
-        environment.add(DirectionalLight().set(0.4f, 0.4f, 0.4f, 0f, 1f, 0f))
+        environment.set(ColorAttribute(ColorAttribute.AmbientLight, 0.4f, 0.4f, 0.4f, 1f))
+        environment.add(DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f))
     }
 
     private fun setupBlockSystem() {
