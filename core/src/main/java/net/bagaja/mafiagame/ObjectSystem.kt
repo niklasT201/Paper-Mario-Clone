@@ -290,5 +290,5 @@ enum class ObjectType(
     TREE("Tree", "textures/objects/models/tree.png", 14.5f, 15.6f),
     LANTERN("Lantern", "textures/objects/models/lantern.png", 3f, 11f),
     LIGHT_SOURCE("Light Source", "", 2f, 2f, true, true), // Invisible, can be placed anywhere
-    //BROKEN_LANTERN("Broken Lantern", "textures/objects/models/broken_lantern.png", 3f, 11f)
+    BROKEN_LANTERN("Broken Lantern", "textures/objects/models/broken_lantern.png", 3f, 11f)
 }

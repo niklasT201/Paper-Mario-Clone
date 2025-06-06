@@ -57,6 +57,7 @@ class BlockSystem {
                     BlockType.RESTAURANT_FLOOR -> Color.GOLD
                     BlockType.CARGO_FLOOR -> Color.WHITE
                     BlockType.BRICK_WALL -> Color.ORANGE
+                    BlockType.STREET -> Color.BLUE
                 }
                 val material = Material(ColorAttribute.createDiffuse(fallbackColor))
                 val model = modelBuilder.createBox(

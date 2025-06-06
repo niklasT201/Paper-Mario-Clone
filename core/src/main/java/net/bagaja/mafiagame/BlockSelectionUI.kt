@@ -188,6 +188,7 @@ class BlockSelectionUI(
             BlockType.RESTAURANT_FLOOR -> Color(0.9f, 0.8f, 0.6f, 1f)
             BlockType.CARGO_FLOOR -> Color(0.7f, 0.6f, 0.4f, 1f)
             BlockType.BRICK_WALL -> Color(0.8f, 0.4f, 0.3f, 1f)
+            BlockType.STREET -> Color.BLUE
         }
 
         // Fill with base color

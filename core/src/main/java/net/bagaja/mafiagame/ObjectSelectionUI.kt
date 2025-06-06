@@ -268,6 +268,16 @@ class ObjectSelectionUI(
                 // This shouldn't normally be called for invisible objects
                 createInvisibleObjectIcon(objectType)
             }
+            ObjectType.BROKEN_LANTERN -> {
+                // Yellow/orange lantern
+                pixmap.setColor(Color(1f, 0.8f, 0.3f, 1f))
+                pixmap.fillRectangle(20, 15, 10, 20) // Lantern body
+                pixmap.setColor(Color(0.8f, 0.6f, 0.2f, 1f))
+                pixmap.fillRectangle(18, 10, 14, 5) // Top
+                pixmap.fillRectangle(18, 35, 14, 5) // Bottom
+                pixmap.setColor(Color(1f, 1f, 0.8f, 1f))
+                pixmap.fillCircle(25, 25, 3) // Light glow
+            }
         }
 
         val texture = Texture(pixmap)
