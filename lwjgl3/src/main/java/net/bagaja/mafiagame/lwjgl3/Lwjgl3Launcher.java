@@ -49,5 +49,5 @@ public class Lwjgl3Launcher {
 // lightning problem with the player
 // adding cars
 // add weapon pickup items
-//  Custom Shader for billboards
+// player invisible behind objects
 

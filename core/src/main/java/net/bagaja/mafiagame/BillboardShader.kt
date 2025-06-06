@@ -1,6 +1,8 @@
 package net.bagaja.mafiagame
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Camera
+import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.g3d.Environment
 import com.badlogic.gdx.graphics.g3d.Renderable
 import com.badlogic.gdx.graphics.g3d.Shader
@@ -243,8 +245,28 @@ class BillboardShader : BaseShader() {
         return renderable.material.has(TextureAttribute.Diffuse)
     }
 
+    private fun needsTransparency(): Boolean {
+        // Return true only if your player texture actually has transparency
+        // For most sprite-based characters, you'll want this to be true
+        return true
+    }
+
     override fun begin(camera: Camera, context: RenderContext) {
         this.compiledProgram.bind()
+
+        // IMPORTANT: Ensure proper depth testing is enabled
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDepthFunc(GL20.GL_LEQUAL)  // Less than or equal for proper depth testing
+        Gdx.gl.glDepthMask(true)            // Enable depth writing
+
+        // Configure blending properly - only enable if you need transparency
+        // For opaque billboard objects, you might want to disable blending entirely
+        if (needsTransparency()) {
+            Gdx.gl.glEnable(GL20.GL_BLEND)
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+        } else {
+            Gdx.gl.glDisable(GL20.GL_BLEND)
+        }
 
         // Existing uniforms
         set(u_projViewTrans, camera.combined)
@@ -274,7 +296,10 @@ class BillboardShader : BaseShader() {
     }
 
     override fun end() {
-        // Nothing specific to do here for this shader usually
+        // Restore default GL state
+        Gdx.gl.glDisable(GL20.GL_BLEND)
+        Gdx.gl.glDepthMask(true)
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
     }
 
     override fun dispose() {
@@ -287,7 +312,6 @@ class BillboardShader : BaseShader() {
     }
 
     private fun applyEnvironment(environment: Environment) {
-        // ... (applyEnvironment code remains the same)
         val ambientLight = environment.get(ColorAttribute.AmbientLight) as? ColorAttribute
         if (ambientLight != null) {
             set(u_ambientLight, ambientLight.color.r, ambientLight.color.g, ambientLight.color.b)
