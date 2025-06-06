@@ -11,24 +11,35 @@ class InputHandler(
     private val uiManager: UIManager,
     private val cameraManager: CameraManager,
     private val blockSystem: BlockSystem,
-    private val objectSystem: ObjectSystem, // Add object system
+    private val objectSystem: ObjectSystem,
     private val onLeftClick: (screenX: Int, screenY: Int) -> Unit,
-    private val onRightClickAttemptBlockRemove: (screenX: Int, screenY: Int) -> Boolean
+    private val onRightClickAttemptBlockRemove: (screenX: Int, screenY: Int) -> Boolean,
+    private val onFinePosMove: (deltaX: Float, deltaY: Float, deltaZ: Float) -> Unit
 ) {
     private var isRightMousePressed = false
     private var isLeftMousePressed = false
     private var lastMouseX = 0f
     private var lastMouseY = 0f
     private var isBlockSelectionMode = false
-    private var isObjectSelectionMode = false // Add object selection mode
+    private var isObjectSelectionMode = false
 
     // Variables for continuous block placement/removal
     private var continuousActionTimer = 0f
-    private val continuousActionDelay = 0.1f // 100ms delay between actions
+    private val continuousActionDelay = 0.1f
     private var lastPlacementX = -1
     private var lastPlacementY = -1
     private var lastRemovalX = -1
     private var lastRemovalY = -1
+
+    // Variables for continuous fine positioning
+    private var continuousFineTimer = 0f
+    private val continuousFineDelay = 0.05f // Faster for smooth movement
+    private var leftPressed = false
+    private var rightPressed = false
+    private var upPressed = false
+    private var downPressed = false
+    private var pageUpPressed = false
+    private var pageDownPressed = false
 
     fun initialize() {
         val inputMultiplexer = InputMultiplexer()
@@ -64,7 +75,7 @@ class InputHandler(
                             continuousActionTimer = 0f
                             lastRemovalX = screenX
                             lastRemovalY = screenY
-                            return true // Block was removed, event handled.
+                            return true
                         }
                         // No block removed, handle as camera drag
                         isRightMousePressed = true
@@ -95,7 +106,6 @@ class InputHandler(
                     // Only handle camera drag if we're not in block removal mode
                     val deltaX = screenX - lastMouseX
                     cameraManager.handleMouseDrag(deltaX)
-
                     lastMouseX = screenX.toFloat()
                     lastMouseY = screenY.toFloat()
                     return true
@@ -188,31 +198,46 @@ class InputHandler(
                         uiManager.selectedTool = Tool.OBJECT
                         uiManager.updateToolDisplay()
                     }
+                    // Fine positioning controls
                     Input.Keys.LEFT -> {
                         if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
-                            // Handle fine positioning left
-                            handleFinePositioning(-objectSystem.getFineStep(), 0f)
+                            leftPressed = true
+                            continuousFineTimer = 0f
                             return true
                         }
                     }
                     Input.Keys.RIGHT -> {
                         if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
-                            // Handle fine positioning right
-                            handleFinePositioning(objectSystem.getFineStep(), 0f)
+                            rightPressed = true
+                            continuousFineTimer = 0f
                             return true
                         }
                     }
                     Input.Keys.UP -> {
                         if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
-                            // Handle fine positioning forward
-                            handleFinePositioning(0f, objectSystem.getFineStep())
+                            upPressed = true
+                            continuousFineTimer = 0f
                             return true
                         }
                     }
                     Input.Keys.DOWN -> {
                         if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
-                            // Handle fine positioning backward
-                            handleFinePositioning(0f, -objectSystem.getFineStep())
+                            downPressed = true
+                            continuousFineTimer = 0f
+                            return true
+                        }
+                    }
+                    Input.Keys.NUM_0 -> {
+                        if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
+                            pageUpPressed = true
+                            continuousFineTimer = 0f
+                            return true
+                        }
+                    }
+                    Input.Keys.NUM_9 -> {
+                        if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
+                            pageDownPressed = true
+                            continuousFineTimer = 0f
                             return true
                         }
                     }
@@ -232,6 +257,31 @@ class InputHandler(
                         uiManager.hideObjectSelection()
                         return true
                     }
+                    // Release fine positioning keys
+                    Input.Keys.LEFT -> {
+                        leftPressed = false
+                        return true
+                    }
+                    Input.Keys.RIGHT -> {
+                        rightPressed = false
+                        return true
+                    }
+                    Input.Keys.UP -> {
+                        upPressed = false
+                        return true
+                    }
+                    Input.Keys.DOWN -> {
+                        downPressed = false
+                        return true
+                    }
+                    Input.Keys.NUM_0 -> {
+                        pageUpPressed = false
+                        return true
+                    }
+                    Input.Keys.NUM_9 -> {
+                        pageDownPressed = false
+                        return true
+                    }
                 }
                 return false
             }
@@ -243,6 +293,7 @@ class InputHandler(
 
     fun update(deltaTime: Float) {
         continuousActionTimer += deltaTime
+        continuousFineTimer += deltaTime
 
         // Handle continuous block placement
         if (isLeftMousePressed && continuousActionTimer >= continuousActionDelay) {
@@ -272,16 +323,31 @@ class InputHandler(
                 }
             }
         }
+
+        // Handle continuous fine positioning
+        if (continuousFineTimer >= continuousFineDelay) {
+            var deltaX = 0f
+            var deltaY = 0f
+            var deltaZ = 0f
+
+            if (leftPressed) deltaX -= objectSystem.getFineStep()
+            if (rightPressed) deltaX += objectSystem.getFineStep()
+            if (downPressed) deltaZ += objectSystem.getFineStep()  // Down = forward
+            if (upPressed) deltaZ -= objectSystem.getFineStep()    // Up = backward
+            if (pageDownPressed) deltaY -= objectSystem.getFineStep()
+            if (pageUpPressed) deltaY += objectSystem.getFineStep()
+
+            // Only call if there's actual movement
+            if (deltaX != 0f || deltaY != 0f || deltaZ != 0f) {
+                onFinePosMove(deltaX, deltaY, deltaZ)
+                continuousFineTimer = 0f
+            }
+        }
     }
 
     // Helper method to determine if we're in block removal mode vs camera drag mode
     private fun isBlockBeingRemoved(): Boolean {
         // We're in block removal mode if the last removal position is set
         return lastRemovalX != -1 && lastRemovalY != -1
-    }
-
-    // Helper method for fine positioning objects
-    private fun handleFinePositioning(deltaX: Float, deltaZ: Float) {
-        println("Fine positioning: deltaX=$deltaX, deltaZ=$deltaZ")
     }
 }

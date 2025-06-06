@@ -43,6 +43,7 @@ class MafiaGame : ApplicationAdapter() {
 
     // Game objects
     private val gameBlocks = Array<GameBlock>()
+    private var selectedObjectForFinePos: GameObject? = null
 
     // Block size
     private val blockSize = 4f
@@ -67,7 +68,8 @@ class MafiaGame : ApplicationAdapter() {
             blockSystem,
             objectSystem,
             this::handleLeftClickAction,
-            this::handleRightClickAndRemoveAction
+            this::handleRightClickAndRemoveAction,
+            this::handleFinePosMove
         )
         inputHandler.initialize()
 
@@ -246,6 +248,29 @@ class MafiaGame : ApplicationAdapter() {
             }
         }
         return false
+    }
+
+    private fun handleFinePosMove(deltaX: Float, deltaY: Float, deltaZ: Float) {
+        // Find the most recently placed light source or allow selection
+        val lightSource = gameObjects.findLast { it.objectType == ObjectType.LIGHT_SOURCE }
+
+        if (lightSource != null) {
+            // Update position
+            lightSource.position.add(deltaX, deltaY, deltaZ)
+
+            // Update model instance transform
+            lightSource.modelInstance.transform.setTranslation(lightSource.position)
+
+            // Update debug instance transform if it exists
+            lightSource.debugInstance?.transform?.setTranslation(lightSource.position)
+
+            // Update light position for lighting effects
+            lightSource.updateLightPosition()
+
+            println("Light source moved to: ${lightSource.position}")
+        } else {
+            println("No light source found to move. Place a light source first.")
+        }
     }
 
     private fun placeBlock(ray: Ray) {
