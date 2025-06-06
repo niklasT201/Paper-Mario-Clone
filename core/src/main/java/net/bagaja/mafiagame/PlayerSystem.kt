@@ -19,6 +19,10 @@ class PlayerSystem {
     private lateinit var playerInstance: ModelInstance
     private lateinit var playerMaterial: Material
 
+    // Custom shader for billboard lighting
+    private lateinit var billboardShaderProvider: BillboardShaderProvider
+    private lateinit var billboardModelBatch: ModelBatch
+
     // Player position and movement
     private val playerPosition = Vector3(0f, 2f, 0f)
     private val playerSpeed = 8f
@@ -36,8 +40,18 @@ class PlayerSystem {
 
     fun initialize(blockSize: Float) {
         this.blockSize = blockSize
+        setupBillboardShader()
         setupPlayerModel()
         updatePlayerBounds()
+    }
+
+    private fun setupBillboardShader() {
+        billboardShaderProvider = BillboardShaderProvider()
+        billboardModelBatch = ModelBatch(billboardShaderProvider)
+
+        // Configure billboard lighting
+        billboardShaderProvider.setBillboardLightingStrength(0.8f) // 80% billboard lighting, 20% standard
+        billboardShaderProvider.setMinLightLevel(0.25f) // Minimum 25% light level
     }
 
     private fun setupPlayerModel() {
@@ -221,8 +235,14 @@ class PlayerSystem {
         playerInstance.transform.rotate(Vector3.Y, playerCurrentRotationY)
     }
 
-    fun render(modelBatch: ModelBatch, environment: Environment) {
-        modelBatch.render(playerInstance, environment)
+    fun render(camera: Camera, environment: Environment) {
+        // Set the environment for the billboard shader so it knows about the lights
+        billboardShaderProvider.setEnvironment(environment)
+
+        // Render using the custom billboard model batch with proper lighting
+        billboardModelBatch.begin(camera) // Use the passed camera directly
+        billboardModelBatch.render(playerInstance, environment)
+        billboardModelBatch.end()
     }
 
     fun getPosition(): Vector3 = Vector3(playerPosition)
@@ -230,5 +250,7 @@ class PlayerSystem {
     fun dispose() {
         playerModel.dispose()
         playerTexture.dispose()
+        billboardModelBatch.dispose()
+        billboardShaderProvider.dispose()
     }
 }

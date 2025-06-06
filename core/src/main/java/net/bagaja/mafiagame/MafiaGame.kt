@@ -606,14 +606,13 @@ class MafiaGame : ApplicationAdapter() {
                 modelBatch.render(renderInstance, environment)
             }
         }
+        modelBatch.end()
 
-        // Render 3D player
-        playerSystem.render(modelBatch, environment)
+        // Render 3D player with custom billboard shader
+        playerSystem.render(cameraManager.camera, environment)
 
         // Render items
         itemSystem.render(modelBatch, environment)
-
-        modelBatch.end()
 
         // Render transparent highlight separately with proper blending
         if (isHighlightVisible && highlightInstance != null) {
