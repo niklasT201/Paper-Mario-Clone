@@ -142,7 +142,7 @@ class InputHandler(
                     } else if (amountY < 0) {
                         itemSystem.previousItem()
                     }
-                    uiManager.updateObjectSelection()
+                    uiManager.updateItemSelection()
                     return true
                 } else {
                     // Normal camera zoom
