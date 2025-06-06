@@ -16,12 +16,14 @@ import com.badlogic.gdx.utils.viewport.ScreenViewport
 
 class UIManager(
     private val blockSystem: BlockSystem,
-    private val objectSystem: ObjectSystem // Add objectSystem parameter
+    private val objectSystem: ObjectSystem,
+    private val itemSystem: ItemSystem
 ) {
     private lateinit var stage: Stage
     private lateinit var skin: Skin
     private lateinit var blockSelectionUI: BlockSelectionUI
-    private lateinit var objectSelectionUI: ObjectSelectionUI // Add object selection UI
+    private lateinit var objectSelectionUI: ObjectSelectionUI
+    private lateinit var itemSelectionUI: ItemSelectionUI
     private lateinit var mainTable: Table
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
@@ -31,7 +33,7 @@ class UIManager(
     var selectedTool = Tool.BLOCK
 
     enum class Tool {
-        BLOCK, PLAYER, OBJECT
+        BLOCK, PLAYER, OBJECT, ITEM
     }
 
     fun initialize() {
@@ -46,6 +48,10 @@ class UIManager(
         // Initialize object selection UI
         objectSelectionUI = ObjectSelectionUI(objectSystem, skin, stage)
         objectSelectionUI.initialize()
+
+        // Initialize item selection UI
+        itemSelectionUI = ItemSelectionUI(itemSystem, skin, stage)
+        itemSelectionUI.initialize()
 
         // Set initial visibility for the main UI panel
         mainTable.isVisible = isUIVisible
@@ -138,7 +144,7 @@ class UIManager(
         instructionsContainer.pad(15f)
 
         val instructions = """Tool Selection:
-        1/2/3 - Switch tools
+        1/2/3/4 - Switch tools
 
         Controls:
         • Left click - Place/Action
@@ -149,6 +155,7 @@ class UIManager(
         • H - Toggle UI
         • B - Block selection mode
         • O - Object selection mode
+        • I - Item selection mode
         • C - Free camera mode
         • Q/E - Camera angle (player)
         • R/T - Camera height (player)
@@ -158,12 +165,17 @@ class UIManager(
         • D - Debug mode (show invisible)
         • Arrow keys - Fine position adjust
 
+        Item Controls:
+        • Hold I + scroll - Select items
+        • Left click - Place selected item
+
         Features:
         • 4x4 grid snapping
         • Paper Mario rotation
         • Collision detection
         • Hold B + scroll for blocks
-        • Hold O + scroll for objects"""
+        • Hold O + scroll for objects
+        • Hold I + scroll for items"""
 
         val instructionText = Label(instructions, skin, "instruction")
         instructionText.setWrap(true)
@@ -188,7 +200,8 @@ class UIManager(
         val statItems = listOf(
             "Blocks" to "3",
             "Player" to "Placed",
-            "Objects" to "0"
+            "Objects" to "0",
+            "Items" to "0"
         )
 
         for ((key, value) in statItems) {
@@ -279,6 +292,7 @@ class UIManager(
             Tool.BLOCK -> Color(0.4f, 0.8f, 0.2f, 1f)
             Tool.PLAYER -> Color(0.8f, 0.6f, 0.2f, 1f)
             Tool.OBJECT -> Color(0.6f, 0.4f, 0.8f, 1f)
+            Tool.ITEM -> Color(1f, 0.8f, 0.2f, 1f) // Golden color for items
         }
 
         pixmap.setColor(color)
@@ -304,6 +318,12 @@ class UIManager(
                 pixmap.fillRectangle(12, 5, 6, 20)
                 pixmap.fillRectangle(5, 12, 20, 6)
             }
+            Tool.ITEM -> {
+                // Diamond shape for items
+                pixmap.fillTriangle(15, 5, 8, 15, 15, 15)
+                pixmap.fillTriangle(15, 5, 15, 15, 22, 15)
+                pixmap.fillTriangle(8, 15, 15, 25, 22, 15)
+            }
         }
 
         val texture = Texture(pixmap)
@@ -317,6 +337,7 @@ class UIManager(
             Tool.BLOCK -> "Block"
             Tool.PLAYER -> "Player"
             Tool.OBJECT -> "Object"
+            Tool.ITEM -> "Item"
         }
     }
 
@@ -472,10 +493,11 @@ class UIManager(
     }
 
     // Update stats with current values
-    fun updateStats(blockCount: Int, playerPlaced: Boolean, objectCount: Int) {
+    fun updateStats(blockCount: Int, playerPlaced: Boolean, objectCount: Int, itemCount: Int = 0) {
         statsLabels["Blocks"]?.setText(blockCount.toString())
         statsLabels["Player"]?.setText(if (playerPlaced) "Placed" else "Not Placed")
         statsLabels["Objects"]?.setText(objectCount.toString())
+        statsLabels["Items"]?.setText(itemCount.toString())
     }
 
     fun toggleVisibility() {
@@ -509,6 +531,19 @@ class UIManager(
         objectSelectionUI.update()
     }
 
+    // Item selection methods
+    fun showItemSelection() {
+        itemSelectionUI.show()
+    }
+
+    fun hideItemSelection() {
+        itemSelectionUI.hide()
+    }
+
+    fun updateItemSelection() {
+        itemSelectionUI.update()
+    }
+
     // Method to update the tool display when tool changes
     fun updateToolDisplay() {
         updateToolButtons()
@@ -527,7 +562,8 @@ class UIManager(
 
     fun dispose() {
         blockSelectionUI.dispose()
-        objectSelectionUI.dispose() // Dispose object selection UI
+        objectSelectionUI.dispose()
+        itemSelectionUI.dispose()
         stage.dispose()
         skin.dispose()
     }

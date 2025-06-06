@@ -12,6 +12,7 @@ class InputHandler(
     private val cameraManager: CameraManager,
     private val blockSystem: BlockSystem,
     private val objectSystem: ObjectSystem,
+    private val itemSystem: ItemSystem,
     private val onLeftClick: (screenX: Int, screenY: Int) -> Unit,
     private val onRightClickAttemptBlockRemove: (screenX: Int, screenY: Int) -> Boolean,
     private val onFinePosMove: (deltaX: Float, deltaY: Float, deltaZ: Float) -> Unit
@@ -22,6 +23,7 @@ class InputHandler(
     private var lastMouseY = 0f
     private var isBlockSelectionMode = false
     private var isObjectSelectionMode = false
+    private var isItemSelectionMode = false
 
     // Variables for continuous block placement/removal
     private var continuousActionTimer = 0f
@@ -133,6 +135,15 @@ class InputHandler(
                     }
                     uiManager.updateObjectSelection()
                     return true
+                } else if (isItemSelectionMode) {
+                    // Use mouse scroll to change objects
+                    if (amountY > 0) {
+                        itemSystem.nextItem()
+                    } else if (amountY < 0) {
+                        itemSystem.previousItem()
+                    }
+                    uiManager.updateObjectSelection()
+                    return true
                 } else {
                     // Normal camera zoom
                     cameraManager.handleMouseScroll(amountY)
@@ -159,6 +170,13 @@ class InputHandler(
                         if (!isBlockSelectionMode) {
                             isObjectSelectionMode = true
                             uiManager.showObjectSelection()
+                        }
+                        return true
+                    }
+                    Input.Keys.I -> {
+                        if (!isItemSelectionMode) {
+                            isItemSelectionMode = true
+                            uiManager.showItemSelection()
                         }
                         return true
                     }
@@ -196,6 +214,10 @@ class InputHandler(
                     }
                     Input.Keys.NUMPAD_3 -> {
                         uiManager.selectedTool = Tool.OBJECT
+                        uiManager.updateToolDisplay()
+                    }
+                    Input.Keys.NUMPAD_4 -> {
+                        uiManager.selectedTool = Tool.ITEM
                         uiManager.updateToolDisplay()
                     }
                     // Fine positioning controls
@@ -255,6 +277,11 @@ class InputHandler(
                     Input.Keys.O -> {
                         isObjectSelectionMode = false
                         uiManager.hideObjectSelection()
+                        return true
+                    }
+                    Input.Keys.I -> {
+                        isItemSelectionMode = false
+                        uiManager.hideItemSelection()
                         return true
                     }
                     // Release fine positioning keys

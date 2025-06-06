@@ -13,12 +13,14 @@ import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
+import com.badlogic.gdx.utils.Array
 import kotlin.math.sin
 
 // Item system class to manage 2D rotating item pickups
 class ItemSystem {
     private val itemModels = mutableMapOf<ItemType, Model>()
     private val itemTextures = mutableMapOf<ItemType, Texture>()
+    private val gameItems = Array<GameItem>()
 
     var currentSelectedItem = ItemType.MONEY_STACK
         private set
@@ -105,6 +107,62 @@ class ItemSystem {
         val model = itemModels[itemType]
         return model?.let { ModelInstance(it) }
     }
+
+    fun addItem(position: Vector3, itemType: ItemType) {
+        val modelInstance = createItemInstance(itemType)
+        if (modelInstance != null) {
+            val gameItem = GameItem(modelInstance, itemType, position.cpy())
+            gameItems.add(gameItem)
+            println("Added ${itemType.displayName} at position: $position")
+        }
+    }
+
+    fun removeItem(item: GameItem) {
+        if (gameItems.removeValue(item, true)) {
+            println("Removed ${item.itemType.displayName}")
+        }
+    }
+
+    fun update(deltaTime: Float, cameraPosition: Vector3, playerPosition: Vector3, playerRadius: Float = 1f) {
+        val itemsToRemove = Array<GameItem>()
+
+        for (item in gameItems) {
+            if (!item.isCollected) {
+                // Update item animation
+                item.update(deltaTime, cameraPosition)
+
+                // Check collision with player
+                if (item.checkCollision(playerPosition, playerRadius)) {
+                    item.collect()
+                    itemsToRemove.add(item)
+                }
+            }
+        }
+
+        // Remove collected items
+        for (item in itemsToRemove) {
+            removeItem(item)
+        }
+    }
+
+    fun render(modelBatch: com.badlogic.gdx.graphics.g3d.ModelBatch, environment: com.badlogic.gdx.graphics.g3d.Environment) {
+        for (item in gameItems) {
+            if (!item.isCollected) {
+                modelBatch.render(item.modelInstance, environment)
+            }
+        }
+    }
+
+    fun getItemAtPosition(position: Vector3, radius: Float = 2f): GameItem? {
+        for (item in gameItems) {
+            if (!item.isCollected && item.position.dst(position) <= radius) {
+                return item
+            }
+        }
+        return null
+    }
+
+    fun getAllItems(): Array<GameItem> = gameItems
 
     fun dispose() {
         itemModels.values.forEach { it.dispose() }
@@ -193,7 +251,7 @@ data class GameItem(
     }
 }
 
-// Item type definitions
+// Item type definitions - you can add more item types here
 enum class ItemType(
     val displayName: String,
     val texturePath: String,
@@ -201,5 +259,9 @@ enum class ItemType(
     val height: Float,
     val value: Int = 1 // For future scoring/inventory system
 ) {
-    MONEY_STACK("Money Stack", "textures/objects/items/money_stack.png", 2f, 2f, 10)
+    MONEY_STACK("Money Stack", "textures/objects/items/money_stack.png", 2f, 2f, 10),
+    COIN("Coin", "textures/objects/items/coin.png", 1.5f, 1.5f, 1),
+    HEALTH_POTION("Health Potion", "textures/objects/items/health_potion.png", 1.8f, 2.2f, 5),
+    KEY("Key", "textures/objects/items/key.png", 1.2f, 2f, 1),
+    GEM("Gem", "textures/objects/items/gem.png", 1.5f, 1.5f, 20)
 }

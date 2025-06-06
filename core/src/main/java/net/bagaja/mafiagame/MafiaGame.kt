@@ -30,6 +30,7 @@ class MafiaGame : ApplicationAdapter() {
     // Block system
     private lateinit var blockSystem: BlockSystem
     private lateinit var objectSystem: ObjectSystem
+    private lateinit var itemSystem: ItemSystem
     private val gameObjects = Array<GameObject>()
 
     private var highlightModel: Model? = null
@@ -43,7 +44,6 @@ class MafiaGame : ApplicationAdapter() {
 
     // Game objects
     private val gameBlocks = Array<GameBlock>()
-    private var selectedObjectForFinePos: GameObject? = null
 
     // Block size
     private val blockSize = 4f
@@ -56,9 +56,10 @@ class MafiaGame : ApplicationAdapter() {
         setupGraphics()
         setupBlockSystem()
         setupObjectSystem()
+        setupItemSystem()
 
         // Initialize UI Manager
-        uiManager = UIManager(blockSystem, objectSystem)
+        uiManager = UIManager(blockSystem, objectSystem, itemSystem)
         uiManager.initialize()
 
         // Initialize Input Handler
@@ -67,6 +68,7 @@ class MafiaGame : ApplicationAdapter() {
             cameraManager,
             blockSystem,
             objectSystem,
+            itemSystem,
             this::handleLeftClickAction,
             this::handleRightClickAndRemoveAction,
             this::handleFinePosMove
@@ -104,6 +106,11 @@ class MafiaGame : ApplicationAdapter() {
     private fun setupObjectSystem() {
         objectSystem = ObjectSystem()
         objectSystem.initialize()
+    }
+
+    private fun setupItemSystem() {
+        itemSystem = ItemSystem()
+        itemSystem.initialize()
     }
 
     private fun setupHighlight() {
@@ -155,6 +162,20 @@ class MafiaGame : ApplicationAdapter() {
                 highlightPosition.set(gridX, 0.5f, gridZ)
                 val transparentBlue = Color(0f, 0f, 1f, 0.3f)
                 highlightMaterial?.set(ColorAttribute.createDiffuse(transparentBlue))
+                highlightInstance?.transform?.setTranslation(highlightPosition)
+            } else {
+                isHighlightVisible = false
+            }
+        } else if (uiManager.selectedTool == UIManager.Tool.ITEM) {
+            // Show yellow highlight for item placement
+            val intersection = Vector3()
+            val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+                isHighlightVisible = true
+                highlightPosition.set(intersection.x, intersection.y + 1f, intersection.z) // Items float above ground
+                val transparentYellow = Color(1f, 1f, 0f, 0.3f)
+                highlightMaterial?.set(ColorAttribute.createDiffuse(transparentYellow))
                 highlightInstance?.transform?.setTranslation(highlightPosition)
             } else {
                 isHighlightVisible = false
@@ -221,6 +242,7 @@ class MafiaGame : ApplicationAdapter() {
             UIManager.Tool.BLOCK -> placeBlock(ray)
             UIManager.Tool.PLAYER -> placePlayer(ray)
             UIManager.Tool.OBJECT -> placeObject(ray)
+            UIManager.Tool.ITEM -> placeItem(ray)
         }
     }
 
@@ -245,6 +267,13 @@ class MafiaGame : ApplicationAdapter() {
             }
             UIManager.Tool.PLAYER -> {
                 return false
+            }
+            UIManager.Tool.ITEM -> {
+                val itemToRemove = getItemAtRay(ray)
+                if (itemToRemove != null) {
+                    itemSystem.removeItem(itemToRemove)
+                    return true
+                }
             }
         }
         return false
@@ -383,6 +412,31 @@ class MafiaGame : ApplicationAdapter() {
         return closestObject
     }
 
+    // New function to get items at ray intersection
+    private fun getItemAtRay(ray: Ray): GameItem? {
+        var closestItem: GameItem? = null
+        var closestDistance = Float.MAX_VALUE
+
+        for (item in itemSystem.getAllItems()) {
+            if (item.isCollected) continue
+
+            // Use the item's bounding box for ray intersection
+            val itemBounds = item.getBoundingBox()
+
+            // Check if ray intersects with this item's bounding box
+            val intersection = Vector3()
+            if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, itemBounds, intersection)) {
+                val distance = ray.origin.dst(intersection)
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestItem = item
+                }
+            }
+        }
+
+        return closestItem
+    }
+
     private fun getBlockAtRay(ray: Ray): GameBlock? {
         var closestBlock: GameBlock? = null
         var closestDistance = Float.MAX_VALUE
@@ -453,6 +507,27 @@ class MafiaGame : ApplicationAdapter() {
         }
     }
 
+    // New function to place items
+    private fun placeItem(ray: Ray) {
+        val intersection = Vector3()
+        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            // Items can be placed more freely, don't need to snap to grid
+            val itemPosition = Vector3(intersection.x, intersection.y + 1f, intersection.z) // Float items above ground
+
+            // Check if there's already an item too close to this position
+            val existingItem = itemSystem.getItemAtPosition(itemPosition, 1.5f)
+
+            if (existingItem == null) {
+                itemSystem.addItem(itemPosition, itemSystem.currentSelectedItem)
+                println("${itemSystem.currentSelectedItem.displayName} placed at: $itemPosition")
+            } else {
+                println("Item already exists near this position")
+            }
+        }
+    }
+
     private fun addObject(x: Float, y: Float, z: Float, objectType: ObjectType) {
         val objectInstance = objectSystem.createObjectInstance(objectType)
         if (objectInstance != null) {
@@ -510,6 +585,9 @@ class MafiaGame : ApplicationAdapter() {
         handlePlayerInput()
         playerSystem.update(deltaTime)
 
+        // Update item system (animations, collisions, etc.)
+        itemSystem.update(deltaTime, cameraManager.camera.position, playerSystem.getPosition(), 2f)
+
         // Update highlight effect
         updateHighlight()
 
@@ -531,6 +609,9 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render 3D player
         playerSystem.render(modelBatch, environment)
+
+        // Render items
+        itemSystem.render(modelBatch, environment)
 
         modelBatch.end()
 
@@ -567,6 +648,7 @@ class MafiaGame : ApplicationAdapter() {
         spriteBatch.dispose()
         blockSystem.dispose()
         objectSystem.dispose()
+        itemSystem.dispose()
         playerSystem.dispose()
         highlightModel?.dispose()
 
