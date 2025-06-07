@@ -8,7 +8,6 @@ import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
 import com.badlogic.gdx.graphics.g3d.environment.PointLight
-import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.math.collision.BoundingBox
@@ -34,11 +33,8 @@ class MafiaGame : ApplicationAdapter() {
     private val gameCars = Array<GameCar>()
     private val gameObjects = Array<GameObject>()
 
-    private var highlightModel: Model? = null
-    private var highlightInstance: ModelInstance? = null
-    private var highlightMaterial: Material? = null
-    private var isHighlightVisible = false
-    private var highlightPosition = Vector3()
+    // Highlight System
+    private lateinit var highlightSystem: HighlightSystem
 
     // 2D Player (but positioned in 3D space)
     private lateinit var playerSystem: PlayerSystem
@@ -80,7 +76,9 @@ class MafiaGame : ApplicationAdapter() {
 
         playerSystem = PlayerSystem()
         playerSystem.initialize(blockSize)
-        setupHighlight()
+
+        highlightSystem = HighlightSystem(blockSize)
+        highlightSystem.initialize()
 
         addBlock(0f, 0f, 0f, BlockType.GRASS)
         addBlock(blockSize, 0f, 0f, BlockType.COBBLESTONE)
@@ -123,122 +121,6 @@ class MafiaGame : ApplicationAdapter() {
     private fun setupCarSystem() {
         carSystem = CarSystem()
         carSystem.initialize()
-    }
-
-    private fun setupHighlight() {
-        val modelBuilder = ModelBuilder()
-
-        // Create a transparent material with blending
-        highlightMaterial = Material(
-            ColorAttribute.createDiffuse(Color.GREEN),
-            com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute(
-                GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.3f  // Alpha value (0.0 = fully transparent, 1.0 = fully opaque)
-            )
-        )
-
-        // Create a wireframe box that's slightly larger than regular blocks
-        val highlightSize = blockSize + 0.2f
-        highlightModel = modelBuilder.createBox(
-            highlightSize, highlightSize, highlightSize,
-            highlightMaterial!!,
-            (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
-        )
-        highlightInstance = ModelInstance(highlightModel!!)
-    }
-
-    private fun updateHighlight() {
-        val mouseX = Gdx.input.x.toFloat()
-        val mouseY = Gdx.input.y.toFloat()
-        val ray = cameraManager.camera.getPickRay(mouseX, mouseY)
-
-        // Check if we're hovering over an existing block (for removal)
-        val hitBlock = getBlockAtRay(ray)
-
-        if (hitBlock != null && uiManager.selectedTool == UIManager.Tool.BLOCK) {
-            // Show transparent red highlight for block removal
-            isHighlightVisible = true
-            highlightPosition.set(hitBlock.position)
-            val transparentRed = Color(1f, 0f, 0f, 0.3f)
-            highlightMaterial?.set(ColorAttribute.createDiffuse(transparentRed))
-            highlightInstance?.transform?.setTranslation(highlightPosition)
-        } else if (uiManager.selectedTool == UIManager.Tool.OBJECT) {
-            // Show green highlight for object placement
-            val intersection = Vector3()
-            val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-
-            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-                val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
-                val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
-
-                isHighlightVisible = true
-                highlightPosition.set(gridX, 0.5f, gridZ)
-                val transparentBlue = Color(0f, 0f, 1f, 0.3f)
-                highlightMaterial?.set(ColorAttribute.createDiffuse(transparentBlue))
-                highlightInstance?.transform?.setTranslation(highlightPosition)
-            } else {
-                isHighlightVisible = false
-            }
-        } else if (uiManager.selectedTool == UIManager.Tool.ITEM) {
-            // Show yellow highlight for item placement
-            val intersection = Vector3()
-            val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-
-            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-                isHighlightVisible = true
-                highlightPosition.set(intersection.x, intersection.y + 1f, intersection.z) // Items float above ground
-                val transparentYellow = Color(1f, 1f, 0f, 0.3f)
-                highlightMaterial?.set(ColorAttribute.createDiffuse(transparentYellow))
-                highlightInstance?.transform?.setTranslation(highlightPosition)
-            } else {
-                isHighlightVisible = false
-            }
-        } else if (uiManager.selectedTool == UIManager.Tool.CAR) {
-            // Show purple highlight for car placement
-            val intersection = Vector3()
-            val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-
-            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-                val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
-                val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
-
-                isHighlightVisible = true
-                highlightPosition.set(gridX, 0.5f, gridZ)
-                val transparentPurple = Color(1f, 0f, 1f, 0.3f)
-                highlightMaterial?.set(ColorAttribute.createDiffuse(transparentPurple))
-                highlightInstance?.transform?.setTranslation(highlightPosition)
-            } else {
-                isHighlightVisible = false
-            }
-        } else {
-            // Show transparent green highlight for player placement
-            val intersection = Vector3()
-            val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-
-            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-                // Snap to grid
-                val gridX = floor(intersection.x / blockSize) * blockSize
-                val gridZ = floor(intersection.z / blockSize) * blockSize
-
-                // Check if there's already a block at this position
-                val existingBlock = gameBlocks.find { gameBlock ->
-                    kotlin.math.abs(gameBlock.position.x - (gridX + blockSize / 2)) < 0.1f &&
-                        kotlin.math.abs(gameBlock.position.y - (blockSize / 2)) < 0.1f &&
-                        kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize / 2)) < 0.1f
-                }
-
-                if (existingBlock == null && uiManager.selectedTool == UIManager.Tool.BLOCK) {
-                    isHighlightVisible = true
-                    highlightPosition.set(gridX + blockSize / 2, blockSize / 2, gridZ + blockSize / 2)
-                    val transparentGreen = Color(0f, 1f, 0f, 0.3f)
-                    highlightMaterial?.set(ColorAttribute.createDiffuse(transparentGreen))
-                    highlightInstance?.transform?.setTranslation(highlightPosition)
-                } else {
-                    isHighlightVisible = false
-                }
-            } else {
-                isHighlightVisible = false
-            }
-        }
     }
 
     private fun handlePlayerInput() {
@@ -671,7 +553,7 @@ class MafiaGame : ApplicationAdapter() {
     override fun render() {
         // Clear screen
         Gdx.gl.glViewport(0, 0, Gdx.graphics.width, Gdx.graphics.height)
-        Gdx.gl.glClearColor(0f, 0f, 0f, 1f) // Optional: Set clear color if not done elsewhere
+        Gdx.gl.glClearColor(0f, 0f, 0f, 1f)
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
 
         // Get delta time for this frame
@@ -687,8 +569,8 @@ class MafiaGame : ApplicationAdapter() {
         // Update item system (animations, collisions, etc.)
         itemSystem.update(deltaTime, cameraManager.camera.position, playerSystem.getPosition(), 2f)
 
-        // Update highlight effect
-        updateHighlight()
+        // Update highlight system
+        highlightSystem.update(cameraManager, uiManager, gameBlocks, this::getBlockAtRay)
 
         //shaderProvider.setEnvironment(environment)
         //println("MafiaGame.render: Passing environment to provider, hash: ${environment.hashCode()}")
@@ -722,23 +604,8 @@ class MafiaGame : ApplicationAdapter() {
 
         modelBatch.end()
 
-        // Render transparent highlight separately
-        if (isHighlightVisible && highlightInstance != null) {
-            // Enable blending for transparency
-            Gdx.gl.glEnable(GL20.GL_BLEND)
-            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
-
-            // Disable depth writing but keep depth testing
-            Gdx.gl.glDepthMask(false)
-
-            modelBatch.begin(cameraManager.camera)
-            modelBatch.render(highlightInstance!!, environment)
-            modelBatch.end()
-
-            // Restore depth writing and disable blending
-            Gdx.gl.glDepthMask(true)
-            Gdx.gl.glDisable(GL20.GL_BLEND)
-        }
+        // NEW: Render highlight using HighlightSystem
+        highlightSystem.render(modelBatch, cameraManager.camera, environment)
 
         // Transition to 2D UI Rendering
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
@@ -765,7 +632,7 @@ class MafiaGame : ApplicationAdapter() {
         itemSystem.dispose()
         carSystem.dispose()
         playerSystem.dispose()
-        highlightModel?.dispose()
+        highlightSystem.dispose()
 
         // Dispose UIManager
         uiManager.dispose()
