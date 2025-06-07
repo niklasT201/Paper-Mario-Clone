@@ -2,12 +2,10 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.ApplicationAdapter
 import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.*
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
-import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
 import com.badlogic.gdx.graphics.g3d.environment.PointLight
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
@@ -19,6 +17,7 @@ import kotlin.math.floor
 
 class MafiaGame : ApplicationAdapter() {
     private lateinit var modelBatch: ModelBatch
+    private lateinit var shaderProvider: BillboardShaderProvider
     private lateinit var spriteBatch: SpriteBatch
     private lateinit var environment: Environment
     private lateinit var cameraManager: CameraManager
@@ -85,6 +84,9 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun setupGraphics() {
+        //shaderProvider = BillboardShaderProvider()
+        //shaderProvider.setBlockCartoonySaturation(1.3f)
+        //modelBatch = ModelBatch(shaderProvider)
         modelBatch = ModelBatch()
         spriteBatch = SpriteBatch()
 
@@ -591,6 +593,8 @@ class MafiaGame : ApplicationAdapter() {
         // Update highlight effect
         updateHighlight()
 
+        //shaderProvider.setEnvironment(environment)
+
         // Render 3D scene
         modelBatch.begin(cameraManager.camera)
 
@@ -599,7 +603,7 @@ class MafiaGame : ApplicationAdapter() {
             modelBatch.render(gameBlock.modelInstance, environment)
         }
 
-        // Render all objects (modified to handle invisible objects properly)
+        // Render all objects
         for (gameObject in gameObjects) {
             val renderInstance = gameObject.getRenderInstance(objectSystem.debugMode)
             if (renderInstance != null) {
@@ -614,7 +618,7 @@ class MafiaGame : ApplicationAdapter() {
         // Render items
         itemSystem.render(modelBatch, environment)
 
-        // Render transparent highlight separately with proper blending
+        // Render transparent highlight separately
         if (isHighlightVisible && highlightInstance != null) {
             // Enable blending for transparency
             Gdx.gl.glEnable(GL20.GL_BLEND)

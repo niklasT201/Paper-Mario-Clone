@@ -81,6 +81,7 @@ class PlayerSystem {
 
         // Create player instance
         playerInstance = ModelInstance(playerModel)
+        playerInstance.userData = "player"
         updatePlayerTransform()
     }
 
