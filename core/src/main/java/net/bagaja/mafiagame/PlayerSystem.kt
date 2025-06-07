@@ -49,9 +49,9 @@ class PlayerSystem {
         billboardShaderProvider = BillboardShaderProvider()
         billboardModelBatch = ModelBatch(billboardShaderProvider)
 
-        // Configure billboard lighting
-        billboardShaderProvider.setBillboardLightingStrength(0.8f) // 80% billboard lighting, 20% standard
-        billboardShaderProvider.setMinLightLevel(0.25f) // Minimum 25% light level
+        // Updated configuration for better billboard lighting
+        billboardShaderProvider.setBillboardLightingStrength(0.9f)
+        billboardShaderProvider.setMinLightLevel(0.3f)
     }
 
     private fun setupPlayerModel() {

@@ -100,13 +100,19 @@ class BillboardShader : BaseShader() {
             float distance = length(lightDir);
             lightDir = normalize(lightDir);
 
-            // Fixed attenuation - was too aggressive before
-            float attenuation = intensity / (1.0 + 0.01 * distance + 0.001 * distance * distance);
+            // More generous attenuation for better light spread
+            float attenuation = intensity / (1.0 + 0.005 * distance + 0.0002 * distance * distance);
 
+            // Standard diffuse lighting
             float normalDot = dot(normal, lightDir);
             float diffuseStandard = max(normalDot, 0.0);
-            float billboardDiffuse = max(abs(normalDot), 0.3);
 
+            // Billboard lighting: make sprites more evenly lit regardless of angle
+            // Use distance-based lighting instead of normal-based for billboard effect
+            float billboardDiffuse = 1.0 - smoothstep(0.0, 10.0, distance * 0.1);
+            billboardDiffuse = max(billboardDiffuse, 0.2); // Minimum lighting
+
+            // Mix between standard and billboard lighting
             float diffuse = mix(diffuseStandard, billboardDiffuse, u_billboardLightingStrength);
             diffuse = max(diffuse, u_minLightLevel);
 
@@ -118,7 +124,9 @@ class BillboardShader : BaseShader() {
 
             float normalDot = dot(normal, lightDir);
             float diffuseStandard = max(normalDot, 0.0);
-            float billboardDiffuse = max(abs(normalDot), 0.3);
+
+            // For billboard directional lighting, use a more forgiving calculation
+            float billboardDiffuse = max(abs(normalDot) * 0.5 + 0.5, 0.4);
 
             float diffuse = mix(diffuseStandard, billboardDiffuse, u_billboardLightingStrength);
             diffuse = max(diffuse, u_minLightLevel);
@@ -133,8 +141,8 @@ class BillboardShader : BaseShader() {
                 discard;
             }
 
-            // Start with a reasonable ambient light base
-            vec3 finalColor = u_ambientLight;
+            // Start with ambient light - ensure it's bright enough
+            vec3 finalColor = max(u_ambientLight, vec3(0.2));
 
             // Add directional lights
             for (int i = 0; i < MAX_DIRECTIONAL_LIGHTS; i++) {
@@ -154,14 +162,15 @@ class BillboardShader : BaseShader() {
                 );
             }
 
-            // Ensure minimum brightness - objects should never be completely black
-            finalColor = max(finalColor, vec3(0.1));
+            // Ensure sprites are never too dark
+            finalColor = max(finalColor, vec3(0.3));
+
+            // Clamp to prevent over-brightening
+            finalColor = min(finalColor, vec3(3.0));
 
             gl_FragColor = vec4(texColor.rgb * finalColor, texColor.a);
         }
     """.trimIndent()
-
-    private lateinit var compiledProgram: ShaderProgram
 
     // Uniform locations
     private val u_worldTrans = register("u_worldTrans")
@@ -184,21 +193,20 @@ class BillboardShader : BaseShader() {
     private val u_dirLightColors = Array<Int>()
 
     // Configuration with more reasonable defaults
-    var billboardLightingStrength = 0.8f
-    var minLightLevel = 0.1f  // Reduced from 0.2f
-    var cartoonySaturation = 1.2f  // Reduced from 1.5f
-    var glowIntensity = 1.0f       // Reduced from 2.0f
-    var lightFalloffPower = 1.0f   // Increased from 0.6f
+    var billboardLightingStrength = 0.9f
+    var minLightLevel = 0.3f
+    var cartoonySaturation = 1.2f
+    var glowIntensity = 1.0f
+    var lightFalloffPower = 1.0f
     private var currentEnvironment: Environment? = null
 
     override fun init() {
-        val program = ShaderProgram(VERTEX_SHADER, FRAGMENT_SHADER)
-        if (!program.isCompiled) {
-            throw GdxRuntimeException("Shader compilation failed:\n${program.log}")
+        val shaderProgram = ShaderProgram(VERTEX_SHADER, FRAGMENT_SHADER)
+        if (!shaderProgram.isCompiled) {
+            throw GdxRuntimeException("Shader compilation failed:\n${shaderProgram.log}")
         }
-        this.compiledProgram = program
 
-        // Register array uniforms
+        // Register array uniforms (this part is fine)
         for (i in 0 until 128) {
             u_pointLightPositions.add(register("u_pointLightPositions[$i]"))
             u_pointLightColors.add(register("u_pointLightColors[$i]"))
@@ -209,7 +217,8 @@ class BillboardShader : BaseShader() {
             u_dirLightColors.add(register("u_dirLightColors[$i]"))
         }
 
-        super.init(program, null)
+        // Initialize BaseShader. This sets 'this.program' in BaseShader.
+        super.init(shaderProgram, null)
     }
 
     override fun compareTo(other: Shader): Int = 0
@@ -223,7 +232,7 @@ class BillboardShader : BaseShader() {
     }
 
     override fun begin(camera: Camera, context: RenderContext) {
-        this.compiledProgram.bind()
+        this.program.bind()
 
         // Proper GL state setup
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
@@ -256,7 +265,7 @@ class BillboardShader : BaseShader() {
         diffuseTexture?.textureDescription?.texture?.bind(0)
         set(u_diffuseTexture, 0)
 
-        renderable.meshPart.render(this.compiledProgram)
+        renderable.meshPart.render(this.program)
     }
 
     override fun end() {
@@ -268,7 +277,6 @@ class BillboardShader : BaseShader() {
     }
 
     override fun dispose() {
-        compiledProgram.dispose()
         super.dispose()
     }
 
@@ -277,15 +285,15 @@ class BillboardShader : BaseShader() {
     }
 
     private fun applyEnvironment(environment: Environment) {
-        // Set ambient light with a minimum value
+        // Set ambient light with a guaranteed minimum
         val ambientLight = environment.get(ColorAttribute.AmbientLight) as? ColorAttribute
         if (ambientLight != null) {
-            val r = Math.max(ambientLight.color.r, 0.1f)
-            val g = Math.max(ambientLight.color.g, 0.1f)
-            val b = Math.max(ambientLight.color.b, 0.1f)
+            val r = Math.max(ambientLight.color.r, 0.2f) // Higher minimum
+            val g = Math.max(ambientLight.color.g, 0.2f)
+            val b = Math.max(ambientLight.color.b, 0.2f)
             set(u_ambientLight, r, g, b)
         } else {
-            set(u_ambientLight, 0.3f, 0.3f, 0.3f)  // Brighter default ambient
+            set(u_ambientLight, 0.4f, 0.4f, 0.4f)  // Brighter default ambient
         }
 
         // Handle point lights
@@ -296,13 +304,11 @@ class BillboardShader : BaseShader() {
             }
         }
 
-        // val numPointLights = pointLightsArray.size.coerceAtMost(8) // Old
-        val numPointLights = pointLightsArray.size.coerceAtMost(16) // New limit
+        val numPointLights = pointLightsArray.size.coerceAtMost(16)
         set(u_numPointLights, numPointLights)
 
-        // for (i in 0 until 8) { // Old loop
-        for (i in 0 until 16) { // New loop limit
-            if (i < numPointLights) { // Use numPointLights (the coerced count)
+        for (i in 0 until 16) {
+            if (i < numPointLights) {
                 val light = pointLightsArray[i]
                 set(u_pointLightPositions[i], light.position)
                 set(u_pointLightColors[i], light.color.r, light.color.g, light.color.b)
