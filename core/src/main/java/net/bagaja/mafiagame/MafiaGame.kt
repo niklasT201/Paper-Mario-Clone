@@ -25,6 +25,9 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var uiManager: UIManager
     private lateinit var inputHandler: InputHandler
 
+    // Raycast System
+    private lateinit var raycastSystem: RaycastSystem
+
     // Block system
     private lateinit var blockSystem: BlockSystem
     private lateinit var objectSystem: ObjectSystem
@@ -73,6 +76,7 @@ class MafiaGame : ApplicationAdapter() {
             this::handleFinePosMove
         )
         inputHandler.initialize()
+        raycastSystem = RaycastSystem(blockSize)
 
         playerSystem = PlayerSystem()
         playerSystem.initialize(blockSize)
@@ -164,14 +168,14 @@ class MafiaGame : ApplicationAdapter() {
 
         when (uiManager.selectedTool) {
             UIManager.Tool.BLOCK -> {
-                val blockToRemove = getBlockAtRay(ray)
+                val blockToRemove = raycastSystem.getBlockAtRay(ray, gameBlocks)
                 if (blockToRemove != null) {
                     removeBlock(blockToRemove)
                     return true
                 }
             }
             UIManager.Tool.OBJECT -> {
-                val objectToRemove = getObjectAtRay(ray)
+                val objectToRemove = raycastSystem.getObjectAtRay(ray, gameObjects)
                 if (objectToRemove != null) {
                     removeObject(objectToRemove)
                     return true
@@ -181,14 +185,14 @@ class MafiaGame : ApplicationAdapter() {
                 return false
             }
             UIManager.Tool.ITEM -> {
-                val itemToRemove = getItemAtRay(ray)
+                val itemToRemove = raycastSystem.getItemAtRay(ray, itemSystem)
                 if (itemToRemove != null) {
                     itemSystem.removeItem(itemToRemove)
                     return true
                 }
             }
             UIManager.Tool.CAR -> {
-                val carToRemove = getCarAtRay(ray)
+                val carToRemove = raycastSystem.getCarAtRay(ray, gameCars)
                 if (carToRemove != null) {
                     removeCar(carToRemove)
                     return true
@@ -223,7 +227,7 @@ class MafiaGame : ApplicationAdapter() {
 
     private fun placeBlock(ray: Ray) {
         // First, try to find intersection with existing blocks
-        val hitBlock = getBlockAtRay(ray)
+        val hitBlock = raycastSystem.getBlockAtRay(ray, gameBlocks)
 
         if (hitBlock != null) {
             // We hit an existing block, place new block adjacent to it
@@ -302,83 +306,6 @@ class MafiaGame : ApplicationAdapter() {
                 println("Block already exists at this position")
             }
         }
-    }
-
-    private fun getObjectAtRay(ray: Ray): GameObject? {
-        var closestObject: GameObject? = null
-        var closestDistance = Float.MAX_VALUE
-
-        for (gameObject in gameObjects) {
-            // Create a bounding box for the object (adjust size as needed)
-            val objectBounds = BoundingBox()
-            val objectSize = 2f // Adjust this based on your object sizes
-            objectBounds.set(
-                Vector3(gameObject.position.x - objectSize / 2, gameObject.position.y, gameObject.position.z - objectSize / 2),
-                Vector3(gameObject.position.x + objectSize / 2, gameObject.position.y + objectSize, gameObject.position.z + objectSize / 2)
-            )
-
-            // Check if ray intersects with this object's bounding box
-            val intersection = Vector3()
-            if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, objectBounds, intersection)) {
-                val distance = ray.origin.dst(intersection)
-                if (distance < closestDistance) {
-                    closestDistance = distance
-                    closestObject = gameObject
-                }
-            }
-        }
-
-        return closestObject
-    }
-
-    // New function to get items at ray intersection
-    private fun getItemAtRay(ray: Ray): GameItem? {
-        var closestItem: GameItem? = null
-        var closestDistance = Float.MAX_VALUE
-
-        for (item in itemSystem.getAllItems()) {
-            if (item.isCollected) continue
-
-            // Use the item's bounding box for ray intersection
-            val itemBounds = item.getBoundingBox()
-
-            // Check if ray intersects with this item's bounding box
-            val intersection = Vector3()
-            if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, itemBounds, intersection)) {
-                val distance = ray.origin.dst(intersection)
-                if (distance < closestDistance) {
-                    closestDistance = distance
-                    closestItem = item
-                }
-            }
-        }
-
-        return closestItem
-    }
-
-    private fun getBlockAtRay(ray: Ray): GameBlock? {
-        var closestBlock: GameBlock? = null
-        var closestDistance = Float.MAX_VALUE
-
-        for (gameBlock in gameBlocks) {
-            val blockBounds = BoundingBox()
-            blockBounds.set(
-                Vector3(gameBlock.position.x - blockSize / 2, gameBlock.position.y - blockSize / 2, gameBlock.position.z - blockSize / 2),
-                Vector3(gameBlock.position.x + blockSize / 2, gameBlock.position.y + blockSize / 2, gameBlock.position.z + blockSize / 2)
-            )
-
-            // Check if ray intersects with this block's bounding box
-            val intersection = Vector3()
-            if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, blockBounds, intersection)) {
-                val distance = ray.origin.dst(intersection)
-                if (distance < closestDistance) {
-                    closestDistance = distance
-                    closestBlock = gameBlock
-                }
-            }
-        }
-
-        return closestBlock
     }
 
     private fun removeBlock(blockToRemove: GameBlock) {
@@ -524,27 +451,6 @@ class MafiaGame : ApplicationAdapter() {
         }
     }
 
-    private fun getCarAtRay(ray: Ray): GameCar? {
-        var closestCar: GameCar? = null
-        var closestDistance = Float.MAX_VALUE
-
-        for (car in gameCars) {
-            val carBounds = car.getBoundingBox()
-
-            // Check if ray intersects with this car's bounding box
-            val intersection = Vector3()
-            if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, carBounds, intersection)) {
-                val distance = ray.origin.dst(intersection)
-                if (distance < closestDistance) {
-                    closestDistance = distance
-                    closestCar = car
-                }
-            }
-        }
-
-        return closestCar
-    }
-
     private fun removeCar(carToRemove: GameCar) {
         gameCars.removeValue(carToRemove, true)
         println("${carToRemove.carType.displayName} removed at: ${carToRemove.position}")
@@ -570,7 +476,9 @@ class MafiaGame : ApplicationAdapter() {
         itemSystem.update(deltaTime, cameraManager.camera.position, playerSystem.getPosition(), 2f)
 
         // Update highlight system
-        highlightSystem.update(cameraManager, uiManager, gameBlocks, this::getBlockAtRay)
+        highlightSystem.update(cameraManager, uiManager, gameBlocks) { ray ->
+            raycastSystem.getBlockAtRay(ray, gameBlocks)
+        }
 
         //shaderProvider.setEnvironment(environment)
         //println("MafiaGame.render: Passing environment to provider, hash: ${environment.hashCode()}")

@@ -46,6 +46,5 @@ public class Lwjgl3Launcher {
 // adding ammunition
 // adding health
 // adding multiple city areas
-// adding cars
 // add weapon pickup items
 
