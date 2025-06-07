@@ -84,10 +84,10 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun setupGraphics() {
-        //shaderProvider = BillboardShaderProvider()
-        //shaderProvider.setBlockCartoonySaturation(1.3f)
-        //modelBatch = ModelBatch(shaderProvider)
-        modelBatch = ModelBatch()
+        shaderProvider = BillboardShaderProvider()
+        shaderProvider.setBlockCartoonySaturation(1.3f)
+        modelBatch = ModelBatch(shaderProvider)
+        //modelBatch = ModelBatch()
         spriteBatch = SpriteBatch()
 
         // Initialize camera manager
@@ -96,6 +96,7 @@ class MafiaGame : ApplicationAdapter() {
 
         // Setup environment and lighting
         environment = Environment()
+        println("MafiaGame.setupGraphics: Created environment, hash: ${environment.hashCode()}")
         environment.set(ColorAttribute(ColorAttribute.AmbientLight, 0.1f, 0.1f, 0.1f, 1f));
         //environment.add(DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f))
     }
@@ -554,6 +555,8 @@ class MafiaGame : ApplicationAdapter() {
                     println("Light source added at position: $position (Total lights: ${activeLights.size})")
                 } else if (activeLights.size >= maxLights) {
                     println("Warning: Maximum number of lights ($maxLights) reached!")
+                } else {
+                    println("Light object created, but light component is null or not added.")
                 }
             }
 
@@ -594,7 +597,8 @@ class MafiaGame : ApplicationAdapter() {
         // Update highlight effect
         updateHighlight()
 
-        //shaderProvider.setEnvironment(environment)
+        shaderProvider.setEnvironment(environment)
+        println("MafiaGame.render: Passing environment to provider, hash: ${environment.hashCode()}")
 
         // Render 3D scene
         modelBatch.begin(cameraManager.camera)

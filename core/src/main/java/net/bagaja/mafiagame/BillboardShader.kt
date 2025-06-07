@@ -350,6 +350,7 @@ class BillboardShaderProvider: com.badlogic.gdx.graphics.g3d.utils.ShaderProvide
     private val billboardShader = BillboardShader()
     private val blockShader = BlockShader()
     private var initialized = false
+    private var currentProviderEnvironment: Environment? = null
 
     override fun getShader(renderable: Renderable): Shader {
         if (!initialized) {
@@ -363,7 +364,7 @@ class BillboardShaderProvider: com.badlogic.gdx.graphics.g3d.utils.ShaderProvide
         return if (userDataString == "player" || userDataString == "item") { // Or just check if userData is not null and it's for this batch
             billboardShader
         } else {
-            blockShader // Or DefaultShader if that's the general fallback
+            blockShader
         }
     }
 
@@ -386,6 +387,8 @@ class BillboardShaderProvider: com.badlogic.gdx.graphics.g3d.utils.ShaderProvide
     }
 
     fun setEnvironment(environment: Environment) {
+        println("BillboardShaderProvider: setEnvironment called with environment: $environment, hash: ${environment.hashCode()}")
+        currentProviderEnvironment = environment
         billboardShader.setEnvironment(environment)
         blockShader.setEnvironment(environment)
     }
