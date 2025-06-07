@@ -248,8 +248,8 @@ data class GameObject(
             val light = PointLight()
             light.set(
                 Color(1f, 0.9f, 0.7f, 1f), // Warm white light
-                position.x, position.y + objectType.height / 2f, position.z, // Position at center of light source
-                15f // Increased light intensity/range for better visibility
+                position.x, position.y + objectType.height / 2f, position.z,
+                50f
             )
             pointLight = light
             light

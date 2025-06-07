@@ -7,6 +7,8 @@ import com.badlogic.gdx.graphics.g3d.Environment
 import com.badlogic.gdx.graphics.g3d.Renderable
 import com.badlogic.gdx.graphics.g3d.Shader
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
+import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
+import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
 import com.badlogic.gdx.graphics.g3d.environment.PointLight
@@ -79,16 +81,22 @@ class BlockShader : BaseShader() {
         uniform float u_glowIntensity;
         uniform float u_lightFalloffPower;
         uniform float u_minLightLevel;
+        uniform vec4 u_materialDiffuseColor; // For ColorAttribute.Diffuse
+        uniform bool u_hasDiffuseTexture;
 
-        vec3 calculatePointLight(vec3 lightPos, vec3 lightColor, float intensity, vec3 fragPos, vec3 normal) {
+        vec3 calculatePointLight(vec3 lightPos, vec3 lightColor, float lightRange, vec3 fragPos, vec3 normal) { // Renamed intensity to lightRange for clarity
             vec3 lightDir = lightPos - fragPos;
             float distance = length(lightDir);
             lightDir = normalize(lightDir);
 
-            // Less aggressive attenuation for better light reach
-            float attenuation = intensity / (1.0 + 0.01 * distance + 0.001 * distance * distance);
+            // Attenuation: smooth fade from 1 to 0 as distance goes from (lightRange * 0.2) to lightRange
+            // Adjust the 0.2 factor to control how quickly it starts fading within its range.
+            float attenuation = smoothstep(lightRange, lightRange * 0.2, distance);
+                                        // smoothstep(edge0, edge1, x): 0 if x <= edge0, 1 if x >= edge1
+                                        // So, for attenuation (light falls off): smoothstep(far_edge, near_edge, distance)
+                                        // Light is full (attenuation=1) until distance > lightRange*0.2, then fades to 0 at lightRange.
 
-            float diffuse = max(dot(normal, lightDir), u_minLightLevel);
+            float diffuse = max(dot(normal, lightDir), u_minLightLevel); // u_minLightLevel is 0.1 from BlockShader.java
 
             return lightColor * diffuse * attenuation;
         }
@@ -100,30 +108,41 @@ class BlockShader : BaseShader() {
         }
 
         void main() {
-            vec4 texColor = texture2D(u_diffuseTexture, v_texCoords);
+            vec4 baseColor;
+            if (u_hasDiffuseTexture) {
+                baseColor = texture2D(u_diffuseTexture, v_texCoords);
+            } else {
+                baseColor = u_materialDiffuseColor; // Use material's diffuse color
+            }
 
-            vec3 finalColor = u_ambientLight;
+            // Alpha test for transparent parts of textures (like your cross-objects)
+            // Your current cross-objects use blending, so this might not be strictly needed if blending is set up right
+            // but can be good for cutouts.
+            if (baseColor.a < 0.05) { // Adjusted threshold
+                 discard;
+            }
+
+            vec3 totalLightContribution = u_ambientLight;
 
             for (int i = 0; i < MAX_DIRECTIONAL_LIGHTS; i++) {
                 if (i >= u_numDirLights) break;
-                finalColor += calculateDirectionalLight(u_dirLights[i], u_dirLightColors[i], v_normal);
+                totalLightContribution += calculateDirectionalLight(u_dirLights[i], u_dirLightColors[i], v_normal);
             }
 
             for (int i = 0; i < MAX_POINT_LIGHTS; i++) {
                 if (i >= u_numPointLights) break;
-                finalColor += calculatePointLight(
+                totalLightContribution += calculatePointLight(
                     u_pointLightPositions[i],
                     u_pointLightColors[i],
-                    u_pointLightIntensities[i],
+                    u_pointLightIntensities[i], // This is lightRange if using Option 1A from Step 1
                     v_worldPos,
                     v_normal
                 );
             }
 
-            // Ensure minimum brightness
-            finalColor = max(finalColor, vec3(0.1));
+            totalLightContribution = max(totalLightContribution, vec3(0.1)); // Ensure minimum light contribution
 
-            gl_FragColor = vec4(texColor.rgb * finalColor, texColor.a);
+            gl_FragColor = vec4(baseColor.rgb * totalLightContribution, baseColor.a);
         }
     """.trimIndent()
 
@@ -139,6 +158,8 @@ class BlockShader : BaseShader() {
     private val u_glowIntensity = register("u_glowIntensity")
     private val u_lightFalloffPower = register("u_lightFalloffPower")
     private val u_minLightLevel = register("u_minLightLevel")
+    private val u_materialDiffuseColor = register("u_materialDiffuseColor")
+    private val u_hasDiffuseTexture = register("u_hasDiffuseTexture")
 
     private val u_pointLightPositions = Array<Int>()
     private val u_pointLightColors = Array<Int>()
@@ -195,9 +216,48 @@ class BlockShader : BaseShader() {
 
     override fun render(renderable: Renderable) {
         set(u_worldTrans, renderable.worldTransform)
-        val diffuseTexture = renderable.material.get(TextureAttribute.Diffuse) as? TextureAttribute
-        diffuseTexture?.textureDescription?.texture?.bind(0)
-        set(u_diffuseTexture, 0)
+
+        // Handle Texture or Diffuse Color
+        val diffuseTextureAttr = renderable.material.get(TextureAttribute.Diffuse) as? TextureAttribute
+        val texture = diffuseTextureAttr?.textureDescription?.texture
+
+        if (texture != null) {
+            texture.bind(0)
+            set(u_diffuseTexture, 0)
+            set(u_hasDiffuseTexture, 1) // 1 for true
+        } else {
+            set(u_hasDiffuseTexture, 0) // 0 for false
+            val diffuseColorAttr = renderable.material.get(ColorAttribute.Diffuse) as? ColorAttribute
+            if (diffuseColorAttr != null) {
+                set(u_materialDiffuseColor, diffuseColorAttr.color)
+            } else {
+                set(u_materialDiffuseColor, 1f, 1f, 1f, 1f) // Default white
+            }
+        }
+
+        // Handle Blending Attribute
+        val blendingAttr = renderable.material.get(BlendingAttribute.Type) as? BlendingAttribute
+        if (blendingAttr != null && blendingAttr.blended) {
+            Gdx.gl.glEnable(GL20.GL_BLEND)
+            Gdx.gl.glBlendFunc(blendingAttr.sourceFunction, blendingAttr.destFunction)
+        } else {
+            Gdx.gl.glDisable(GL20.GL_BLEND)
+        }
+
+        // Handle CullFace Attribute
+        val cullFaceAttr = renderable.material.get(IntAttribute.CullFace) as? IntAttribute
+        if (cullFaceAttr != null) {
+            if (cullFaceAttr.value == GL20.GL_NONE) {
+                Gdx.gl.glDisable(GL20.GL_CULL_FACE)
+            } else {
+                Gdx.gl.glEnable(GL20.GL_CULL_FACE)
+                Gdx.gl.glCullFace(cullFaceAttr.value)
+            }
+        } else {
+            Gdx.gl.glEnable(GL20.GL_CULL_FACE)
+            Gdx.gl.glCullFace(GL20.GL_BACK)
+        }
+
         renderable.meshPart.render(program)
     }
 
