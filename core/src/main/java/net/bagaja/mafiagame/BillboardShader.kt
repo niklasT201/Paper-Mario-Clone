@@ -141,34 +141,7 @@ class BillboardShader : BaseShader() {
                 discard;
             }
 
-            // Start with ambient light - ensure it's bright enough
-            vec3 finalColor = max(u_ambientLight, vec3(0.2));
-
-            // Add directional lights
-            for (int i = 0; i < MAX_DIRECTIONAL_LIGHTS; i++) {
-                if (i >= u_numDirLights) break;
-                finalColor += calculateDirectionalLight(u_dirLights[i], u_dirLightColors[i], v_normal);
-            }
-
-            // Add point lights
-            for (int i = 0; i < MAX_POINT_LIGHTS; i++) {
-                if (i >= u_numPointLights) break;
-                finalColor += calculatePointLight(
-                    u_pointLightPositions[i],
-                    u_pointLightColors[i],
-                    u_pointLightIntensities[i],
-                    v_worldPos,
-                    v_normal
-                );
-            }
-
-            // Ensure sprites are never too dark
-            finalColor = max(finalColor, vec3(0.3));
-
-            // Clamp to prevent over-brightening
-            finalColor = min(finalColor, vec3(3.0));
-
-            gl_FragColor = vec4(texColor.rgb * finalColor, texColor.a);
+             gl_FragColor = texColor;
         }
     """.trimIndent()
 
