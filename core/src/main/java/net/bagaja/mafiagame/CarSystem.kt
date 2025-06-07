@@ -126,7 +126,8 @@ class CarSystem {
 data class GameCar(
     val modelInstance: ModelInstance,
     val carType: CarType,
-    val position: Vector3
+    val position: Vector3,
+    var direction: Float = 0f // Direction in degrees (0 = facing forward/north)
 ) {
     // Get bounding box for collision detection
     fun getBoundingBox(): BoundingBox {
@@ -140,19 +141,27 @@ data class GameCar(
         return bounds
     }
 
-    // Update the car's position and make it always face the camera
-    fun updateBillboard(cameraPosition: Vector3) {
+    // Update the car's position with fixed direction (no more billboard effect)
+    fun updateTransform() {
         // Update position
         modelInstance.transform.setToTranslation(position)
 
-        // Make the car always face towards the camera (billboard effect)
-        val direction = Vector3(cameraPosition).sub(position).nor()
+        // Apply fixed rotation (cars maintain their direction)
+        modelInstance.transform.rotate(Vector3.Y, direction)
+    }
 
-        // Calculate rotation to face camera (only Y-axis rotation to keep car upright)
-        val angle = Math.atan2(direction.x.toDouble(), direction.z.toDouble()).toFloat() * 180f / Math.PI.toFloat()
+    // Method to move car in its current direction (for future driving)
+    fun moveForward(distance: Float) {
+        val radians = Math.toRadians(direction.toDouble()).toFloat()
+        position.x += kotlin.math.sin(radians) * distance
+        position.z += kotlin.math.cos(radians) * distance
+    }
 
-        // Apply rotation around Y-axis to face camera
-        modelInstance.transform.rotate(Vector3.Y, angle)
+    // Method to move car sideways (strafe)
+    fun moveSideways(distance: Float) {
+        val radians = Math.toRadians((direction + 90f).toDouble()).toFloat()
+        position.x += kotlin.math.sin(radians) * distance
+        position.z += kotlin.math.cos(radians) * distance
     }
 }
 
@@ -163,7 +172,7 @@ enum class CarType(
     val width: Float,
     val height: Float
 ) {
-    SEDAN("Sedan", "textures/cars/sedan.png", 8f, 4f),
+    SEDAN("Sedan", "textures/objects/cars/car_parking.png", 12f, 7f),
     SUV("SUV", "textures/cars/suv.png", 9f, 5f),
     TRUCK("Truck", "textures/cars/truck.png", 12f, 6f),
     SPORTS_CAR("Sports Car", "textures/cars/sports_car.png", 7f, 3.5f),

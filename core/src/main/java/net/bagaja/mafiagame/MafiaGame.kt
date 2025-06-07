@@ -637,7 +637,7 @@ class MafiaGame : ApplicationAdapter() {
         val carInstance = carSystem.createCarInstance(carType)
         if (carInstance != null) {
             val position = Vector3(x, y, z)
-            val gameCar = GameCar(carInstance, carType, position)
+            val gameCar = GameCar(carInstance, carType, position, 0f) // 0f = facing north
             gameCars.add(gameCar)
         }
     }
@@ -710,7 +710,7 @@ class MafiaGame : ApplicationAdapter() {
         }
 
         for (car in gameCars) {
-            car.updateBillboard(cameraManager.camera.position)
+            car.updateTransform()
             modelBatch.render(car.modelInstance, environment)
         }
         modelBatch.end()
