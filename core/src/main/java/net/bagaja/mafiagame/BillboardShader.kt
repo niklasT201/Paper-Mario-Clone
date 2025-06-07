@@ -387,7 +387,7 @@ class BillboardShaderProvider: com.badlogic.gdx.graphics.g3d.utils.ShaderProvide
     }
 
     fun setEnvironment(environment: Environment) {
-        println("BillboardShaderProvider: setEnvironment called with environment: $environment, hash: ${environment.hashCode()}")
+        //println("BillboardShaderProvider: setEnvironment called with environment: $environment, hash: ${environment.hashCode()}")
         currentProviderEnvironment = environment
         billboardShader.setEnvironment(environment)
         blockShader.setEnvironment(environment)

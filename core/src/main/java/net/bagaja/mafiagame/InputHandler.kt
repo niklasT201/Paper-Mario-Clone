@@ -13,6 +13,7 @@ class InputHandler(
     private val blockSystem: BlockSystem,
     private val objectSystem: ObjectSystem,
     private val itemSystem: ItemSystem,
+    private val carSystem: CarSystem,
     private val onLeftClick: (screenX: Int, screenY: Int) -> Unit,
     private val onRightClickAttemptBlockRemove: (screenX: Int, screenY: Int) -> Boolean,
     private val onFinePosMove: (deltaX: Float, deltaY: Float, deltaZ: Float) -> Unit
@@ -24,6 +25,7 @@ class InputHandler(
     private var isBlockSelectionMode = false
     private var isObjectSelectionMode = false
     private var isItemSelectionMode = false
+    private var isCarSelectionMode = false
 
     // Variables for continuous block placement/removal
     private var continuousActionTimer = 0f
@@ -144,6 +146,15 @@ class InputHandler(
                     }
                     uiManager.updateItemSelection()
                     return true
+                } else if (isCarSelectionMode) {
+                    // Use mouse scroll to change cars
+                    if (amountY > 0) {
+                        carSystem.nextCar()
+                    } else if (amountY < 0) {
+                        carSystem.previousCar()
+                    }
+                    uiManager.updateCarSelection()
+                    return true
                 } else {
                     // Normal camera zoom
                     cameraManager.handleMouseScroll(amountY)
@@ -180,9 +191,21 @@ class InputHandler(
                         }
                         return true
                     }
+                    Input.Keys.M -> {
+                        // Car selection mode (similar to B for blocks, O for objects)
+                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode) {
+                            isCarSelectionMode = true
+                            uiManager.showCarSelection()
+                        }
+                        return true
+                    }
                     Input.Keys.F -> {
-                        // Toggle fine positioning mode for objects
-                        objectSystem.toggleFinePosMode()
+                        // Toggle fine positioning mode for objects OR cars
+                        if (uiManager.selectedTool == Tool.OBJECT) {
+                            objectSystem.toggleFinePosMode()
+                        } else if (uiManager.selectedTool == Tool.CAR) {
+                            carSystem.toggleFinePosMode()
+                        }
                         return true
                     }
                     Input.Keys.G -> {
@@ -220,9 +243,14 @@ class InputHandler(
                         uiManager.selectedTool = Tool.ITEM
                         uiManager.updateToolDisplay()
                     }
+                    Input.Keys.NUMPAD_5 -> {
+                        uiManager.selectedTool = Tool.CAR
+                        uiManager.updateToolDisplay()
+                    }
                     // Fine positioning controls
                     Input.Keys.LEFT -> {
-                        if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
+                        if ((objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) ||
+                            (carSystem.finePosMode && uiManager.selectedTool == Tool.CAR)) {
                             leftPressed = true
                             continuousFineTimer = 0f
                             return true
@@ -309,6 +337,11 @@ class InputHandler(
                         pageDownPressed = false
                         return true
                     }
+                    Input.Keys.M -> {
+                        isCarSelectionMode = false
+                        uiManager.hideCarSelection()
+                        return true
+                    }
                 }
                 return false
             }
@@ -357,12 +390,12 @@ class InputHandler(
             var deltaY = 0f
             var deltaZ = 0f
 
-            if (leftPressed) deltaX -= objectSystem.getFineStep()
-            if (rightPressed) deltaX += objectSystem.getFineStep()
-            if (downPressed) deltaZ += objectSystem.getFineStep()  // Down = forward
-            if (upPressed) deltaZ -= objectSystem.getFineStep()    // Up = backward
-            if (pageDownPressed) deltaY -= objectSystem.getFineStep()
-            if (pageUpPressed) deltaY += objectSystem.getFineStep()
+            if (leftPressed) deltaX -= getCurrentFineStep()
+            if (rightPressed) deltaX += getCurrentFineStep()
+            if (downPressed) deltaZ += getCurrentFineStep()
+            if (upPressed) deltaZ -= getCurrentFineStep()
+            if (pageDownPressed) deltaY -= getCurrentFineStep()
+            if (pageUpPressed) deltaY += getCurrentFineStep()
 
             // Only call if there's actual movement
             if (deltaX != 0f || deltaY != 0f || deltaZ != 0f) {
@@ -376,5 +409,13 @@ class InputHandler(
     private fun isBlockBeingRemoved(): Boolean {
         // We're in block removal mode if the last removal position is set
         return lastRemovalX != -1 && lastRemovalY != -1
+    }
+
+    private fun getCurrentFineStep(): Float {
+        return when (uiManager.selectedTool) {
+            Tool.OBJECT -> objectSystem.getFineStep()
+            Tool.CAR -> carSystem.getFineStep()
+            else -> 0.25f // default
+        }
     }
 }

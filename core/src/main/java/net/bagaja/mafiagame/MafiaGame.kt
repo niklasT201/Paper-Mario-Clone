@@ -30,6 +30,8 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var blockSystem: BlockSystem
     private lateinit var objectSystem: ObjectSystem
     private lateinit var itemSystem: ItemSystem
+    private lateinit var carSystem: CarSystem
+    private val gameCars = Array<GameCar>()
     private val gameObjects = Array<GameObject>()
 
     private var highlightModel: Model? = null
@@ -56,9 +58,10 @@ class MafiaGame : ApplicationAdapter() {
         setupBlockSystem()
         setupObjectSystem()
         setupItemSystem()
+        setupCarSystem()
 
         // Initialize UI Manager
-        uiManager = UIManager(blockSystem, objectSystem, itemSystem)
+        uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem)
         uiManager.initialize()
 
         // Initialize Input Handler
@@ -68,6 +71,7 @@ class MafiaGame : ApplicationAdapter() {
             blockSystem,
             objectSystem,
             itemSystem,
+            carSystem,
             this::handleLeftClickAction,
             this::handleRightClickAndRemoveAction,
             this::handleFinePosMove
@@ -84,10 +88,10 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun setupGraphics() {
-        shaderProvider = BillboardShaderProvider()
-        shaderProvider.setBlockCartoonySaturation(1.3f)
-        modelBatch = ModelBatch(shaderProvider)
-        //modelBatch = ModelBatch()
+        //shaderProvider = BillboardShaderProvider()
+        //shaderProvider.setBlockCartoonySaturation(1.3f)
+        //modelBatch = ModelBatch(shaderProvider)
+        modelBatch = ModelBatch()
         spriteBatch = SpriteBatch()
 
         // Initialize camera manager
@@ -98,7 +102,7 @@ class MafiaGame : ApplicationAdapter() {
         environment = Environment()
         println("MafiaGame.setupGraphics: Created environment, hash: ${environment.hashCode()}")
         environment.set(ColorAttribute(ColorAttribute.AmbientLight, 0.1f, 0.1f, 0.1f, 1f));
-        //environment.add(DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f))
+        environment.add(DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f))
     }
 
     private fun setupBlockSystem() {
@@ -114,6 +118,11 @@ class MafiaGame : ApplicationAdapter() {
     private fun setupItemSystem() {
         itemSystem = ItemSystem()
         itemSystem.initialize()
+    }
+
+    private fun setupCarSystem() {
+        carSystem = CarSystem()
+        carSystem.initialize()
     }
 
     private fun setupHighlight() {
@@ -183,6 +192,23 @@ class MafiaGame : ApplicationAdapter() {
             } else {
                 isHighlightVisible = false
             }
+        } else if (uiManager.selectedTool == UIManager.Tool.CAR) {
+            // Show purple highlight for car placement
+            val intersection = Vector3()
+            val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+                val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
+                val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+
+                isHighlightVisible = true
+                highlightPosition.set(gridX, 0.5f, gridZ)
+                val transparentPurple = Color(1f, 0f, 1f, 0.3f)
+                highlightMaterial?.set(ColorAttribute.createDiffuse(transparentPurple))
+                highlightInstance?.transform?.setTranslation(highlightPosition)
+            } else {
+                isHighlightVisible = false
+            }
         } else {
             // Show transparent green highlight for player placement
             val intersection = Vector3()
@@ -246,10 +272,11 @@ class MafiaGame : ApplicationAdapter() {
             UIManager.Tool.PLAYER -> placePlayer(ray)
             UIManager.Tool.OBJECT -> placeObject(ray)
             UIManager.Tool.ITEM -> placeItem(ray)
+            UIManager.Tool.CAR -> placeCar(ray)
         }
     }
 
-    // Callback for InputHandler for right mouse click (attempt to remove block)
+    // Callback for InputHandler for right mouse click
     private fun handleRightClickAndRemoveAction(screenX: Int, screenY: Int): Boolean {
         val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
 
@@ -275,6 +302,13 @@ class MafiaGame : ApplicationAdapter() {
                 val itemToRemove = getItemAtRay(ray)
                 if (itemToRemove != null) {
                     itemSystem.removeItem(itemToRemove)
+                    return true
+                }
+            }
+            UIManager.Tool.CAR -> {
+                val carToRemove = getCarAtRay(ray)
+                if (carToRemove != null) {
+                    removeCar(carToRemove)
                     return true
                 }
             }
@@ -575,6 +609,65 @@ class MafiaGame : ApplicationAdapter() {
         }
     }
 
+    private fun placeCar(ray: Ray) {
+        val intersection = Vector3()
+        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            // Snap to grid
+            val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+
+            // Check if there's already a car at this position
+            val existingCar = gameCars.find { car ->
+                kotlin.math.abs(car.position.x - gridX) < 2f &&
+                    kotlin.math.abs(car.position.z - gridZ) < 2f
+            }
+
+            if (existingCar == null) {
+                addCar(gridX, 0f, gridZ, carSystem.currentSelectedCar)
+                println("${carSystem.currentSelectedCar.displayName} placed at: $gridX, 0, $gridZ")
+            } else {
+                println("Car already exists near this position")
+            }
+        }
+    }
+
+    private fun addCar(x: Float, y: Float, z: Float, carType: CarType) {
+        val carInstance = carSystem.createCarInstance(carType)
+        if (carInstance != null) {
+            val position = Vector3(x, y, z)
+            val gameCar = GameCar(carInstance, carType, position)
+            gameCars.add(gameCar)
+        }
+    }
+
+    private fun getCarAtRay(ray: Ray): GameCar? {
+        var closestCar: GameCar? = null
+        var closestDistance = Float.MAX_VALUE
+
+        for (car in gameCars) {
+            val carBounds = car.getBoundingBox()
+
+            // Check if ray intersects with this car's bounding box
+            val intersection = Vector3()
+            if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, carBounds, intersection)) {
+                val distance = ray.origin.dst(intersection)
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestCar = car
+                }
+            }
+        }
+
+        return closestCar
+    }
+
+    private fun removeCar(carToRemove: GameCar) {
+        gameCars.removeValue(carToRemove, true)
+        println("${carToRemove.carType.displayName} removed at: ${carToRemove.position}")
+    }
+
     override fun render() {
         // Clear screen
         Gdx.gl.glViewport(0, 0, Gdx.graphics.width, Gdx.graphics.height)
@@ -597,8 +690,8 @@ class MafiaGame : ApplicationAdapter() {
         // Update highlight effect
         updateHighlight()
 
-        shaderProvider.setEnvironment(environment)
-        println("MafiaGame.render: Passing environment to provider, hash: ${environment.hashCode()}")
+        //shaderProvider.setEnvironment(environment)
+        //println("MafiaGame.render: Passing environment to provider, hash: ${environment.hashCode()}")
 
         // Render 3D scene
         modelBatch.begin(cameraManager.camera)
@@ -614,6 +707,11 @@ class MafiaGame : ApplicationAdapter() {
             if (renderInstance != null) {
                 modelBatch.render(renderInstance, environment)
             }
+        }
+
+        for (car in gameCars) {
+            car.updateBillboard(cameraManager.camera.position)
+            modelBatch.render(car.modelInstance, environment)
         }
         modelBatch.end()
 
@@ -664,6 +762,7 @@ class MafiaGame : ApplicationAdapter() {
         blockSystem.dispose()
         objectSystem.dispose()
         itemSystem.dispose()
+        carSystem.dispose()
         playerSystem.dispose()
         highlightModel?.dispose()
 
