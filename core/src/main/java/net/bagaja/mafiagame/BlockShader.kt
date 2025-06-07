@@ -16,17 +16,10 @@ import com.badlogic.gdx.graphics.glutils.ShaderProgram
 import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.GdxRuntimeException
 
-class BillboardShader : BaseShader() {
+class BlockShader : BaseShader() {
     private val VERTEX_SHADER = """
         #ifdef GL_ES
-        #define LOWP lowp
-        #define MED mediump
-        #define HIGH highp
         precision mediump float;
-        #else
-        #define MED
-        #define LOWP
-        #define HIGH
         #endif
 
         attribute vec3 a_position;
@@ -46,12 +39,12 @@ class BillboardShader : BaseShader() {
             vec4 worldPos = u_worldTrans * vec4(a_position, 1.0);
             v_worldPos = worldPos.xyz;
 
-            mat3 normalCalcMatrix = mat3(
+            mat3 normalMatrix = mat3(
                 u_worldTrans[0].xyz,
                 u_worldTrans[1].xyz,
                 u_worldTrans[2].xyz
             );
-            v_normal = normalize(normalCalcMatrix * a_normal);
+            v_normal = normalize(normalMatrix * a_normal);
 
             v_viewDir = normalize(u_cameraPosition - v_worldPos);
             v_texCoords = a_texCoord0;
@@ -62,14 +55,7 @@ class BillboardShader : BaseShader() {
 
     private val FRAGMENT_SHADER = """
         #ifdef GL_ES
-        #define LOWP lowp
-        #define MED mediump
-        #define HIGH highp
         precision mediump float;
-        #else
-        #define MED
-        #define LOWP
-        #define HIGH
         #endif
 
         #define MAX_POINT_LIGHTS 128
@@ -89,68 +75,40 @@ class BillboardShader : BaseShader() {
         uniform float u_pointLightIntensities[MAX_POINT_LIGHTS];
         uniform int u_numPointLights;
         uniform int u_numDirLights;
-        uniform float u_billboardLightingStrength;
-        uniform float u_minLightLevel;
         uniform float u_cartoonySaturation;
         uniform float u_glowIntensity;
         uniform float u_lightFalloffPower;
+        uniform float u_minLightLevel;
 
         vec3 calculatePointLight(vec3 lightPos, vec3 lightColor, float intensity, vec3 fragPos, vec3 normal) {
             vec3 lightDir = lightPos - fragPos;
             float distance = length(lightDir);
             lightDir = normalize(lightDir);
 
-            // More generous attenuation for better light spread
-            float attenuation = intensity / (1.0 + 0.005 * distance + 0.0002 * distance * distance);
+            // Less aggressive attenuation for better light reach
+            float attenuation = intensity / (1.0 + 0.01 * distance + 0.001 * distance * distance);
 
-            // Standard diffuse lighting
-            float normalDot = dot(normal, lightDir);
-            float diffuseStandard = max(normalDot, 0.0);
-
-            // Billboard lighting: make sprites more evenly lit regardless of angle
-            // Use distance-based lighting instead of normal-based for billboard effect
-            float billboardDiffuse = 1.0 - smoothstep(0.0, 10.0, distance * 0.1);
-            billboardDiffuse = max(billboardDiffuse, 0.2); // Minimum lighting
-
-            // Mix between standard and billboard lighting
-            float diffuse = mix(diffuseStandard, billboardDiffuse, u_billboardLightingStrength);
-            diffuse = max(diffuse, u_minLightLevel);
+            float diffuse = max(dot(normal, lightDir), u_minLightLevel);
 
             return lightColor * diffuse * attenuation;
         }
 
         vec3 calculateDirectionalLight(vec3 lightDir, vec3 lightColor, vec3 normal) {
             lightDir = normalize(-lightDir);
-
-            float normalDot = dot(normal, lightDir);
-            float diffuseStandard = max(normalDot, 0.0);
-
-            // For billboard directional lighting, use a more forgiving calculation
-            float billboardDiffuse = max(abs(normalDot) * 0.5 + 0.5, 0.4);
-
-            float diffuse = mix(diffuseStandard, billboardDiffuse, u_billboardLightingStrength);
-            diffuse = max(diffuse, u_minLightLevel);
-
+            float diffuse = max(dot(normal, lightDir), u_minLightLevel);
             return lightColor * diffuse;
         }
 
         void main() {
             vec4 texColor = texture2D(u_diffuseTexture, v_texCoords);
 
-            if (texColor.a < 0.1) {
-                discard;
-            }
+            vec3 finalColor = u_ambientLight;
 
-            // Start with ambient light - ensure it's bright enough
-            vec3 finalColor = max(u_ambientLight, vec3(0.2));
-
-            // Add directional lights
             for (int i = 0; i < MAX_DIRECTIONAL_LIGHTS; i++) {
                 if (i >= u_numDirLights) break;
                 finalColor += calculateDirectionalLight(u_dirLights[i], u_dirLightColors[i], v_normal);
             }
 
-            // Add point lights
             for (int i = 0; i < MAX_POINT_LIGHTS; i++) {
                 if (i >= u_numPointLights) break;
                 finalColor += calculatePointLight(
@@ -162,17 +120,14 @@ class BillboardShader : BaseShader() {
                 );
             }
 
-            // Ensure sprites are never too dark
-            finalColor = max(finalColor, vec3(0.3));
-
-            // Clamp to prevent over-brightening
-            finalColor = min(finalColor, vec3(3.0));
+            // Ensure minimum brightness
+            finalColor = max(finalColor, vec3(0.1));
 
             gl_FragColor = vec4(texColor.rgb * finalColor, texColor.a);
         }
     """.trimIndent()
 
-    // Uniform locations
+    // Same structure as BillboardShader but simplified
     private val u_worldTrans = register("u_worldTrans")
     private val u_projViewTrans = register("u_projViewTrans")
     private val u_cameraPosition = register("u_cameraPosition")
@@ -180,11 +135,10 @@ class BillboardShader : BaseShader() {
     private val u_ambientLight = register("u_ambientLight")
     private val u_numPointLights = register("u_numPointLights")
     private val u_numDirLights = register("u_numDirLights")
-    private val u_billboardLightingStrength = register("u_billboardLightingStrength")
-    private val u_minLightLevel = register("u_minLightLevel")
     private val u_cartoonySaturation = register("u_cartoonySaturation")
     private val u_glowIntensity = register("u_glowIntensity")
     private val u_lightFalloffPower = register("u_lightFalloffPower")
+    private val u_minLightLevel = register("u_minLightLevel")
 
     private val u_pointLightPositions = Array<Int>()
     private val u_pointLightColors = Array<Int>()
@@ -192,21 +146,18 @@ class BillboardShader : BaseShader() {
     private val u_dirLights = Array<Int>()
     private val u_dirLightColors = Array<Int>()
 
-    // Configuration with more reasonable defaults
-    var billboardLightingStrength = 0.9f
-    var minLightLevel = 0.3f
     var cartoonySaturation = 1.2f
     var glowIntensity = 1.0f
     var lightFalloffPower = 1.0f
+    var minLightLevel = 0.1f
     private var currentEnvironment: Environment? = null
 
     override fun init() {
-        val shaderProgram = ShaderProgram(VERTEX_SHADER, FRAGMENT_SHADER)
-        if (!shaderProgram.isCompiled) {
-            throw GdxRuntimeException("Shader compilation failed:\n${shaderProgram.log}")
+        val program = ShaderProgram(VERTEX_SHADER, FRAGMENT_SHADER)
+        if (!program.isCompiled) {
+            throw GdxRuntimeException("Block shader compilation failed:\n${program.log}")
         }
 
-        // Register array uniforms (this part is fine)
         for (i in 0 until 128) {
             u_pointLightPositions.add(register("u_pointLightPositions[$i]"))
             u_pointLightColors.add(register("u_pointLightColors[$i]"))
@@ -217,67 +168,45 @@ class BillboardShader : BaseShader() {
             u_dirLightColors.add(register("u_dirLightColors[$i]"))
         }
 
-        // Initialize BaseShader. This sets 'this.program' in BaseShader.
-        super.init(shaderProgram, null)
+        super.init(program, null)
     }
 
     override fun compareTo(other: Shader): Int = 0
-
-    override fun canRender(renderable: Renderable): Boolean {
-        return renderable.material.has(TextureAttribute.Diffuse)
-    }
-
-    private fun needsTransparency(): Boolean {
-        return true
-    }
+    override fun canRender(renderable: Renderable): Boolean =
+        renderable.material.has(TextureAttribute.Diffuse)
 
     override fun begin(camera: Camera, context: RenderContext) {
-        this.program.bind()
-
-        // Proper GL state setup
-        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
-        Gdx.gl.glDepthFunc(GL20.GL_LEQUAL)
-        Gdx.gl.glDepthMask(true)
-
-        if (needsTransparency()) {
-            Gdx.gl.glEnable(GL20.GL_BLEND)
-            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
-        } else {
-            Gdx.gl.glDisable(GL20.GL_BLEND)
-        }
-
-        // Set uniforms
+        program.bind()
         set(u_projViewTrans, camera.combined)
         set(u_cameraPosition, camera.position)
-        set(u_billboardLightingStrength, billboardLightingStrength)
-        set(u_minLightLevel, minLightLevel)
         set(u_cartoonySaturation, cartoonySaturation)
         set(u_glowIntensity, glowIntensity)
         set(u_lightFalloffPower, lightFalloffPower)
-
+        set(u_minLightLevel, minLightLevel)
         currentEnvironment?.let { applyEnvironment(it) }
+
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDepthFunc(GL20.GL_LEQUAL)
+        Gdx.gl.glDepthMask(true)
+        Gdx.gl.glDisable(GL20.GL_BLEND)
+        Gdx.gl.glEnable(GL20.GL_CULL_FACE)
+        Gdx.gl.glCullFace(GL20.GL_BACK)
     }
 
     override fun render(renderable: Renderable) {
         set(u_worldTrans, renderable.worldTransform)
-
         val diffuseTexture = renderable.material.get(TextureAttribute.Diffuse) as? TextureAttribute
         diffuseTexture?.textureDescription?.texture?.bind(0)
         set(u_diffuseTexture, 0)
-
-        renderable.meshPart.render(this.program)
+        renderable.meshPart.render(program)
     }
 
     override fun end() {
-        // Clean up GL state
-        Gdx.gl.glDisable(GL20.GL_BLEND)
-        Gdx.gl.glDepthMask(true)
+        // Restore default state if needed
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glDisable(GL20.GL_CULL_FACE)
-    }
-
-    override fun dispose() {
-        super.dispose()
+        Gdx.gl.glDisable(GL20.GL_BLEND)
+        Gdx.gl.glDepthMask(true)
     }
 
     fun setEnvironment(environment: Environment) {
@@ -285,18 +214,17 @@ class BillboardShader : BaseShader() {
     }
 
     private fun applyEnvironment(environment: Environment) {
-        // Set ambient light with a guaranteed minimum
+        // Same environment application as BillboardShader
         val ambientLight = environment.get(ColorAttribute.AmbientLight) as? ColorAttribute
         if (ambientLight != null) {
-            val r = Math.max(ambientLight.color.r, 0.2f) // Higher minimum
-            val g = Math.max(ambientLight.color.g, 0.2f)
-            val b = Math.max(ambientLight.color.b, 0.2f)
+            val r = Math.max(ambientLight.color.r, 0.1f)
+            val g = Math.max(ambientLight.color.g, 0.1f)
+            val b = Math.max(ambientLight.color.b, 0.1f)
             set(u_ambientLight, r, g, b)
         } else {
-            set(u_ambientLight, 0.4f, 0.4f, 0.4f)  // Brighter default ambient
+            set(u_ambientLight, 0.3f, 0.3f, 0.3f)
         }
 
-        // Handle point lights
         val pointLightsArray = com.badlogic.gdx.utils.Array<PointLight>()
         environment.forEach { attribute ->
             if (attribute is PointLight) {
@@ -304,7 +232,7 @@ class BillboardShader : BaseShader() {
             }
         }
 
-        val numPointLights = pointLightsArray.size.coerceAtMost(16)
+        val numPointLights = pointLightsArray.size.coerceAtMost(16) // New limit
         set(u_numPointLights, numPointLights)
 
         for (i in 0 until 16) {
@@ -321,17 +249,13 @@ class BillboardShader : BaseShader() {
             }
         }
 
-        // Handle directional lights
         val dirLightsArray = com.badlogic.gdx.utils.Array<DirectionalLight>()
         environment.forEach { attribute ->
             if (attribute is DirectionalLight) {
                 dirLightsArray.add(attribute)
             }
         }
-
-        val numDirLights = dirLightsArray.size.coerceAtMost(2)
-        set(u_numDirLights, numDirLights)
-
+        set(u_numDirLights, dirLightsArray.size.coerceAtMost(2))
         for (i in 0 until 2) {
             if (i < dirLightsArray.size) {
                 val light = dirLightsArray[i]
@@ -342,63 +266,5 @@ class BillboardShader : BaseShader() {
                 set(u_dirLightColors[i], 0f, 0f, 0f)
             }
         }
-    }
-}
-
-// Shader provider for billboard objects
-class BillboardShaderProvider: com.badlogic.gdx.graphics.g3d.utils.ShaderProvider {
-    private val billboardShader = BillboardShader()
-    private val blockShader = BlockShader()
-    private var initialized = false
-
-    override fun getShader(renderable: Renderable): Shader {
-        if (!initialized) {
-            billboardShader.init()
-            blockShader.init()
-            initialized = true
-        }
-
-        // Check userData to decide which shader to use
-        val userDataString = renderable.userData as? String
-        return if (userDataString == "player" || userDataString == "item") { // Or just check if userData is not null and it's for this batch
-            billboardShader
-        } else {
-            blockShader // Or DefaultShader if that's the general fallback
-        }
-    }
-
-    private fun isPlayerRenderable(renderable: Renderable): Boolean {
-        return renderable.userData is String && renderable.userData == "player"
-    }
-
-    override fun dispose() {
-        billboardShader.dispose()
-        blockShader.dispose()
-    }
-
-    fun setBillboardLightingStrength(strength: Float) {
-        billboardShader.billboardLightingStrength = strength
-    }
-
-    fun setMinLightLevel(level: Float) {
-        billboardShader.minLightLevel = level
-        blockShader.minLightLevel = level
-    }
-
-    fun setEnvironment(environment: Environment) {
-        billboardShader.setEnvironment(environment)
-        blockShader.setEnvironment(environment)
-    }
-
-    fun setCartoonySaturation(saturation: Float) {
-        billboardShader.cartoonySaturation = saturation
-    }
-
-    fun setGlowIntensity(intensity: Float) {
-        billboardShader.glowIntensity = intensity
-    }
-
-    fun setBlockCartoonySaturation(saturation: Float) {
-        blockShader.cartoonySaturation = saturation
     }
 }
