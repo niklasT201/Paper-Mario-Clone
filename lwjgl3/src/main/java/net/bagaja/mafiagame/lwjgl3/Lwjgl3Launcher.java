@@ -46,8 +46,6 @@ public class Lwjgl3Launcher {
 // adding ammunition
 // adding health
 // adding multiple city areas
-// lightning problem with the player
 // adding cars
 // add weapon pickup items
-// player invisible behind objects
 
