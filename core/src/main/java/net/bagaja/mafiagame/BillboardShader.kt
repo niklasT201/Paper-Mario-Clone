@@ -72,7 +72,7 @@ class BillboardShader : BaseShader() {
         #define HIGH
         #endif
 
-        #define MAX_POINT_LIGHTS 8
+        #define MAX_POINT_LIGHTS 128
         #define MAX_DIRECTIONAL_LIGHTS 2
 
         varying vec2 v_texCoords;
@@ -199,7 +199,7 @@ class BillboardShader : BaseShader() {
         this.compiledProgram = program
 
         // Register array uniforms
-        for (i in 0 until 8) {
+        for (i in 0 until 128) {
             u_pointLightPositions.add(register("u_pointLightPositions[$i]"))
             u_pointLightColors.add(register("u_pointLightColors[$i]"))
             u_pointLightIntensities.add(register("u_pointLightIntensities[$i]"))
@@ -263,7 +263,8 @@ class BillboardShader : BaseShader() {
         // Clean up GL state
         Gdx.gl.glDisable(GL20.GL_BLEND)
         Gdx.gl.glDepthMask(true)
-        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDisable(GL20.GL_CULL_FACE)
     }
 
     override fun dispose() {
@@ -295,16 +296,19 @@ class BillboardShader : BaseShader() {
             }
         }
 
-        val numPointLights = pointLightsArray.size.coerceAtMost(8)
+        // val numPointLights = pointLightsArray.size.coerceAtMost(8) // Old
+        val numPointLights = pointLightsArray.size.coerceAtMost(16) // New limit
         set(u_numPointLights, numPointLights)
 
-        for (i in 0 until 8) {
-            if (i < pointLightsArray.size) {
+        // for (i in 0 until 8) { // Old loop
+        for (i in 0 until 16) { // New loop limit
+            if (i < numPointLights) { // Use numPointLights (the coerced count)
                 val light = pointLightsArray[i]
                 set(u_pointLightPositions[i], light.position)
                 set(u_pointLightColors[i], light.color.r, light.color.g, light.color.b)
                 set(u_pointLightIntensities[i], light.intensity)
             } else {
+                // Zero out unused light uniforms
                 set(u_pointLightPositions[i], 0f, 0f, 0f)
                 set(u_pointLightColors[i], 0f, 0f, 0f)
                 set(u_pointLightIntensities[i], 0f)
@@ -377,7 +381,7 @@ class BlockShader : BaseShader() {
         precision mediump float;
         #endif
 
-        #define MAX_POINT_LIGHTS 8
+        #define MAX_POINT_LIGHTS 128
         #define MAX_DIRECTIONAL_LIGHTS 2
 
         varying vec2 v_texCoords;
@@ -477,7 +481,7 @@ class BlockShader : BaseShader() {
             throw GdxRuntimeException("Block shader compilation failed:\n${program.log}")
         }
 
-        for (i in 0 until 8) {
+        for (i in 0 until 128) {
             u_pointLightPositions.add(register("u_pointLightPositions[$i]"))
             u_pointLightColors.add(register("u_pointLightColors[$i]"))
             u_pointLightIntensities.add(register("u_pointLightIntensities[$i]"))
@@ -522,6 +526,10 @@ class BlockShader : BaseShader() {
 
     override fun end() {
         // Restore default state if needed
+        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDisable(GL20.GL_CULL_FACE)
+        Gdx.gl.glDisable(GL20.GL_BLEND)
+        Gdx.gl.glDepthMask(true)
     }
 
     fun setEnvironment(environment: Environment) {
@@ -546,14 +554,18 @@ class BlockShader : BaseShader() {
                 pointLightsArray.add(attribute)
             }
         }
-        set(u_numPointLights, pointLightsArray.size.coerceAtMost(8))
-        for (i in 0 until 8) {
-            if (i < pointLightsArray.size) {
+
+        val numPointLights = pointLightsArray.size.coerceAtMost(16) // New limit
+        set(u_numPointLights, numPointLights)
+
+        for (i in 0 until 16) {
+            if (i < numPointLights) {
                 val light = pointLightsArray[i]
                 set(u_pointLightPositions[i], light.position)
                 set(u_pointLightColors[i], light.color.r, light.color.g, light.color.b)
                 set(u_pointLightIntensities[i], light.intensity)
             } else {
+                // Zero out unused light uniforms
                 set(u_pointLightPositions[i], 0f, 0f, 0f)
                 set(u_pointLightColors[i], 0f, 0f, 0f)
                 set(u_pointLightIntensities[i], 0f)
@@ -593,10 +605,12 @@ class BillboardShaderProvider: com.badlogic.gdx.graphics.g3d.utils.ShaderProvide
             initialized = true
         }
 
-        return if (isPlayerRenderable(renderable)) {
+        // Check userData to decide which shader to use
+        val userDataString = renderable.userData as? String
+        return if (userDataString == "player" || userDataString == "item") { // Or just check if userData is not null and it's for this batch
             billboardShader
         } else {
-            blockShader
+            blockShader // Or DefaultShader if that's the general fallback
         }
     }
 

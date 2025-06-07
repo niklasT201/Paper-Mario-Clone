@@ -6,6 +6,7 @@ import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.VertexAttributes
 import com.badlogic.gdx.graphics.g3d.Material
 import com.badlogic.gdx.graphics.g3d.Model
+import com.badlogic.gdx.graphics.g3d.ModelBatch
 import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
@@ -21,6 +22,8 @@ class ItemSystem {
     private val itemModels = mutableMapOf<ItemType, Model>()
     private val itemTextures = mutableMapOf<ItemType, Texture>()
     private val gameItems = Array<GameItem>()
+    private lateinit var itemModelBatch: ModelBatch
+    private lateinit var billboardShaderProvider: BillboardShaderProvider
 
     var currentSelectedItem = ItemType.MONEY_STACK
         private set
@@ -29,6 +32,11 @@ class ItemSystem {
 
     fun initialize() {
         val modelBuilder = ModelBuilder()
+
+        // Initialize shader and batch for items
+        billboardShaderProvider = BillboardShaderProvider()
+        itemModelBatch = ModelBatch(billboardShaderProvider)
+        billboardShaderProvider.setBillboardLightingStrength(0.7f)
 
         // Load textures and create models for each item type
         for (itemType in ItemType.values()) {
@@ -105,7 +113,11 @@ class ItemSystem {
 
     fun createItemInstance(itemType: ItemType): ModelInstance? {
         val model = itemModels[itemType]
-        return model?.let { ModelInstance(it) }
+        return model?.let {
+            val instance = ModelInstance(it)
+            instance.userData = "item"
+            instance
+        }
     }
 
     fun addItem(position: Vector3, itemType: ItemType) {
@@ -145,12 +157,16 @@ class ItemSystem {
         }
     }
 
-    fun render(modelBatch: com.badlogic.gdx.graphics.g3d.ModelBatch, environment: com.badlogic.gdx.graphics.g3d.Environment) {
+    fun render(camera: com.badlogic.gdx.graphics.Camera, environment: com.badlogic.gdx.graphics.g3d.Environment) {
+        billboardShaderProvider.setEnvironment(environment)
+
+        itemModelBatch.begin(camera)
         for (item in gameItems) {
             if (!item.isCollected) {
-                modelBatch.render(item.modelInstance, environment)
+                itemModelBatch.render(item.modelInstance, environment)
             }
         }
+        itemModelBatch.end()
     }
 
     fun getItemAtPosition(position: Vector3, radius: Float = 2f): GameItem? {
@@ -167,6 +183,8 @@ class ItemSystem {
     fun dispose() {
         itemModels.values.forEach { it.dispose() }
         itemTextures.values.forEach { it.dispose() }
+        itemModelBatch.dispose()
+        billboardShaderProvider.dispose()
     }
 }
 

@@ -49,7 +49,7 @@ class MafiaGame : ApplicationAdapter() {
 
     // Light management
     private val activeLights = Array<PointLight>()
-    private val maxLights = 8
+    private val maxLights = 128
 
     override fun create() {
         setupGraphics()
@@ -575,6 +575,7 @@ class MafiaGame : ApplicationAdapter() {
     override fun render() {
         // Clear screen
         Gdx.gl.glViewport(0, 0, Gdx.graphics.width, Gdx.graphics.height)
+        Gdx.gl.glClearColor(0f, 0f, 0f, 1f) // Optional: Set clear color if not done elsewhere
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
 
         // Get delta time for this frame
@@ -616,7 +617,7 @@ class MafiaGame : ApplicationAdapter() {
         playerSystem.render(cameraManager.camera, environment)
 
         // Render items
-        itemSystem.render(modelBatch, environment)
+        itemSystem.render(cameraManager.camera, environment)
 
         // Render transparent highlight separately
         if (isHighlightVisible && highlightInstance != null) {
@@ -635,6 +636,13 @@ class MafiaGame : ApplicationAdapter() {
             Gdx.gl.glDepthMask(true)
             Gdx.gl.glDisable(GL20.GL_BLEND)
         }
+
+        // Transition to 2D UI Rendering
+        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDepthMask(false)
+        Gdx.gl.glDisable(GL20.GL_CULL_FACE)
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
 
         // Render UI using UIManager
         uiManager.render()
