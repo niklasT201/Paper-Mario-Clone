@@ -14,10 +14,18 @@ import kotlin.math.floor
 
 class PlayerSystem {
     // Player model and rendering
-    private lateinit var playerTexture: Texture
+    private lateinit var idleTexture: Texture
+    private lateinit var walkingTextures: Array<Texture>
     private lateinit var playerModel: Model
     private lateinit var playerInstance: ModelInstance
-    private lateinit var playerMaterial: Material
+    private lateinit var idleMaterial: Material
+    private lateinit var walkingMaterials: Array<Material>
+
+    // Animation system
+    private var currentAnimationFrame = -1 // -1 = idle, 0-2 = walking frames
+    private var animationTimer = 0f
+    private val animationFrameDuration = 0.15f // Time per frame in seconds (adjust for speed)
+    private var isWalking = false
 
     // Custom shader for billboard lighting
     private lateinit var billboardShaderProvider: BillboardShaderProvider
@@ -41,6 +49,7 @@ class PlayerSystem {
     fun initialize(blockSize: Float) {
         this.blockSize = blockSize
         setupBillboardShader()
+        loadTextures()
         setupPlayerModel()
         updatePlayerBounds()
     }
@@ -54,28 +63,46 @@ class PlayerSystem {
         billboardShaderProvider.setMinLightLevel(0.3f)
     }
 
-    private fun setupPlayerModel() {
-        val modelBuilder = ModelBuilder()
+    private fun loadTextures() {
+        // Load idle texture (your original pig character)
+        idleTexture = Texture(Gdx.files.internal("textures/player/pig_character.png"))
 
-        // Load player texture
-        playerTexture = Texture(Gdx.files.internal("textures/player/pig_character.png"))
+        // Load walking animation frames
+        walkingTextures = Array()
+        walkingTextures.add(Texture(Gdx.files.internal("textures/player/animations/walking/walking_anim_1.png")))
+        walkingTextures.add(Texture(Gdx.files.internal("textures/player/animations/walking/walking_anim_2.png")))
+        walkingTextures.add(Texture(Gdx.files.internal("textures/player/animations/walking/walking_anim_3.png")))
 
-        // Create player material with the texture
-        playerMaterial = Material(
-            TextureAttribute.createDiffuse(playerTexture),
+        // Create materials for each texture
+        idleMaterial = Material(
+            TextureAttribute.createDiffuse(idleTexture),
             com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
             com.badlogic.gdx.graphics.g3d.attributes.IntAttribute.createCullFace(GL20.GL_NONE)
         )
 
-        // Create a 3D plane/quad for the player (billboard)
-        val playerSizeVisual = 4f
+        walkingMaterials = Array()
+        for (texture in walkingTextures) {
+            val material = Material(
+                TextureAttribute.createDiffuse(texture),
+                com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
+                com.badlogic.gdx.graphics.g3d.attributes.IntAttribute.createCullFace(GL20.GL_NONE)
+            )
+            walkingMaterials.add(material)
+        }
+    }
+
+    private fun setupPlayerModel() {
+        val modelBuilder = ModelBuilder()
+
+        // Create a 3D plane/quad for the player (billboard) - keep original size for idle
+        val playerSizeVisual = 4f // Keep original size for idle
         playerModel = modelBuilder.createRect(
             -playerSizeVisual / 2, -playerSizeVisual / 2, 0f,
             playerSizeVisual / 2, -playerSizeVisual / 2, 0f,
             playerSizeVisual / 2, playerSizeVisual / 2, 0f,
             -playerSizeVisual / 2, playerSizeVisual / 2, 0f,
             0f, 0f, 1f,
-            playerMaterial,
+            idleMaterial, // Start with idle material
             (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
         )
 
@@ -88,6 +115,7 @@ class PlayerSystem {
     fun handleMovement(deltaTime: Float, gameBlocks: Array<GameBlock>): Boolean {
         var moved = false
         var currentMovementDirection = 0f
+        var isMovingHorizontally = false
 
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
             val newX = playerPosition.x - playerSpeed * deltaTime
@@ -95,6 +123,7 @@ class PlayerSystem {
                 playerPosition.x = newX
                 moved = true
                 currentMovementDirection = -1f
+                isMovingHorizontally = true
             }
         }
         if (Gdx.input.isKeyPressed(Input.Keys.D)) {
@@ -103,6 +132,7 @@ class PlayerSystem {
                 playerPosition.x = newX
                 moved = true
                 currentMovementDirection = 1f
+                isMovingHorizontally = true
             }
         }
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
@@ -119,6 +149,9 @@ class PlayerSystem {
                 moved = true
             }
         }
+
+        // Update walking state - only trigger walking animation for horizontal movement
+        isWalking = isMovingHorizontally
 
         // Update target rotation based on horizontal movement
         if (currentMovementDirection != 0f && currentMovementDirection != lastMovementDirection) {
@@ -221,7 +254,82 @@ class PlayerSystem {
         }
     }
 
+    private fun updateAnimation(deltaTime: Float) {
+        if (isWalking) {
+            // If we just started walking, initialize the animation frame and resize model
+            if (currentAnimationFrame == -1) {
+                currentAnimationFrame = 0
+                animationTimer = 0f
+                // Resize model for walking animations
+                resizePlayerModel(3.2f) // Smaller size for walking animations
+            }
+
+            // Update animation timer
+            animationTimer += deltaTime
+
+            // Check if it's time to switch to the next frame
+            if (animationTimer >= animationFrameDuration) {
+                animationTimer = 0f
+                currentAnimationFrame = (currentAnimationFrame + 1) % walkingTextures.size
+
+                // Update the model instance material to use the current walking frame
+                if (playerInstance.materials.size > 0) {
+                    val material = playerInstance.materials.first()
+                    material.clear()
+                    material.set(TextureAttribute.createDiffuse(walkingTextures.get(currentAnimationFrame)))
+                    material.set(com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA))
+                    material.set(com.badlogic.gdx.graphics.g3d.attributes.IntAttribute.createCullFace(GL20.GL_NONE))
+                }
+
+                println("Animation frame: $currentAnimationFrame") // Debug output
+            }
+        } else {
+            // Player is idle, reset to idle material and animation frame
+            if (currentAnimationFrame != -1) { // Only update if we were previously walking
+                currentAnimationFrame = -1 // Use -1 to indicate idle state
+                animationTimer = 0f
+
+                // Resize model back to original size for idle
+                resizePlayerModel(4f) // Original size for idle
+
+                // Update the material to use idle texture
+                if (playerInstance.materials.size > 0) {
+                    val material = playerInstance.materials.first()
+                    material.clear()
+                    material.set(TextureAttribute.createDiffuse(idleTexture))
+                    material.set(com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA))
+                    material.set(com.badlogic.gdx.graphics.g3d.attributes.IntAttribute.createCullFace(GL20.GL_NONE))
+                }
+
+                println("Player idle") // Debug output
+            }
+        }
+    }
+
+    private fun resizePlayerModel(newSize: Float) {
+        // Dispose old model
+        playerModel.dispose()
+
+        // Create new model with different size
+        val modelBuilder = ModelBuilder()
+        playerModel = modelBuilder.createRect(
+            -newSize / 2, -newSize / 2, 0f,
+            newSize / 2, -newSize / 2, 0f,
+            newSize / 2, newSize / 2, 0f,
+            -newSize / 2, newSize / 2, 0f,
+            0f, 0f, 1f,
+            if (currentAnimationFrame == -1) idleMaterial else walkingMaterials.get(currentAnimationFrame),
+            (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
+        )
+
+        // Update the model instance to use the new model
+        playerInstance = ModelInstance(playerModel)
+        playerInstance.userData = "player"
+        updatePlayerTransform()
+    }
+
     fun update(deltaTime: Float) {
+        updateAnimation(deltaTime)
         updatePlayerTransform()
     }
 
@@ -250,7 +358,13 @@ class PlayerSystem {
 
     fun dispose() {
         playerModel.dispose()
-        playerTexture.dispose()
+        idleTexture.dispose()
+
+        // Dispose walking animation textures
+        for (texture in walkingTextures) {
+            texture.dispose()
+        }
+
         billboardModelBatch.dispose()
         billboardShaderProvider.dispose()
     }

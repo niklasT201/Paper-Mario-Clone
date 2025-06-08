@@ -42,7 +42,7 @@ public class Lwjgl3Launcher {
 // sky color change
 // adding saving for world building
 // adding guns
-// adding ammunition
+// adding ammunitihon
 // adding health
 // adding multiple city areas
 // animations

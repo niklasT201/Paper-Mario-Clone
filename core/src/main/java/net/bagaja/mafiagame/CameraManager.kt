@@ -102,7 +102,7 @@ class CameraManager {
             // Initialize the current position to avoid sudden jumps
             currentPlayerCameraPosition.set(camera.position)
             calculatePlayerCameraTarget()
-            println("Switched to Player Camera (Paper Mario style)")
+            //println("Switched to Player Camera (Paper Mario style)")
         }
     }
 
