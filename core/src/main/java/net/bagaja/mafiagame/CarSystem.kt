@@ -172,7 +172,7 @@ enum class CarType(
     val width: Float,
     val height: Float
 ) {
-    SEDAN("Sedan", "textures/objects/cars/car_parking.png", 12f, 7f),
+    SEDAN("Sedan", "textures/objects/cars/car_driving.png", 12f, 7f),
     SUV("SUV", "textures/cars/suv.png", 9f, 5f),
     TRUCK("Truck", "textures/cars/truck.png", 12f, 6f),
     SPORTS_CAR("Sports Car", "textures/cars/sports_car.png", 7f, 3.5f),
