@@ -278,8 +278,9 @@ enum class ItemType(
     val value: Int = 1 // For future scoring/inventory system
 ) {
     MONEY_STACK("Money Stack", "textures/objects/items/money_stack.png", 2f, 2f, 10),
-    COIN("Coin", "textures/objects/items/coin.png", 1.5f, 1.5f, 1),
-    HEALTH_POTION("Health Potion", "textures/objects/items/health_potion.png", 1.8f, 2.2f, 5),
-    KEY("Key", "textures/objects/items/key.png", 1.2f, 2f, 1),
-    GEM("Gem", "textures/objects/items/gem.png", 1.5f, 1.5f, 20)
+    REVOLVER("Revolver", "textures/objects/items/revolver.png", 2f, 1.5f, 15),
+    SHOTGUN("Shotgun", "textures/objects/items/shotgun.png", 3f, 1f, 25),
+    SMALL_SHOTGUN("Small Shotgun", "textures/objects/items/small_shotgun.png", 2.5f, 1f, 20),
+    SMALLER_REVOLVER("Revolver", "textures/objects/items/smaller_revolver.png", 1.8f, 1.2f, 12),
+    TOMMY_GUN("Tommy Gun", "textures/objects/items/tommy_gun.png", 3.5f, 1.5f, 35)
 }

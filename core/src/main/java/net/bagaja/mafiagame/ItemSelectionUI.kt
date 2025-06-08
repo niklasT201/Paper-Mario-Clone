@@ -137,15 +137,20 @@ class ItemSelectionUI(
             val fileHandle = Gdx.files.internal(texturePath)
             if (fileHandle.exists()) {
                 val texture = Texture(fileHandle)
+                texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
                 loadedTextures[texturePath] = texture // Cache it
-                println("Loaded item texture: $texturePath")
+                println("Successfully loaded item texture: $texturePath")
                 TextureRegion(texture)
             } else {
-                println("Texture not found: $texturePath, using fallback")
+                println("ERROR: Texture file not found: $texturePath")
+                println("Make sure the file exists in your assets folder")
+                // Still fallback to generated icon if texture is missing
                 createItemIcon(itemType)
             }
         } catch (e: Exception) {
-            println("Failed to load texture: $texturePath, error: ${e.message}, using fallback")
+            println("ERROR: Failed to load texture: $texturePath")
+            println("Error details: ${e.message}")
+            // Fallback to generated icon
             createItemIcon(itemType)
         }
     }
@@ -199,42 +204,31 @@ class ItemSelectionUI(
                 pixmap.fillRectangle(20, 20, 10, 2)
                 pixmap.fillRectangle(20, 28, 10, 2)
             }
-            ItemType.COIN -> {
-                // Golden coin
-                pixmap.setColor(Color(1f, 0.8f, 0.2f, 1f))
-                pixmap.fillCircle(25, 25, 18)
-                pixmap.setColor(Color(0.8f, 0.6f, 0.1f, 1f))
-                pixmap.fillCircle(25, 25, 15)
-                pixmap.setColor(Color(1f, 1f, 0.8f, 1f))
-                pixmap.fillCircle(25, 25, 5)
+            ItemType.REVOLVER, ItemType.SMALLER_REVOLVER -> {
+                // Gray revolver
+                pixmap.setColor(Color(0.5f, 0.5f, 0.5f, 1f))
+                pixmap.fillRectangle(10, 20, 30, 8) // Barrel
+                pixmap.fillCircle(15, 24, 8) // Cylinder
+                pixmap.fillRectangle(15, 30, 10, 6) // Handle
+                pixmap.setColor(Color(0.3f, 0.2f, 0.1f, 1f))
+                pixmap.fillRectangle(18, 32, 4, 8) // Grip
             }
-            ItemType.HEALTH_POTION -> {
-                // Red health potion
-                pixmap.setColor(Color(0.6f, 0.3f, 0.3f, 1f))
-                pixmap.fillRectangle(20, 35, 10, 10) // Bottle
-                pixmap.fillRectangle(18, 15, 14, 20) // Main body
-                pixmap.setColor(Color(1f, 0.2f, 0.2f, 1f))
-                pixmap.fillRectangle(20, 18, 10, 15) // Liquid
-                pixmap.setColor(Color(0.4f, 0.2f, 0.2f, 1f))
-                pixmap.fillRectangle(22, 10, 6, 8) // Cork/top
+            ItemType.SHOTGUN, ItemType.SMALL_SHOTGUN -> {
+                // Brown shotgun
+                pixmap.setColor(Color(0.4f, 0.3f, 0.2f, 1f))
+                pixmap.fillRectangle(5, 22, 40, 6) // Barrel
+                pixmap.setColor(Color(0.5f, 0.5f, 0.5f, 1f))
+                pixmap.fillRectangle(25, 28, 15, 4) // Stock
+                pixmap.fillRectangle(35, 18, 4, 6) // Trigger guard
             }
-            ItemType.KEY -> {
-                // Golden key
-                pixmap.setColor(Color(1f, 0.8f, 0.2f, 1f))
-                pixmap.fillRectangle(15, 22, 20, 6) // Key shaft
-                pixmap.fillCircle(18, 25, 6) // Key head
-                pixmap.fillRectangle(32, 20, 4, 4) // Key teeth
-                pixmap.fillRectangle(32, 26, 4, 4)
-            }
-            ItemType.GEM -> {
-                // Blue gem
-                pixmap.setColor(Color(0.2f, 0.4f, 1f, 1f))
-                // Diamond shape
-                pixmap.fillTriangle(25, 10, 15, 25, 25, 25)
-                pixmap.fillTriangle(25, 10, 25, 25, 35, 25)
-                pixmap.fillTriangle(15, 25, 25, 40, 35, 25)
-                pixmap.setColor(Color(0.6f, 0.8f, 1f, 1f))
-                pixmap.fillTriangle(25, 15, 20, 25, 30, 25) // Highlight
+            ItemType.TOMMY_GUN -> {
+                // Black tommy gun
+                pixmap.setColor(Color(0.2f, 0.2f, 0.2f, 1f))
+                pixmap.fillRectangle(5, 22, 35, 6) // Barrel
+                pixmap.fillCircle(10, 16, 6) // Drum magazine
+                pixmap.setColor(Color(0.4f, 0.3f, 0.2f, 1f))
+                pixmap.fillRectangle(30, 28, 12, 4) // Stock
+                pixmap.fillRectangle(25, 18, 4, 6) // Trigger guard
             }
         }
 
