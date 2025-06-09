@@ -49,6 +49,8 @@ class MafiaGame : ApplicationAdapter() {
     private val blockSize = 4f
 
     // Light management
+    private val lightSources = mutableMapOf<Int, LightSource>()
+    private val lightInstances = mutableMapOf<Int, Pair<ModelInstance, ModelInstance>>() // invisible, debug
     private val activeLights = Array<PointLight>()
     private val maxLights = 128
 
@@ -175,10 +177,24 @@ class MafiaGame : ApplicationAdapter() {
                 }
             }
             UIManager.Tool.OBJECT -> {
-                val objectToRemove = raycastSystem.getObjectAtRay(ray, gameObjects)
-                if (objectToRemove != null) {
-                    removeObject(objectToRemove)
-                    return true
+                if (objectSystem.currentSelectedObject == ObjectType.LIGHT_SOURCE) {
+                    // Handle light source removal
+                    val intersection = Vector3()
+                    val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+                    if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+                        val lightToRemove = objectSystem.getLightSourceAt(intersection, 3f)
+                        if (lightToRemove != null) {
+                            removeLightSource(lightToRemove.id)
+                            return true
+                        }
+                    }
+                } else {
+                    val objectToRemove = raycastSystem.getObjectAtRay(ray, gameObjects)
+                    if (objectToRemove != null) {
+                        removeObject(objectToRemove)
+                        return true
+                    }
                 }
             }
             UIManager.Tool.PLAYER -> {
@@ -202,24 +218,43 @@ class MafiaGame : ApplicationAdapter() {
         return false
     }
 
+    private fun removeLightSource(lightId: Int) {
+        val lightSource = lightSources.remove(lightId)
+        if (lightSource != null) {
+            // Remove from environment
+            lightSource.pointLight?.let { pointLight ->
+                environment.remove(pointLight)
+                activeLights.removeValue(pointLight, true)
+            }
+
+            // Remove instances
+            lightInstances.remove(lightId)
+
+            // Remove from object system
+            objectSystem.removeLightSource(lightId)
+
+            println("Light source #$lightId removed (Remaining lights: ${activeLights.size})")
+        }
+    }
+
     private fun handleFinePosMove(deltaX: Float, deltaY: Float, deltaZ: Float) {
-        // Find the most recently placed light source or allow selection
-        val lightSource = gameObjects.findLast { it.objectType == ObjectType.LIGHT_SOURCE }
+        // Find the most recently placed light source
+        val lightSource = lightSources.values.maxByOrNull { it.id }
 
         if (lightSource != null) {
             // Update position
             lightSource.position.add(deltaX, deltaY, deltaZ)
 
-            // Update model instance transform
-            lightSource.modelInstance.transform.setTranslation(lightSource.position)
+            // Update model instance transforms
+            lightInstances[lightSource.id]?.let { (invisible, debug) ->
+                invisible.transform.setTranslation(lightSource.position)
+                debug.transform.setTranslation(lightSource.position)
+            }
 
-            // Update debug instance transform if it exists
-            lightSource.debugInstance?.transform?.setTranslation(lightSource.position)
+            // Update the actual light position
+            lightSource.updatePointLight()
 
-            // Update light position for lighting effects
-            lightSource.updateLightPosition()
-
-            println("Light source moved to: ${lightSource.position}")
+            println("Light source #${lightSource.id} moved to: ${lightSource.position}")
         } else {
             println("No light source found to move. Place a light source first.")
         }
@@ -334,23 +369,64 @@ class MafiaGame : ApplicationAdapter() {
         val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            // Snap to grid (optional - you might want objects to be placed more freely)
-            val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
-            val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+            when (objectSystem.currentSelectedObject) {
+                ObjectType.LIGHT_SOURCE -> {
+                    placeLightSource(intersection)
+                }
+                else -> {
+                    val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
+                    val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
 
-            // Check if there's already an object at this position (optional)
-            val existingObject = gameObjects.find { gameObject ->
-                kotlin.math.abs(gameObject.position.x - gridX) < 1f &&
-                    kotlin.math.abs(gameObject.position.z - gridZ) < 1f
-            }
+                    // Check if there's already an object at this position (optional)
+                    val existingObject = gameObjects.find { gameObject ->
+                        kotlin.math.abs(gameObject.position.x - gridX) < 1f &&
+                            kotlin.math.abs(gameObject.position.z - gridZ) < 1f
+                    }
 
-            if (existingObject == null) {
-                addObject(gridX, 0f, gridZ, objectSystem.currentSelectedObject)
-                println("${objectSystem.currentSelectedObject.displayName} placed at: $gridX, 0, $gridZ")
-            } else {
-                println("Object already exists near this position")
+                    if (existingObject == null) {
+                        addObject(gridX, 0f, gridZ, objectSystem.currentSelectedObject)
+                        println("${objectSystem.currentSelectedObject.displayName} placed at: $gridX, 0, $gridZ")
+                    } else {
+                        println("Object already exists near this position")
+                    }
+                }
             }
         }
+    }
+
+    private fun placeLightSource(position: Vector3) {
+        // Check if light source already exists nearby
+        val existingLight = objectSystem.getLightSourceAt(position, 2f)
+        if (existingLight != null) {
+            println("Light source already exists near this position")
+            return
+        }
+
+        val (intensity, range, color) = uiManager.getLightSourceSettings()
+
+        // Create light source with the new settings
+        val lightSource = objectSystem.createLightSource(
+            Vector3(position.x, position.y, position.z),
+            intensity,
+            range,
+            color
+        )
+
+        // Create model instances
+        val instances = objectSystem.createLightSourceInstances(lightSource)
+        lightInstances[lightSource.id] = instances
+
+        // Create and add the actual point light for rendering
+        val pointLight = lightSource.createPointLight()
+        if (activeLights.size < maxLights) {
+            environment.add(pointLight)
+            activeLights.add(pointLight)
+            println("Light source #${lightSource.id} placed at: $position with intensity $intensity (Total lights: ${activeLights.size})")
+        } else {
+            println("Warning: Maximum number of lights ($maxLights) reached!")
+        }
+
+        lightSources[lightSource.id] = lightSource
     }
 
     // New function to place items
@@ -496,6 +572,16 @@ class MafiaGame : ApplicationAdapter() {
             val renderInstance = gameObject.getRenderInstance(objectSystem.debugMode)
             if (renderInstance != null) {
                 modelBatch.render(renderInstance, environment)
+            }
+        }
+
+        // Render light sources
+        for ((lightId, instances) in lightInstances) {
+            val (invisibleInstance, debugInstance) = instances
+            if (objectSystem.debugMode) {
+                modelBatch.render(debugInstance, environment)
+            } else {
+                modelBatch.render(invisibleInstance, environment)
             }
         }
 

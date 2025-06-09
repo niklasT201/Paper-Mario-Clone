@@ -266,7 +266,11 @@ class ColorPickerWidget(
     private val onColorChanged: (Color) -> Unit
 ) : Table() {
 
-    private val currentColor = Color.WHITE
+    // --- FIX 1: INITIALIZE AS A NEW COLOR OBJECT ---
+    // This prevents modifying the static Color.WHITE instance.
+    private val currentColor = Color(1f, 1f, 1f, 1f)
+    // --- END OF FIX 1 ---
+
     private val colorDisplay = Image()
     private val redSlider = Slider(0f, 1f, 0.01f, false, skin)
     private val greenSlider = Slider(0f, 1f, 0.01f, false, skin)
@@ -284,6 +288,8 @@ class ColorPickerWidget(
         // RGB sliders with improved layout
         val rgbTable = Table()
 
+        // --- FIX 2: CORRECT SLIDER LISTENERS ---
+        // Each listener now only modifies its own color component. It does NOT call setColor().
         createColorSlider(rgbTable, "R", redSlider, Color.RED) {
             currentColor.r = redSlider.value
             updateColorDisplay()
@@ -301,6 +307,7 @@ class ColorPickerWidget(
             updateColorDisplay()
             onColorChanged(currentColor)
         }
+        // --- END OF FIX 2 ---
 
         add(rgbTable).fillX().padBottom(8f).row()
 
@@ -321,6 +328,7 @@ class ColorPickerWidget(
             val button = TextButton(name, skin)
             button.addListener(object : ChangeListener() {
                 override fun changed(event: ChangeEvent?, actor: Actor?) {
+                    // This is the correct place to call setColor(), from a preset button.
                     setColor(color)
                     onColorChanged(currentColor)
                     animatePresetSelection(button)
@@ -348,7 +356,8 @@ class ColorPickerWidget(
         })
         container.add(slider).width(200f).padLeft(8f)
 
-        val valueLabel = Label("${(slider.value * 100).toInt()}%", skin)
+        // This label is now handled inside the onChange lambda, which is better
+        val valueLabel = Label("", skin) // Will be updated by the listener
         valueLabel.setFontScale(0.8f)
         valueLabel.color = Color(0.8f, 0.8f, 0.8f, 1f)
         container.add(valueLabel).width(35f).padLeft(8f)

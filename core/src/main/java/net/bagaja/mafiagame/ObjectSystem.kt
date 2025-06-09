@@ -23,6 +23,10 @@ class ObjectSystem {
     private val objectTextures = mutableMapOf<ObjectType, Texture>()
     private val debugModels = mutableMapOf<ObjectType, Model>() // For showing invisible objects in debug mode
 
+    private val lightSources = mutableMapOf<Int, LightSource>()
+    private var nextLightId = 1
+    private val modelBuilder = ModelBuilder()
+
     var currentSelectedObject = ObjectType.LIGHT_SOURCE
         private set
     var currentSelectedObjectIndex = 0
@@ -197,10 +201,43 @@ class ObjectSystem {
         return debugModel?.let { ModelInstance(it) }
     }
 
+    fun createLightSource(
+        position: Vector3,
+        intensity: Float = LightSource.DEFAULT_INTENSITY,
+        range: Float = LightSource.DEFAULT_RANGE,
+        color: Color = Color(LightSource.DEFAULT_COLOR_R, LightSource.DEFAULT_COLOR_G, LightSource.DEFAULT_COLOR_B, 1f)
+    ): LightSource {
+        val lightSource = LightSource(nextLightId++, position, intensity, range, color)
+        lightSources[lightSource.id] = lightSource
+        return lightSource
+    }
+
+    fun removeLightSource(lightId: Int): LightSource? {
+        val lightSource = lightSources.remove(lightId)
+        lightSource?.dispose()
+        return lightSource
+    }
+
+    fun getAllLightSources(): Collection<LightSource> = lightSources.values
+
+    fun getLightSourceAt(position: Vector3, tolerance: Float = 2f): LightSource? {
+        return lightSources.values.find { lightSource ->
+            lightSource.position.dst(position) <= tolerance
+        }
+    }
+
+    fun createLightSourceInstances(lightSource: LightSource): Pair<ModelInstance, ModelInstance> {
+        val invisible = lightSource.createModelInstance(modelBuilder)
+        val debug = lightSource.createDebugModelInstance(modelBuilder)
+        return Pair(invisible, debug)
+    }
+
     fun dispose() {
         objectModels.values.forEach { it.dispose() }
         objectTextures.values.forEach { it.dispose() }
         debugModels.values.forEach { it.dispose() }
+        lightSources.values.forEach { it.dispose() }
+        lightSources.clear()
     }
 }
 
