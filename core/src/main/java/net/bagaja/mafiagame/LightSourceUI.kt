@@ -6,10 +6,12 @@ import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.scenes.scene2d.Actor
+import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
@@ -24,10 +26,11 @@ class LightSourceUI(
     private lateinit var lightPanel: Table
     private lateinit var intensitySlider: Slider
     private lateinit var rangeSlider: Slider
-    private lateinit var colorPicker: ColorPickerWidget
+    private lateinit var colorPreviewButton: Button
     private lateinit var intensityLabel: Label
     private lateinit var rangeLabel: Label
     private lateinit var mainContainer: Table
+    private var colorPickerDialog: ColorPickerDialog? = null
 
     var nextIntensity = LightSource.DEFAULT_INTENSITY
     var nextRange = LightSource.DEFAULT_RANGE
@@ -100,13 +103,21 @@ class LightSourceUI(
             rangeLabel.setText("${value.toInt()}%")
         }
 
-        // Color picker
+        // Color picker - now as clickable button
         val colorContainer = Table()
         colorContainer.add(Label("Color:", skin)).left().padBottom(8f).row()
-        colorPicker = ColorPickerWidget(skin) { color ->
-            nextColor.set(color)
-        }
-        colorContainer.add(colorPicker).size(320f, 140f)
+
+        colorPreviewButton = Button(skin)
+        colorPreviewButton.add(Label("Click to choose color", skin)).pad(10f)
+        updateColorPreview()
+
+        colorPreviewButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                openColorPickerDialog()
+            }
+        })
+
+        colorContainer.add(colorPreviewButton).size(320f, 60f)
         settingsContainer.add(colorContainer).fillX().padTop(10f).row()
 
         mainContainer.add(settingsContainer).fillX().padBottom(15f).row()
@@ -116,7 +127,48 @@ class LightSourceUI(
         rangeSlider.value = ((nextRange - LightSource.MIN_RANGE) / (LightSource.MAX_RANGE - LightSource.MIN_RANGE)) * 100f
         intensityLabel.setText("${((nextIntensity / LightSource.MAX_INTENSITY) * 100f).toInt()}%")
         rangeLabel.setText("${(((nextRange - LightSource.MIN_RANGE) / (LightSource.MAX_RANGE - LightSource.MIN_RANGE)) * 100f).toInt()}%")
-        colorPicker.setColor(nextColor)
+    }
+
+    private fun openColorPickerDialog() {
+        if (colorPickerDialog != null) {
+            colorPickerDialog?.remove()
+        }
+
+        colorPickerDialog = ColorPickerDialog(skin, nextColor) { selectedColor ->
+            nextColor.set(selectedColor)
+            updateColorPreview()
+        }
+
+        colorPickerDialog?.show(stage)
+    }
+
+    private fun updateColorPreview() {
+        val pixmap = Pixmap(320, 60, Pixmap.Format.RGBA8888)
+
+        // Create gradient effect in color preview
+        for (x in 0 until 320) {
+            for (y in 0 until 60) {
+                val brightness = 0.8f + (y / 60f) * 0.2f
+                pixmap.setColor(
+                    nextColor.r * brightness,
+                    nextColor.g * brightness,
+                    nextColor.b * brightness,
+                    1f
+                )
+                pixmap.drawPixel(x, y)
+            }
+        }
+
+        // Add border
+        pixmap.setColor(0.6f, 0.6f, 0.6f, 1f)
+        pixmap.drawRectangle(0, 0, 320, 60)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+
+        colorPreviewButton.style = Button.ButtonStyle(colorPreviewButton.style)
+        colorPreviewButton.style.up = TextureRegionDrawable(TextureRegion(texture))
+        colorPreviewButton.style.down = TextureRegionDrawable(TextureRegion(texture))
     }
 
     private fun createActionButtons() {
@@ -131,7 +183,16 @@ class LightSourceUI(
             }
         })
 
-        buttonContainer.add(resetButton).size(180f, 40f).pad(5f)
+        // Close button to clear text field focus
+        val closeButton = TextButton("Close", skin)
+        closeButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                clearFocusAndHide()
+            }
+        })
+
+        buttonContainer.add(resetButton).size(140f, 40f).pad(5f)
+        buttonContainer.add(closeButton).size(100f, 40f).pad(5f)
         mainContainer.add(buttonContainer).center()
     }
 
@@ -144,7 +205,13 @@ class LightSourceUI(
         rangeSlider.value = ((nextRange - LightSource.MIN_RANGE) / (LightSource.MAX_RANGE - LightSource.MIN_RANGE)) * 100f
         intensityLabel.setText("${((nextIntensity / LightSource.MAX_INTENSITY) * 100f).toInt()}%")
         rangeLabel.setText("${(((nextRange - LightSource.MIN_RANGE) / (LightSource.MAX_RANGE - LightSource.MIN_RANGE)) * 100f).toInt()}%")
-        colorPicker.setColor(nextColor)
+        updateColorPreview()
+    }
+
+    // Method to clear focus and hide UI
+    private fun clearFocusAndHide() {
+        stage.keyboardFocus = null
+        hide()
     }
 
     private fun createSliderControl(
@@ -234,6 +301,8 @@ class LightSourceUI(
 
     fun hide() {
         isVisible = false
+        // Clear any text field focus before hiding
+        stage.keyboardFocus = null
         mainContainer.clearActions()
         mainContainer.addAction(
             Actions.sequence(
@@ -255,186 +324,180 @@ class LightSourceUI(
     }
 
     fun dispose() {
-        // Any cleanup if needed
+        colorPickerDialog?.remove()
     }
 }
 
 /**
- * Modern color picker widget with enhanced styling
+ * Color picker dialog with HSV color wheel and RGB sliders
  */
-class ColorPickerWidget(
+class ColorPickerDialog(
     private val skin: Skin,
-    private val onColorChanged: (Color) -> Unit
-) : Table() {
+    initialColor: Color,
+    private val onColorSelected: (Color) -> Unit
+) : Dialog("Choose Color", skin) {
 
-    private val currentColor = Color(1f, 1f, 1f, 1f)
-    private val colorDisplay = Image()
-    private lateinit var redField: TextField
-    private lateinit var greenField: TextField
-    private lateinit var blueField: TextField
-
-    // Flag to prevent recursive updates when setting color programmatically
+    private val selectedColor = Color(initialColor)
+    private val colorPreview = Image()
+    private val rgbSliders = mutableListOf<Slider>()
+    private val rgbLabels = mutableListOf<Label>()
     private var isUpdating = false
 
     init {
-        setupColorPicker()
+        setupDialog()
     }
 
-    private fun setupColorPicker() {
-        // Color display with modern styling
-        updateColorDisplay()
-        add(colorDisplay).size(80f, 40f).padBottom(12f).row()
+    private fun setupDialog() {
+        // Color preview
+        updateColorPreview()
+        contentTable.add(colorPreview).size(200f, 60f).padBottom(20f).row()
 
-        // RGB text field editors with improved layout
-        val rgbTable = Table()
+        // RGB Sliders
+        createRGBSliders()
 
-        // Create TextField editors
-        createColorTextField(rgbTable, "R", Color.RED) { redField = it }
-        createColorTextField(rgbTable, "G", Color.GREEN) { greenField = it }
-        createColorTextField(rgbTable, "B", Color.BLUE) { blueField = it }
+        // Preset colors
+        createColorPresets()
 
-        add(rgbTable).fillX().expandX().padBottom(8f).row()
-
-        // Enhanced preset colors
-        val presetTable = Table()
-        val presetColors = arrayOf(
-            Color.WHITE to "White",
-            Color(1f, 0.95f, 0.8f, 1f) to "Warm",
-            Color.YELLOW to "Yellow",
-            Color.ORANGE to "Orange",
-            Color.RED to "Red",
-            Color(0.3f, 0.7f, 1f, 1f) to "Blue",
-            Color(0.7f, 0.3f, 1f, 1f) to "Purple",
-            Color(0.3f, 1f, 0.5f, 1f) to "Green"
-        )
-
-        for ((color, name) in presetColors) {
-            val button = TextButton(name, skin)
-            button.addListener(object : ChangeListener() {
+        // Buttons
+        buttonTable.add(TextButton("Cancel", skin).apply {
+            addListener(object : ChangeListener() {
                 override fun changed(event: ChangeEvent?, actor: Actor?) {
-                    setColor(color)
-                    onColorChanged(currentColor)
-                    animatePresetSelection(button)
+                    hide()
+                    remove()
                 }
             })
-            presetTable.add(button).size(50f, 28f).pad(1f)
-            if (presetTable.children.size == 4) presetTable.row()
-        }
+        }).size(80f, 40f).pad(5f)
 
-        add(presetTable).padTop(5f)
-    }
-
-    /**
-     * Creates a Label and a TextField for editing a color component (0-255).
-     */
-    private fun createColorTextField(
-        parent: Table,
-        label: String,
-        color: Color,
-        textFieldSetter: (TextField) -> Unit
-    ) {
-        val container = Table()
-
-        val componentLabel = Label(label, skin)
-        componentLabel.color = color
-        componentLabel.setFontScale(1.0f)
-        container.add(componentLabel).width(20f).padRight(10f)
-
-        val textField = TextField("", skin)
-        textField.maxLength = 3 // Max value is 255
-        textField.setTextFieldFilter(TextField.TextFieldFilter.DigitsOnlyFilter())
-        textField.alignment = Align.center
-
-        // Listener for when the user changes the text and focus is lost
-        textField.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) {
-                if (!isUpdating) {
-                    updateColorFromTextFields()
+        buttonTable.add(TextButton("OK", skin).apply {
+            addListener(object : ChangeListener() {
+                override fun changed(event: ChangeEvent?, actor: Actor?) {
+                    onColorSelected(Color(selectedColor))
+                    hide()
+                    remove()
                 }
-            }
-        })
+            })
+        }).size(80f, 40f).pad(5f)
 
-        container.add(textField).width(60f).pad(0f, 10f, 0f, 10f)
-
-        parent.add(container).fillX().padBottom(5f).row()
-        textFieldSetter(textField) // Assign the created field to the class property
+        pack()
     }
 
-    /**
-     * Reads values from all three TextFields and updates the current color.
-     */
-    private fun updateColorFromTextFields() {
-        val rText = redField.text
-        val gText = greenField.text
-        val bText = blueField.text
+    private fun createRGBSliders() {
+        val sliderTable = Table()
 
-        // Read values, defaulting to 0 if empty or invalid. Coerce to 0-255 range.
-        val r = rText.toIntOrNull()?.coerceIn(0, 255) ?: 0
-        val g = gText.toIntOrNull()?.coerceIn(0, 255) ?: 0
-        val b = bText.toIntOrNull()?.coerceIn(0, 255) ?: 0
+        val colors = arrayOf(Color.RED, Color.GREEN, Color.BLUE)
+        val names = arrayOf("Red", "Green", "Blue")
+        val values = arrayOf(selectedColor.r, selectedColor.g, selectedColor.b)
 
-        // If the user typed a value > 255, clamp it in the UI as well for clarity.
-        if ((rText.toIntOrNull() ?: 0) > 255) redField.text = "255"
-        if ((gText.toIntOrNull() ?: 0) > 255) greenField.text = "255"
-        if ((bText.toIntOrNull() ?: 0) > 255) blueField.text = "255"
+        for (i in 0..2) {
+            val container = Table()
 
-        currentColor.set(r / 255f, g / 255f, b / 255f, 1f)
-        updateColorDisplay()
-        onColorChanged(currentColor)
-    }
+            val label = Label("${names[i]}:", skin)
+            label.color = colors[i]
+            container.add(label).width(50f).left()
 
-    private fun updateColorDisplay() {
-        val pixmap = Pixmap(80, 40, Pixmap.Format.RGBA8888)
+            val valueLabel = Label("${(values[i] * 255).toInt()}", skin)
+            rgbLabels.add(valueLabel)
+            container.add(valueLabel).width(40f).right()
 
-        // Create gradient effect in color display
-        for (x in 0 until 80) {
-            for (y in 0 until 40) {
-                val brightness = 0.8f + (y / 40f) * 0.2f
-                pixmap.setColor(
-                    currentColor.r * brightness,
-                    currentColor.g * brightness,
-                    currentColor.b * brightness,
-                    1f
-                )
-                pixmap.drawPixel(x, y)
-            }
+            sliderTable.add(container).fillX().padBottom(5f).row()
+
+            val slider = Slider(0f, 255f, 1f, false, skin)
+            slider.value = values[i] * 255f
+            slider.addListener(object : ChangeListener() {
+                override fun changed(event: ChangeEvent?, actor: Actor?) {
+                    if (!isUpdating) {
+                        updateColorFromSliders()
+                    }
+                }
+            })
+            rgbSliders.add(slider)
+            sliderTable.add(slider).fillX().padBottom(10f).row()
         }
+
+        contentTable.add(sliderTable).fillX().padBottom(15f).row()
+    }
+
+    private fun createColorPresets() {
+        val presetTable = Table()
+        val presets = arrayOf(
+            Color.WHITE, Color.LIGHT_GRAY, Color.GRAY, Color.DARK_GRAY,
+            Color.RED, Color.GREEN, Color.BLUE, Color.YELLOW,
+            Color.ORANGE, Color.PURPLE, Color.CYAN, Color.MAGENTA
+        )
+
+        for ((index, color) in presets.withIndex()) {
+            val button = Button(skin)
+            val colorPixmap = Pixmap(30, 30, Pixmap.Format.RGBA8888)
+            colorPixmap.setColor(color)
+            colorPixmap.fill()
+            val colorTexture = Texture(colorPixmap)
+            colorPixmap.dispose()
+
+            button.style = Button.ButtonStyle(button.style)
+            button.style.up = TextureRegionDrawable(TextureRegion(colorTexture))
+
+            button.addListener(object : ClickListener() {
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                    setColor(color)
+                }
+            })
+
+            presetTable.add(button).size(30f, 30f).pad(2f)
+            if ((index + 1) % 4 == 0) presetTable.row()
+        }
+
+        contentTable.add(Label("Presets:", skin)).left().padBottom(5f).row()
+        contentTable.add(presetTable).padBottom(15f).row()
+    }
+
+    private fun updateColorFromSliders() {
+        isUpdating = true
+
+        val r = rgbSliders[0].value / 255f
+        val g = rgbSliders[1].value / 255f
+        val b = rgbSliders[2].value / 255f
+
+        selectedColor.set(r, g, b, 1f)
+
+        rgbLabels[0].setText("${rgbSliders[0].value.toInt()}")
+        rgbLabels[1].setText("${rgbSliders[1].value.toInt()}")
+        rgbLabels[2].setText("${rgbSliders[2].value.toInt()}")
+
+        updateColorPreview()
+
+        isUpdating = false
+    }
+
+    override fun setColor(color: Color) {
+        isUpdating = true
+
+        selectedColor.set(color)
+
+        rgbSliders[0].value = color.r * 255f
+        rgbSliders[1].value = color.g * 255f
+        rgbSliders[2].value = color.b * 255f
+
+        rgbLabels[0].setText("${(color.r * 255).toInt()}")
+        rgbLabels[1].setText("${(color.g * 255).toInt()}")
+        rgbLabels[2].setText("${(color.b * 255).toInt()}")
+
+        updateColorPreview()
+
+        isUpdating = false
+    }
+
+    private fun updateColorPreview() {
+        val pixmap = Pixmap(200, 60, Pixmap.Format.RGBA8888)
+        pixmap.setColor(selectedColor)
+        pixmap.fill()
 
         // Add border
         pixmap.setColor(0.6f, 0.6f, 0.6f, 1f)
-        pixmap.drawRectangle(0, 0, 80, 40)
+        pixmap.drawRectangle(0, 0, 200, 60)
 
         val texture = Texture(pixmap)
         pixmap.dispose()
-        (colorDisplay.drawable as? TextureRegionDrawable)?.region?.texture?.dispose()
-        colorDisplay.drawable = TextureRegionDrawable(TextureRegion(texture))
-    }
 
-    private fun animatePresetSelection(button: TextButton) {
-        button.clearActions()
-        button.addAction(
-            Actions.sequence(
-                Actions.scaleTo(1.1f, 1.1f, 0.1f, Interpolation.smooth),
-                Actions.scaleTo(1.0f, 1.0f, 0.1f, Interpolation.smooth)
-            )
-        )
-    }
-
-    /**
-     * Sets the color of the widget, now updating TextFields
-     */
-    override fun setColor(color: Color) {
-        isUpdating = true // Prevent listeners from firing while we set values
-
-        currentColor.set(color)
-
-        // Update the TextFields with the new color values
-        redField.text = (color.r * 255).toInt().toString()
-        greenField.text = (color.g * 255).toInt().toString()
-        blueField.text = (color.b * 255).toInt().toString()
-
-        updateColorDisplay()
-
-        isUpdating = false // Re-enable listeners
+        colorPreview.drawable = TextureRegionDrawable(TextureRegion(texture))
     }
 }

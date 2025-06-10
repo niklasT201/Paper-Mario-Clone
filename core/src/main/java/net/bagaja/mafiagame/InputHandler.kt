@@ -49,9 +49,11 @@ class InputHandler(
         val inputMultiplexer = InputMultiplexer()
 
         // Add custom input processor first
+        inputMultiplexer.addProcessor(uiManager.getStage()) // Stage first to catch UI clicks
         inputMultiplexer.addProcessor(object : InputAdapter() {
             override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
                 // Check if click is over UI
+                /*
                 val stageCoords = uiManager.getStage().screenToStageCoordinates(Vector2(screenX.toFloat(), screenY.toFloat()))
                 val actorHit = uiManager.getStage().hit(stageCoords.x, stageCoords.y, true)
 
@@ -59,6 +61,7 @@ class InputHandler(
                 if (actorHit != null && uiManager.isUIVisible) {
                     return false
                 }
+                 */
 
                 // Handle mouse input
                 when (button) {
@@ -163,9 +166,18 @@ class InputHandler(
             }
 
             override fun keyDown(keycode: Int): Boolean {
+                // If the user is typing in a UI text field, DO NOT process any game keybinds.
+                if (uiManager.getStage().keyboardFocus != null) {
+                    return false
+                }
+
                 when (keycode) {
                     Input.Keys.H -> {
                         uiManager.toggleVisibility()
+                        return true
+                    }
+                    Input.Keys.L -> {
+                        uiManager.toggleLightSourceUI()
                         return true
                     }
                     Input.Keys.B -> {
@@ -192,7 +204,7 @@ class InputHandler(
                         return true
                     }
                     Input.Keys.M -> {
-                        // Car selection mode (similar to B for blocks, O for objects)
+                        // Car selection mode
                         if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode) {
                             isCarSelectionMode = true
                             uiManager.showCarSelection()
@@ -312,6 +324,11 @@ class InputHandler(
                         uiManager.hideItemSelection()
                         return true
                     }
+                    Input.Keys.M -> {
+                        isCarSelectionMode = false
+                        uiManager.hideCarSelection()
+                        return true
+                    }
                     // Release fine positioning keys
                     Input.Keys.LEFT -> {
                         leftPressed = false
@@ -337,21 +354,18 @@ class InputHandler(
                         pageDownPressed = false
                         return true
                     }
-                    Input.Keys.M -> {
-                        isCarSelectionMode = false
-                        uiManager.hideCarSelection()
-                        return true
-                    }
                 }
                 return false
             }
         })
-
-        inputMultiplexer.addProcessor(uiManager.getStage())
         Gdx.input.inputProcessor = inputMultiplexer
     }
 
     fun update(deltaTime: Float) {
+        if (uiManager.getStage().keyboardFocus != null) {
+            return
+        }
+
         continuousActionTimer += deltaTime
         continuousFineTimer += deltaTime
 

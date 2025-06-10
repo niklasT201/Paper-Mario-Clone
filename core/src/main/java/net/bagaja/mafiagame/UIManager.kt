@@ -18,14 +18,15 @@ class UIManager(
     private val blockSystem: BlockSystem,
     private val objectSystem: ObjectSystem,
     private val itemSystem: ItemSystem,
-    private val carSystem: CarSystem // Add carSystem parameter
+    private val carSystem: CarSystem
 ) {
     private lateinit var stage: Stage
     private lateinit var skin: Skin
     private lateinit var blockSelectionUI: BlockSelectionUI
     private lateinit var objectSelectionUI: ObjectSelectionUI
     private lateinit var itemSelectionUI: ItemSelectionUI
-    private lateinit var carSelectionUI: CarSelectionUI // Add car selection UI
+    private lateinit var carSelectionUI: CarSelectionUI
+    private lateinit var lightSourceUI: LightSourceUI
     private lateinit var mainTable: Table
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
@@ -58,6 +59,10 @@ class UIManager(
         // Initialize car selection UI
         carSelectionUI = CarSelectionUI(carSystem, skin, stage)
         carSelectionUI.initialize()
+
+        // Initialize light selection UI
+        lightSourceUI = LightSourceUI(skin, stage)
+        lightSourceUI.initialize()
 
         // Set initial visibility for the main UI panel
         mainTable.isVisible = isUIVisible
@@ -582,6 +587,14 @@ class UIManager(
         carSelectionUI.update()
     }
 
+    fun getLightSourceSettings(): Triple<Float, Float, Color> {
+        return lightSourceUI.getCurrentSettings()
+    }
+
+    fun toggleLightSourceUI() {
+        lightSourceUI.toggle()
+    }
+
     // Method to update the tool display when tool changes
     fun updateToolDisplay() {
         updateToolButtons()
@@ -603,6 +616,7 @@ class UIManager(
         objectSelectionUI.dispose()
         itemSelectionUI.dispose()
         carSelectionUI.dispose()
+        lightSourceUI.dispose()
         stage.dispose()
         skin.dispose()
     }
