@@ -46,5 +46,5 @@ public class Lwjgl3Launcher {
 // adding health
 // adding multiple city areas
 // animations
-// adding custom light options
 // add driving
+// modify default lightning

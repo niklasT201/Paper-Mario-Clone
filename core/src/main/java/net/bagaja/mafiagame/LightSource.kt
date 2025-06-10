@@ -23,7 +23,7 @@ data class LightSource(
     var color: Color = Color(DEFAULT_COLOR_R, DEFAULT_COLOR_G, DEFAULT_COLOR_B, 1f),
     var isEnabled: Boolean = true
 ) {
-    var pointLight: PointLight? = null
+    var pointLight: RangePointLight? = null
     private var modelInstance: ModelInstance? = null
     private var debugModelInstance: ModelInstance? = null
 
@@ -48,8 +48,9 @@ data class LightSource(
     /**
      * Creates the actual PointLight for rendering
      */
-    fun createPointLight(): PointLight {
-        val light = PointLight()
+    fun createPointLight(): RangePointLight {
+        // Now creates a RangePointLight
+        val light = RangePointLight()
         updatePointLight(light)
         pointLight = light
         return light
@@ -59,12 +60,15 @@ data class LightSource(
      * Updates the PointLight with current properties
      */
     fun updatePointLight(light: PointLight? = pointLight) {
+        val calculatedIntensity = (range * range * 0.2f)
+        val finalIntensity = calculatedIntensity * (this.intensity / 50f)
+
         light?.set(
-            if (isEnabled) Color(color.r, color.g, color.b, 1f) else Color(0f, 0f, 0f, 0f),
+            if (isEnabled) Color(color.r, color.g, color.b, 1f) else Color.BLACK,
             position.x,
             position.y + LIGHT_SIZE / 2f,
             position.z,
-            if (isEnabled) intensity else 0f
+            if (isEnabled) finalIntensity else 0f
         )
     }
 
