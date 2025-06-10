@@ -4,7 +4,6 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.InputAdapter
 import com.badlogic.gdx.InputMultiplexer
-import com.badlogic.gdx.math.Vector2
 import net.bagaja.mafiagame.UIManager.Tool
 
 class InputHandler(
@@ -14,6 +13,7 @@ class InputHandler(
     private val objectSystem: ObjectSystem,
     private val itemSystem: ItemSystem,
     private val carSystem: CarSystem,
+    private val houseSystem: HouseSystem,
     private val onLeftClick: (screenX: Int, screenY: Int) -> Unit,
     private val onRightClickAttemptBlockRemove: (screenX: Int, screenY: Int) -> Boolean,
     private val onFinePosMove: (deltaX: Float, deltaY: Float, deltaZ: Float) -> Unit
@@ -26,6 +26,7 @@ class InputHandler(
     private var isObjectSelectionMode = false
     private var isItemSelectionMode = false
     private var isCarSelectionMode = false
+    private var isHouseSelectionMode = false
 
     // Variables for continuous block placement/removal
     private var continuousActionTimer = 0f
@@ -158,6 +159,16 @@ class InputHandler(
                     }
                     uiManager.updateCarSelection()
                     return true
+                } else if (isHouseSelectionMode) {
+                    // Use mouse scroll to change houses
+                    if (amountY > 0) {
+                        houseSystem.nextHouse()
+                    } else if (amountY < 0) {
+                        houseSystem.previousHouse()
+                    }
+                    uiManager.updateHouseSelection()
+                    return true
+                    // END ADDITION
                 } else {
                     // Normal camera zoom
                     cameraManager.handleMouseScroll(amountY)
@@ -172,8 +183,16 @@ class InputHandler(
                 }
 
                 when (keycode) {
-                    Input.Keys.H -> {
+                    Input.Keys.F1 -> {
                         uiManager.toggleVisibility()
+                        return true
+                    }
+                    Input.Keys.H -> {
+                        // House selection mode
+                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode) {
+                            isHouseSelectionMode = true
+                            uiManager.showHouseSelection()
+                        }
                         return true
                     }
                     Input.Keys.L -> {
@@ -259,6 +278,10 @@ class InputHandler(
                         uiManager.selectedTool = Tool.CAR
                         uiManager.updateToolDisplay()
                     }
+                    Input.Keys.NUMPAD_6 -> {
+                        uiManager.selectedTool = Tool.HOUSE
+                        uiManager.updateToolDisplay()
+                    }
                     // Fine positioning controls
                     Input.Keys.LEFT -> {
                         if ((objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) ||
@@ -327,6 +350,11 @@ class InputHandler(
                     Input.Keys.M -> {
                         isCarSelectionMode = false
                         uiManager.hideCarSelection()
+                        return true
+                    }
+                    Input.Keys.H -> {
+                        isHouseSelectionMode = false
+                        uiManager.hideHouseSelection()
                         return true
                     }
                     // Release fine positioning keys

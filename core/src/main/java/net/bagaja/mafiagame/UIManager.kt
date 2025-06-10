@@ -18,7 +18,8 @@ class UIManager(
     private val blockSystem: BlockSystem,
     private val objectSystem: ObjectSystem,
     private val itemSystem: ItemSystem,
-    private val carSystem: CarSystem
+    private val carSystem: CarSystem,
+    private val houseSystem: HouseSystem,
 ) {
     private lateinit var stage: Stage
     private lateinit var skin: Skin
@@ -26,6 +27,7 @@ class UIManager(
     private lateinit var objectSelectionUI: ObjectSelectionUI
     private lateinit var itemSelectionUI: ItemSelectionUI
     private lateinit var carSelectionUI: CarSelectionUI
+    private lateinit var houseSelectionUI: HouseSelectionUI
     private lateinit var lightSourceUI: LightSourceUI
     private lateinit var mainTable: Table
     private lateinit var toolButtons: MutableList<Table>
@@ -36,7 +38,7 @@ class UIManager(
     var selectedTool = Tool.BLOCK
 
     enum class Tool {
-        BLOCK, PLAYER, OBJECT, ITEM, CAR // Add CAR tool
+        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE
     }
 
     fun initialize() {
@@ -63,6 +65,10 @@ class UIManager(
         // Initialize light selection UI
         lightSourceUI = LightSourceUI(skin, stage)
         lightSourceUI.initialize()
+
+        // Initialize car selection UI
+        houseSelectionUI = HouseSelectionUI(houseSystem, skin, stage)
+        houseSelectionUI.initialize()
 
         // Set initial visibility for the main UI panel
         mainTable.isVisible = isUIVisible
@@ -155,19 +161,20 @@ class UIManager(
         instructionsContainer.pad(15f)
 
         val instructions = """Tool Selection:
-        1/2/3/4/5 - Switch tools
+        1-6 - Switch tools
 
         Controls:
         • Left click - Place/Action
-        • Right click - Remove blocks
+        • Right click - Remove
         • Right drag - Rotate camera
-        • Mouse wheel - Zoom/Block select
+        • Mouse wheel - Zoom/Select
         • WASD - Move player
-        • H - Toggle UI
+        • F1 - Toggle UI // CHANGE: Was H
         • B - Block selection mode
         • O - Object selection mode
         • I - Item selection mode
-        • R - Car selection mode
+        • M - Car selection mode // CHANGE: The key is M in InputHandler
+        • H - House selection mode // ADD THIS
         • C - Free camera mode
         • Q/E - Camera angle (player)
         • R/T - Camera height (player)
@@ -194,7 +201,8 @@ class UIManager(
         • Hold B + scroll for blocks
         • Hold O + scroll for objects
         • Hold I + scroll for items
-        • Hold R + scroll for cars"""
+        • Hold M + scroll for cars
+        • Hold H + scroll for houses"""
 
         val instructionText = Label(instructions, skin, "instruction")
         instructionText.setWrap(true)
@@ -221,7 +229,8 @@ class UIManager(
             "Player" to "Placed",
             "Objects" to "0",
             "Items" to "0",
-            "Cars" to "0" // Add cars stat
+            "Cars" to "0",
+            "Houses" to "0"
         )
 
         for ((key, value) in statItems) {
@@ -314,6 +323,7 @@ class UIManager(
             Tool.OBJECT -> Color(0.6f, 0.4f, 0.8f, 1f)
             Tool.ITEM -> Color(1f, 0.8f, 0.2f, 1f) // Golden color for items
             Tool.CAR -> Color(0.9f, 0.3f, 0.6f, 1f) // Pink/magenta color for cars
+            Tool.HOUSE -> Color(0.6f, 0.8f, 0.1f, 1f)
         }
 
         pixmap.setColor(color)
@@ -352,6 +362,9 @@ class UIManager(
                 pixmap.fillCircle(10, 22, 2) // Front wheel
                 pixmap.fillCircle(20, 22, 2) // Rear wheel
             }
+            Tool.HOUSE -> {
+                pixmap.fillRectangle(5, 12, 20, 8) // Main body
+            }
         }
 
         val texture = Texture(pixmap)
@@ -366,7 +379,8 @@ class UIManager(
             Tool.PLAYER -> "Player"
             Tool.OBJECT -> "Object"
             Tool.ITEM -> "Item"
-            Tool.CAR -> "Car" // Add car display name
+            Tool.CAR -> "Car"
+            Tool.HOUSE -> "House"
         }
     }
 
@@ -522,12 +536,13 @@ class UIManager(
     }
 
     // Update stats with current values - Updated to include car count
-    fun updateStats(blockCount: Int, playerPlaced: Boolean, objectCount: Int, itemCount: Int = 0, carCount: Int = 0) {
+    fun updateStats(blockCount: Int, playerPlaced: Boolean, objectCount: Int, itemCount: Int = 0, carCount: Int = 0, houseCount: Int = 0) {
         statsLabels["Blocks"]?.setText(blockCount.toString())
         statsLabels["Player"]?.setText(if (playerPlaced) "Placed" else "Not Placed")
         statsLabels["Objects"]?.setText(objectCount.toString())
         statsLabels["Items"]?.setText(itemCount.toString())
-        statsLabels["Cars"]?.setText(carCount.toString()) // Add car count update
+        statsLabels["Cars"]?.setText(carCount.toString())
+        statsLabels["Houses"]?.setText(houseCount.toString())
     }
 
     fun toggleVisibility() {
@@ -587,6 +602,18 @@ class UIManager(
         carSelectionUI.update()
     }
 
+    fun showHouseSelection() {
+        houseSelectionUI.show()
+    }
+
+    fun hideHouseSelection() {
+        houseSelectionUI.hide()
+    }
+
+    fun updateHouseSelection() {
+        houseSelectionUI.update()
+    }
+
     fun getLightSourceSettings(): Triple<Float, Float, Color> {
         return lightSourceUI.getCurrentSettings()
     }
@@ -616,6 +643,7 @@ class UIManager(
         objectSelectionUI.dispose()
         itemSelectionUI.dispose()
         carSelectionUI.dispose()
+        houseSelectionUI.dispose()
         lightSourceUI.dispose()
         stage.dispose()
         skin.dispose()

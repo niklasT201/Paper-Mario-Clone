@@ -61,6 +61,7 @@ class HighlightSystem(private val blockSize: Float) {
             UIManager.Tool.ITEM -> updateItemHighlight(ray)
             UIManager.Tool.CAR -> updateCarHighlight(ray)
             UIManager.Tool.PLAYER -> updatePlayerHighlight(ray, gameBlocks)
+            UIManager.Tool.HOUSE -> updateHouseHighlight(ray)
         }
     }
 
@@ -181,6 +182,24 @@ class HighlightSystem(private val blockSize: Float) {
             } else {
                 isHighlightVisible = false
             }
+        } else {
+            isHighlightVisible = false
+        }
+    }
+
+    private fun updateHouseHighlight(ray: Ray) {
+        // Show a cyan highlight for house placement
+        val intersection = Vector3()
+        val groundPlane = Plane(Vector3.Y, 0f)
+
+        if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+
+            isHighlightVisible = true
+            highlightPosition.set(gridX, 0.5f, gridZ)
+            setHighlightColor(Color(0f, 1f, 1f, 0.3f)) // Cyan for houses
+            updateHighlightTransform()
         } else {
             isHighlightVisible = false
         }

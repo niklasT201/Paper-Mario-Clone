@@ -85,13 +85,13 @@ class PlayerSystem {
         updatePlayerTransform()
     }
 
-    fun handleMovement(deltaTime: Float, gameBlocks: Array<GameBlock>): Boolean {
+    fun handleMovement(deltaTime: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>): Boolean {
         var moved = false
         var currentMovementDirection = 0f
 
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
             val newX = playerPosition.x - playerSpeed * deltaTime
-            if (canMoveTo(newX, playerPosition.y, playerPosition.z, gameBlocks)) {
+            if (canMoveTo(newX, playerPosition.y, playerPosition.z, gameBlocks, gameHouses)) {
                 playerPosition.x = newX
                 moved = true
                 currentMovementDirection = -1f
@@ -99,7 +99,7 @@ class PlayerSystem {
         }
         if (Gdx.input.isKeyPressed(Input.Keys.D)) {
             val newX = playerPosition.x + playerSpeed * deltaTime
-            if (canMoveTo(newX, playerPosition.y, playerPosition.z, gameBlocks)) {
+            if (canMoveTo(newX, playerPosition.y, playerPosition.z, gameBlocks, gameHouses)) {
                 playerPosition.x = newX
                 moved = true
                 currentMovementDirection = 1f
@@ -107,14 +107,14 @@ class PlayerSystem {
         }
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
             val newZ = playerPosition.z - playerSpeed * deltaTime
-            if (canMoveTo(playerPosition.x, playerPosition.y, newZ, gameBlocks)) {
+            if (canMoveTo(playerPosition.x, playerPosition.y, newZ, gameBlocks, gameHouses)) {
                 playerPosition.z = newZ
                 moved = true
             }
         }
         if (Gdx.input.isKeyPressed(Input.Keys.S)) {
             val newZ = playerPosition.z + playerSpeed * deltaTime
-            if (canMoveTo(playerPosition.x, playerPosition.y, newZ, gameBlocks)) {
+            if (canMoveTo(playerPosition.x, playerPosition.y, newZ, gameBlocks, gameHouses)) {
                 playerPosition.z = newZ
                 moved = true
             }
@@ -138,7 +138,7 @@ class PlayerSystem {
         return moved
     }
 
-    fun placePlayer(ray: Ray, gameBlocks: Array<GameBlock>): Boolean {
+    fun placePlayer(ray: Ray, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>): Boolean {
         val intersection = Vector3()
         val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
@@ -148,20 +148,20 @@ class PlayerSystem {
             val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
 
             // Check if the new position would cause a collision
-            if (canMoveTo(gridX, 2f, gridZ, gameBlocks)) {
+            if (canMoveTo(gridX, 2f, gridZ, gameBlocks, gameHouses)) {
                 playerPosition.set(gridX, 2f, gridZ)
                 updatePlayerBounds()
                 println("Player placed at: $gridX, 2, $gridZ")
                 return true
             } else {
-                println("Cannot place player here - collision with block")
+                println("Cannot place player here - collision with block or house")
                 return false
             }
         }
         return false
     }
 
-    private fun canMoveTo(x: Float, y: Float, z: Float, gameBlocks: Array<GameBlock>): Boolean {
+    private fun canMoveTo(x: Float, y: Float, z: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>): Boolean {
         // Create a temporary bounding box for the new position
         val horizontalShrink = 0.3f
         val tempBounds = BoundingBox()
@@ -182,18 +182,24 @@ class PlayerSystem {
                 // Additional check: if player is standing on top of the block, allow movement
                 val playerBottom = tempBounds.min.y
                 val blockTop = blockBounds.max.y
-                val tolerance = 0.5f // Small tolerance for floating point precision
-
-                // If player's bottom is at or above the block's top (standing on it), allow movement
+                val tolerance = 0.5f
                 if (playerBottom >= blockTop - tolerance) {
-                    continue // Skip this collision, player is standing on the block
+                    continue
                 }
-
-                return false // Real collision detected
+                return false
             }
         }
 
-        return true // No collision
+        for (house in gameHouses) {
+            // Get the house's bounding box
+            val houseBounds = house.getBoundingBox()
+            // Check for intersection
+            if (tempBounds.intersects(houseBounds)) {
+                return false // Collision with a house detected
+            }
+        }
+
+        return true // No collision with blocks or houses
     }
 
     private fun updatePlayerBounds() {

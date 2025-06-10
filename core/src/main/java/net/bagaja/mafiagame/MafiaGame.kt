@@ -35,6 +35,8 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var carSystem: CarSystem
     private val gameCars = Array<GameCar>()
     private val gameObjects = Array<GameObject>()
+    private lateinit var houseSystem: HouseSystem
+    private val gameHouses = Array<GameHouse>()
 
     // Highlight System
     private lateinit var highlightSystem: HighlightSystem
@@ -60,9 +62,10 @@ class MafiaGame : ApplicationAdapter() {
         setupObjectSystem()
         setupItemSystem()
         setupCarSystem()
+        setupHouseSystem()
 
         // Initialize UI Manager
-        uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem)
+        uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem, houseSystem)
         uiManager.initialize()
 
         // Initialize Input Handler
@@ -73,6 +76,7 @@ class MafiaGame : ApplicationAdapter() {
             objectSystem,
             itemSystem,
             carSystem,
+            houseSystem,
             this::handleLeftClickAction,
             this::handleRightClickAndRemoveAction,
             this::handleFinePosMove
@@ -129,6 +133,11 @@ class MafiaGame : ApplicationAdapter() {
         carSystem.initialize()
     }
 
+    private fun setupHouseSystem() {
+        houseSystem = HouseSystem()
+        houseSystem.initialize()
+    }
+
     private fun handlePlayerInput() {
         val deltaTime = Gdx.graphics.deltaTime
 
@@ -137,7 +146,7 @@ class MafiaGame : ApplicationAdapter() {
             cameraManager.handleInput(deltaTime)
         } else {
             // Handle player movement through PlayerSystem
-            val moved = playerSystem.handleMovement(deltaTime, gameBlocks)
+            val moved = playerSystem.handleMovement(deltaTime, gameBlocks, gameHouses)
 
             if (moved) {
                 // Update camera manager with player position
@@ -161,6 +170,7 @@ class MafiaGame : ApplicationAdapter() {
             UIManager.Tool.OBJECT -> placeObject(ray)
             UIManager.Tool.ITEM -> placeItem(ray)
             UIManager.Tool.CAR -> placeCar(ray)
+            UIManager.Tool.HOUSE -> placeHouse(ray)
         }
     }
 
@@ -211,6 +221,13 @@ class MafiaGame : ApplicationAdapter() {
                 val carToRemove = raycastSystem.getCarAtRay(ray, gameCars)
                 if (carToRemove != null) {
                     removeCar(carToRemove)
+                    return true
+                }
+            }
+            UIManager.Tool.HOUSE -> {
+                val houseToRemove = raycastSystem.getHouseAtRay(ray, gameHouses)
+                if (houseToRemove != null) {
+                    removeHouse(houseToRemove)
                     return true
                 }
             }
@@ -361,7 +378,7 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placePlayer(ray: Ray) {
-        playerSystem.placePlayer(ray, gameBlocks)
+        playerSystem.placePlayer(ray, gameBlocks, gameHouses)
     }
 
     private fun placeObject(ray: Ray) {
@@ -532,6 +549,45 @@ class MafiaGame : ApplicationAdapter() {
         println("${carToRemove.carType.displayName} removed at: ${carToRemove.position}")
     }
 
+    private fun placeHouse(ray: Ray) {
+        val intersection = Vector3()
+        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+
+            // Check if there's already a house at this position
+            val existingHouse = gameHouses.find { house ->
+                kotlin.math.abs(house.position.x - gridX) < 3f &&
+                    kotlin.math.abs(house.position.z - gridZ) < 3f
+            }
+
+            if (existingHouse == null) {
+                addHouse(gridX, 0f, gridZ, houseSystem.currentSelectedHouse)
+                println("${houseSystem.currentSelectedHouse.displayName} placed at: $gridX, 0, $gridZ")
+            } else {
+                println("House already exists near this position")
+            }
+        }
+    }
+
+    private fun addHouse(x: Float, y: Float, z: Float, houseType: HouseType) {
+        val houseInstance = houseSystem.createHouseInstance(houseType)
+        if (houseInstance != null) {
+            val position = Vector3(x, y, z)
+            houseInstance.transform.setTranslation(position)
+
+            val gameHouse = GameHouse(houseInstance, houseType, position)
+            gameHouses.add(gameHouse)
+        }
+    }
+
+    private fun removeHouse(houseToRemove: GameHouse) {
+        gameHouses.removeValue(houseToRemove, true)
+        println("${houseToRemove.houseType.displayName} removed at: ${houseToRemove.position}")
+    }
+
     override fun render() {
         // Clear screen
         Gdx.gl.glViewport(0, 0, Gdx.graphics.width, Gdx.graphics.height)
@@ -590,6 +646,10 @@ class MafiaGame : ApplicationAdapter() {
             modelBatch.render(car.modelInstance, environment)
         }
 
+        for (house in gameHouses) {
+            modelBatch.render(house.modelInstance, environment)
+        }
+
         // Render 3D player with custom billboard shader
         playerSystem.render(cameraManager.camera, environment)
 
@@ -626,6 +686,7 @@ class MafiaGame : ApplicationAdapter() {
         itemSystem.dispose()
         carSystem.dispose()
         playerSystem.dispose()
+        houseSystem.dispose()
         highlightSystem.dispose()
 
         // Dispose UIManager
