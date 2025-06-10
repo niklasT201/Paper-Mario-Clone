@@ -167,7 +167,8 @@ class LightSourceUI(
         val slider = Slider(min, max, 1f, false, skin)
         slider.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
-                onChange(slider.value)
+                val changedSlider = actor as? Slider ?: return
+                onChange(changedSlider.value)
             }
         })
 
@@ -266,15 +267,14 @@ class ColorPickerWidget(
     private val onColorChanged: (Color) -> Unit
 ) : Table() {
 
-    // --- FIX 1: INITIALIZE AS A NEW COLOR OBJECT ---
-    // This prevents modifying the static Color.WHITE instance.
     private val currentColor = Color(1f, 1f, 1f, 1f)
-    // --- END OF FIX 1 ---
-
     private val colorDisplay = Image()
-    private val redSlider = Slider(0f, 1f, 0.01f, false, skin)
-    private val greenSlider = Slider(0f, 1f, 0.01f, false, skin)
-    private val blueSlider = Slider(0f, 1f, 0.01f, false, skin)
+    private lateinit var redField: TextField
+    private lateinit var greenField: TextField
+    private lateinit var blueField: TextField
+
+    // Flag to prevent recursive updates when setting color programmatically
+    private var isUpdating = false
 
     init {
         setupColorPicker()
@@ -285,31 +285,15 @@ class ColorPickerWidget(
         updateColorDisplay()
         add(colorDisplay).size(80f, 40f).padBottom(12f).row()
 
-        // RGB sliders with improved layout
+        // RGB text field editors with improved layout
         val rgbTable = Table()
 
-        // --- FIX 2: CORRECT SLIDER LISTENERS ---
-        // Each listener now only modifies its own color component. It does NOT call setColor().
-        createColorSlider(rgbTable, "R", redSlider, Color.RED) {
-            currentColor.r = redSlider.value
-            updateColorDisplay()
-            onColorChanged(currentColor)
-        }
+        // Create TextField editors
+        createColorTextField(rgbTable, "R", Color.RED) { redField = it }
+        createColorTextField(rgbTable, "G", Color.GREEN) { greenField = it }
+        createColorTextField(rgbTable, "B", Color.BLUE) { blueField = it }
 
-        createColorSlider(rgbTable, "G", greenSlider, Color.GREEN) {
-            currentColor.g = greenSlider.value
-            updateColorDisplay()
-            onColorChanged(currentColor)
-        }
-
-        createColorSlider(rgbTable, "B", blueSlider, Color.BLUE) {
-            currentColor.b = blueSlider.value
-            updateColorDisplay()
-            onColorChanged(currentColor)
-        }
-        // --- END OF FIX 2 ---
-
-        add(rgbTable).fillX().padBottom(8f).row()
+        add(rgbTable).fillX().expandX().padBottom(8f).row()
 
         // Enhanced preset colors
         val presetTable = Table()
@@ -328,7 +312,6 @@ class ColorPickerWidget(
             val button = TextButton(name, skin)
             button.addListener(object : ChangeListener() {
                 override fun changed(event: ChangeEvent?, actor: Actor?) {
-                    // This is the correct place to call setColor(), from a preset button.
                     setColor(color)
                     onColorChanged(currentColor)
                     animatePresetSelection(button)
@@ -341,28 +324,63 @@ class ColorPickerWidget(
         add(presetTable).padTop(5f)
     }
 
-    private fun createColorSlider(parent: Table, label: String, slider: Slider, color: Color, onChange: () -> Unit) {
+    /**
+     * Creates a Label and a TextField for editing a color component (0-255).
+     */
+    private fun createColorTextField(
+        parent: Table,
+        label: String,
+        color: Color,
+        textFieldSetter: (TextField) -> Unit
+    ) {
         val container = Table()
 
-        val sliderLabel = Label(label, skin)
-        sliderLabel.color = color
-        sliderLabel.setFontScale(0.9f)
-        container.add(sliderLabel).width(15f).left()
+        val componentLabel = Label(label, skin)
+        componentLabel.color = color
+        componentLabel.setFontScale(1.0f)
+        container.add(componentLabel).width(20f).padRight(10f)
 
-        slider.addListener(object : ChangeListener() {
+        val textField = TextField("", skin)
+        textField.maxLength = 3 // Max value is 255
+        textField.setTextFieldFilter(TextField.TextFieldFilter.DigitsOnlyFilter())
+        textField.alignment = Align.center
+
+        // Listener for when the user changes the text and focus is lost
+        textField.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
-                onChange()
+                if (!isUpdating) {
+                    updateColorFromTextFields()
+                }
             }
         })
-        container.add(slider).width(200f).padLeft(8f)
 
-        // This label is now handled inside the onChange lambda, which is better
-        val valueLabel = Label("", skin) // Will be updated by the listener
-        valueLabel.setFontScale(0.8f)
-        valueLabel.color = Color(0.8f, 0.8f, 0.8f, 1f)
-        container.add(valueLabel).width(35f).padLeft(8f)
+        container.add(textField).width(60f).pad(0f, 10f, 0f, 10f)
 
-        parent.add(container).fillX().padBottom(4f).row()
+        parent.add(container).fillX().padBottom(5f).row()
+        textFieldSetter(textField) // Assign the created field to the class property
+    }
+
+    /**
+     * Reads values from all three TextFields and updates the current color.
+     */
+    private fun updateColorFromTextFields() {
+        val rText = redField.text
+        val gText = greenField.text
+        val bText = blueField.text
+
+        // Read values, defaulting to 0 if empty or invalid. Coerce to 0-255 range.
+        val r = rText.toIntOrNull()?.coerceIn(0, 255) ?: 0
+        val g = gText.toIntOrNull()?.coerceIn(0, 255) ?: 0
+        val b = bText.toIntOrNull()?.coerceIn(0, 255) ?: 0
+
+        // If the user typed a value > 255, clamp it in the UI as well for clarity.
+        if ((rText.toIntOrNull() ?: 0) > 255) redField.text = "255"
+        if ((gText.toIntOrNull() ?: 0) > 255) greenField.text = "255"
+        if ((bText.toIntOrNull() ?: 0) > 255) blueField.text = "255"
+
+        currentColor.set(r / 255f, g / 255f, b / 255f, 1f)
+        updateColorDisplay()
+        onColorChanged(currentColor)
     }
 
     private fun updateColorDisplay() {
@@ -388,7 +406,7 @@ class ColorPickerWidget(
 
         val texture = Texture(pixmap)
         pixmap.dispose()
-
+        (colorDisplay.drawable as? TextureRegionDrawable)?.region?.texture?.dispose()
         colorDisplay.drawable = TextureRegionDrawable(TextureRegion(texture))
     }
 
@@ -402,11 +420,21 @@ class ColorPickerWidget(
         )
     }
 
+    /**
+     * Sets the color of the widget, now updating TextFields
+     */
     override fun setColor(color: Color) {
+        isUpdating = true // Prevent listeners from firing while we set values
+
         currentColor.set(color)
-        redSlider.value = color.r
-        greenSlider.value = color.g
-        blueSlider.value = color.b
+
+        // Update the TextFields with the new color values
+        redField.text = (color.r * 255).toInt().toString()
+        greenField.text = (color.g * 255).toInt().toString()
+        blueField.text = (color.b * 255).toInt().toString()
+
         updateColorDisplay()
+
+        isUpdating = false // Re-enable listeners
     }
 }
