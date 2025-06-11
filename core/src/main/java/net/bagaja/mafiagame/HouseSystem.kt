@@ -117,14 +117,21 @@ data class GameHouse(
     val houseType: HouseType,
     val position: Vector3
 ) {
-    // Get bounding box for collision detection
+    // Get bounding box for collision detection - thin like the flat image
     fun getBoundingBox(): BoundingBox {
         val bounds = BoundingBox()
+
+        // Use the actual house width from the enum
         val halfWidth = houseType.width / 2f
+        val height = houseType.height
+
+        // Make it very thin (like a wall) - adjust this thickness as needed
+        val thickness = 0.5f // Very thin collision box
+        val halfThickness = thickness / 2f
 
         bounds.set(
-            Vector3(position.x - halfWidth, position.y, position.z - halfWidth),
-            Vector3(position.x + halfWidth, position.y + houseType.height, position.z + halfWidth)
+            Vector3(position.x - halfWidth, position.y, position.z - halfThickness),
+            Vector3(position.x + halfWidth, position.y + height, position.z + halfThickness)
         )
         return bounds
     }
@@ -135,19 +142,35 @@ data class GameHouse(
         return bounds.contains(point)
     }
 
-    // Check collision with player (cylinder approximation)
+    // Collision detection with player - thin rectangular collision
     fun collidesWith(playerPos: Vector3, playerRadius: Float): Boolean {
-        val bounds = getBoundingBox()
+        val halfWidth = houseType.width / 2f
+        val thickness = 0.5f
+        val halfThickness = thickness / 2f
 
-        // Simple AABB vs circle collision (ignoring Y for now)
-        val closestX = kotlin.math.max(bounds.min.x, kotlin.math.min(playerPos.x, bounds.max.x))
-        val closestZ = kotlin.math.max(bounds.min.z, kotlin.math.min(playerPos.z, bounds.max.z))
+        // Define the thin rectangle bounds
+        val minX = position.x - halfWidth
+        val maxX = position.x + halfWidth
+        val minZ = position.z - halfThickness
+        val maxZ = position.z + halfThickness
+        val minY = position.y
+        val maxY = position.y + houseType.height
 
+        // Check if player (as a circle) intersects with the thin rectangle
+        // Clamp player position to the rectangle bounds
+        val closestX = kotlin.math.max(minX, kotlin.math.min(playerPos.x, maxX))
+        val closestZ = kotlin.math.max(minZ, kotlin.math.min(playerPos.z, maxZ))
+        val closestY = kotlin.math.max(minY, kotlin.math.min(playerPos.y, maxY))
+
+        // Calculate distance from player to closest point on rectangle
         val distanceX = playerPos.x - closestX
         val distanceZ = playerPos.z - closestZ
-        val distanceSquared = distanceX * distanceX + distanceZ * distanceZ
+        val distanceY = playerPos.y - closestY
 
-        return distanceSquared < (playerRadius * playerRadius)
+        // Use 2D collision (ignore Y for ground-based movement)
+        val distance2D = kotlin.math.sqrt(distanceX * distanceX + distanceZ * distanceZ)
+
+        return distance2D < playerRadius
     }
 }
 
@@ -159,6 +182,7 @@ enum class HouseType(
     val height: Float
 ) {
     HOUSE_1("Small House", "textures/objects/houses/worker_house.png", 20f, 25f),
+    FLAT("Flat", "textures/objects/houses/flat_default.png", 20f, 25f),
     HOUSE_2("Medium House", "textures/objects/houses/house2.png", 25f, 30f),
     HOUSE_3("Large House", "textures/objects/houses/house3.png", 30f, 35f),
     MANSION("Mansion", "textures/objects/houses/mansion.png", 40f, 45f),

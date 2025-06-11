@@ -232,6 +232,13 @@ class HouseSelectionUI(
                 pixmap.fillCircle(10, 35, 3) // Bush
                 pixmap.fillCircle(40, 35, 3) // Bush
             }
+            HouseType.FLAT -> {
+                // Flat
+                pixmap.setColor(Color(0.6f, 0.4f, 0.2f, 1f))
+                pixmap.fillRectangle(15, 25, 20, 20) // House body
+                pixmap.setColor(Color(0.8f, 0.2f, 0.2f, 1f))
+                pixmap.fillTriangle(10, 25, 25, 10, 40, 25) // Roof
+            }
         }
 
         val texture = Texture(pixmap)
