@@ -577,7 +577,13 @@ class MafiaGame : ApplicationAdapter() {
         val houseInstance = houseSystem.createHouseInstance(houseType)
         if (houseInstance != null) {
             val position = Vector3(x, y, z)
-            houseInstance.transform.setTranslation(position)
+
+            // scale up 3D houses
+            if (houseType == HouseType.HOUSE_3D) {
+                houseInstance.transform.setToTranslationAndScaling(position, Vector3(6f, 6f, 6f))
+            } else {
+                houseInstance.transform.setTranslation(position)
+            }
 
             val gameHouse = GameHouse(houseInstance, houseType, position)
             gameHouses.add(gameHouse)

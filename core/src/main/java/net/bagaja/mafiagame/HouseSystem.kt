@@ -33,16 +33,30 @@ class HouseSystem {
         // Initialize the 3D model loader
         modelLoader = G3dModelLoader(JsonReader())
 
-        val modelBuilder = ModelBuilder()
-
         // Load textures and create models for each house type
         for (houseType in HouseType.values()) {
             try {
                 if (houseType.is3DModel) {
-                    // Load 3D model
+
+                    // 1. Manually load the texture for the 3D model
+                    val house3dTexture = Texture(Gdx.files.internal(houseType.texturePath), false)
+
+                    // 2. Set the filtering to Nearest
+                    house3dTexture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest)
+
+                    houseTextures[houseType] = house3dTexture
+
+                    // 3. Load the 3D model.
                     val model = modelLoader.loadModel(Gdx.files.internal(houseType.modelPath!!))
+
+                    for (material in model.materials) {
+                        // Create a new TextureAttribute with our crisp texture.
+                        val textureAttribute = TextureAttribute.createDiffuse(house3dTexture)
+                        material.set(textureAttribute)
+                    }
+
                     houseModels[houseType] = model
-                    println("Loaded 3D house model: ${houseType.displayName}")
+                    println("Loaded 3D house model: ${houseType.displayName} with crisp texture.")
                 } else {
                     // Load texture for 2D houses
                     val texture = Texture(Gdx.files.internal(houseType.texturePath))
@@ -64,6 +78,24 @@ class HouseSystem {
             } catch (e: Exception) {
                 println("Failed to load house ${houseType.displayName}: ${e.message}")
                 e.printStackTrace()
+            }
+        }
+    }
+
+    private fun fixModelTextureFiltering(model: Model) {
+        for (material in model.materials) {
+            // Find diffuse texture attribute
+            val textureAttribute = material.get(TextureAttribute.Diffuse) as? TextureAttribute
+            if (textureAttribute != null) {
+                val texture = textureAttribute.textureDescription.texture
+
+                // Use nearest neighbor filtering for crisp pixel art
+                texture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest)
+
+                // Use linear filtering but with mipmaps for better quality
+                // texture.setFilter(Texture.TextureFilter.MipMapLinearLinear, Texture.TextureFilter.Linear)
+
+                println("Fixed texture filtering for 3D model texture")
             }
         }
     }
@@ -209,13 +241,14 @@ data class GameHouse(
 // House type definitions
 enum class HouseType(
     val displayName: String,
-    val texturePath: String,
+    val texturePath: String, // Keep this for all types
     val width: Float,
     val height: Float,
     val is3DModel: Boolean = false,
     val modelPath: String? = null
 ) {
-    HOUSE_3D("3D House", "", 10f, 10f, true, "Models/house.g3dj"),
+    HOUSE_3D("3D House", "Models/house_model.png", 10f, 10f, true, "Models/house.g3dj"),
+
     HOUSE_1("Small House", "textures/objects/houses/worker_house.png", 20f, 25f),
     FLAT("Flat", "textures/objects/houses/flat_default.png", 20f, 25f),
 //    HOUSE_2("Medium House", "textures/objects/houses/house2.png", 25f, 30f),
