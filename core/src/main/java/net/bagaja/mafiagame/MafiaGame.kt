@@ -90,6 +90,7 @@ class MafiaGame : ApplicationAdapter() {
         highlightSystem = HighlightSystem(blockSize)
         highlightSystem.initialize()
 
+        // initial test blocks
         addBlock(0f, 0f, 0f, BlockType.GRASS)
         addBlock(blockSize, 0f, 0f, BlockType.COBBLESTONE)
         addBlock(0f, 0f, blockSize, BlockType.ROOM_FLOOR)

@@ -53,5 +53,8 @@ public class Lwjgl3Launcher {
 // spotlight effect
 // objects with default light source
 
+// fbx-conv house.obj house.g3dj
+// fbx-conv -f house.obj house.g3dj
+
 // can you help me with my kotlin 3d game?
 //i have this light source and would like to change it a bit/ or my ui, whatever is needed for it. i would like if its possible to add, that lights can shine in every direction like they i guess already do, or have a "scheinwerfer" effect, so the light goes only in one direction and that you can rotate the light so its your choice where the light goes. is it possible to add this? and please just show the needed code and not the whole files again

@@ -10,14 +10,19 @@ import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
+import com.badlogic.gdx.graphics.g3d.loader.G3dModelLoader
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
+import com.badlogic.gdx.utils.JsonReader
 
 class HouseSystem {
     private val houseModels = mutableMapOf<HouseType, Model>()
     private val houseTextures = mutableMapOf<HouseType, Texture>()
     private val modelBuilder = ModelBuilder()
+
+    // Support for 3D models
+    private lateinit var modelLoader: G3dModelLoader
 
     var currentSelectedHouse = HouseType.HOUSE_1
         private set
@@ -25,30 +30,40 @@ class HouseSystem {
         private set
 
     fun initialize() {
+        // Initialize the 3D model loader
+        modelLoader = G3dModelLoader(JsonReader())
+
         val modelBuilder = ModelBuilder()
 
         // Load textures and create models for each house type
         for (houseType in HouseType.values()) {
             try {
-                // Load texture
-                val texture = Texture(Gdx.files.internal(houseType.texturePath))
-                texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
-                houseTextures[houseType] = texture
+                if (houseType.is3DModel) {
+                    // Load 3D model
+                    val model = modelLoader.loadModel(Gdx.files.internal(houseType.modelPath!!))
+                    houseModels[houseType] = model
+                    println("Loaded 3D house model: ${houseType.displayName}")
+                } else {
+                    // Load texture for 2D houses
+                    val texture = Texture(Gdx.files.internal(houseType.texturePath))
+                    texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
+                    houseTextures[houseType] = texture
 
-                // Create material with texture and transparency
-                val material = Material(
-                    TextureAttribute.createDiffuse(texture),
-                    BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
-                    IntAttribute.createCullFace(GL20.GL_NONE) // Disable backface culling
-                )
+                    // Create material with texture and transparency
+                    val material = Material(
+                        TextureAttribute.createDiffuse(texture),
+                        BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
+                        IntAttribute.createCullFace(GL20.GL_NONE) // Disable backface culling
+                    )
 
-                // Create simple quad model
-                val model = createSimpleQuadModel(modelBuilder, material, houseType)
-                houseModels[houseType] = model
-
-                println("Loaded house type: ${houseType.displayName}")
+                    // Create simple quad model
+                    val model = createSimpleQuadModel(modelBuilder, material, houseType)
+                    houseModels[houseType] = model
+                    println("Loaded 2D house type: ${houseType.displayName}")
+                }
             } catch (e: Exception) {
                 println("Failed to load house ${houseType.displayName}: ${e.message}")
+                e.printStackTrace()
             }
         }
     }
@@ -117,22 +132,27 @@ data class GameHouse(
     val houseType: HouseType,
     val position: Vector3
 ) {
-    // Get bounding box for collision detection - thin like the flat image
+    // Get bounding box for collision detection
     fun getBoundingBox(): BoundingBox {
         val bounds = BoundingBox()
 
-        // Use the actual house width from the enum
-        val halfWidth = houseType.width / 2f
-        val height = houseType.height
+        if (houseType.is3DModel) {
+            modelInstance.calculateBoundingBox(bounds)
+            // Adjust position
+            bounds.min.add(position)
+            bounds.max.add(position)
+        } else {
+            // Use the existing 2D collision logic
+            val halfWidth = houseType.width / 2f
+            val height = houseType.height
+            val thickness = 0.5f
+            val halfThickness = thickness / 2f
 
-        // Make it very thin (like a wall) - adjust this thickness as needed
-        val thickness = 0.5f // Very thin collision box
-        val halfThickness = thickness / 2f
-
-        bounds.set(
-            Vector3(position.x - halfWidth, position.y, position.z - halfThickness),
-            Vector3(position.x + halfWidth, position.y + height, position.z + halfThickness)
-        )
+            bounds.set(
+                Vector3(position.x - halfWidth, position.y, position.z - halfThickness),
+                Vector3(position.x + halfWidth, position.y + height, position.z + halfThickness)
+            )
+        }
         return bounds
     }
 
@@ -142,35 +162,47 @@ data class GameHouse(
         return bounds.contains(point)
     }
 
-    // Collision detection with player - thin rectangular collision
+    // Collision detection with player
     fun collidesWith(playerPos: Vector3, playerRadius: Float): Boolean {
-        val halfWidth = houseType.width / 2f
-        val thickness = 0.5f
-        val halfThickness = thickness / 2f
+        if (houseType.is3DModel) {
+            // For 3D models, use bounding box collision
+            val bounds = getBoundingBox()
 
-        // Define the thin rectangle bounds
-        val minX = position.x - halfWidth
-        val maxX = position.x + halfWidth
-        val minZ = position.z - halfThickness
-        val maxZ = position.z + halfThickness
-        val minY = position.y
-        val maxY = position.y + houseType.height
+            // Expand the bounds by player radius for collision
+            val expandedBounds = BoundingBox(bounds)
+            expandedBounds.min.add(-playerRadius, -playerRadius, -playerRadius)
+            expandedBounds.max.add(playerRadius, playerRadius, playerRadius)
 
-        // Check if player (as a circle) intersects with the thin rectangle
-        // Clamp player position to the rectangle bounds
-        val closestX = kotlin.math.max(minX, kotlin.math.min(playerPos.x, maxX))
-        val closestZ = kotlin.math.max(minZ, kotlin.math.min(playerPos.z, maxZ))
-        val closestY = kotlin.math.max(minY, kotlin.math.min(playerPos.y, maxY))
+            return expandedBounds.contains(playerPos)
+        } else {
+            val halfWidth = houseType.width / 2f
+            val thickness = 0.5f
+            val halfThickness = thickness / 2f
 
-        // Calculate distance from player to closest point on rectangle
-        val distanceX = playerPos.x - closestX
-        val distanceZ = playerPos.z - closestZ
-        val distanceY = playerPos.y - closestY
+            // Define the thin rectangle bounds
+            val minX = position.x - halfWidth
+            val maxX = position.x + halfWidth
+            val minZ = position.z - halfThickness
+            val maxZ = position.z + halfThickness
+            val minY = position.y
+            val maxY = position.y + houseType.height
 
-        // Use 2D collision (ignore Y for ground-based movement)
-        val distance2D = kotlin.math.sqrt(distanceX * distanceX + distanceZ * distanceZ)
+            // Check if player (as a circle) intersects with the thin rectangle
+            // Clamp player position to the rectangle bounds
+            val closestX = kotlin.math.max(minX, kotlin.math.min(playerPos.x, maxX))
+            val closestZ = kotlin.math.max(minZ, kotlin.math.min(playerPos.z, maxZ))
+            val closestY = kotlin.math.max(minY, kotlin.math.min(playerPos.y, maxY))
 
-        return distance2D < playerRadius
+            // Calculate distance from player to closest point on rectangle
+            val distanceX = playerPos.x - closestX
+            val distanceZ = playerPos.z - closestZ
+            val distanceY = playerPos.y - closestY
+
+            // Use 2D collision (ignore Y for ground-based movement)
+            val distance2D = kotlin.math.sqrt(distanceX * distanceX + distanceZ * distanceZ)
+
+            return distance2D < playerRadius
+        }
     }
 }
 
@@ -179,12 +211,15 @@ enum class HouseType(
     val displayName: String,
     val texturePath: String,
     val width: Float,
-    val height: Float
+    val height: Float,
+    val is3DModel: Boolean = false,
+    val modelPath: String? = null
 ) {
+    HOUSE_3D("3D House", "", 10f, 10f, true, "Models/house.g3dj"),
     HOUSE_1("Small House", "textures/objects/houses/worker_house.png", 20f, 25f),
     FLAT("Flat", "textures/objects/houses/flat_default.png", 20f, 25f),
-    HOUSE_2("Medium House", "textures/objects/houses/house2.png", 25f, 30f),
-    HOUSE_3("Large House", "textures/objects/houses/house3.png", 30f, 35f),
-    MANSION("Mansion", "textures/objects/houses/mansion.png", 40f, 45f),
-    COTTAGE("Cottage", "textures/objects/houses/cottage.png", 15f, 20f),
+//    HOUSE_2("Medium House", "textures/objects/houses/house2.png", 25f, 30f),
+//    HOUSE_3("Large House", "textures/objects/houses/house3.png", 30f, 35f),
+//    MANSION("Mansion", "textures/objects/houses/mansion.png", 40f, 45f),
+//    COTTAGE("Cottage", "textures/objects/houses/cottage.png", 15f, 20f),
 }
