@@ -14,6 +14,7 @@ class InputHandler(
     private val itemSystem: ItemSystem,
     private val carSystem: CarSystem,
     private val houseSystem: HouseSystem,
+    private val backgroundSystem: BackgroundSystem,
     private val onLeftClick: (screenX: Int, screenY: Int) -> Unit,
     private val onRightClickAttemptBlockRemove: (screenX: Int, screenY: Int) -> Boolean,
     private val onFinePosMove: (deltaX: Float, deltaY: Float, deltaZ: Float) -> Unit
@@ -27,6 +28,7 @@ class InputHandler(
     private var isItemSelectionMode = false
     private var isCarSelectionMode = false
     private var isHouseSelectionMode = false
+    private var isBackgroundSelectionMode = false
 
     // Variables for continuous block placement/removal
     private var continuousActionTimer = 0f
@@ -142,7 +144,7 @@ class InputHandler(
                     uiManager.updateObjectSelection()
                     return true
                 } else if (isItemSelectionMode) {
-                    // Use mouse scroll to change objects
+                    // Use mouse scroll to change items
                     if (amountY > 0) {
                         itemSystem.nextItem()
                     } else if (amountY < 0) {
@@ -168,7 +170,15 @@ class InputHandler(
                     }
                     uiManager.updateHouseSelection()
                     return true
-                    // END ADDITION
+                } else if (isBackgroundSelectionMode) {
+                    // Use mouse scroll to change backgrounds
+                    if (amountY > 0) {
+                        backgroundSystem.nextBackground()
+                    } else if (amountY < 0) {
+                        backgroundSystem.previousBackground()
+                    }
+                    uiManager.updateBackgroundSelection()
+                    return true
                 } else {
                     // Normal camera zoom
                     cameraManager.handleMouseScroll(amountY)
@@ -189,9 +199,17 @@ class InputHandler(
                     }
                     Input.Keys.H -> {
                         // House selection mode
-                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode) {
+                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isBackgroundSelectionMode) {
                             isHouseSelectionMode = true
                             uiManager.showHouseSelection()
+                        }
+                        return true
+                    }
+                    Input.Keys.N -> {
+                        // Background selection mode
+                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode) {
+                            isBackgroundSelectionMode = true
+                            uiManager.showBackgroundSelection()
                         }
                         return true
                     }
@@ -200,8 +218,8 @@ class InputHandler(
                         return true
                     }
                     Input.Keys.B -> {
-                        // Only activate block selection if not in object selection mode
-                        if (!isObjectSelectionMode) {
+                        // Only activate block selection if not in other selection modes
+                        if (!isObjectSelectionMode && !isBackgroundSelectionMode) {
                             isBlockSelectionMode = true
                             uiManager.showBlockSelection()
                         }
@@ -209,14 +227,14 @@ class InputHandler(
                     }
                     Input.Keys.O -> {
                         // Object selection mode (similar to B for blocks)
-                        if (!isBlockSelectionMode) {
+                        if (!isBlockSelectionMode && !isBackgroundSelectionMode) {
                             isObjectSelectionMode = true
                             uiManager.showObjectSelection()
                         }
                         return true
                     }
                     Input.Keys.I -> {
-                        if (!isItemSelectionMode) {
+                        if (!isItemSelectionMode && !isBackgroundSelectionMode) {
                             isItemSelectionMode = true
                             uiManager.showItemSelection()
                         }
@@ -224,7 +242,7 @@ class InputHandler(
                     }
                     Input.Keys.M -> {
                         // Car selection mode
-                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode) {
+                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isBackgroundSelectionMode) {
                             isCarSelectionMode = true
                             uiManager.showCarSelection()
                         }
@@ -280,6 +298,10 @@ class InputHandler(
                     }
                     Input.Keys.NUMPAD_6 -> {
                         uiManager.selectedTool = Tool.HOUSE
+                        uiManager.updateToolDisplay()
+                    }
+                    Input.Keys.NUMPAD_7 -> {
+                        uiManager.selectedTool = Tool.BACKGROUND
                         uiManager.updateToolDisplay()
                     }
                     // Fine positioning controls
@@ -355,6 +377,11 @@ class InputHandler(
                     Input.Keys.H -> {
                         isHouseSelectionMode = false
                         uiManager.hideHouseSelection()
+                        return true
+                    }
+                    Input.Keys.N -> {
+                        isBackgroundSelectionMode = false
+                        uiManager.hideBackgroundSelection()
                         return true
                     }
                     // Release fine positioning keys

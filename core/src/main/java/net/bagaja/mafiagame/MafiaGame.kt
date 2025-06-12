@@ -47,6 +47,9 @@ class MafiaGame : ApplicationAdapter() {
     // Game objects
     private val gameBlocks = Array<GameBlock>()
 
+    private lateinit var backgroundSystem: BackgroundSystem
+    private val gameBackgrounds = Array<GameBackground>()
+
     // Block size
     private val blockSize = 4f
 
@@ -63,9 +66,10 @@ class MafiaGame : ApplicationAdapter() {
         setupItemSystem()
         setupCarSystem()
         setupHouseSystem()
+        setupBackgroundSystem()
 
         // Initialize UI Manager
-        uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem, houseSystem)
+        uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem, houseSystem, backgroundSystem)
         uiManager.initialize()
 
         // Initialize Input Handler
@@ -77,6 +81,7 @@ class MafiaGame : ApplicationAdapter() {
             itemSystem,
             carSystem,
             houseSystem,
+            backgroundSystem,
             this::handleLeftClickAction,
             this::handleRightClickAndRemoveAction,
             this::handleFinePosMove
@@ -139,6 +144,11 @@ class MafiaGame : ApplicationAdapter() {
         houseSystem.initialize()
     }
 
+    private fun setupBackgroundSystem() {
+        backgroundSystem = BackgroundSystem()
+        backgroundSystem.initialize()
+    }
+
     private fun handlePlayerInput() {
         val deltaTime = Gdx.graphics.deltaTime
 
@@ -172,6 +182,7 @@ class MafiaGame : ApplicationAdapter() {
             UIManager.Tool.ITEM -> placeItem(ray)
             UIManager.Tool.CAR -> placeCar(ray)
             UIManager.Tool.HOUSE -> placeHouse(ray)
+            UIManager.Tool.BACKGROUND -> placeBackground(ray)
         }
     }
 
@@ -229,6 +240,13 @@ class MafiaGame : ApplicationAdapter() {
                 val houseToRemove = raycastSystem.getHouseAtRay(ray, gameHouses)
                 if (houseToRemove != null) {
                     removeHouse(houseToRemove)
+                    return true
+                }
+            }
+            UIManager.Tool.BACKGROUND -> {
+                val backgroundToRemove = raycastSystem.getBackgroundAtRay(ray, gameBackgrounds)
+                if (backgroundToRemove != null) {
+                    removeBackground(backgroundToRemove)
                     return true
                 }
             }
@@ -579,7 +597,7 @@ class MafiaGame : ApplicationAdapter() {
             val position = Vector3(x, y, z)
 
             // scale up 3D houses
-            if (houseType == HouseType.HOUSE_3D) {
+            if (houseType == HouseType.HOUSE_4) {
                 houseInstance.transform.setToTranslationAndScaling(position, Vector3(6f, 6f, 6f))
             } else {
                 houseInstance.transform.setTranslation(position)
@@ -593,6 +611,36 @@ class MafiaGame : ApplicationAdapter() {
     private fun removeHouse(houseToRemove: GameHouse) {
         gameHouses.removeValue(houseToRemove, true)
         println("${houseToRemove.houseType.displayName} removed at: ${houseToRemove.position}")
+    }
+
+    private fun placeBackground(ray: Ray) {
+        val intersection = Vector3()
+        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            // Backgrounds can be placed freely without grid snapping
+            val backgroundPosition = Vector3(intersection.x, intersection.y, intersection.z)
+
+            // Check if there's already a background too close to this position
+            val existingBackground = backgroundSystem.getBackgroundAtPosition(backgroundPosition, 2f)
+
+            if (existingBackground == null) {
+                backgroundSystem.addBackground(
+                    backgroundPosition.x,
+                    backgroundPosition.y,
+                    backgroundPosition.z,
+                    backgroundSystem.currentSelectedBackground
+                )
+                println("${backgroundSystem.currentSelectedBackground.displayName} placed at: $backgroundPosition")
+            } else {
+                println("Background already exists near this position")
+            }
+        }
+    }
+
+    private fun removeBackground(backgroundToRemove: GameBackground) {
+        backgroundSystem.removeBackground(backgroundToRemove)
+        println("${backgroundToRemove.backgroundType.displayName} removed at: ${backgroundToRemove.position}")
     }
 
     override fun render() {
@@ -615,7 +663,7 @@ class MafiaGame : ApplicationAdapter() {
         itemSystem.update(deltaTime, cameraManager.camera.position, playerSystem.getPosition(), 2f)
 
         // Update highlight system
-        highlightSystem.update(cameraManager, uiManager, gameBlocks) { ray ->
+        highlightSystem.update(cameraManager, uiManager, gameBlocks, backgroundSystem) { ray ->
             raycastSystem.getBlockAtRay(ray, gameBlocks)
         }
 
@@ -657,6 +705,11 @@ class MafiaGame : ApplicationAdapter() {
             modelBatch.render(house.modelInstance, environment)
         }
 
+        // Render backgrounds (2D backgrounds without collision)
+        for (background in backgroundSystem.getBackgrounds()) {
+            modelBatch.render(background.modelInstance, environment)
+        }
+
         // Render 3D player with custom billboard shader
         playerSystem.render(cameraManager.camera, environment)
 
@@ -694,6 +747,7 @@ class MafiaGame : ApplicationAdapter() {
         carSystem.dispose()
         playerSystem.dispose()
         houseSystem.dispose()
+        backgroundSystem.dispose()
         highlightSystem.dispose()
 
         // Dispose UIManager
