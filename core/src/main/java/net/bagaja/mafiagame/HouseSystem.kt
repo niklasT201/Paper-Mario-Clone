@@ -247,12 +247,7 @@ enum class HouseType(
     val is3DModel: Boolean = false,
     val modelPath: String? = null
 ) {
-    HOUSE_3D("3D House", "Models/house_model.png", 10f, 10f, true, "Models/house.g3dj"),
-
+    HOUSE_3D("3D House", "Models/flat_middle.png", 10f, 10f, true, "Models/flat_middle.g3dj"),
     HOUSE_1("Small House", "textures/objects/houses/worker_house.png", 20f, 25f),
     FLAT("Flat", "textures/objects/houses/flat_default.png", 20f, 25f),
-//    HOUSE_2("Medium House", "textures/objects/houses/house2.png", 25f, 30f),
-//    HOUSE_3("Large House", "textures/objects/houses/house3.png", 30f, 35f),
-//    MANSION("Mansion", "textures/objects/houses/mansion.png", 40f, 45f),
-//    COTTAGE("Cottage", "textures/objects/houses/cottage.png", 15f, 20f),
 }

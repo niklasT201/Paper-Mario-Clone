@@ -198,40 +198,6 @@ class HouseSelectionUI(
                 pixmap.setColor(Color(0.8f, 0.2f, 0.2f, 1f))
                 pixmap.fillTriangle(10, 25, 25, 10, 40, 25) // Roof
             }
-//            HouseType.HOUSE_2 -> {
-//                // Medium house
-//                pixmap.setColor(Color(0.7f, 0.5f, 0.3f, 1f))
-//                pixmap.fillRectangle(12, 22, 26, 23) // House body
-//                pixmap.setColor(Color(0.6f, 0.2f, 0.2f, 1f))
-//                pixmap.fillTriangle(8, 22, 25, 8, 42, 22) // Roof
-//            }
-//            HouseType.HOUSE_3 -> {
-//                // Large house
-//                pixmap.setColor(Color(0.8f, 0.6f, 0.4f, 1f))
-//                pixmap.fillRectangle(10, 20, 30, 25) // House body
-//                pixmap.setColor(Color(0.5f, 0.2f, 0.2f, 1f))
-//                pixmap.fillTriangle(5, 20, 25, 5, 45, 20) // Roof
-//            }
-//            HouseType.MANSION -> {
-//                // Mansion - larger and more elaborate
-//                pixmap.setColor(Color(0.9f, 0.8f, 0.7f, 1f))
-//                pixmap.fillRectangle(5, 18, 40, 27) // Main body
-//                pixmap.setColor(Color(0.4f, 0.2f, 0.2f, 1f))
-//                pixmap.fillTriangle(2, 18, 25, 2, 48, 18) // Main roof
-//                pixmap.setColor(Color(0.8f, 0.7f, 0.6f, 1f))
-//                pixmap.fillRectangle(10, 30, 10, 10) // Tower
-//                pixmap.fillRectangle(30, 30, 10, 10) // Tower
-//            }
-//            HouseType.COTTAGE -> {
-//                // Small cozy cottage
-//                pixmap.setColor(Color(0.5f, 0.7f, 0.4f, 1f))
-//                pixmap.fillRectangle(18, 28, 14, 17) // House body
-//                pixmap.setColor(Color(0.9f, 0.7f, 0.2f, 1f))
-//                pixmap.fillTriangle(15, 28, 25, 15, 35, 28) // Roof
-//                pixmap.setColor(Color(0.3f, 0.5f, 0.2f, 1f))
-//                pixmap.fillCircle(10, 35, 3) // Bush
-//                pixmap.fillCircle(40, 35, 3) // Bush
-//            }
             HouseType.FLAT -> {
                 // Flat
                 pixmap.setColor(Color(0.6f, 0.4f, 0.2f, 1f))
