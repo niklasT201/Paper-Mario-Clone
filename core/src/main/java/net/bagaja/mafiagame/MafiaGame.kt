@@ -181,7 +181,11 @@ class MafiaGame : ApplicationAdapter() {
             UIManager.Tool.ITEM -> placeItem(ray)
             UIManager.Tool.CAR -> placeCar(ray)
             UIManager.Tool.HOUSE -> placeHouse(ray)
-            UIManager.Tool.BACKGROUND -> placeBackground(ray)
+            UIManager.Tool.BACKGROUND -> {
+                val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+                placeBackground(ray)
+                backgroundSystem.hidePreview() // Hide preview after placement
+            }
         }
     }
 
@@ -617,22 +621,15 @@ class MafiaGame : ApplicationAdapter() {
         val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            // Backgrounds can be placed freely without grid snapping
-            val backgroundPosition = Vector3(intersection.x, intersection.y, intersection.z)
+            val success = backgroundSystem.addBackground(
+                intersection.x,
+                intersection.y,
+                intersection.z,
+                backgroundSystem.currentSelectedBackground
+            )
 
-            // Check if there's already a background too close to this position
-            val existingBackground = backgroundSystem.getBackgroundAtPosition(backgroundPosition, 2f)
-
-            if (existingBackground == null) {
-                backgroundSystem.addBackground(
-                    backgroundPosition.x,
-                    backgroundPosition.y,
-                    backgroundPosition.z,
-                    backgroundSystem.currentSelectedBackground
-                )
-                println("${backgroundSystem.currentSelectedBackground.displayName} placed at: $backgroundPosition")
-            } else {
-                println("Background already exists near this position")
+            if (success) {
+                println("${backgroundSystem.currentSelectedBackground.displayName} placed successfully")
             }
         }
     }
@@ -713,10 +710,13 @@ class MafiaGame : ApplicationAdapter() {
             modelBatch.render(house.modelInstance, environment)
         }
 
-        // Render backgrounds (2D backgrounds without collision)
+        // Render backgrounds
         for (background in backgroundSystem.getBackgrounds()) {
             modelBatch.render(background.modelInstance, environment)
         }
+
+        // Render background preview
+        backgroundSystem.renderPreview(modelBatch, cameraManager.camera, environment)
 
         // Render 3D player with custom billboard shader
         playerSystem.render(cameraManager.camera, environment)

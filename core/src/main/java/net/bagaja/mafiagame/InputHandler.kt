@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.InputAdapter
 import com.badlogic.gdx.InputMultiplexer
+import com.badlogic.gdx.math.Vector3
 import net.bagaja.mafiagame.UIManager.Tool
 
 class InputHandler(
@@ -48,12 +49,35 @@ class InputHandler(
     private var pageUpPressed = false
     private var pageDownPressed = false
 
+    // NEW: Helper function to handle preview logic to avoid code duplication
+    private fun handleBackgroundPreviewUpdate(screenX: Int, screenY: Int) {
+        if (uiManager.selectedTool == Tool.BACKGROUND) {
+            val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+            val intersection = Vector3()
+            val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+                val adjustedPos = backgroundSystem.updatePreview(intersection)
+                uiManager.updatePlacementInfo(backgroundSystem.getPlacementInfo(adjustedPos))
+            }
+        } else {
+            backgroundSystem.hidePreview()
+            uiManager.updatePlacementInfo("") // Clear placement info text
+        }
+    }
+
     fun initialize() {
         val inputMultiplexer = InputMultiplexer()
 
-        // Add custom input processor first
-        inputMultiplexer.addProcessor(uiManager.getStage()) // Stage first to catch UI clicks
+        inputMultiplexer.addProcessor(uiManager.getStage())
         inputMultiplexer.addProcessor(object : InputAdapter() {
+
+            // Handle mouse movement for real-time previews
+            override fun mouseMoved(screenX: Int, screenY: Int): Boolean {
+                handleBackgroundPreviewUpdate(screenX, screenY)
+                return false // Don't consume the event, let other things use it if needed
+            }
+
             override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
                 // Check if click is over UI
                 /*
@@ -75,6 +99,11 @@ class InputHandler(
                         continuousActionTimer = 0f
                         lastPlacementX = screenX
                         lastPlacementY = screenY
+
+                        // NEW: Hide preview right after placing
+                        if (uiManager.selectedTool == Tool.BACKGROUND) {
+                            backgroundSystem.hidePreview()
+                        }
                         return true
                     }
                     Input.Buttons.RIGHT -> {
@@ -99,19 +128,16 @@ class InputHandler(
 
             override fun touchUp(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
                 when (button) {
-                    Input.Buttons.LEFT -> {
-                        isLeftMousePressed = false
-                        return true
-                    }
-                    Input.Buttons.RIGHT -> {
-                        isRightMousePressed = false
-                        return true
-                    }
+                    Input.Buttons.LEFT -> isLeftMousePressed = false
+                    Input.Buttons.RIGHT -> isRightMousePressed = false
                 }
-                return false
+                return true
             }
 
             override fun touchDragged(screenX: Int, screenY: Int, pointer: Int): Boolean {
+                // MODIFIED: Also update the preview when dragging
+                handleBackgroundPreviewUpdate(screenX, screenY)
+
                 if (isRightMousePressed && !isBlockBeingRemoved()) {
                     // Only handle camera drag if we're not in block removal mode
                     val deltaX = screenX - lastMouseX
@@ -127,56 +153,31 @@ class InputHandler(
                 // Check if block selection mode is active
                 if (isBlockSelectionMode) {
                     // Use mouse scroll to change blocks
-                    if (amountY > 0) {
-                        blockSystem.nextBlock()
-                    } else if (amountY < 0) {
-                        blockSystem.previousBlock()
-                    }
+                    if (amountY > 0) blockSystem.nextBlock() else blockSystem.previousBlock()
                     uiManager.updateBlockSelection()
                     return true
                 } else if (isObjectSelectionMode) {
                     // Use mouse scroll to change objects
-                    if (amountY > 0) {
-                        objectSystem.nextObject()
-                    } else if (amountY < 0) {
-                        objectSystem.previousObject()
-                    }
+                    if (amountY > 0) objectSystem.nextObject() else objectSystem.previousObject()
                     uiManager.updateObjectSelection()
                     return true
                 } else if (isItemSelectionMode) {
                     // Use mouse scroll to change items
-                    if (amountY > 0) {
-                        itemSystem.nextItem()
-                    } else if (amountY < 0) {
-                        itemSystem.previousItem()
-                    }
+                    if (amountY > 0) itemSystem.nextItem() else itemSystem.previousItem()
                     uiManager.updateItemSelection()
                     return true
                 } else if (isCarSelectionMode) {
                     // Use mouse scroll to change cars
-                    if (amountY > 0) {
-                        carSystem.nextCar()
-                    } else if (amountY < 0) {
-                        carSystem.previousCar()
-                    }
+                    if (amountY > 0) carSystem.nextCar() else carSystem.previousCar()
                     uiManager.updateCarSelection()
                     return true
                 } else if (isHouseSelectionMode) {
                     // Use mouse scroll to change houses
-                    if (amountY > 0) {
-                        houseSystem.nextHouse()
-                    } else if (amountY < 0) {
-                        houseSystem.previousHouse()
-                    }
+                    if (amountY > 0) houseSystem.nextHouse() else houseSystem.previousHouse()
                     uiManager.updateHouseSelection()
                     return true
                 } else if (isBackgroundSelectionMode) {
-                    // Use mouse scroll to change backgrounds
-                    if (amountY > 0) {
-                        backgroundSystem.nextBackground()
-                    } else if (amountY < 0) {
-                        backgroundSystem.previousBackground()
-                    }
+                    if (amountY > 0) backgroundSystem.nextBackground() else backgroundSystem.previousBackground()
                     uiManager.updateBackgroundSelection()
                     return true
                 } else {
@@ -219,7 +220,7 @@ class InputHandler(
                     }
                     Input.Keys.B -> {
                         // Only activate block selection if not in other selection modes
-                        if (!isObjectSelectionMode && !isBackgroundSelectionMode) {
+                        if (!isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
                             isBlockSelectionMode = true
                             uiManager.showBlockSelection()
                         }
@@ -227,14 +228,14 @@ class InputHandler(
                     }
                     Input.Keys.O -> {
                         // Object selection mode (similar to B for blocks)
-                        if (!isBlockSelectionMode && !isBackgroundSelectionMode) {
+                        if (!isBlockSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
                             isObjectSelectionMode = true
                             uiManager.showObjectSelection()
                         }
                         return true
                     }
                     Input.Keys.I -> {
-                        if (!isItemSelectionMode && !isBackgroundSelectionMode) {
+                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
                             isItemSelectionMode = true
                             uiManager.showItemSelection()
                         }
@@ -242,19 +243,24 @@ class InputHandler(
                     }
                     Input.Keys.M -> {
                         // Car selection mode
-                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isBackgroundSelectionMode) {
+                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
                             isCarSelectionMode = true
                             uiManager.showCarSelection()
                         }
                         return true
                     }
-                    Input.Keys.F -> {
-                        // Toggle fine positioning mode for objects OR cars
-                        if (uiManager.selectedTool == Tool.OBJECT) {
-                            objectSystem.toggleFinePosMode()
-                        } else if (uiManager.selectedTool == Tool.CAR) {
-                            carSystem.toggleFinePosMode()
+                    // Key to cycle background placement modes
+                    Input.Keys.P -> {
+                        if (uiManager.selectedTool == Tool.BACKGROUND) {
+                            backgroundSystem.cyclePlacementMode()
+                            // Force an update of the preview to reflect the new mode
+                            handleBackgroundPreviewUpdate(Gdx.input.x, Gdx.input.y)
                         }
+                        return true
+                    }
+                    Input.Keys.F -> {
+                        if (uiManager.selectedTool == Tool.OBJECT) objectSystem.toggleFinePosMode()
+                        else if (uiManager.selectedTool == Tool.CAR) carSystem.toggleFinePosMode()
                         return true
                     }
                     Input.Keys.G -> {
@@ -267,148 +273,84 @@ class InputHandler(
                         return true
                     }
                     // Camera mode switching
-                    Input.Keys.NUM_1 -> {
-                        cameraManager.switchToOrbitingCamera()
-                        return true
-                    }
-                    Input.Keys.NUM_2 -> {
-                        cameraManager.switchToPlayerCamera()
-                        return true
-                    }
+//                    Input.Keys.NUM_1 -> {
+//                        cameraManager.switchToOrbitingCamera()
+//                        return true
+//                    }
+//                    Input.Keys.NUM_2 -> {
+//                        cameraManager.switchToPlayerCamera()
+//                        return true
+//                    }
                     // Tool selection
-                    Input.Keys.NUMPAD_1 -> {
-                        uiManager.selectedTool = Tool.BLOCK
-                        uiManager.updateToolDisplay()
-                    }
-                    Input.Keys.NUMPAD_2 -> {
-                        uiManager.selectedTool = Tool.PLAYER
-                        uiManager.updateToolDisplay()
-                    }
-                    Input.Keys.NUMPAD_3 -> {
-                        uiManager.selectedTool = Tool.OBJECT
-                        uiManager.updateToolDisplay()
-                    }
-                    Input.Keys.NUMPAD_4 -> {
-                        uiManager.selectedTool = Tool.ITEM
-                        uiManager.updateToolDisplay()
-                    }
-                    Input.Keys.NUMPAD_5 -> {
-                        uiManager.selectedTool = Tool.CAR
-                        uiManager.updateToolDisplay()
-                    }
-                    Input.Keys.NUMPAD_6 -> {
-                        uiManager.selectedTool = Tool.HOUSE
-                        uiManager.updateToolDisplay()
-                    }
-                    Input.Keys.NUMPAD_7 -> {
-                        uiManager.selectedTool = Tool.BACKGROUND
-                        uiManager.updateToolDisplay()
-                    }
+                    Input.Keys.NUMPAD_1 -> uiManager.selectedTool = Tool.BLOCK
+                    Input.Keys.NUMPAD_2 -> uiManager.selectedTool = Tool.PLAYER
+                    Input.Keys.NUMPAD_3 -> uiManager.selectedTool = Tool.OBJECT
+                    Input.Keys.NUMPAD_4 -> uiManager.selectedTool = Tool.ITEM
+                    Input.Keys.NUMPAD_5 -> uiManager.selectedTool = Tool.CAR
+                    Input.Keys.NUMPAD_6 -> uiManager.selectedTool = Tool.HOUSE
+                    Input.Keys.NUMPAD_7 -> uiManager.selectedTool = Tool.BACKGROUND
                     // Fine positioning controls
                     Input.Keys.LEFT -> {
                         if ((objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) ||
                             (carSystem.finePosMode && uiManager.selectedTool == Tool.CAR)) {
-                            leftPressed = true
-                            continuousFineTimer = 0f
-                            return true
+                            leftPressed = true; continuousFineTimer = 0f; return true
                         }
                     }
                     Input.Keys.RIGHT -> {
-                        if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
-                            rightPressed = true
-                            continuousFineTimer = 0f
-                            return true
+                        if ((objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) ||
+                            (carSystem.finePosMode && uiManager.selectedTool == Tool.CAR)) {
+                            rightPressed = true; continuousFineTimer = 0f; return true
                         }
                     }
                     Input.Keys.UP -> {
-                        if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
-                            upPressed = true
-                            continuousFineTimer = 0f
-                            return true
+                        if ((objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) ||
+                            (carSystem.finePosMode && uiManager.selectedTool == Tool.CAR)) {
+                            upPressed = true; continuousFineTimer = 0f; return true
                         }
                     }
                     Input.Keys.DOWN -> {
-                        if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
-                            downPressed = true
-                            continuousFineTimer = 0f
-                            return true
+                        if ((objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) ||
+                            (carSystem.finePosMode && uiManager.selectedTool == Tool.CAR)) {
+                            downPressed = true; continuousFineTimer = 0f; return true
                         }
                     }
                     Input.Keys.NUM_0 -> {
-                        if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
-                            pageUpPressed = true
-                            continuousFineTimer = 0f
-                            return true
+                        if ((objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) ||
+                            (carSystem.finePosMode && uiManager.selectedTool == Tool.CAR)) {
+                            pageUpPressed = true; continuousFineTimer = 0f; return true
                         }
                     }
                     Input.Keys.NUM_9 -> {
-                        if (objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) {
-                            pageDownPressed = true
-                            continuousFineTimer = 0f
-                            return true
+                        if ((objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) ||
+                            (carSystem.finePosMode && uiManager.selectedTool == Tool.CAR)) {
+                            pageDownPressed = true; continuousFineTimer = 0f; return true
                         }
                     }
+                }
+                // Update UI after tool selection
+                if (keycode in Input.Keys.NUMPAD_1..Input.Keys.NUMPAD_7) {
+                    uiManager.updateToolDisplay()
+                    // Update preview in case we switched to/from the background tool
+                    handleBackgroundPreviewUpdate(Gdx.input.x, Gdx.input.y)
                 }
                 return false
             }
 
             override fun keyUp(keycode: Int): Boolean {
                 when (keycode) {
-                    Input.Keys.B -> {
-                        isBlockSelectionMode = false
-                        uiManager.hideBlockSelection()
-                        return true
-                    }
-                    Input.Keys.O -> {
-                        isObjectSelectionMode = false
-                        uiManager.hideObjectSelection()
-                        return true
-                    }
-                    Input.Keys.I -> {
-                        isItemSelectionMode = false
-                        uiManager.hideItemSelection()
-                        return true
-                    }
-                    Input.Keys.M -> {
-                        isCarSelectionMode = false
-                        uiManager.hideCarSelection()
-                        return true
-                    }
-                    Input.Keys.H -> {
-                        isHouseSelectionMode = false
-                        uiManager.hideHouseSelection()
-                        return true
-                    }
-                    Input.Keys.N -> {
-                        isBackgroundSelectionMode = false
-                        uiManager.hideBackgroundSelection()
-                        return true
-                    }
+                    Input.Keys.B -> { isBlockSelectionMode = false; uiManager.hideBlockSelection(); return true }
+                    Input.Keys.O -> { isObjectSelectionMode = false; uiManager.hideObjectSelection(); return true }
+                    Input.Keys.I -> { isItemSelectionMode = false; uiManager.hideItemSelection(); return true }
+                    Input.Keys.M -> { isCarSelectionMode = false; uiManager.hideCarSelection(); return true }
+                    Input.Keys.H -> { isHouseSelectionMode = false; uiManager.hideHouseSelection(); return true }
+                    Input.Keys.N -> { isBackgroundSelectionMode = false; uiManager.hideBackgroundSelection(); return true }
                     // Release fine positioning keys
-                    Input.Keys.LEFT -> {
-                        leftPressed = false
-                        return true
-                    }
-                    Input.Keys.RIGHT -> {
-                        rightPressed = false
-                        return true
-                    }
-                    Input.Keys.UP -> {
-                        upPressed = false
-                        return true
-                    }
-                    Input.Keys.DOWN -> {
-                        downPressed = false
-                        return true
-                    }
-                    Input.Keys.NUM_0 -> {
-                        pageUpPressed = false
-                        return true
-                    }
-                    Input.Keys.NUM_9 -> {
-                        pageDownPressed = false
-                        return true
-                    }
+                    Input.Keys.LEFT -> { leftPressed = false; return true }
+                    Input.Keys.RIGHT -> { rightPressed = false; return true }
+                    Input.Keys.UP -> { upPressed = false; return true }
+                    Input.Keys.DOWN -> { downPressed = false; return true }
+                    Input.Keys.NUM_0 -> { pageUpPressed = false; return true }
+                    Input.Keys.NUM_9 -> { pageDownPressed = false; return true }
                 }
                 return false
             }

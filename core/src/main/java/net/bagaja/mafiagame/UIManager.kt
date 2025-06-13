@@ -34,6 +34,7 @@ class UIManager(
     private lateinit var mainTable: Table
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
+    private lateinit var placementInfoLabel: Label
 
     var isUIVisible = true
         private set
@@ -98,6 +99,10 @@ class UIManager(
         // Tool selection section
         createToolSelectionSection(mainContainer)
 
+        placementInfoLabel = Label("", skin, "instruction")
+        placementInfoLabel.setWrap(true)
+        mainContainer.add(placementInfoLabel).left().padBottom(20f).width(320f).row()
+
         // Instructions section
         createInstructionsSection(mainContainer)
 
@@ -110,7 +115,7 @@ class UIManager(
 
     private fun createToolSelectionSection(container: Table) {
         // Section title
-        val toolSectionLabel = Label("Tools", skin, "section")
+        val toolSectionLabel = Label("Tools (P to cycle BG mode)", skin, "section")
         container.add(toolSectionLabel).padBottom(15f).left().row()
 
         // Tool buttons container
@@ -639,6 +644,12 @@ class UIManager(
 
     fun toggleLightSourceUI() {
         lightSourceUI.toggle()
+    }
+
+    fun updatePlacementInfo(info: String) {
+        if (::placementInfoLabel.isInitialized) {
+            placementInfoLabel.setText(info)
+        }
     }
 
     fun showBackgroundSelection() {
