@@ -46,6 +46,7 @@ class MafiaGame : ApplicationAdapter() {
 
     // Game objects
     private val gameBlocks = Array<GameBlock>()
+    private var lastPlacedInstance: Any? = null
 
     private lateinit var backgroundSystem: BackgroundSystem
 
@@ -277,25 +278,52 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun handleFinePosMove(deltaX: Float, deltaY: Float, deltaZ: Float) {
-        // Find the most recently placed light source
-        val lightSource = lightSources.values.maxByOrNull { it.id }
+        if (lastPlacedInstance == null) {
+            println("No object selected to move. Place an object first.")
+            return
+        }
 
-        if (lightSource != null) {
-            // Update position
-            lightSource.position.add(deltaX, deltaY, deltaZ)
-
-            // Update model instance transforms
-            lightInstances[lightSource.id]?.let { (invisible, debug) ->
-                invisible.transform.setTranslation(lightSource.position)
-                debug.transform.setTranslation(lightSource.position)
+        when (val instance = lastPlacedInstance) {
+            is GameCar -> {
+                instance.position.add(deltaX, deltaY, deltaZ)
+                instance.updateTransform() // Uses the car's specific update method
+                println("Moved Car to ${instance.position}")
             }
-
-            // Update the actual light position
-            lightSource.updatePointLight()
-
-            println("Light source #${lightSource.id} moved to: ${lightSource.position}")
-        } else {
-            println("No light source found to move. Place a light source first.")
+            is GameObject -> {
+                instance.position.add(deltaX, deltaY, deltaZ)
+                instance.modelInstance.transform.setTranslation(instance.position)
+                instance.debugInstance?.transform?.setTranslation(instance.position)
+                println("Moved Object to ${instance.position}")
+            }
+            is LightSource -> {
+                instance.position.add(deltaX, deltaY, deltaZ)
+                lightInstances[instance.id]?.let { (invisible, debug) ->
+                    invisible.transform.setTranslation(instance.position)
+                    debug.transform.setTranslation(instance.position)
+                }
+                instance.updatePointLight()
+                println("Moved Light to ${instance.position}")
+            }
+            is GameHouse -> {
+                instance.position.add(deltaX, deltaY, deltaZ)
+                // Handle scaling for specific house types if necessary
+                if (instance.houseType == HouseType.HOUSE_4) {
+                    instance.modelInstance.transform.setToTranslationAndScaling(instance.position, Vector3(6f, 6f, 6f))
+                } else {
+                    instance.modelInstance.transform.setTranslation(instance.position)
+                }
+                println("Moved House to ${instance.position}")
+            }
+            is GameItem -> {
+                instance.position.add(deltaX, deltaY, deltaZ)
+                println("Moved Item to ${instance.position}")
+            }
+            is GameBackground -> {
+                instance.position.add(deltaX, deltaY, deltaZ)
+                instance.modelInstance.transform.setTranslation(instance.position)
+                println("Moved Background to ${instance.position}")
+            }
+            else -> println("Fine positioning not supported for this object type.")
         }
     }
 
@@ -466,6 +494,7 @@ class MafiaGame : ApplicationAdapter() {
         }
 
         lightSources[lightSource.id] = lightSource
+        lastPlacedInstance = lightSource
     }
 
     // New function to place items
@@ -475,14 +504,18 @@ class MafiaGame : ApplicationAdapter() {
 
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
             // Items can be placed more freely, don't need to snap to grid
-            val itemPosition = Vector3(intersection.x, intersection.y + 1f, intersection.z) // Float items above ground
+            val itemPosition = Vector3(intersection.x, intersection.y + 1f, intersection.z)
 
             // Check if there's already an item too close to this position
             val existingItem = itemSystem.getItemAtPosition(itemPosition, 1.5f)
 
             if (existingItem == null) {
-                itemSystem.addItem(itemPosition, itemSystem.currentSelectedItem)
-                println("${itemSystem.currentSelectedItem.displayName} placed at: $itemPosition")
+                // Capture the result of addItem
+                val newItem = itemSystem.addItem(itemPosition, itemSystem.currentSelectedItem)
+                // If it was created successfully, set it as the last placed instance
+                if (newItem != null) {
+                    lastPlacedInstance = newItem
+                }
             } else {
                 println("Item already exists near this position")
             }
@@ -519,6 +552,7 @@ class MafiaGame : ApplicationAdapter() {
             }
 
             gameObjects.add(gameObject)
+            lastPlacedInstance = gameObject
         }
     }
 
@@ -563,6 +597,7 @@ class MafiaGame : ApplicationAdapter() {
             val position = Vector3(x, y, z)
             val gameCar = GameCar(carInstance, carType, position, 0f) // 0f = facing north
             gameCars.add(gameCar)
+            lastPlacedInstance = gameCar
         }
     }
 
@@ -608,6 +643,7 @@ class MafiaGame : ApplicationAdapter() {
 
             val gameHouse = GameHouse(houseInstance, houseType, position)
             gameHouses.add(gameHouse)
+            lastPlacedInstance = gameHouse
         }
     }
 
@@ -621,14 +657,15 @@ class MafiaGame : ApplicationAdapter() {
         val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            val success = backgroundSystem.addBackground(
+            val newBackground = backgroundSystem.addBackground(
                 intersection.x,
                 intersection.y,
                 intersection.z,
                 backgroundSystem.currentSelectedBackground
             )
 
-            if (success) {
+            if (newBackground != null) {
+                lastPlacedInstance = newBackground
                 println("${backgroundSystem.currentSelectedBackground.displayName} placed successfully")
             }
         }

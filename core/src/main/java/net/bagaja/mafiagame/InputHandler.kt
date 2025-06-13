@@ -259,8 +259,7 @@ class InputHandler(
                         return true
                     }
                     Input.Keys.F -> {
-                        if (uiManager.selectedTool == Tool.OBJECT) objectSystem.toggleFinePosMode()
-                        else if (uiManager.selectedTool == Tool.CAR) carSystem.toggleFinePosMode()
+                        getCurrentPositionableSystem()?.toggleFinePosMode()
                         return true
                     }
                     Input.Keys.G -> {
@@ -291,38 +290,32 @@ class InputHandler(
                     Input.Keys.NUMPAD_7 -> uiManager.selectedTool = Tool.BACKGROUND
                     // Fine positioning controls
                     Input.Keys.LEFT -> {
-                        if ((objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) ||
-                            (carSystem.finePosMode && uiManager.selectedTool == Tool.CAR)) {
+                        if (getCurrentPositionableSystem()?.finePosMode == true) {
                             leftPressed = true; continuousFineTimer = 0f; return true
                         }
                     }
                     Input.Keys.RIGHT -> {
-                        if ((objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) ||
-                            (carSystem.finePosMode && uiManager.selectedTool == Tool.CAR)) {
+                        if (getCurrentPositionableSystem()?.finePosMode == true) {
                             rightPressed = true; continuousFineTimer = 0f; return true
                         }
                     }
                     Input.Keys.UP -> {
-                        if ((objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) ||
-                            (carSystem.finePosMode && uiManager.selectedTool == Tool.CAR)) {
+                        if (getCurrentPositionableSystem()?.finePosMode == true) {
                             upPressed = true; continuousFineTimer = 0f; return true
                         }
                     }
                     Input.Keys.DOWN -> {
-                        if ((objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) ||
-                            (carSystem.finePosMode && uiManager.selectedTool == Tool.CAR)) {
+                        if (getCurrentPositionableSystem()?.finePosMode == true) {
                             downPressed = true; continuousFineTimer = 0f; return true
                         }
                     }
                     Input.Keys.NUM_0 -> {
-                        if ((objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) ||
-                            (carSystem.finePosMode && uiManager.selectedTool == Tool.CAR)) {
+                        if (getCurrentPositionableSystem()?.finePosMode == true) {
                             pageUpPressed = true; continuousFineTimer = 0f; return true
                         }
                     }
                     Input.Keys.NUM_9 -> {
-                        if ((objectSystem.finePosMode && uiManager.selectedTool == Tool.OBJECT) ||
-                            (carSystem.finePosMode && uiManager.selectedTool == Tool.CAR)) {
+                        if (getCurrentPositionableSystem()?.finePosMode == true) {
                             pageDownPressed = true; continuousFineTimer = 0f; return true
                         }
                     }
@@ -423,10 +416,17 @@ class InputHandler(
     }
 
     private fun getCurrentFineStep(): Float {
+        return getCurrentPositionableSystem()?.fineStep ?: 0.25f
+    }
+
+    private fun getCurrentPositionableSystem(): IFinePositionable? {
         return when (uiManager.selectedTool) {
-            Tool.OBJECT -> objectSystem.getFineStep()
-            Tool.CAR -> carSystem.getFineStep()
-            else -> 0.25f // default
+            Tool.OBJECT -> objectSystem
+            Tool.CAR -> carSystem
+            Tool.HOUSE -> houseSystem
+            Tool.ITEM -> itemSystem
+            Tool.BACKGROUND -> backgroundSystem
+            else -> null
         }
     }
 }

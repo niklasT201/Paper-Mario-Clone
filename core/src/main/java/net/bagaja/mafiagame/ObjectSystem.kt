@@ -18,7 +18,7 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 
 // Object system class to manage 3D cross-shaped objects and light sources
-class ObjectSystem {
+class ObjectSystem: IFinePositionable {
     private val objectModels = mutableMapOf<ObjectType, Model>()
     private val objectTextures = mutableMapOf<ObjectType, Texture>()
     private val debugModels = mutableMapOf<ObjectType, Model>() // For showing invisible objects in debug mode
@@ -33,9 +33,8 @@ class ObjectSystem {
         private set
 
     // Fine positioning mode
-    var finePosMode = false
-        private set
-    private val fineStep = 0.25f // Step size for fine positioning
+    override var finePosMode = false
+    override val fineStep = 0.25f
 
     // Debug mode to show invisible objects
     var debugMode = false
@@ -48,7 +47,7 @@ class ObjectSystem {
         val modelBuilder = ModelBuilder()
 
         // Load textures and create models for each object type
-        for (objectType in ObjectType.values()) {
+        for (objectType in ObjectType.entries) {
             try {
                 if (objectType.isInvisible) {
                     // Create invisible light source
@@ -165,8 +164,8 @@ class ObjectSystem {
     }
 
     fun nextObject() {
-        currentSelectedObjectIndex = (currentSelectedObjectIndex + 1) % ObjectType.values().size
-        currentSelectedObject = ObjectType.values()[currentSelectedObjectIndex]
+        currentSelectedObjectIndex = (currentSelectedObjectIndex + 1) % ObjectType.entries.size
+        currentSelectedObject = ObjectType.entries.toTypedArray()[currentSelectedObjectIndex]
         println("Selected object: ${currentSelectedObject.displayName}")
     }
 
@@ -174,22 +173,15 @@ class ObjectSystem {
         currentSelectedObjectIndex = if (currentSelectedObjectIndex > 0) {
             currentSelectedObjectIndex - 1
         } else {
-            ObjectType.values().size - 1
+            ObjectType.entries.size - 1
         }
-        currentSelectedObject = ObjectType.values()[currentSelectedObjectIndex]
+        currentSelectedObject = ObjectType.entries.toTypedArray()[currentSelectedObjectIndex]
         println("Selected object: ${currentSelectedObject.displayName}")
-    }
-
-    fun toggleFinePosMode() {
-        finePosMode = !finePosMode
-        println("Fine positioning mode: ${if (finePosMode) "ON (use arrow keys for precise placement)" else "OFF"}")
     }
 
     fun toggleDebugMode() {
         debugMode = !debugMode
     }
-
-    fun getFineStep(): Float = fineStep
 
     fun createObjectInstance(objectType: ObjectType): ModelInstance? {
         val model = objectModels[objectType]

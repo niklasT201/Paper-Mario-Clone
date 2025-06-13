@@ -10,7 +10,7 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.utils.JsonReader
 
-class HouseSystem {
+class HouseSystem: IFinePositionable {
     private val houseModels = mutableMapOf<HouseType, Model>()
     private val houseTextures = mutableMapOf<HouseType, Texture>()
 
@@ -21,6 +21,9 @@ class HouseSystem {
         private set
     var currentSelectedHouseIndex = 0
         private set
+
+    override var finePosMode = false
+    override val fineStep = 0.25f
 
     fun initialize() {
         // Initialize the 3D model loader

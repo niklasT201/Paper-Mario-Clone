@@ -18,7 +18,7 @@ import com.badlogic.gdx.utils.Array
 import kotlin.math.sin
 
 // Item system class to manage 2D rotating item pickups
-class ItemSystem {
+class ItemSystem: IFinePositionable {
     private val itemModels = mutableMapOf<ItemType, Model>()
     private val itemTextures = mutableMapOf<ItemType, Texture>()
     private val gameItems = Array<GameItem>()
@@ -30,6 +30,9 @@ class ItemSystem {
     var currentSelectedItemIndex = 0
         private set
 
+    override var finePosMode = false
+    override val fineStep = 0.25f
+
     fun initialize() {
         val modelBuilder = ModelBuilder()
 
@@ -39,7 +42,7 @@ class ItemSystem {
         billboardShaderProvider.setBillboardLightingStrength(0.7f)
 
         // Load textures and create models for each item type
-        for (itemType in ItemType.values()) {
+        for (itemType in ItemType.entries) {
             try {
                 // Load texture
                 val texture = Texture(Gdx.files.internal(itemType.texturePath))
@@ -96,8 +99,8 @@ class ItemSystem {
     }
 
     fun nextItem() {
-        currentSelectedItemIndex = (currentSelectedItemIndex + 1) % ItemType.values().size
-        currentSelectedItem = ItemType.values()[currentSelectedItemIndex]
+        currentSelectedItemIndex = (currentSelectedItemIndex + 1) % ItemType.entries.size
+        currentSelectedItem = ItemType.entries.toTypedArray()[currentSelectedItemIndex]
         println("Selected item: ${currentSelectedItem.displayName}")
     }
 
@@ -105,13 +108,13 @@ class ItemSystem {
         currentSelectedItemIndex = if (currentSelectedItemIndex > 0) {
             currentSelectedItemIndex - 1
         } else {
-            ItemType.values().size - 1
+            ItemType.entries.size - 1
         }
-        currentSelectedItem = ItemType.values()[currentSelectedItemIndex]
+        currentSelectedItem = ItemType.entries.toTypedArray()[currentSelectedItemIndex]
         println("Selected item: ${currentSelectedItem.displayName}")
     }
 
-    fun createItemInstance(itemType: ItemType): ModelInstance? {
+    private fun createItemInstance(itemType: ItemType): ModelInstance? {
         val model = itemModels[itemType]
         return model?.let {
             val instance = ModelInstance(it)
@@ -120,13 +123,15 @@ class ItemSystem {
         }
     }
 
-    fun addItem(position: Vector3, itemType: ItemType) {
+    fun addItem(position: Vector3, itemType: ItemType): GameItem? {
         val modelInstance = createItemInstance(itemType)
         if (modelInstance != null) {
             val gameItem = GameItem(modelInstance, itemType, position.cpy())
             gameItems.add(gameItem)
             println("Added ${itemType.displayName} at position: $position")
+            return gameItem
         }
+        return null
     }
 
     fun removeItem(item: GameItem) {

@@ -17,7 +17,7 @@ import com.badlogic.gdx.utils.Array
 import kotlin.math.abs
 import kotlin.math.round
 
-class BackgroundSystem {
+class BackgroundSystem: IFinePositionable {
     private val backgroundModels = mutableMapOf<BackgroundType, Model>()
     private val backgroundTextures = mutableMapOf<BackgroundType, Texture>()
     private val modelBuilder = ModelBuilder()
@@ -41,6 +41,9 @@ class BackgroundSystem {
         private set
     var currentSelectedBackgroundIndex = 0
         private set
+
+    override var finePosMode = false
+    override val fineStep = 0.25f
 
     fun initialize() {
         // Load textures and create models for each background type
@@ -289,7 +292,7 @@ class BackgroundSystem {
         return model?.let { ModelInstance(it) }
     }
 
-    fun addBackground(x: Float, y: Float, z: Float, backgroundType: BackgroundType): Boolean {
+    fun addBackground(x: Float, y: Float, z: Float, backgroundType: BackgroundType): GameBackground? {
         val position = Vector3(x, y, z)
         val adjustedPosition = getAdjustedPosition(position)
 
@@ -297,7 +300,7 @@ class BackgroundSystem {
         val existingBackground = getBackgroundAtPosition(adjustedPosition, 1f)
         if (existingBackground != null) {
             println("Background already exists near this position")
-            return false
+            return null
         }
 
         val backgroundInstance = createBackgroundInstance(backgroundType)
@@ -306,9 +309,9 @@ class BackgroundSystem {
             val gameBackground = GameBackground(backgroundInstance, backgroundType, adjustedPosition)
             gameBackgrounds.add(gameBackground)
             println("Background ${backgroundType.displayName} added at: $adjustedPosition")
-            return true
+            return gameBackground
         }
-        return false
+        return null
     }
 
     fun removeBackground(backgroundToRemove: GameBackground) {

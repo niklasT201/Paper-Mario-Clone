@@ -52,7 +52,6 @@ public class Lwjgl3Launcher {
 // rotate light source
 // spotlight effect
 // objects with default light source
-// finepositioning for 3d houses
 
 // fbx-conv house.obj house.g3dj
 // fbx-conv -f house.obj house.g3dj

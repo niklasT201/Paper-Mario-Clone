@@ -14,7 +14,7 @@ import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 
-class CarSystem {
+class CarSystem: IFinePositionable {
     private val carModels = mutableMapOf<CarType, Model>()
     private val carTextures = mutableMapOf<CarType, Texture>()
 
@@ -24,15 +24,14 @@ class CarSystem {
         private set
 
     // Fine positioning mode
-    var finePosMode = false
-        private set
-    private val fineStep = 0.25f // Step size for fine positioning
+    override var finePosMode = false
+    override val fineStep = 0.25f
 
     fun initialize() {
         val modelBuilder = ModelBuilder()
 
         // Load textures and create models for each car type
-        for (carType in CarType.values()) {
+        for (carType in CarType.entries) {
             try {
                 // Load texture for cars
                 val texture = Texture(Gdx.files.internal(carType.texturePath))
@@ -89,8 +88,8 @@ class CarSystem {
     }
 
     fun nextCar() {
-        currentSelectedCarIndex = (currentSelectedCarIndex + 1) % CarType.values().size
-        currentSelectedCar = CarType.values()[currentSelectedCarIndex]
+        currentSelectedCarIndex = (currentSelectedCarIndex + 1) % CarType.entries.size
+        currentSelectedCar = CarType.entries.toTypedArray()[currentSelectedCarIndex]
         println("Selected car: ${currentSelectedCar.displayName}")
     }
 
@@ -98,18 +97,11 @@ class CarSystem {
         currentSelectedCarIndex = if (currentSelectedCarIndex > 0) {
             currentSelectedCarIndex - 1
         } else {
-            CarType.values().size - 1
+            CarType.entries.size - 1
         }
-        currentSelectedCar = CarType.values()[currentSelectedCarIndex]
+        currentSelectedCar = CarType.entries.toTypedArray()[currentSelectedCarIndex]
         println("Selected car: ${currentSelectedCar.displayName}")
     }
-
-    fun toggleFinePosMode() {
-        finePosMode = !finePosMode
-        println("Fine positioning mode: ${if (finePosMode) "ON (use arrow keys for precise placement)" else "OFF"}")
-    }
-
-    fun getFineStep(): Float = fineStep
 
     fun createCarInstance(carType: CarType): ModelInstance? {
         val model = carModels[carType]
