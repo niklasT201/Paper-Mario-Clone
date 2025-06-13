@@ -130,12 +130,25 @@ class RaycastSystem(private val blockSize: Float) {
         var closestDistance = Float.MAX_VALUE
 
         for (background in gameBackgrounds) {
-            val intersection = Vector3()
             val bounds = BoundingBox()
-            background.modelInstance.calculateBoundingBox(bounds)
-            bounds.min.add(background.position)
-            bounds.max.add(background.position)
+            val halfWidth = background.backgroundType.width / 2f
+            val height = background.backgroundType.height
+            val halfDepth = 0.25f // A small depth for the flat object
 
+            bounds.set(
+                Vector3(
+                    background.position.x - halfWidth,
+                    background.position.y, // The bottom of the object is at its y-position
+                    background.position.z - halfDepth
+                ),
+                Vector3(
+                    background.position.x + halfWidth,
+                    background.position.y + height, // The top is at y + height
+                    background.position.z + halfDepth
+                )
+            )
+
+            val intersection = Vector3()
             if (Intersector.intersectRayBounds(ray, bounds, intersection)) {
                 val distance = ray.origin.dst(intersection)
                 if (distance < closestDistance) {

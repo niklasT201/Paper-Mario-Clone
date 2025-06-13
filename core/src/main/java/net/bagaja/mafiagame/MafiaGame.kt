@@ -48,7 +48,6 @@ class MafiaGame : ApplicationAdapter() {
     private val gameBlocks = Array<GameBlock>()
 
     private lateinit var backgroundSystem: BackgroundSystem
-    private val gameBackgrounds = Array<GameBackground>()
 
     // Block size
     private val blockSize = 4f
@@ -244,7 +243,7 @@ class MafiaGame : ApplicationAdapter() {
                 }
             }
             UIManager.Tool.BACKGROUND -> {
-                val backgroundToRemove = raycastSystem.getBackgroundAtRay(ray, gameBackgrounds)
+                val backgroundToRemove = raycastSystem.getBackgroundAtRay(ray, backgroundSystem.getBackgrounds())
                 if (backgroundToRemove != null) {
                     removeBackground(backgroundToRemove)
                     return true
@@ -663,9 +662,18 @@ class MafiaGame : ApplicationAdapter() {
         itemSystem.update(deltaTime, cameraManager.camera.position, playerSystem.getPosition(), 2f)
 
         // Update highlight system
-        highlightSystem.update(cameraManager, uiManager, gameBlocks, backgroundSystem) { ray ->
-            raycastSystem.getBlockAtRay(ray, gameBlocks)
-        }
+        highlightSystem.update(
+            cameraManager,
+            uiManager,
+            gameBlocks,
+            gameObjects,
+            gameCars,
+            gameHouses,
+            backgroundSystem,
+            itemSystem,
+            objectSystem,
+            raycastSystem
+        )
 
         //shaderProvider.setEnvironment(environment)
         //println("MafiaGame.render: Passing environment to provider, hash: ${environment.hashCode()}")

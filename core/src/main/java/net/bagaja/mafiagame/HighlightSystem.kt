@@ -23,60 +23,93 @@ class HighlightSystem(private val blockSize: Float) {
     private var highlightMaterial: Material? = null
     private var isHighlightVisible = false
     private var highlightPosition = Vector3()
+    private var currentHighlightSize = Vector3(blockSize, blockSize, blockSize)
+
+    // Colors for different states
+    private val placeColor = Color(0f, 1f, 0f, 0.3f) // Green for placement
+    private val removeColor = Color(1f, 0f, 0f, 0.3f) // Red for removal
+    private val toolColors = mapOf(
+        UIManager.Tool.BLOCK to Color(0f, 1f, 0f, 0.3f),      // Green
+        UIManager.Tool.OBJECT to Color(0f, 0f, 1f, 0.3f),     // Blue
+        UIManager.Tool.ITEM to Color(1f, 1f, 0f, 0.3f),       // Yellow
+        UIManager.Tool.CAR to Color(1f, 0f, 1f, 0.3f),        // Purple
+        UIManager.Tool.PLAYER to Color(0f, 1f, 0f, 0.3f),     // Green
+        UIManager.Tool.HOUSE to Color(0f, 1f, 1f, 0.3f),      // Cyan
+        UIManager.Tool.BACKGROUND to Color(1f, 0.5f, 0f, 0.3f) // Orange
+    )
 
     fun initialize() {
         val modelBuilder = ModelBuilder()
 
         // Create a transparent material with blending
         highlightMaterial = Material(
-            ColorAttribute.createDiffuse(Color.GREEN),
+            ColorAttribute.createDiffuse(placeColor),
             com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute(
-                GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.3f  // Alpha value (0.0 = fully transparent, 1.0 = fully opaque)
+                GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.3f
             )
         )
 
-        // Create a wireframe box that's slightly larger than regular blocks
-        val highlightSize = blockSize + 0.2f
+        // Create initial highlight model
+        createHighlightModel(Vector3(blockSize, blockSize, blockSize))
+    }
+
+    private fun createHighlightModel(size: Vector3) {
+        // Dispose old model if it exists
+        highlightModel?.dispose()
+
+        val modelBuilder = ModelBuilder()
+        val highlightSize = size.cpy().add(0.2f, 0.2f, 0.2f) // Slightly larger for visibility
+
         highlightModel = modelBuilder.createBox(
-            highlightSize, highlightSize, highlightSize,
+            highlightSize.x, highlightSize.y, highlightSize.z,
             highlightMaterial!!,
             (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
         )
         highlightInstance = ModelInstance(highlightModel!!)
+        currentHighlightSize.set(size)
+    }
+
+    private fun updateHighlightSize(newSize: Vector3) {
+        if (!currentHighlightSize.epsilonEquals(newSize, 0.1f)) {
+            createHighlightModel(newSize)
+        }
     }
 
     fun update(
         cameraManager: CameraManager,
         uiManager: UIManager,
         gameBlocks: Array<GameBlock>,
+        gameObjects: Array<GameObject>,
+        gameCars: Array<GameCar>,
+        gameHouses: Array<GameHouse>,
         backgroundSystem: BackgroundSystem,
-        getBlockAtRayFunction: (Ray) -> GameBlock?
+        itemSystem: ItemSystem,
+        objectSystem: ObjectSystem,
+        raycastSystem: RaycastSystem
     ) {
         val mouseX = Gdx.input.x.toFloat()
         val mouseY = Gdx.input.y.toFloat()
         val ray = cameraManager.camera.getPickRay(mouseX, mouseY)
 
         when (uiManager.selectedTool) {
-            UIManager.Tool.BLOCK -> updateBlockHighlight(ray, gameBlocks, getBlockAtRayFunction)
-            UIManager.Tool.OBJECT -> updateObjectHighlight(ray)
-            UIManager.Tool.ITEM -> updateItemHighlight(ray)
-            UIManager.Tool.CAR -> updateCarHighlight(ray)
-            UIManager.Tool.PLAYER -> updatePlayerHighlight(ray, gameBlocks)
-            UIManager.Tool.HOUSE -> updateHouseHighlight(ray)
-            UIManager.Tool.BACKGROUND -> updateBackgroundHighlight(ray, backgroundSystem)
+            UIManager.Tool.BLOCK -> updateBlockHighlight(ray, gameBlocks, raycastSystem)
+            UIManager.Tool.OBJECT -> updateObjectHighlight(ray, gameObjects, objectSystem, raycastSystem)
+            UIManager.Tool.ITEM -> updateItemHighlight(ray, itemSystem, raycastSystem)
+            UIManager.Tool.CAR -> updateCarHighlight(ray, gameCars, raycastSystem, uiManager)
+            UIManager.Tool.PLAYER -> updatePlayerHighlight(ray, gameBlocks, raycastSystem)
+            UIManager.Tool.HOUSE -> updateHouseHighlight(ray, gameHouses, raycastSystem, uiManager)
+            UIManager.Tool.BACKGROUND -> updateBackgroundHighlight(ray, backgroundSystem, raycastSystem, uiManager)
         }
     }
 
-    private fun updateBlockHighlight(ray: Ray, gameBlocks: Array<GameBlock>, getBlockAtRayFunction: (Ray) -> GameBlock?) {
-        // Check if we're hovering over an existing block (for removal)
-        val hitBlock = getBlockAtRayFunction(ray)
+    private fun updateBlockHighlight(ray: Ray, gameBlocks: Array<GameBlock>, raycastSystem: RaycastSystem) {
+        val hitBlock = raycastSystem.getBlockAtRay(ray, gameBlocks)
+
+        updateHighlightSize(Vector3(blockSize, blockSize, blockSize))
 
         if (hitBlock != null) {
-            // Show transparent red highlight for block removal
-            isHighlightVisible = true
-            highlightPosition.set(hitBlock.position)
-            setHighlightColor(Color(1f, 0f, 0f, 0.3f)) // Red
-            updateHighlightTransform()
+            // Show red highlight for block removal
+            showHighlight(hitBlock.position, removeColor)
         } else {
             // Show green highlight for block placement
             val intersection = Vector3()
@@ -86,175 +119,226 @@ class HighlightSystem(private val blockSize: Float) {
                 // Snap to grid
                 val gridX = floor(intersection.x / blockSize) * blockSize
                 val gridZ = floor(intersection.z / blockSize) * blockSize
+                val placementPos = Vector3(gridX + blockSize / 2, blockSize / 2, gridZ + blockSize / 2)
 
-                // Check if there's already a block at this position
+                // Check if position is occupied
                 val existingBlock = gameBlocks.find { gameBlock ->
-                    kotlin.math.abs(gameBlock.position.x - (gridX + blockSize / 2)) < 0.1f &&
-                        kotlin.math.abs(gameBlock.position.y - (blockSize / 2)) < 0.1f &&
-                        kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize / 2)) < 0.1f
+                    gameBlock.position.dst(placementPos) < 0.1f
                 }
 
                 if (existingBlock == null) {
-                    isHighlightVisible = true
-                    highlightPosition.set(gridX + blockSize / 2, blockSize / 2, gridZ + blockSize / 2)
-                    setHighlightColor(Color(0f, 1f, 0f, 0.3f)) // Green
-                    updateHighlightTransform()
+                    showHighlight(placementPos, placeColor)
                 } else {
-                    isHighlightVisible = false
+                    hideHighlight()
                 }
             } else {
-                isHighlightVisible = false
+                hideHighlight()
             }
         }
     }
 
-    private fun updateObjectHighlight(ray: Ray) {
-        // Show blue highlight for object placement
+    private fun updateObjectHighlight(ray: Ray, gameObjects: Array<GameObject>, objectSystem: ObjectSystem, raycastSystem: RaycastSystem) {
         val intersection = Vector3()
         val groundPlane = Plane(Vector3.Y, 0f)
+
+        if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            when (objectSystem.currentSelectedObject) {
+                ObjectType.LIGHT_SOURCE -> {
+                    updateHighlightSize(Vector3(1f, 1f, 1f)) // Small size for light sources
+
+                    // Check for existing light source
+                    val existingLight = objectSystem.getLightSourceAt(intersection, 2f)
+                    if (existingLight != null) {
+                        showHighlight(existingLight.position, removeColor)
+                    } else {
+                        showHighlight(Vector3(intersection.x, intersection.y, intersection.z), toolColors[UIManager.Tool.OBJECT]!!)
+                    }
+                }
+                else -> {
+                    updateHighlightSize(Vector3(2f, 2f, 2f)) // Standard object size
+
+                    val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
+                    val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+                    val placementPos = Vector3(gridX, 1f, gridZ) // Adjusted Y position
+
+                    // Check for existing object
+                    val existingObject = gameObjects.find { gameObject ->
+                        gameObject.position.dst(placementPos) < 1f
+                    }
+
+                    if (existingObject != null) {
+                        showHighlight(existingObject.position, removeColor)
+                    } else {
+                        showHighlight(placementPos, toolColors[UIManager.Tool.OBJECT]!!)
+                    }
+                }
+            }
+        } else {
+            hideHighlight()
+        }
+    }
+
+    private fun updateItemHighlight(ray: Ray, itemSystem: ItemSystem, raycastSystem: RaycastSystem) {
+        val intersection = Vector3()
+        val groundPlane = Plane(Vector3.Y, 0f)
+
+        updateHighlightSize(Vector3(1.5f, 1.5f, 1.5f)) // Item size
+
+        if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            val placementPos = Vector3(intersection.x, intersection.y + 1f, intersection.z)
+
+            // Check for existing item
+            val existingItem = itemSystem.getItemAtPosition(placementPos, 1.5f)
+            if (existingItem != null && !existingItem.isCollected) {
+                showHighlight(existingItem.position, removeColor)
+            } else {
+                showHighlight(placementPos, toolColors[UIManager.Tool.ITEM]!!)
+            }
+        } else {
+            hideHighlight()
+        }
+    }
+
+    private fun updateCarHighlight(ray: Ray, gameCars: Array<GameCar>, raycastSystem: RaycastSystem, uiManager: UIManager) {
+        val intersection = Vector3()
+        val groundPlane = Plane(Vector3.Y, 0f)
+
+        // Get car dimensions - use proper car size
+        val carSize = Vector3(4f, 2f, 6f)
+        updateHighlightSize(carSize)
 
         if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
             val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+            val placementPos = Vector3(gridX, carSize.y / 2, gridZ) // Position at car center height
 
-            isHighlightVisible = true
-            highlightPosition.set(gridX, 0.5f, gridZ)
-            setHighlightColor(Color(0f, 0f, 1f, 0.3f)) // Blue
-            updateHighlightTransform()
+            // Check for existing car
+            val existingCar = gameCars.find { car ->
+                car.position.dst(placementPos) < 3f // Increased detection range for cars
+            }
+
+            if (existingCar != null) {
+                // Show red highlight at actual car position with car size
+                showHighlight(existingCar.position, removeColor)
+            } else {
+                showHighlight(placementPos, toolColors[UIManager.Tool.CAR]!!)
+            }
         } else {
-            isHighlightVisible = false
+            hideHighlight()
         }
     }
 
-    private fun updateItemHighlight(ray: Ray) {
-        // Show yellow highlight for item placement
+    private fun updateHouseHighlight(ray: Ray, gameHouses: Array<GameHouse>, raycastSystem: RaycastSystem, uiManager: UIManager) {
         val intersection = Vector3()
         val groundPlane = Plane(Vector3.Y, 0f)
 
-        if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            isHighlightVisible = true
-            highlightPosition.set(intersection.x, intersection.y + 1f, intersection.z) // Items float above ground
-            setHighlightColor(Color(1f, 1f, 0f, 0.3f)) // Yellow
-            updateHighlightTransform()
-        } else {
-            isHighlightVisible = false
-        }
-    }
-
-    private fun updateCarHighlight(ray: Ray) {
-        // Show purple highlight for car placement
-        val intersection = Vector3()
-        val groundPlane = Plane(Vector3.Y, 0f)
+        // Get house dimensions based on selected house type
+        val houseSize = getHouseDimensions(uiManager)
+        updateHighlightSize(houseSize)
 
         if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
             val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+            val placementPos = Vector3(gridX, houseSize.y / 2, gridZ)
 
-            isHighlightVisible = true
-            highlightPosition.set(gridX, 0.5f, gridZ)
-            setHighlightColor(Color(1f, 0f, 1f, 0.3f)) // Purple
-            updateHighlightTransform()
+            // Check for existing house
+            val existingHouse = gameHouses.find { house ->
+                house.position.dst(placementPos) < 4f // Increased detection range for houses
+            }
+
+            if (existingHouse != null) {
+                // Show red highlight at actual house position with house size
+                val actualHouseSize = getHouseDimensionsForType(existingHouse.houseType)
+                updateHighlightSize(actualHouseSize)
+                showHighlight(existingHouse.position, removeColor)
+            } else {
+                showHighlight(placementPos, toolColors[UIManager.Tool.HOUSE]!!)
+            }
         } else {
-            isHighlightVisible = false
+            hideHighlight()
         }
     }
 
-    private fun updatePlayerHighlight(ray: Ray, gameBlocks: Array<GameBlock>) {
-        // Show green highlight for player placement (same as block placement logic)
+    private fun updateBackgroundHighlight(ray: Ray, backgroundSystem: BackgroundSystem, raycastSystem: RaycastSystem, uiManager: UIManager) {
         val intersection = Vector3()
         val groundPlane = Plane(Vector3.Y, 0f)
 
         if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            // Snap to grid
+            // Get background dimensions from selected background type
+            val selectedBackground = backgroundSystem.currentSelectedBackground
+            val backgroundSize = Vector3(selectedBackground.width, selectedBackground.height, 0.5f) // Thin depth for backgrounds
+            updateHighlightSize(backgroundSize)
+
+            // Check for existing background at intersection position
+            val existingBackground = backgroundSystem.getBackgroundAtPosition(intersection, backgroundSize.x / 2)
+
+            if (existingBackground != null) {
+                // Show red highlight at actual background position with correct size
+                val actualBackgroundSize = Vector3(
+                    existingBackground.backgroundType.width,
+                    existingBackground.backgroundType.height,
+                    0.5f
+                )
+                updateHighlightSize(actualBackgroundSize)
+                showHighlight(existingBackground.position, removeColor)
+            } else {
+                // Show placement highlight at intersection point (not grid-snapped for backgrounds)
+                val placementPos = Vector3(intersection.x, intersection.y + backgroundSize.y / 2, intersection.z)
+                showHighlight(placementPos, toolColors[UIManager.Tool.BACKGROUND]!!)
+            }
+        } else {
+            hideHighlight()
+        }
+    }
+
+    private fun updatePlayerHighlight(ray: Ray, gameBlocks: Array<GameBlock>, raycastSystem: RaycastSystem) {
+        val intersection = Vector3()
+        val groundPlane = Plane(Vector3.Y, 0f)
+
+        updateHighlightSize(Vector3(blockSize, blockSize * 2, blockSize)) // Player is taller
+
+        if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
             val gridX = floor(intersection.x / blockSize) * blockSize
             val gridZ = floor(intersection.z / blockSize) * blockSize
+            val placementPos = Vector3(gridX + blockSize / 2, blockSize, gridZ + blockSize / 2)
 
-            // Check if there's already a block at this position
+            // Check if there's a block at this position (player can't be placed on blocks)
             val existingBlock = gameBlocks.find { gameBlock ->
-                kotlin.math.abs(gameBlock.position.x - (gridX + blockSize / 2)) < 0.1f &&
-                    kotlin.math.abs(gameBlock.position.y - (blockSize / 2)) < 0.1f &&
-                    kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize / 2)) < 0.1f
+                gameBlock.position.dst(placementPos) < blockSize
             }
 
             if (existingBlock == null) {
-                isHighlightVisible = true
-                highlightPosition.set(gridX + blockSize / 2, blockSize / 2, gridZ + blockSize / 2)
-                setHighlightColor(Color(0f, 1f, 0f, 0.3f)) // Green
-                updateHighlightTransform()
+                showHighlight(placementPos, toolColors[UIManager.Tool.PLAYER]!!)
             } else {
-                isHighlightVisible = false
+                hideHighlight()
             }
         } else {
-            isHighlightVisible = false
+            hideHighlight()
         }
     }
 
-    private fun updateHouseHighlight(ray: Ray) {
-        // Show a cyan highlight for house placement
-        val intersection = Vector3()
-        val groundPlane = Plane(Vector3.Y, 0f)
+    // Helper function to get house dimensions for UI manager
+    private fun getHouseDimensions(uiManager: UIManager): Vector3 {
+        return Vector3(8f, 6f, 8f)
+    }
 
-        if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
-            val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
-
-            isHighlightVisible = true
-            highlightPosition.set(gridX, 0.5f, gridZ)
-            setHighlightColor(Color(0f, 1f, 1f, 0.3f)) // Cyan for houses
-            updateHighlightTransform()
-        } else {
-            isHighlightVisible = false
+    // Helper function to get house dimensions based on house type
+    private fun getHouseDimensionsForType(houseType: HouseType): Vector3 {
+        return when (houseType) {
+            HouseType.HOUSE_4 -> Vector3(8f * 6f, 6f * 6f, 8f * 6f) // Scaled version
+            else -> Vector3(8f, 6f, 8f) // Default house dimensions
         }
     }
 
-    private fun updateBackgroundHighlight(ray: Ray, backgroundSystem: BackgroundSystem) {
-        // Check if we're hovering over an existing background (for removal)
-        val intersection = Vector3()
-        val groundPlane = Plane(Vector3.Y, 0f)
-
-        if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            // Check for existing background at mouse position first
-            val existingBackground = backgroundSystem.getBackgroundAtPosition(intersection, blockSize)
-
-            if (existingBackground != null) {
-                // Show red highlight for background removal
-                isHighlightVisible = true
-                highlightPosition.set(existingBackground.position)
-                setHighlightColor(Color(1f, 0f, 0f, 0.3f)) // Red for removal
-                updateHighlightTransform()
-            } else {
-                // Show highlight for background placement
-                val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
-                val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
-
-                isHighlightVisible = true
-
-                // Get the current selected background type to determine highlight size and color
-                val selectedBackground = backgroundSystem.currentSelectedBackground
-
-                // Position the highlight based on background dimensions
-                val yPosition = selectedBackground.height / 2f
-                highlightPosition.set(gridX, yPosition, gridZ)
-
-                // Use orange color for background placement
-                setHighlightColor(Color(1f, 0.5f, 0f, 0.3f)) // Orange
-
-                // Scale the highlight to match the background size
-                scaleHighlightForBackground(selectedBackground)
-                updateHighlightTransform()
-            }
-        } else {
-            isHighlightVisible = false
-        }
+    private fun showHighlight(position: Vector3, color: Color) {
+        isHighlightVisible = true
+        highlightPosition.set(position)
+        setHighlightColor(color)
+        updateHighlightTransform()
     }
 
-    private fun scaleHighlightForBackground(backgroundType: BackgroundType) {
-        // Scale the highlight box to match the background dimensions
-        val scaleX = backgroundType.width / (blockSize + 0.2f)
-        val scaleY = backgroundType.height / (blockSize + 0.2f)
-        val scaleZ = 1f // Keep depth normal for 2D backgrounds
-
-        highlightInstance?.transform?.scl(scaleX, scaleY, scaleZ)
+    private fun hideHighlight() {
+        isHighlightVisible = false
     }
 
     private fun setHighlightColor(color: Color) {
