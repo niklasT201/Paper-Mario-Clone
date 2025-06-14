@@ -306,12 +306,8 @@ class MafiaGame : ApplicationAdapter() {
             }
             is GameHouse -> {
                 instance.position.add(deltaX, deltaY, deltaZ)
-                // Handle scaling for specific house types if necessary
-                if (instance.houseType == HouseType.HOUSE_4) {
-                    instance.modelInstance.transform.setToTranslationAndScaling(instance.position, Vector3(6f, 6f, 6f))
-                } else {
-                    instance.modelInstance.transform.setTranslation(instance.position)
-                }
+                // Apply uniform scaling to all house types
+                instance.modelInstance.transform.setToTranslationAndScaling(instance.position, Vector3(6f, 6f, 6f))
                 println("Moved House to ${instance.position}")
             }
             is GameItem -> {
@@ -634,12 +630,8 @@ class MafiaGame : ApplicationAdapter() {
         if (houseInstance != null) {
             val position = Vector3(x, y, z)
 
-            // scale up 3D houses
-            if (houseType == HouseType.HOUSE_4) {
-                houseInstance.transform.setToTranslationAndScaling(position, Vector3(6f, 6f, 6f))
-            } else {
-                houseInstance.transform.setTranslation(position)
-            }
+            // Scale up ALL houses uniformly
+            houseInstance.transform.setToTranslationAndScaling(position, Vector3(6f, 6f, 6f))
 
             val gameHouse = GameHouse(houseInstance, houseType, position)
             gameHouses.add(gameHouse)
