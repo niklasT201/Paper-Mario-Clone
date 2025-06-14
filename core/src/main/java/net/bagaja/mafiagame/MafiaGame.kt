@@ -58,6 +58,8 @@ class MafiaGame : ApplicationAdapter() {
     private val lightInstances = mutableMapOf<Int, Pair<ModelInstance, ModelInstance>>() // invisible, debug
     private val activeLights = Array<PointLight>()
     private val maxLights = 128
+    private var lightUpdateCounter = 0
+    private val lightUpdateInterval = 15 // Update every 15 frames
 
     override fun create() {
         setupGraphics()
@@ -481,16 +483,55 @@ class MafiaGame : ApplicationAdapter() {
 
         // Create and add the actual point light for rendering
         val pointLight = lightSource.createPointLight()
-        if (activeLights.size < maxLights) {
-            environment.add(pointLight)
-            activeLights.add(pointLight)
-            println("Light source #${lightSource.id} placed at: $position with intensity $intensity (Total lights: ${activeLights.size})")
-        } else {
-            println("Warning: Maximum number of lights ($maxLights) reached!")
-        }
+        environment.add(pointLight)
+        activeLights.add(pointLight)
+        println("Light source #${lightSource.id} placed at: $position with intensity $intensity (Total lights: ${activeLights.size})")
 
         lightSources[lightSource.id] = lightSource
         lastPlacedInstance = lightSource
+    }
+
+    private fun updateActiveLights() {
+        // Clear current active lights
+        activeLights.clear()
+        environment.clear() // This removes all lights from environment
+
+        // Re-add ambient and directional light
+        environment.set(ColorAttribute(ColorAttribute.AmbientLight, 0.1f, 0.1f, 0.1f, 1f))
+        environment.add(DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f))
+
+        // Get camera position for distance calculations
+        val cameraPos = cameraManager.camera.position
+
+        // Create list of lights with their distances
+        val lightsWithDistance = mutableListOf<Pair<LightSource, Float>>()
+
+        for (lightSource in lightSources.values) {
+            if (lightSource.isEnabled && lightSource.pointLight != null) {
+                val distance = lightSource.position.dst(cameraPos)
+                lightsWithDistance.add(Pair(lightSource, distance))
+            }
+        }
+
+        // Sort by distance (closest first)
+        lightsWithDistance.sortBy { it.second }
+
+        // Add the closest lights up to our maximum
+        var addedLights = 0
+        for ((lightSource, distance) in lightsWithDistance) {
+            if (addedLights >= maxLights) break
+
+            // Optional: Skip lights that are too far away
+            if (distance > lightSource.range * 2f) continue
+
+            lightSource.pointLight?.let { pointLight ->
+                environment.add(pointLight)
+                activeLights.add(pointLight)
+                addedLights++
+            }
+        }
+
+        println("Active lights updated: $addedLights/${lightSources.size} lights active")
     }
 
     // New function to place items
@@ -683,6 +724,12 @@ class MafiaGame : ApplicationAdapter() {
         // Handle player input
         handlePlayerInput()
         playerSystem.update(deltaTime)
+
+        lightUpdateCounter++
+        if (lightUpdateCounter >= lightUpdateInterval) {
+            updateActiveLights()
+            lightUpdateCounter = 0
+        }
 
         // Update item system (animations, collisions, etc.)
         itemSystem.update(deltaTime, cameraManager.camera.position, playerSystem.getPosition(), 2f)
