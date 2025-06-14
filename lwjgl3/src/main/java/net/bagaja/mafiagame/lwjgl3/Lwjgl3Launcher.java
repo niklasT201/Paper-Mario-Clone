@@ -35,7 +35,6 @@ public class Lwjgl3Launcher {
 }
 
 // improve general placing
-// player can jump
 // new blocks
 // experimenting with block style
 // physics
