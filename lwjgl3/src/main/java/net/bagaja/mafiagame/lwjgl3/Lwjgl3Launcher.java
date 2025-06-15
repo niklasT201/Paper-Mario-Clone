@@ -37,7 +37,6 @@ public class Lwjgl3Launcher {
 // improve general placing
 // new blocks
 // physics
-// sky color change
 // adding saving for world building
 // adding guns
 // adding ammunition
@@ -49,6 +48,7 @@ public class Lwjgl3Launcher {
 // rotate light source
 // spotlight effect
 // objects with default light source
+// ui for sky color change
 
 // fbx-conv house.obj house.g3dj
 // fbx-conv -f house.obj house.g3dj

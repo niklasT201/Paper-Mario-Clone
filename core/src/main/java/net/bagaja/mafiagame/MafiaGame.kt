@@ -639,7 +639,10 @@ class MafiaGame : ApplicationAdapter() {
     override fun render() {
         // Clear screen
         Gdx.gl.glViewport(0, 0, Gdx.graphics.width, Gdx.graphics.height)
-        Gdx.gl.glClearColor(0f, 0f, 0f, 1f)
+
+        // Get current sky color for clearing
+        val skyColor = lightingManager.getCurrentSkyColor()
+        Gdx.gl.glClearColor(skyColor.r, skyColor.g, skyColor.b, skyColor.a)
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
 
         // Get delta time for this frame
@@ -682,6 +685,10 @@ class MafiaGame : ApplicationAdapter() {
         // Render 3D scene
         modelBatch.begin(cameraManager.camera)
 
+        // Render sky FIRST
+        lightingManager.renderSky(modelBatch, cameraManager.camera)
+
+        // Render sun
         lightingManager.renderSun(modelBatch, cameraManager.camera)
 
         // Render all blocks

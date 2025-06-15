@@ -19,6 +19,9 @@ class LightingManager {
     private lateinit var dayNightCycle: DayNightCycle
     private val directionalLight: DirectionalLight = DirectionalLight()
 
+    // Sky System
+    private lateinit var skySystem: SkySystem
+
     // Light management
     private val lightSources = mutableMapOf<Int, LightSource>()
     private val lightInstances = mutableMapOf<Int, Pair<ModelInstance, ModelInstance>>() // invisible, debug
@@ -37,6 +40,11 @@ class LightingManager {
         println("LightingManager.initialize: Created environment, hash: ${environment.hashCode()}")
 
         dayNightCycle = DayNightCycle()
+
+        // Initialize sky system
+        skySystem = SkySystem()
+        skySystem.initialize()
+
         createSunModel()
 
         // Set initial lighting based on the starting time
@@ -56,6 +64,9 @@ class LightingManager {
         // Update day/night cycle with the multiplier
         dayNightCycle.update(deltaTime, timeMultiplier)
 
+        // Update sky system
+        skySystem.update(dayNightCycle, cameraPosition)
+
         updateLighting()
 
         lightUpdateCounter++
@@ -63,6 +74,11 @@ class LightingManager {
             updateActiveLights(cameraPosition)
             lightUpdateCounter = 0
         }
+    }
+
+    fun renderSky(modelBatch: ModelBatch, camera: Camera) {
+        // Render sky first (before everything else)
+        skySystem.render(modelBatch, camera, environment)
     }
 
     fun renderSun(modelBatch: ModelBatch, camera: Camera) {
@@ -211,9 +227,16 @@ class LightingManager {
 
     fun getMaxLights(): Int = maxLights
 
+    // Get current sky color for other systems that might need it
+    fun getCurrentSkyColor(): Color = skySystem.getCurrentSkyColor()
+
+    // Get day/night cycle for other systems
+    fun getDayNightCycle(): DayNightCycle = dayNightCycle
+
     fun dispose() {
         // Clean up resources if needed
         sunModel.model?.dispose()
+        skySystem.dispose()
         lightSources.clear()
         lightInstances.clear()
         activeLights.clear()
