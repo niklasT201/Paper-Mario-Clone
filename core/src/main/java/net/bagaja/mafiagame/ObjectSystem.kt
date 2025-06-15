@@ -197,9 +197,13 @@ class ObjectSystem: IFinePositionable {
         position: Vector3,
         intensity: Float = LightSource.DEFAULT_INTENSITY,
         range: Float = LightSource.DEFAULT_RANGE,
-        color: Color = Color(LightSource.DEFAULT_COLOR_R, LightSource.DEFAULT_COLOR_G, LightSource.DEFAULT_COLOR_B, 1f)
+        color: Color = Color(LightSource.DEFAULT_COLOR_R, LightSource.DEFAULT_COLOR_G, LightSource.DEFAULT_COLOR_B, 1f),
+        rotationX: Float = 0f,
+        rotationY: Float = 0f,
+        rotationZ: Float = 0f
     ): LightSource {
-        val lightSource = LightSource(nextLightId++, position, intensity, range, color)
+        val lightSource = LightSource(nextLightId++, position, intensity, range, color, true, rotationX, rotationY, rotationZ)
+        lightSource.updateTransform() // Apply initial rotation
         lightSources[lightSource.id] = lightSource
         return lightSource
     }

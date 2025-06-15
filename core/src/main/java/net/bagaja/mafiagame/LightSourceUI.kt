@@ -32,6 +32,18 @@ class LightSourceUI(
     private lateinit var mainContainer: Table
     private var colorPickerDialog: ColorPickerDialog? = null
 
+    private lateinit var rotationXSlider: Slider
+    private lateinit var rotationYSlider: Slider
+    private lateinit var rotationZSlider: Slider
+    private lateinit var rotationXLabel: Label
+    private lateinit var rotationYLabel: Label
+    private lateinit var rotationZLabel: Label
+
+    // Add rotation properties
+    var nextRotationX = 0f
+    var nextRotationY = 0f
+    var nextRotationZ = 0f
+
     var nextIntensity = LightSource.DEFAULT_INTENSITY
     var nextRange = LightSource.DEFAULT_RANGE
     var nextColor = Color(LightSource.DEFAULT_COLOR_R, LightSource.DEFAULT_COLOR_G, LightSource.DEFAULT_COLOR_B, 1f)
@@ -103,6 +115,40 @@ class LightSourceUI(
             rangeLabel.setText("${value.toInt()}%")
         }
 
+        // Add rotation controls
+        createSliderControl(
+            settingsContainer,
+            "Rotation X",
+            { rotationXSlider = it },
+            { rotationXLabel = it },
+            0f, 360f
+        ) { value ->
+            nextRotationX = value
+            rotationXLabel.setText("${value.toInt()}°")
+        }
+
+        createSliderControl(
+            settingsContainer,
+            "Rotation Y",
+            { rotationYSlider = it },
+            { rotationYLabel = it },
+            0f, 360f
+        ) { value ->
+            nextRotationY = value
+            rotationYLabel.setText("${value.toInt()}°")
+        }
+
+        createSliderControl(
+            settingsContainer,
+            "Rotation Z",
+            { rotationZSlider = it },
+            { rotationZLabel = it },
+            0f, 360f
+        ) { value ->
+            nextRotationZ = value
+            rotationZLabel.setText("${value.toInt()}°")
+        }
+
         // Color picker - now as clickable button
         val colorContainer = Table()
         colorContainer.add(Label("Color:", skin)).left().padBottom(8f).row()
@@ -127,6 +173,12 @@ class LightSourceUI(
         rangeSlider.value = ((nextRange - LightSource.MIN_RANGE) / (LightSource.MAX_RANGE - LightSource.MIN_RANGE)) * 100f
         intensityLabel.setText("${((nextIntensity / LightSource.MAX_INTENSITY) * 100f).toInt()}%")
         rangeLabel.setText("${(((nextRange - LightSource.MIN_RANGE) / (LightSource.MAX_RANGE - LightSource.MIN_RANGE)) * 100f).toInt()}%")
+        rotationXSlider.value = nextRotationX
+        rotationYSlider.value = nextRotationY
+        rotationZSlider.value = nextRotationZ
+        rotationXLabel.setText("${nextRotationX.toInt()}°")
+        rotationYLabel.setText("${nextRotationY.toInt()}°")
+        rotationZLabel.setText("${nextRotationZ.toInt()}°")
     }
 
     private fun openColorPickerDialog() {
@@ -200,11 +252,25 @@ class LightSourceUI(
         nextIntensity = LightSource.DEFAULT_INTENSITY
         nextRange = LightSource.DEFAULT_RANGE
         nextColor.set(LightSource.DEFAULT_COLOR_R, LightSource.DEFAULT_COLOR_G, LightSource.DEFAULT_COLOR_B, 1f)
+        nextRotationX = 0f
+        nextRotationY = 0f
+        nextRotationZ = 0f
 
         intensitySlider.value = (nextIntensity / LightSource.MAX_INTENSITY) * 100f
         rangeSlider.value = ((nextRange - LightSource.MIN_RANGE) / (LightSource.MAX_RANGE - LightSource.MIN_RANGE)) * 100f
+
+        // Update rotation sliders
+        rotationXSlider.value = nextRotationX
+        rotationYSlider.value = nextRotationY
+        rotationZSlider.value = nextRotationZ
+
+        // Update labels
         intensityLabel.setText("${((nextIntensity / LightSource.MAX_INTENSITY) * 100f).toInt()}%")
         rangeLabel.setText("${(((nextRange - LightSource.MIN_RANGE) / (LightSource.MAX_RANGE - LightSource.MIN_RANGE)) * 100f).toInt()}%")
+        rotationXLabel.setText("${nextRotationX.toInt()}°")
+        rotationYLabel.setText("${nextRotationY.toInt()}°")
+        rotationZLabel.setText("${nextRotationZ.toInt()}°")
+
         updateColorPreview()
     }
 
@@ -319,14 +385,16 @@ class LightSourceUI(
     fun isVisible(): Boolean = isVisible
 
     // Get current settings for placing new light
-    fun getCurrentSettings(): Triple<Float, Float, Color> {
-        return Triple(nextIntensity, nextRange, Color(nextColor))
+    fun getCurrentSettings(): Tuple6<Float, Float, Color, Float, Float, Float> {
+        return Tuple6(nextIntensity, nextRange, Color(nextColor), nextRotationX, nextRotationY, nextRotationZ)
     }
 
     fun dispose() {
         colorPickerDialog?.remove()
     }
 }
+
+data class Tuple6<A, B, C, D, E, F>(val first: A, val second: B, val third: C, val fourth: D, val fifth: E, val sixth: F)
 
 /**
  * Color picker dialog with HSV color wheel and RGB sliders

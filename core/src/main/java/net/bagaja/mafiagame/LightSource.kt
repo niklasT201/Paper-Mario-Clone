@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.environment.PointLight
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 
@@ -21,7 +22,10 @@ data class LightSource(
     var intensity: Float = DEFAULT_INTENSITY,
     var range: Float = DEFAULT_RANGE,
     var color: Color = Color(DEFAULT_COLOR_R, DEFAULT_COLOR_G, DEFAULT_COLOR_B, 1f),
-    var isEnabled: Boolean = true
+    var isEnabled: Boolean = true,
+    var rotationX: Float = 0f,
+    var rotationY: Float = 0f,
+    var rotationZ: Float = 0f
 ) {
     var pointLight: RangePointLight? = null
     private var modelInstance: ModelInstance? = null
@@ -54,6 +58,17 @@ data class LightSource(
         updatePointLight(light)
         pointLight = light
         return light
+    }
+
+    fun updateTransform() {
+        val transform = Matrix4()
+        transform.setToTranslation(position)
+        transform.rotate(Vector3.X, rotationX)
+        transform.rotate(Vector3.Y, rotationY)
+        transform.rotate(Vector3.Z, rotationZ)
+
+        modelInstance?.transform?.set(transform)
+        debugModelInstance?.transform?.set(transform)
     }
 
     /**

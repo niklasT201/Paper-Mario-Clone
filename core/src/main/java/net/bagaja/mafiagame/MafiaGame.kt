@@ -272,6 +272,7 @@ class MafiaGame : ApplicationAdapter() {
                 // Use lighting manager for movement
                 val moved = lightingManager.moveLightSource(instance.id, deltaX, deltaY, deltaZ)
                 if (moved) {
+                    instance.updateTransform()
                     println("Moved Light to ${instance.position}")
                 }
             }
@@ -436,20 +437,22 @@ class MafiaGame : ApplicationAdapter() {
             return
         }
 
-        val (intensity, range, color) = uiManager.getLightSourceSettings()
+        val settings = uiManager.getLightSourceSettings()
+        val (intensity, range, color, rotX, rotY, rotZ) = settings
 
-        // Create light source with the new settings
+        // Create light source with rotation
         val lightSource = objectSystem.createLightSource(
             Vector3(position.x, position.y, position.z),
             intensity,
             range,
-            color
+            color,
+            rotX, rotY, rotZ  // Pass rotation values
         )
 
         // Create model instances
         val instances = objectSystem.createLightSourceInstances(lightSource)
 
-        // Add to lighting manager instead of manual management
+        // Add to lighting manager
         lightingManager.addLightSource(lightSource, instances)
 
         lastPlacedInstance = lightSource
