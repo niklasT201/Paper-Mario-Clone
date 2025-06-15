@@ -35,6 +35,7 @@ public class Lwjgl3Launcher {
 }
 
 // improve general placing
+// key for faster timing
 // new blocks
 // experimenting with block style
 // physics
@@ -46,7 +47,6 @@ public class Lwjgl3Launcher {
 // adding multiple city areas
 // animations
 // add driving
-// modify default lightning
 // add shadow option
 // rotate light source
 // spotlight effect

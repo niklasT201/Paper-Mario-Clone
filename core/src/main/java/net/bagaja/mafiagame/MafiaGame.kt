@@ -5,9 +5,6 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.*
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g3d.*
-import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
-import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
-import com.badlogic.gdx.graphics.g3d.environment.PointLight
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.math.collision.BoundingBox
@@ -18,7 +15,6 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var modelBatch: ModelBatch
     private lateinit var shaderProvider: BillboardShaderProvider
     private lateinit var spriteBatch: SpriteBatch
-    private lateinit var environment: Environment
     private lateinit var cameraManager: CameraManager
 
     // UI and Input Managers
@@ -53,17 +49,7 @@ class MafiaGame : ApplicationAdapter() {
     // Block size
     private val blockSize = 4f
 
-    // Day/Night Cycle System
-    private var dayNightCycle = DayNightCycle()
-    private var directionalLight: DirectionalLight? = null
-
-    // Light management
-    private val lightSources = mutableMapOf<Int, LightSource>()
-    private val lightInstances = mutableMapOf<Int, Pair<ModelInstance, ModelInstance>>() // invisible, debug
-    private val activeLights = Array<PointLight>()
-    private val maxLights = 128
-    private var lightUpdateCounter = 0
-    private val lightUpdateInterval = 15 // Update every 15 frames
+    private lateinit var lightingManager: LightingManager
 
     override fun create() {
         setupGraphics()
@@ -118,43 +104,9 @@ class MafiaGame : ApplicationAdapter() {
         cameraManager = CameraManager()
         cameraManager.initialize()
 
-        // Setup environment and lighting
-        environment = Environment()
-        println("MafiaGame.setupGraphics: Created environment, hash: ${environment.hashCode()}")
-
-        // Create directional light but don't add it yet
-        directionalLight = DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f)
-
-        // Set initial ambient light (will be updated by day/night cycle)
-        updateLighting()
-    }
-
-    private fun updateLighting() {
-        // Clear existing lights
-        environment.clear()
-
-        // Update ambient light based on time of day
-        val ambientIntensity = dayNightCycle.getAmbientIntensity()
-        environment.set(ColorAttribute(ColorAttribute.AmbientLight,
-            ambientIntensity, ambientIntensity, ambientIntensity, 1f))
-
-        // Add directional light only if sun is up
-        val sunIntensity = dayNightCycle.getSunIntensity()
-        if (sunIntensity > 0f) {
-            val (r, g, b) = dayNightCycle.getSunColor()
-            directionalLight?.set(
-                r * sunIntensity,
-                g * sunIntensity,
-                b * sunIntensity,
-                -1f, -0.8f, -0.2f
-            )
-            environment.add(directionalLight)
-        }
-
-        // Re-add all point lights
-        for (pointLight in activeLights) {
-            environment.add(pointLight)
-        }
+        // Initialize lighting manager
+        lightingManager = LightingManager()
+        lightingManager.initialize()
     }
 
     private fun setupBlockSystem() {
@@ -247,9 +199,11 @@ class MafiaGame : ApplicationAdapter() {
                     val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
                     if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-                        val lightToRemove = objectSystem.getLightSourceAt(intersection, 3f)
+                        // Use lighting manager to find and remove light
+                        val lightToRemove = lightingManager.getLightSourceAt(intersection, 3f)
                         if (lightToRemove != null) {
-                            removeLightSource(lightToRemove.id)
+                            lightingManager.removeLightSource(lightToRemove.id)
+                            objectSystem.removeLightSource(lightToRemove.id) // Still need to remove from object system
                             return true
                         }
                     }
@@ -296,25 +250,6 @@ class MafiaGame : ApplicationAdapter() {
         return false
     }
 
-    private fun removeLightSource(lightId: Int) {
-        val lightSource = lightSources.remove(lightId)
-        if (lightSource != null) {
-            // Remove from environment
-            lightSource.pointLight?.let { pointLight ->
-                environment.remove(pointLight)
-                activeLights.removeValue(pointLight, true)
-            }
-
-            // Remove instances
-            lightInstances.remove(lightId)
-
-            // Remove from object system
-            objectSystem.removeLightSource(lightId)
-
-            println("Light source #$lightId removed (Remaining lights: ${activeLights.size})")
-        }
-    }
-
     private fun handleFinePosMove(deltaX: Float, deltaY: Float, deltaZ: Float) {
         if (lastPlacedInstance == null) {
             println("No object selected to move. Place an object first.")
@@ -334,13 +269,11 @@ class MafiaGame : ApplicationAdapter() {
                 println("Moved Object to ${instance.position}")
             }
             is LightSource -> {
-                instance.position.add(deltaX, deltaY, deltaZ)
-                lightInstances[instance.id]?.let { (invisible, debug) ->
-                    invisible.transform.setTranslation(instance.position)
-                    debug.transform.setTranslation(instance.position)
+                // Use lighting manager for movement
+                val moved = lightingManager.moveLightSource(instance.id, deltaX, deltaY, deltaZ)
+                if (moved) {
+                    println("Moved Light to ${instance.position}")
                 }
-                instance.updatePointLight()
-                println("Moved Light to ${instance.position}")
             }
             is GameHouse -> {
                 instance.position.add(deltaX, deltaY, deltaZ)
@@ -450,11 +383,11 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun removeObject(objectToRemove: GameObject) {
-        // Remove light from environment if it exists
+        // Remove light from lighting manager if it exists
         if (objectToRemove.pointLight != null) {
+            val environment = lightingManager.getEnvironment()
             environment.remove(objectToRemove.pointLight)
-            activeLights.removeValue(objectToRemove.pointLight, true)
-            println("Light removed. Remaining lights: ${activeLights.size}")
+            println("Light removed from environment")
         }
 
         gameObjects.removeValue(objectToRemove, true)
@@ -497,7 +430,7 @@ class MafiaGame : ApplicationAdapter() {
 
     private fun placeLightSource(position: Vector3) {
         // Check if light source already exists nearby
-        val existingLight = objectSystem.getLightSourceAt(position, 2f)
+        val existingLight = lightingManager.getLightSourceAt(position, 2f)
         if (existingLight != null) {
             println("Light source already exists near this position")
             return
@@ -515,59 +448,11 @@ class MafiaGame : ApplicationAdapter() {
 
         // Create model instances
         val instances = objectSystem.createLightSourceInstances(lightSource)
-        lightInstances[lightSource.id] = instances
 
-        // Create and add the actual point light for rendering
-        val pointLight = lightSource.createPointLight()
-        environment.add(pointLight)
-        activeLights.add(pointLight)
-        println("Light source #${lightSource.id} placed at: $position with intensity $intensity (Total lights: ${activeLights.size})")
+        // Add to lighting manager instead of manual management
+        lightingManager.addLightSource(lightSource, instances)
 
-        lightSources[lightSource.id] = lightSource
         lastPlacedInstance = lightSource
-    }
-
-    private fun updateActiveLights() {
-        // Clear current active lights
-        activeLights.clear()
-        environment.clear() // This removes all lights from environment
-
-        // Re-add ambient and directional light
-        environment.set(ColorAttribute(ColorAttribute.AmbientLight, 0.1f, 0.1f, 0.1f, 1f))
-        environment.add(DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f))
-
-        // Get camera position for distance calculations
-        val cameraPos = cameraManager.camera.position
-
-        // Create list of lights with their distances
-        val lightsWithDistance = mutableListOf<Pair<LightSource, Float>>()
-
-        for (lightSource in lightSources.values) {
-            if (lightSource.isEnabled && lightSource.pointLight != null) {
-                val distance = lightSource.position.dst(cameraPos)
-                lightsWithDistance.add(Pair(lightSource, distance))
-            }
-        }
-
-        // Sort by distance (closest first)
-        lightsWithDistance.sortBy { it.second }
-
-        // Add the closest lights up to our maximum
-        var addedLights = 0
-        for ((lightSource, distance) in lightsWithDistance) {
-            if (addedLights >= maxLights) break
-
-            // Optional: Skip lights that are too far away
-            if (distance > lightSource.range * 2f) continue
-
-            lightSource.pointLight?.let { pointLight ->
-                environment.add(pointLight)
-                activeLights.add(pointLight)
-                addedLights++
-            }
-        }
-
-        println("Active lights updated: $addedLights/${lightSources.size} lights active")
     }
 
     // New function to place items
@@ -613,12 +498,18 @@ class MafiaGame : ApplicationAdapter() {
             // Create and add light source if it's a light object
             if (objectType == ObjectType.LIGHT_SOURCE) {
                 val light = gameObject.createLight()
-                if (light != null && activeLights.size < maxLights) {
-                    environment.add(light)
-                    activeLights.add(light)
-                    println("Light source added at position: $position (Total lights: ${activeLights.size})")
-                } else if (activeLights.size >= maxLights) {
-                    println("Warning: Maximum number of lights ($maxLights) reached!")
+                if (light != null) {
+                    // Use lighting manager instead of direct environment/activeLights access
+                    val environment = lightingManager.getEnvironment()
+                    val currentLightCount = lightingManager.getActiveLightsCount()
+                    val maxLights = lightingManager.getMaxLights()
+
+                    if (currentLightCount < maxLights) {
+                        environment.add(light)
+                        println("Light source added at position: $position (Total lights: ${currentLightCount + 1})")
+                    } else {
+                        println("Warning: Maximum number of lights ($maxLights) reached!")
+                    }
                 } else {
                     println("Light object created, but light component is null or not added.")
                 }
@@ -754,8 +645,8 @@ class MafiaGame : ApplicationAdapter() {
         // Get delta time for this frame
         val deltaTime = Gdx.graphics.deltaTime
 
-        // Update day/night cycle
-        dayNightCycle.update(deltaTime)
+        // Update lighting manager
+        lightingManager.update(deltaTime, cameraManager.camera.position)
 
         // Update input handler for continuous actions
         inputHandler.update(deltaTime)
@@ -763,13 +654,6 @@ class MafiaGame : ApplicationAdapter() {
         // Handle player input
         handlePlayerInput()
         playerSystem.update(deltaTime)
-
-        lightUpdateCounter++
-        if (lightUpdateCounter >= lightUpdateInterval) {
-            updateActiveLights()
-            updateLighting() // Update day/night lighting
-            lightUpdateCounter = 0
-        }
 
         // Update item system (animations, collisions, etc.)
         itemSystem.update(deltaTime, cameraManager.camera.position, playerSystem.getPosition(), 2f)
@@ -791,6 +675,8 @@ class MafiaGame : ApplicationAdapter() {
         //shaderProvider.setEnvironment(environment)
         //println("MafiaGame.render: Passing environment to provider, hash: ${environment.hashCode()}")
 
+        val environment = lightingManager.getEnvironment()
+
         // Render 3D scene
         modelBatch.begin(cameraManager.camera)
 
@@ -808,14 +694,7 @@ class MafiaGame : ApplicationAdapter() {
         }
 
         // Render light sources
-        for ((lightId, instances) in lightInstances) {
-            val (invisibleInstance, debugInstance) = instances
-            if (objectSystem.debugMode) {
-                modelBatch.render(debugInstance, environment)
-            } else {
-                modelBatch.render(invisibleInstance, environment)
-            }
-        }
+        lightingManager.renderLightInstances(modelBatch, environment, objectSystem.debugMode)
 
         for (car in gameCars) {
             car.updateTransform()
@@ -873,6 +752,7 @@ class MafiaGame : ApplicationAdapter() {
         houseSystem.dispose()
         backgroundSystem.dispose()
         highlightSystem.dispose()
+        lightingManager.dispose()
 
         // Dispose UIManager
         uiManager.dispose()
