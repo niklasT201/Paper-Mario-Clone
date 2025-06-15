@@ -33,9 +33,11 @@ class BlockSystem {
                 // Create material with texture
                 val material = Material(TextureAttribute.createDiffuse(texture))
 
-                // Create cube model
+                // Use the block's height multiplier
+                val blockHeight = blockSize * blockType.height
+
                 val model = modelBuilder.createBox(
-                    blockSize, blockSize, blockSize,
+                    blockSize, blockHeight, blockSize,  // Height varies by block type
                     material,
                     (VertexAttributes.Usage.Position or
                         VertexAttributes.Usage.Normal or
@@ -43,7 +45,7 @@ class BlockSystem {
                 )
                 blockModels[blockType] = model
 
-                println("Loaded block type: ${blockType.displayName}")
+                println("Loaded block type: ${blockType.displayName} (height: ${blockType.height})")
             } catch (e: Exception) {
                 println("Failed to load texture for ${blockType.displayName}: ${e.message}")
                 // Create fallback colored block
@@ -57,11 +59,15 @@ class BlockSystem {
                     BlockType.RESTAURANT_FLOOR -> Color.GOLD
                     BlockType.CARGO_FLOOR -> Color.WHITE
                     BlockType.BRICK_WALL -> Color.ORANGE
-                    BlockType.STREET -> Color.BLUE
+                    BlockType.STREET_LOW -> Color.BLUE
+                    BlockType.ASPHALT_LOW -> Color.GRAY
+                    BlockType.CONCRETE_LOW -> Color.DARK_GRAY
+
                 }
                 val material = Material(ColorAttribute.createDiffuse(fallbackColor))
+                val blockHeight = blockSize * blockType.height
                 val model = modelBuilder.createBox(
-                    blockSize, blockSize, blockSize,
+                    blockSize, blockHeight, blockSize,
                     material,
                     (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
                 )
@@ -71,8 +77,8 @@ class BlockSystem {
     }
 
     fun nextBlock() {
-        currentSelectedBlockIndex = (currentSelectedBlockIndex + 1) % BlockType.values().size
-        currentSelectedBlock = BlockType.values()[currentSelectedBlockIndex]
+        currentSelectedBlockIndex = (currentSelectedBlockIndex + 1) % BlockType.entries.size
+        currentSelectedBlock = BlockType.entries.toTypedArray()[currentSelectedBlockIndex]
         println("Selected block: ${currentSelectedBlock.displayName}")
     }
 

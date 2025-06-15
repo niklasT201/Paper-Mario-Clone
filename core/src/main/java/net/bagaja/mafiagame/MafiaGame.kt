@@ -526,7 +526,8 @@ class MafiaGame : ApplicationAdapter() {
     private fun addBlock(x: Float, y: Float, z: Float, blockType: BlockType) {
         val blockInstance = blockSystem.createBlockInstance(blockType)
         if (blockInstance != null) {
-            val position = Vector3(x + blockSize/2, y + blockSize/2, z + blockSize/2)
+            val blockHeight = blockSize * blockType.height
+            val position = Vector3(x + blockSize/2, y + blockHeight/2, z + blockSize/2)
             blockInstance.transform.setTranslation(position)
 
             val gameBlock = GameBlock(blockInstance, blockType, position)

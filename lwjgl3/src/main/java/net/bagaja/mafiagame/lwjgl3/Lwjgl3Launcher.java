@@ -50,6 +50,8 @@ public class Lwjgl3Launcher {
 // objects with default light source
 // ui for sky color change
 // streets and sidewalks not on the same height
+// key for light source rotation testing
+// item pickups have a glow
 
 // fbx-conv house.obj house.g3dj
 // fbx-conv -f house.obj house.g3dj

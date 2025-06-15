@@ -11,7 +11,7 @@ data class GameBlock(
 )
 
 // Block type definitions
-enum class BlockType(val displayName: String, val texturePath: String) {
+enum class BlockType(val displayName: String, val texturePath: String, val height: Float = 1.0f) {
     GRASS("Grass", "textures/objects/grass.png"),
     COBBLESTONE("Cobblestone", "textures/objects/cobblestone_tile.png"),
     ROOM_FLOOR("Room Floor", "textures/objects/room_floor_tile.png"),
@@ -21,5 +21,7 @@ enum class BlockType(val displayName: String, val texturePath: String) {
     RESTAURANT_FLOOR("Restaurant Floor","textures/objects/floor_tile.png"),
     CARGO_FLOOR("Cargo Floor","textures/objects/cargo_tile.png"),
     BRICK_WALL("Brick Wall","textures/objects/wall_brick.png"),
-    STREET("Street", "textures/objects/street_tile.png"),
+    STREET_LOW("Street (Low)", "textures/objects/street_cheap.png", 0.8f),
+    ASPHALT_LOW("Asphalt (Low)", "textures/asphalt.png", 0.5f),
+    CONCRETE_LOW("Concrete (Low)", "textures/concrete.png", 0.5f);
 }
