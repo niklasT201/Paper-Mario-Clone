@@ -645,8 +645,10 @@ class MafiaGame : ApplicationAdapter() {
         // Get delta time for this frame
         val deltaTime = Gdx.graphics.deltaTime
 
+        val timeMultiplier = if (inputHandler.isTimeSpeedUpActive()) 200f else 1f
+
         // Update lighting manager
-        lightingManager.update(deltaTime, cameraManager.camera.position)
+        lightingManager.update(deltaTime, cameraManager.camera.position, timeMultiplier)
 
         // Update input handler for continuous actions
         inputHandler.update(deltaTime)
@@ -679,6 +681,8 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render 3D scene
         modelBatch.begin(cameraManager.camera)
+
+        lightingManager.renderSun(modelBatch, cameraManager.camera)
 
         // Render all blocks
         for (gameBlock in gameBlocks) {

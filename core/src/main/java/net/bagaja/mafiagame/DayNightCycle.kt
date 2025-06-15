@@ -1,5 +1,10 @@
 package net.bagaja.mafiagame
 
+import com.badlogic.gdx.math.Vector3
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
+
 class DayNightCycle {
     // Timing configuration (in seconds)
     val dayDuration = 20f * 60f      // 20 minutes for full day
@@ -20,8 +25,8 @@ class DayNightCycle {
         NIGHT
     }
 
-    fun update(deltaTime: Float) {
-        currentTime += deltaTime
+    fun update(deltaTime: Float, timeMultiplier: Float = 1.0f) {
+        currentTime += deltaTime * timeMultiplier // Apply the multiplier here
         if (currentTime >= totalCycleDuration) {
             currentTime = 0f
         }
@@ -60,9 +65,10 @@ class DayNightCycle {
 
     fun getAmbientIntensity(): Float {
         return when (getCurrentTimeOfDay()) {
-            TimeOfDay.NIGHT -> 0.05f  // Very dark ambient
-            TimeOfDay.SUNRISE, TimeOfDay.SUNSET -> 0.08f  // Slightly brighter during transitions
-            TimeOfDay.DAY -> 0.15f    // Normal ambient
+            TimeOfDay.NIGHT -> 0.05f  // Very dark ambient for deep shadows
+            TimeOfDay.SUNRISE -> 0.25f // Brighter during transitions
+            TimeOfDay.SUNSET -> 0.25f
+            TimeOfDay.DAY -> 0.4f     // A gentle ambient light for daytime shadows
         }
     }
 
@@ -98,5 +104,21 @@ class DayNightCycle {
 
     fun getCurrentTimeInfo(): String {
         return "${getTimeString()} - ${getCurrentTimeOfDay()}"
+    }
+
+    fun getSunDirection(): Vector3 {
+        val dayProgress = (currentTime / dayDuration).coerceIn(0f, 1f)
+
+        // Convert progress to an angle (0 to PI radians, or 0 to 180 degrees)
+        val angle = dayProgress * PI.toFloat()
+
+        // Create the direction vector
+        val direction = Vector3(
+            cos(angle),
+            -sin(angle),
+            -0.3f
+        ).nor()
+
+        return direction
     }
 }

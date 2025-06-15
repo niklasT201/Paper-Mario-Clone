@@ -35,9 +35,7 @@ public class Lwjgl3Launcher {
 }
 
 // improve general placing
-// key for faster timing
 // new blocks
-// experimenting with block style
 // physics
 // sky color change
 // adding saving for world building

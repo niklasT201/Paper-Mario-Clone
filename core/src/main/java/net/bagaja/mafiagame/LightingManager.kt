@@ -1,18 +1,23 @@
 package net.bagaja.mafiagame
 
+import com.badlogic.gdx.graphics.Camera
+import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.VertexAttributes
 import com.badlogic.gdx.graphics.g3d.Environment
+import com.badlogic.gdx.graphics.g3d.Material
 import com.badlogic.gdx.graphics.g3d.ModelBatch
 import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
 import com.badlogic.gdx.graphics.g3d.environment.PointLight
+import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
 
 class LightingManager {
     private lateinit var environment: Environment
     private lateinit var dayNightCycle: DayNightCycle
-    private var directionalLight: DirectionalLight? = null
+    private val directionalLight: DirectionalLight = DirectionalLight()
 
     // Light management
     private val lightSources = mutableMapOf<Int, LightSource>()
@@ -22,98 +27,117 @@ class LightingManager {
     private var lightUpdateCounter = 0
     private val lightUpdateInterval = 15 // Update every 15 frames
 
+    private lateinit var sunModel: ModelInstance
+    private val modelBuilder = ModelBuilder()
+    var isSunVisible: Boolean = false
+    private val sunDistance = 2500f // How far away the sun sphere is placed
+
     fun initialize() {
         environment = Environment()
         println("LightingManager.initialize: Created environment, hash: ${environment.hashCode()}")
 
         dayNightCycle = DayNightCycle()
+        createSunModel()
 
-        // Create directional light but don't add it yet
-        directionalLight = DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f)
-
-        // Set initial lighting
+        // Set initial lighting based on the starting time
         updateLighting()
     }
 
-    fun update(deltaTime: Float, cameraPosition: Vector3) {
-        // Update day/night cycle
-        dayNightCycle.update(deltaTime)
+    private fun createSunModel() {
+        val sunMaterial = Material(
+            ColorAttribute.createEmissive(Color.WHITE)
+        )
+        val attributes = (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
+        val model = modelBuilder.createSphere(150f, 150f, 150f, 20, 20, sunMaterial, attributes)
+        sunModel = ModelInstance(model)
+    }
 
-        // Update lighting periodically for performance
+    fun update(deltaTime: Float, cameraPosition: Vector3, timeMultiplier: Float = 1.0f) {
+        // Update day/night cycle with the multiplier
+        dayNightCycle.update(deltaTime, timeMultiplier)
+
+        updateLighting()
+
         lightUpdateCounter++
         if (lightUpdateCounter >= lightUpdateInterval) {
             updateActiveLights(cameraPosition)
-            updateLighting()
             lightUpdateCounter = 0
         }
     }
 
-    private fun updateLighting() {
-        // Clear existing lights
-        environment.clear()
+    fun renderSun(modelBatch: ModelBatch, camera: Camera) {
+        // Don't render if it's disabled or night time
+        if (!isSunVisible || dayNightCycle.getSunIntensity() <= 0f) {
+            return
+        }
 
-        // Update ambient light based on time of day
+        // Get the sun's current properties
+        val sunDirection = dayNightCycle.getSunDirection()
+        val (r, g, b) = dayNightCycle.getSunColor()
+
+        // Update the sun model's material color to match the light color
+        sunModel.materials.first().set(ColorAttribute.createEmissive(r, g, b, 1f))
+
+        // Position the sun sphere very far from the camera in the opposite direction of the light
+        val sunPosition = Vector3(sunDirection).scl(-sunDistance).add(camera.position)
+        sunModel.transform.setToTranslation(sunPosition)
+
+        // Render it
+        modelBatch.render(sunModel)
+    }
+
+    private fun updateLighting() {
+        // 1. Update Ambient Light
         val ambientIntensity = dayNightCycle.getAmbientIntensity()
         environment.set(ColorAttribute(ColorAttribute.AmbientLight,
             ambientIntensity, ambientIntensity, ambientIntensity, 1f))
 
-        // Add directional light only if sun is up
+        // Remove the old directional light before adding the new one
+        environment.remove(directionalLight)
+
+        // 2. Update Directional Light (The Sun)
         val sunIntensity = dayNightCycle.getSunIntensity()
+
+        // The sun only shines if its intensity is greater than 0
         if (sunIntensity > 0f) {
             val (r, g, b) = dayNightCycle.getSunColor()
-            directionalLight?.set(
+            val sunDirection = dayNightCycle.getSunDirection()
+
+            // Set the sun's color, intensity, and new direction
+            directionalLight.set(
                 r * sunIntensity,
                 g * sunIntensity,
                 b * sunIntensity,
-                -1f, -0.8f, -0.2f
+                sunDirection // <-- Use the calculated direction here
             )
+            // Add the updated sun to the environment
             environment.add(directionalLight)
-        }
-
-        // Re-add all point lights
-        for (pointLight in activeLights) {
-            environment.add(pointLight)
         }
     }
 
     private fun updateActiveLights(cameraPosition: Vector3) {
-        // Clear current active lights
+        // Sort all available point lights by distance to the camera
+        val lightsWithDistance = lightSources.values
+            .filter { it.isEnabled && it.pointLight != null }
+            .map { it to it.position.dst(cameraPosition) }
+            .sortedBy { it.second }
+
+        // Remove all old point lights from the environment and our active list
+        activeLights.forEach { environment.remove(it) }
         activeLights.clear()
-        environment.clear() // This removes all lights from environment
 
-        // Re-add ambient and directional light
-        environment.set(ColorAttribute(ColorAttribute.AmbientLight, 0.1f, 0.1f, 0.1f, 1f))
-        environment.add(DirectionalLight().set(0.8f, 0.8f, 0.8f, -1f, -0.8f, -0.2f))
-
-        // Create list of lights with their distances
-        val lightsWithDistance = mutableListOf<Pair<LightSource, Float>>()
-
-        for (lightSource in lightSources.values) {
-            if (lightSource.isEnabled && lightSource.pointLight != null) {
-                val distance = lightSource.position.dst(cameraPosition)
-                lightsWithDistance.add(Pair(lightSource, distance))
-            }
-        }
-
-        // Sort by distance (closest first)
-        lightsWithDistance.sortBy { it.second }
-
-        // Add the closest lights up to our maximum
-        var addedLights = 0
+        // Add the closest point lights up to the maximum allowed
         for ((lightSource, distance) in lightsWithDistance) {
-            if (addedLights >= maxLights) break
+            if (activeLights.size >= maxLights) break
 
-            // Optional: Skip lights that are too far away
-            if (distance > lightSource.range * 2f) continue
+            // Optional: A performance check to not add lights that are very far away
+            if (distance > lightSource.range * 2.5f) continue
 
-            lightSource.pointLight?.let { pointLight ->
-                environment.add(pointLight)
-                activeLights.add(pointLight)
-                addedLights++
+            lightSource.pointLight?.let {
+                activeLights.add(it)
+                environment.add(it) // Re-add the active point light to the environment
             }
         }
-
-        println("Active lights updated: $addedLights/${lightSources.size} lights active")
     }
 
     fun addLightSource(lightSource: LightSource, instances: Pair<ModelInstance, ModelInstance>): Boolean {
@@ -189,6 +213,7 @@ class LightingManager {
 
     fun dispose() {
         // Clean up resources if needed
+        sunModel.model?.dispose()
         lightSources.clear()
         lightInstances.clear()
         activeLights.clear()

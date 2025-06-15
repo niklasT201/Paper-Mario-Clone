@@ -30,6 +30,7 @@ class InputHandler(
     private var isCarSelectionMode = false
     private var isHouseSelectionMode = false
     private var isBackgroundSelectionMode = false
+    private var isTimeSpeedUpPressed = false
 
     // Variables for continuous block placement/removal
     private var continuousActionTimer = 0f
@@ -319,6 +320,7 @@ class InputHandler(
                             pageDownPressed = true; continuousFineTimer = 0f; return true
                         }
                     }
+                    Input.Keys.COMMA -> { isTimeSpeedUpPressed = true; return true }
                 }
                 // Update UI after tool selection
                 if (keycode in Input.Keys.NUMPAD_1..Input.Keys.NUMPAD_7) {
@@ -344,6 +346,7 @@ class InputHandler(
                     Input.Keys.DOWN -> { downPressed = false; return true }
                     Input.Keys.NUM_0 -> { pageUpPressed = false; return true }
                     Input.Keys.NUM_9 -> { pageDownPressed = false; return true }
+                    Input.Keys.COMMA -> { isTimeSpeedUpPressed = false;return true }
                 }
                 return false
             }
@@ -429,4 +432,6 @@ class InputHandler(
             else -> null
         }
     }
+
+    fun isTimeSpeedUpActive(): Boolean = isTimeSpeedUpPressed
 }
