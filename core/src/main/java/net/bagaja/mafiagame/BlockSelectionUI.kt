@@ -19,8 +19,11 @@ class BlockSelectionUI(
     private val stage: Stage
 ) {
     private lateinit var blockSelectionTable: Table
+    private lateinit var blockContainer: ScrollPane
+    private lateinit var blockItemsTable: Table
     private lateinit var blockItems: MutableList<BlockSelectionItem>
     private val loadedTextures = mutableMapOf<String, Texture>() // Cache for loaded textures
+    private var lastSelectedIndex = -1 // Track last selected index to detect changes
 
     // Data class to hold block selection item components
     private data class BlockSelectionItem(
@@ -58,27 +61,17 @@ class BlockSelectionUI(
         titleLabel.color = Color(0.9f, 0.9f, 0.9f, 1f) // Light gray
         mainContainer.add(titleLabel).padBottom(15f).row()
 
-        // Create horizontal container for block items
-        val blockContainer = Table()
-        blockContainer.pad(10f)
+        // Create scrollable container for block items
+        blockItemsTable = Table()
+        blockItemsTable.pad(10f)
 
-        // Create block items for each block type
-        blockItems = mutableListOf()
-        val blockTypes = BlockType.values()
+        // Create scroll pane to handle many blocks
+        blockContainer = ScrollPane(blockItemsTable, skin)
+        blockContainer.setScrollingDisabled(false, true) // Allow horizontal scrolling only
+        blockContainer.setFadeScrollBars(false)
 
-        for (i in blockTypes.indices) {
-            val blockType = blockTypes[i]
-            val item = createBlockItem(blockType, i == blockSystem.currentSelectedBlockIndex)
-            blockItems.add(item)
-
-            // Add spacing between items
-            if (i > 0) {
-                blockContainer.add().width(15f) // Spacer
-            }
-            blockContainer.add(item.container).size(80f, 100f)
-        }
-
-        mainContainer.add(blockContainer).padBottom(10f).row()
+        // Set max size to prevent UI from becoming too large
+        mainContainer.add(blockContainer).size(800f, 120f).padBottom(10f).row()
 
         // Instructions with modern styling
         val instructionLabel = Label("Hold [B] + Mouse Wheel to change blocks", skin)
@@ -88,6 +81,51 @@ class BlockSelectionUI(
 
         blockSelectionTable.add(mainContainer)
         stage.addActor(blockSelectionTable)
+
+        // Initial setup of block items
+        refreshBlockItems()
+    }
+
+    private fun refreshBlockItems() {
+        // Clear existing items
+        blockItemsTable.clear()
+        blockItems = mutableListOf()
+
+        val blockTypes = BlockType.values()
+        val currentSelectedIndex = blockSystem.currentSelectedBlockIndex
+
+        // Create block items for each block type
+        for (i in blockTypes.indices) {
+            val blockType = blockTypes[i]
+            val item = createBlockItem(blockType, i == currentSelectedIndex)
+            blockItems.add(item)
+
+            // Add spacing between items
+            if (i > 0) {
+                blockItemsTable.add().width(15f) // Spacer
+            }
+            blockItemsTable.add(item.container).size(80f, 100f)
+        }
+
+        // Update scroll position to keep selected item visible
+        scrollToSelectedItem()
+    }
+
+    private fun scrollToSelectedItem() {
+        val selectedIndex = blockSystem.currentSelectedBlockIndex
+        val totalItems = BlockType.values().size
+
+        if (totalItems > 0) {
+            // Calculate the percentage position of the selected item
+            val scrollPercentage = selectedIndex.toFloat() / (totalItems - 1).toFloat()
+
+            // Smooth scroll to the selected item
+            blockContainer.addAction(
+                Actions.run {
+                    blockContainer.scrollPercentX = scrollPercentage.coerceIn(0f, 1f)
+                }
+            )
+        }
     }
 
     private fun createBlockItem(blockType: BlockType, isSelected: Boolean): BlockSelectionItem {
@@ -189,8 +227,39 @@ class BlockSelectionUI(
             BlockType.CARGO_FLOOR -> Color(0.7f, 0.6f, 0.4f, 1f)
             BlockType.BRICK_WALL -> Color(0.8f, 0.4f, 0.3f, 1f)
             BlockType.STREET_LOW -> Color.BLUE
-            BlockType.ASPHALT_LOW -> Color.GRAY
-            BlockType.CONCRETE_LOW -> Color.DARK_GRAY
+            BlockType.BETON_TILE -> Color(0.75f, 0.75f, 0.75f, 1f)
+            BlockType.BRICK_WALL_PNG -> Color(0.8f, 0.4f, 0.3f, 1f)
+            BlockType.BROKEN_CEILING -> Color(0.8f, 0.8f, 0.8f, 1f)
+            BlockType.BROKEN_WALL -> Color(0.7f, 0.6f, 0.5f, 1f)
+            BlockType.BROWN_BRICK_WALL -> Color(0.6f, 0.4f, 0.3f, 1f)
+            BlockType.BROWN_CLEAR_FLOOR -> Color(0.7f, 0.5f, 0.3f, 1f)
+            BlockType.BROWN_FLOOR -> Color(0.6f, 0.4f, 0.2f, 1f)
+            BlockType.CARD_FLOOR -> Color(0.9f, 0.9f, 0.8f, 1f)
+            BlockType.CARPET -> Color(0.6f, 0.2f, 0.2f, 1f)
+            BlockType.CEILING_WITH_LAMP -> Color(0.95f, 0.95f, 0.9f, 1f)
+            BlockType.CEILING -> Color(0.9f, 0.9f, 0.9f, 1f)
+            BlockType.CLUSTER_FLOOR -> Color(0.6f, 0.6f, 0.7f, 1f)
+            BlockType.CRACKED_WALL -> Color(0.8f, 0.8f, 0.7f, 1f)
+            BlockType.DARK_WALL -> Color(0.3f, 0.3f, 0.3f, 1f)
+            BlockType.DARK_YELLOW_FLOOR -> Color(0.7f, 0.6f, 0.2f, 1f)
+            BlockType.DIRTY_GROUND -> Color(0.5f, 0.4f, 0.3f, 1f)
+            BlockType.FLIESSEN -> Color(0.9f, 0.95f, 1f, 1f)
+            BlockType.FLOOR -> Color(0.8f, 0.8f, 0.8f, 1f)
+            BlockType.GRAY_FLOOR -> Color(0.6f, 0.6f, 0.6f, 1f)
+            BlockType.LIGHT_CEILING -> Color(0.95f, 0.95f, 1f, 1f)
+            BlockType.OFFICE_WALL -> Color(0.9f, 0.9f, 0.85f, 1f)
+            BlockType.SIDEWALK -> Color(0.7f, 0.7f, 0.7f, 1f)
+            BlockType.SIDEWALK_START -> Color(0.75f, 0.75f, 0.75f, 1f)
+            BlockType.SPRAYED_WALL -> Color(0.7f, 0.8f, 0.6f, 1f)
+            BlockType.STREET_TILE -> Color(0.4f, 0.4f, 0.4f, 1f)
+            BlockType.STRIPED_FLOOR -> Color(0.8f, 0.7f, 0.6f, 1f)
+            BlockType.STRIPED_TAPETE -> Color(0.9f, 0.8f, 0.7f, 1f)
+            BlockType.TAPETE -> Color(0.8f, 0.7f, 0.6f, 1f)
+            BlockType.TAPETE_WALL -> Color(0.85f, 0.75f, 0.65f, 1f)
+            BlockType.TRANS_WALL -> Color(0.9f, 0.9f, 0.9f, 0.8f)
+            BlockType.WALL -> Color(0.9f, 0.9f, 0.9f, 1f)
+            BlockType.WOOD_WALL -> Color(0.6f, 0.4f, 0.2f, 1f)
+            BlockType.WOODEN_FLOOR -> Color(0.7f, 0.5f, 0.3f, 1f)
         }
 
         // Fill with base color
@@ -212,6 +281,20 @@ class BlockSelectionUI(
 
     fun update() {
         val currentIndex = blockSystem.currentSelectedBlockIndex
+
+        // Check if selection has changed
+        if (currentIndex != lastSelectedIndex) {
+            lastSelectedIndex = currentIndex
+
+            // If we don't have the right number of items, refresh completely
+            if (blockItems.size != BlockType.values().size) {
+                refreshBlockItems()
+                return
+            }
+
+            // Scroll to the selected item
+            scrollToSelectedItem()
+        }
 
         // Animate all block items
         for (i in blockItems.indices) {
@@ -250,6 +333,8 @@ class BlockSelectionUI(
 
     fun show() {
         blockSelectionTable.setVisible(true)
+        // Refresh items when showing to ensure we have all current blocks
+        refreshBlockItems()
     }
 
     fun hide() {

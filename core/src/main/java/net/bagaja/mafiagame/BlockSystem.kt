@@ -24,7 +24,7 @@ class BlockSystem {
         val modelBuilder = ModelBuilder()
 
         // Load textures and create models for each block type
-        for (blockType in BlockType.values()) {
+        for (blockType in BlockType.entries) {
             try {
                 // Load texture
                 val texture = Texture(Gdx.files.internal(blockType.texturePath))
@@ -60,9 +60,40 @@ class BlockSystem {
                     BlockType.CARGO_FLOOR -> Color.WHITE
                     BlockType.BRICK_WALL -> Color.ORANGE
                     BlockType.STREET_LOW -> Color.BLUE
-                    BlockType.ASPHALT_LOW -> Color.GRAY
-                    BlockType.CONCRETE_LOW -> Color.DARK_GRAY
 
+                    BlockType.BETON_TILE -> Color.LIGHT_GRAY
+                    BlockType.BRICK_WALL_PNG -> Color.ORANGE
+                    BlockType.BROKEN_CEILING -> Color(0.8f, 0.8f, 0.8f, 1f)
+                    BlockType.BROKEN_WALL -> Color(0.7f, 0.6f, 0.5f, 1f)
+                    BlockType.BROWN_BRICK_WALL -> Color(0.6f, 0.4f, 0.3f, 1f)
+                    BlockType.BROWN_CLEAR_FLOOR -> Color(0.7f, 0.5f, 0.3f, 1f)
+                    BlockType.BROWN_FLOOR -> Color.BROWN
+                    BlockType.CARD_FLOOR -> Color(0.9f, 0.9f, 0.8f, 1f)
+                    BlockType.CARPET -> Color.MAROON
+                    BlockType.CEILING_WITH_LAMP -> Color.WHITE
+                    BlockType.CEILING -> Color.WHITE
+                    BlockType.CLUSTER_FLOOR -> Color(0.6f, 0.6f, 0.7f, 1f)
+                    BlockType.CRACKED_WALL -> Color(0.8f, 0.8f, 0.7f, 1f)
+                    BlockType.DARK_WALL -> Color(0.3f, 0.3f, 0.3f, 1f)
+                    BlockType.DARK_YELLOW_FLOOR -> Color(0.7f, 0.6f, 0.2f, 1f)
+                    BlockType.DIRTY_GROUND -> Color(0.5f, 0.4f, 0.3f, 1f)
+                    BlockType.FLIESSEN -> Color(0.9f, 0.95f, 1f, 1f)
+                    BlockType.FLOOR -> Color(0.8f, 0.8f, 0.8f, 1f)
+                    BlockType.GRAY_FLOOR -> Color.GRAY
+                    BlockType.LIGHT_CEILING -> Color(0.95f, 0.95f, 1f, 1f)
+                    BlockType.OFFICE_WALL -> Color(0.9f, 0.9f, 0.85f, 1f)
+                    BlockType.SIDEWALK -> Color.LIGHT_GRAY
+                    BlockType.SIDEWALK_START -> Color.LIGHT_GRAY
+                    BlockType.SPRAYED_WALL -> Color(0.7f, 0.8f, 0.6f, 1f)
+                    BlockType.STREET_TILE -> Color(0.4f, 0.4f, 0.4f, 1f)
+                    BlockType.STRIPED_FLOOR -> Color(0.8f, 0.7f, 0.6f, 1f)
+                    BlockType.STRIPED_TAPETE -> Color(0.9f, 0.8f, 0.7f, 1f)
+                    BlockType.TAPETE -> Color(0.8f, 0.7f, 0.6f, 1f)
+                    BlockType.TAPETE_WALL -> Color(0.85f, 0.75f, 0.65f, 1f)
+                    BlockType.TRANS_WALL -> Color(0.9f, 0.9f, 0.9f, 0.8f)
+                    BlockType.WALL -> Color(0.9f, 0.9f, 0.9f, 1f)
+                    BlockType.WOOD_WALL -> Color(0.6f, 0.4f, 0.2f, 1f)
+                    BlockType.WOODEN_FLOOR -> Color(0.7f, 0.5f, 0.3f, 1f)
                 }
                 val material = Material(ColorAttribute.createDiffuse(fallbackColor))
                 val blockHeight = blockSize * blockType.height
@@ -86,9 +117,9 @@ class BlockSystem {
         currentSelectedBlockIndex = if (currentSelectedBlockIndex > 0) {
             currentSelectedBlockIndex - 1
         } else {
-            BlockType.values().size - 1
+            BlockType.entries.size - 1
         }
-        currentSelectedBlock = BlockType.values()[currentSelectedBlockIndex]
+        currentSelectedBlock = BlockType.entries.toTypedArray()[currentSelectedBlockIndex]
         println("Selected block: ${currentSelectedBlock.displayName}")
     }
 
