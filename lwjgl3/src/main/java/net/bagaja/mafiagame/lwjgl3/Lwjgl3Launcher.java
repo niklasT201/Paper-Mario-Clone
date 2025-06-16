@@ -51,7 +51,7 @@ public class Lwjgl3Launcher {
 // item pickups have a glow
 // maybe remove player stepping up blocks
 // improving placing on blocks for items
-// light source being removeable
+// move findLightSourceAtRay to raycastsystem
 // player cant be placed on streets and also not moving
 // improving background system
 
