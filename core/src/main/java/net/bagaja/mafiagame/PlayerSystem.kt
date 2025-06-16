@@ -92,46 +92,44 @@ class PlayerSystem {
         // Store original position for rollback if needed
         val originalX = playerPosition.x
         val originalZ = playerPosition.z
+        val originalY = playerPosition.y
 
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
             val newX = playerPosition.x - playerSpeed * deltaTime
-            // Calculate Y position for the new X position
-            val newY = calculateCorrectYPosition(newX, playerPosition.z, gameBlocks)
-            if (canMoveTo(newX, newY, playerPosition.z, gameBlocks, gameHouses)) {
+            // Try to move horizontally first, then adjust Y if needed
+            val adjustedY = calculateSafeYPosition(newX, playerPosition.z, originalY, gameBlocks)
+            if (canMoveTo(newX, adjustedY, playerPosition.z, gameBlocks, gameHouses)) {
                 playerPosition.x = newX
-                playerPosition.y = newY
+                playerPosition.y = adjustedY
                 moved = true
                 currentMovementDirection = -1f
             }
         }
         if (Gdx.input.isKeyPressed(Input.Keys.D)) {
             val newX = playerPosition.x + playerSpeed * deltaTime
-            // Calculate Y position for the new X position
-            val newY = calculateCorrectYPosition(newX, playerPosition.z, gameBlocks)
-            if (canMoveTo(newX, newY, playerPosition.z, gameBlocks, gameHouses)) {
+            val adjustedY = calculateSafeYPosition(newX, playerPosition.z, originalY, gameBlocks)
+            if (canMoveTo(newX, adjustedY, playerPosition.z, gameBlocks, gameHouses)) {
                 playerPosition.x = newX
-                playerPosition.y = newY
+                playerPosition.y = adjustedY
                 moved = true
                 currentMovementDirection = 1f
             }
         }
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
             val newZ = playerPosition.z - playerSpeed * deltaTime
-            // Calculate Y position for the new Z position
-            val newY = calculateCorrectYPosition(playerPosition.x, newZ, gameBlocks)
-            if (canMoveTo(playerPosition.x, newY, newZ, gameBlocks, gameHouses)) {
+            val adjustedY = calculateSafeYPosition(playerPosition.x, newZ, originalY, gameBlocks)
+            if (canMoveTo(playerPosition.x, adjustedY, newZ, gameBlocks, gameHouses)) {
                 playerPosition.z = newZ
-                playerPosition.y = newY
+                playerPosition.y = adjustedY
                 moved = true
             }
         }
         if (Gdx.input.isKeyPressed(Input.Keys.S)) {
             val newZ = playerPosition.z + playerSpeed * deltaTime
-            // Calculate Y position for the new Z position
-            val newY = calculateCorrectYPosition(playerPosition.x, newZ, gameBlocks)
-            if (canMoveTo(playerPosition.x, newY, newZ, gameBlocks, gameHouses)) {
+            val adjustedY = calculateSafeYPosition(playerPosition.x, newZ, originalY, gameBlocks)
+            if (canMoveTo(playerPosition.x, adjustedY, newZ, gameBlocks, gameHouses)) {
                 playerPosition.z = newZ
-                playerPosition.y = newY
+                playerPosition.y = adjustedY
                 moved = true
             }
         }
@@ -153,12 +151,13 @@ class PlayerSystem {
         return moved
     }
 
-    private fun calculateCorrectYPosition(x: Float, z: Float, gameBlocks: Array<GameBlock>): Float {
+    private fun calculateSafeYPosition(x: Float, z: Float, currentY: Float, gameBlocks: Array<GameBlock>): Float {
         // Find the highest block that the player would be standing on at position (x, z)
         var highestBlockY = 0f // Ground level
+        var foundSupportingBlock = false
 
         // Create a small area around the player position to check for blocks
-        val checkRadius = playerSize.x / 2f // Use half the player width for checking
+        val checkRadius = playerSize.x / 2f
 
         for (gameBlock in gameBlocks) {
             val blockCenterX = gameBlock.position.x
@@ -185,14 +184,35 @@ class PlayerSystem {
                 val blockHeight = blockSize * gameBlock.blockType.height
                 val blockTop = gameBlock.position.y + blockHeight / 2f
 
-                if (blockTop > highestBlockY) {
-                    highestBlockY = blockTop
+                // Only consider this block if it's below or at the current player position
+                // This prevents teleporting to much higher blocks
+                if (blockTop <= currentY + playerSize.y / 2f + blockSize) { // Allow some tolerance for stepping up
+                    if (blockTop > highestBlockY) {
+                        highestBlockY = blockTop
+                        foundSupportingBlock = true
+                    }
                 }
             }
         }
 
-        // Return player Y position so their bottom is on the block top
-        return highestBlockY + playerSize.y / 2f
+        // Calculate where the player should be
+        val targetY = highestBlockY + playerSize.y / 2f
+
+        // If no supporting block found and we're above ground, gradually fall to ground
+        if (!foundSupportingBlock && currentY > playerSize.y / 2f) {
+            val fallSpeed = 20f // Adjust this for fall speed
+            val groundY = 0f + playerSize.y / 2f
+            val fallingY = currentY - fallSpeed * Gdx.graphics.deltaTime
+            return kotlin.math.max(fallingY, groundY)
+        }
+
+        // If the target Y is much higher than current Y, limit the step height
+        val maxStepHeight = blockSize * 1.1f // Can step up about one block height
+        if (targetY > currentY + maxStepHeight) {
+            return currentY // Don't allow stepping up too high
+        }
+
+        return targetY
     }
 
     fun placePlayer(ray: Ray, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>): Boolean {
