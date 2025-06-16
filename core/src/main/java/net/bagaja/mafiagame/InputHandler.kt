@@ -321,6 +321,22 @@ class InputHandler(
                         }
                     }
                     Input.Keys.COMMA -> { isTimeSpeedUpPressed = true; return true }
+                    Input.Keys.Q -> {
+                        // Only rotate if we're in block mode/selection
+                        if (uiManager.selectedTool == Tool.BLOCK || isBlockSelectionMode) {
+                            blockSystem.rotateCurrentBlock()
+                            // Update UI to show current rotation if you have rotation display
+                            uiManager.updateBlockSelection()
+                            return true
+                        }
+                    }
+                    Input.Keys.E -> {
+                        if (uiManager.selectedTool == Tool.BLOCK || isBlockSelectionMode) {
+                            blockSystem.rotateCurrentBlockReverse()
+                            uiManager.updateBlockSelection()
+                            return true
+                        }
+                    }
                 }
                 // Update UI after tool selection
                 if (keycode in Input.Keys.NUMPAD_1..Input.Keys.NUMPAD_7) {

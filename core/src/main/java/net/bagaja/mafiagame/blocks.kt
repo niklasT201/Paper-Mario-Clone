@@ -7,8 +7,47 @@ import com.badlogic.gdx.math.Vector3
 data class GameBlock(
     val modelInstance: ModelInstance,
     val blockType: BlockType,
-    val position: Vector3
-)
+    val position: Vector3,
+    var rotationY: Float = 0f
+) {
+    // Method to update the block's transform with current rotation
+    fun updateTransform() {
+        // Reset transform first to avoid accumulating rotations
+        modelInstance.transform.idt()
+
+        // Apply translation
+        modelInstance.transform.setTranslation(position)
+
+        // Apply rotation around Y axis
+        if (rotationY != 0f) {
+            modelInstance.transform.rotate(Vector3.Y, rotationY)
+        }
+    }
+
+    // Method to rotate the block by 90 degrees
+    fun rotate90Degrees() {
+        rotationY = (rotationY + 90f) % 360f
+        updateTransform()
+        println("Block rotated to: ${rotationY}° (${getDirectionName()})")
+    }
+
+    // Method to set specific rotation
+    fun setRotation(degrees: Float) {
+        rotationY = degrees % 360f
+        updateTransform()
+    }
+
+    // Helper method to get direction name
+    private fun getDirectionName(): String {
+        return when (rotationY.toInt()) {
+            0 -> "North"
+            90 -> "East"
+            180 -> "South"
+            270 -> "West"
+            else -> "Custom (${rotationY}°)"
+        }
+    }
+}
 
 // Block categories for better organization
 enum class BlockCategory(val displayName: String, val color: Int) {

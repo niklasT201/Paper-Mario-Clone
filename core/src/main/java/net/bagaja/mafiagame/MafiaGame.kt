@@ -528,9 +528,18 @@ class MafiaGame : ApplicationAdapter() {
         if (blockInstance != null) {
             val blockHeight = blockSize * blockType.height
             val position = Vector3(x + blockSize/2, y + blockHeight/2, z + blockSize/2)
-            blockInstance.transform.setTranslation(position)
 
-            val gameBlock = GameBlock(blockInstance, blockType, position)
+            // Create GameBlock with current rotation
+            val gameBlock = GameBlock(
+                blockInstance,
+                blockType,
+                position,
+                blockSystem.currentBlockRotation  // Store the rotation used
+            )
+
+            // Set position and rotation using the GameBlock's method
+            gameBlock.updateTransform()
+
             gameBlocks.add(gameBlock)
         }
     }

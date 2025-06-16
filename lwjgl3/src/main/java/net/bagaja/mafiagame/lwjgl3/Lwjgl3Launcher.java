@@ -50,7 +50,6 @@ public class Lwjgl3Launcher {
 // ui for sky color change
 // key for light source rotation testing
 // item pickups have a glow
-// rotation for blocks
 
 // fbx-conv house.obj house.g3dj
 // fbx-conv -f house.obj house.g3dj

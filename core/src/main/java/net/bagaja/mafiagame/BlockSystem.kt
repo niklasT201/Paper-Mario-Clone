@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.math.Vector3
 
 // Block system class to manage different block types
 class BlockSystem {
@@ -18,6 +19,8 @@ class BlockSystem {
     var currentSelectedBlock = BlockType.GRASS
         private set
     var currentSelectedBlockIndex = 0
+        private set
+    var currentBlockRotation = 0f
         private set
 
     fun initialize(blockSize: Float) {
@@ -105,6 +108,32 @@ class BlockSystem {
                 blockModels[blockType] = model
             }
         }
+    }
+
+    fun rotateCurrentBlock() {
+        currentBlockRotation = (currentBlockRotation + 90f) % 360f
+        println("Block rotation: ${currentBlockRotation}° (${getRotationDirection()})")
+    }
+
+    private fun getRotationDirection(): String {
+        return when (currentBlockRotation.toInt()) {
+            0 -> "North"
+            90 -> "East"
+            180 -> "South"
+            270 -> "West"
+            else -> "Unknown"
+        }
+    }
+
+    // Reset rotation (useful for testing or if you want a reset key)
+    fun resetRotation() {
+        currentBlockRotation = 0f
+        println("Block rotation reset to 0°")
+    }
+
+    fun rotateCurrentBlockReverse() {
+        currentBlockRotation = (currentBlockRotation - 90f + 360f) % 360f
+        println("Block rotation (reverse): ${currentBlockRotation}° (${getRotationDirection()})")
     }
 
     fun nextBlock() {
