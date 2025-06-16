@@ -13,6 +13,8 @@ import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.viewport.ScreenViewport
+import kotlin.math.cos
+import kotlin.math.sin
 
 class UIManager(
     private val blockSystem: BlockSystem,
@@ -36,9 +38,20 @@ class UIManager(
     private lateinit var statsLabels: MutableMap<String, Label>
     private lateinit var placementInfoLabel: Label
 
-    var isUIVisible = true
+    var isUIVisible = false
         private set
     var selectedTool = Tool.BLOCK
+
+    // Design constants
+    private val ACCENT_COLOR = Color(0.2f, 0.7f, 1f, 1f) // Bright blue
+    private val SECONDARY_COLOR = Color(0.8f, 0.4f, 1f, 1f) // Purple
+    private val SUCCESS_COLOR = Color(0.2f, 0.9f, 0.4f, 1f) // Green
+    private val WARNING_COLOR = Color(1f, 0.6f, 0.2f, 1f) // Orange
+    private val PANEL_COLOR = Color(0.08f, 0.08f, 0.12f, 0.92f)
+    private val PANEL_BORDER = Color(0.25f, 0.35f, 0.45f, 0.8f)
+    private val TEXT_PRIMARY = Color(0.95f, 0.95f, 1f, 1f)
+    private val TEXT_SECONDARY = Color(0.7f, 0.8f, 0.9f, 1f)
+    private val TEXT_MUTED = Color(0.6f, 0.6f, 0.7f, 1f)
 
     enum class Tool {
         BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND
@@ -85,314 +98,607 @@ class UIManager(
         mainTable = Table()
         mainTable.setFillParent(true)
         mainTable.top().left()
-        mainTable.pad(20f)
+        mainTable.pad(15f)
 
-        // Create main container with modern background
+        // Create main container with enhanced modern design
         val mainContainer = Table()
-        mainContainer.background = createModernPanelBackground()
-        mainContainer.pad(25f)
+        mainContainer.background = createGlassmorphismBackground()
+        mainContainer.pad(30f)
+        mainContainer.top()
 
-        // Title with modern styling
-        val titleLabel = Label("World Builder", skin, "title")
-        mainContainer.add(titleLabel).padBottom(25f).row()
+        // Enhanced title with gradient effect
+        val titleLabel = Label("World Builder", skin, "title-gradient")
+        val titleContainer = Table()
+        titleContainer.background = createTitleBackground()
+        titleContainer.pad(15f, 25f, 15f, 25f)
+        titleContainer.add(titleLabel)
+        mainContainer.add(titleContainer).padBottom(30f).fillX().row()
 
-        // Tool selection section
-        createToolSelectionSection(mainContainer)
+        // Tool selection with enhanced styling
+        createEnhancedToolSelectionSection(mainContainer)
 
-        placementInfoLabel = Label("", skin, "instruction")
+        // Enhanced placement info with modern card design
+        val infoContainer = Table()
+        infoContainer.background = createInfoCardBackground()
+        infoContainer.pad(15f)
+        placementInfoLabel = Label("", skin, "info-card")
         placementInfoLabel.setWrap(true)
-        mainContainer.add(placementInfoLabel).left().padBottom(20f).width(320f).row()
+        infoContainer.add(placementInfoLabel).width(320f)
+        mainContainer.add(infoContainer).left().padBottom(25f).fillX().row()
 
-        // Instructions section
-        createInstructionsSection(mainContainer)
+        // Enhanced instructions section
+        createEnhancedInstructionsSection(mainContainer)
 
-        // Stats section
-        createStatsSection(mainContainer)
+        // Enhanced stats section
+        createEnhancedStatsSection(mainContainer)
 
-        mainTable.add(mainContainer).top().left()
+        val scrollPane = ScrollPane(mainContainer, skin)
+        scrollPane.setScrollingDisabled(true, false)
+        scrollPane.setFadeScrollBars(true)
+        scrollPane.setFlickScroll(false)
+        scrollPane.setOverscroll(false, false)
+
+        mainTable.add(scrollPane).expandY().fillY().top().left() // Add the scroll pane
         stage.addActor(mainTable)
     }
 
-    private fun createToolSelectionSection(container: Table) {
-        // Section title
-        val toolSectionLabel = Label("Tools (P to cycle BG mode)", skin, "section")
-        container.add(toolSectionLabel).padBottom(15f).left().row()
+    private fun createEnhancedToolSelectionSection(container: Table) {
+        // Section header with modern styling
+        val toolSectionContainer = Table()
+        toolSectionContainer.background = createSectionHeaderBackground()
+        toolSectionContainer.pad(12f, 20f, 12f, 20f)
 
-        // Tool buttons container
+        val toolSectionLabel = Label("🛠 Tools", skin, "section-header")
+        val modeLabel = Label("P to cycle BG mode", skin, "hint")
+
+        toolSectionContainer.add(toolSectionLabel).left().expandX()
+        toolSectionContainer.add(modeLabel).right()
+
+        container.add(toolSectionContainer).fillX().padBottom(20f).row()
+
+        // Enhanced tool buttons with modern card design
         val toolContainer = Table()
-        toolContainer.pad(10f)
+        toolContainer.background = createToolContainerBackground()
+        toolContainer.pad(20f)
 
         toolButtons = mutableListOf()
         val tools = Tool.values()
 
+        // Create tool grid with better spacing
+        val toolGrid = Table()
         for (i in tools.indices) {
             val tool = tools[i]
-            val toolButton = createToolButton(tool, tool == selectedTool)
+            val toolButton = createEnhancedToolButton(tool, tool == selectedTool)
             toolButtons.add(toolButton)
 
-            toolContainer.add(toolButton).size(80f, 70f).pad(5f)
-            if (i < tools.size - 1) {
-                toolContainer.add().width(10f) // Spacer
+            toolGrid.add(toolButton).size(90f, 85f).pad(8f)
+
+            // Create rows of 4 tools
+            if ((i + 1) % 4 == 0) {
+                toolGrid.row()
             }
         }
 
-        container.add(toolContainer).padBottom(20f).left().row()
+        toolContainer.add(toolGrid)
+        container.add(toolContainer).padBottom(25f).fillX().row()
     }
 
-    private fun createToolButton(tool: Tool, isSelected: Boolean): Table {
+    private fun createEnhancedToolButton(tool: Tool, isSelected: Boolean): Table {
         val buttonContainer = Table()
-        buttonContainer.pad(8f)
+        buttonContainer.pad(12f)
 
-        // Set background based on selection
-        val normalBg = createToolButtonBackground(Color(0.25f, 0.25f, 0.3f, 0.9f))
-        val selectedBg = createToolButtonBackground(Color(0.4f, 0.6f, 0.8f, 0.95f))
-        buttonContainer.background = if (isSelected) selectedBg else normalBg
+        // Enhanced backgrounds with glow effect
+        val background = if (isSelected) {
+            createSelectedToolBackground(getToolAccentColor(tool))
+        } else {
+            createNormalToolBackground()
+        }
+        buttonContainer.background = background
 
-        // Tool icon (using colored squares as placeholders)
-        val iconTexture = createToolIcon(tool)
+        // Enhanced tool icon with better graphics
+        val iconTexture = createEnhancedToolIcon(tool)
         val iconImage = Image(iconTexture)
-        buttonContainer.add(iconImage).size(30f, 30f).padBottom(5f).row()
+        buttonContainer.add(iconImage).size(36f, 36f).padBottom(8f).row()
 
-        // Tool name
-        val nameLabel = Label(getToolDisplayName(tool), skin, "small")
-        nameLabel.color = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
+        // Tool name with enhanced styling
+        val nameLabel = Label(getToolDisplayName(tool), skin, "tool-name")
+        nameLabel.color = if (isSelected) TEXT_PRIMARY else TEXT_SECONDARY
         buttonContainer.add(nameLabel)
 
         return buttonContainer
     }
 
-    private fun createInstructionsSection(container: Table) {
-        // Section title
-        val instructionSectionLabel = Label("Controls", skin, "section")
-        container.add(instructionSectionLabel).padBottom(15f).left().row()
+    private fun createEnhancedInstructionsSection(container: Table) {
+        // Section header
+        val instructionSectionContainer = Table()
+        instructionSectionContainer.background = createSectionHeaderBackground()
+        instructionSectionContainer.pad(12f, 20f, 12f, 20f)
 
-        // Instructions container with modern background
+        val instructionSectionLabel = Label("📋 Controls", skin, "section-header")
+        instructionSectionContainer.add(instructionSectionLabel).left()
+
+        container.add(instructionSectionContainer).fillX().padBottom(20f).row()
+
+        // Enhanced instructions with better organization
         val instructionsContainer = Table()
-        instructionsContainer.background = createInstructionsBackground()
-        instructionsContainer.pad(15f)
+        instructionsContainer.background = createInstructionsCardBackground()
+        instructionsContainer.pad(20f)
 
-        val instructions = """Tool Selection:
-        1-6 - Switch tools
+        val instructions = """🎯 Tool Selection:
+1-6 • Switch tools
 
-        Controls:
-        • Left click - Place/Action
-        • Right click - Remove
-        • Right drag - Rotate camera
-        • Mouse wheel - Zoom/Select
-        • WASD - Move player
-        • F1 - Toggle UI // CHANGE: Was H
-        • B - Block selection mode
-        • O - Object selection mode
-        • I - Item selection mode
-        • M - Car selection mode // CHANGE: The key is M in InputHandler
-        • H - House selection mode // ADD THIS
-        • C - Free camera mode
-        • Q/E - Camera angle (player)
-        • R/T - Camera height (player)
-        - N - Background selection mode
-        - Hold N + scroll for backgrounds
+⌨️ General Controls:
+• Left click → Place/Action
+• Right click → Remove
+• Right drag → Rotate camera
+• Mouse wheel → Zoom/Select
+• WASD → Move player
+• F1 → Toggle UI
+• C → Free camera mode
+• Q/E → Camera angle (player)
+• R/T → Camera height (player)
 
-        Object Controls:
-        • F - Fine positioning mode
-        • D - Debug mode (show invisible)
-        • Arrow keys - Fine position adjust
+🧱 Building Tools:
+• B → Block selection mode
+• O → Object selection mode
+• I → Item selection mode
+• M → Car selection mode
+• H → House selection mode
+• N → Background selection mode
+• Hold N + scroll → Select backgrounds
 
-        Item Controls:
-        • Hold I + scroll - Select items
-        • Left click - Place selected item
+🔧 Advanced Controls:
+• F → Fine positioning mode
+• D → Debug mode (show invisible)
+• Arrow keys → Fine position adjust
 
-        Car Controls:
-        • Hold R + scroll - Select cars
-        • Left click - Place selected car
-        • F - Fine positioning mode
-        • Cars are 2D billboards
+💎 Special Features:
+• 4×4 grid snapping
+• Paper Mario rotation
+• Collision detection
+• Hold tool key + scroll to select variants"""
 
-        Features:
-        • 4x4 grid snapping
-        • Paper Mario rotation
-        • Collision detection
-        • Hold B + scroll for blocks
-        • Hold O + scroll for objects
-        • Hold I + scroll for items
-        • Hold M + scroll for cars
-        • Hold H + scroll for houses"""
-
-        val instructionText = Label(instructions, skin, "instruction")
+        val instructionText = Label(instructions, skin, "instruction-enhanced")
         instructionText.setWrap(true)
-        instructionsContainer.add(instructionText).width(280f)
+        instructionsContainer.add(instructionText).width(340f)
 
-        container.add(instructionsContainer).width(320f).padBottom(20f).left().row()
+        container.add(instructionsContainer).width(380f).padBottom(25f).fillX().row()
     }
 
-    private fun createStatsSection(container: Table) {
-        // Section title
-        val statsSectionLabel = Label("Statistics", skin, "section")
-        container.add(statsSectionLabel).padBottom(15f).left().row()
+    private fun createEnhancedStatsSection(container: Table) {
+        // Section header
+        val statsSectionContainer = Table()
+        statsSectionContainer.background = createSectionHeaderBackground()
+        statsSectionContainer.pad(12f, 20f, 12f, 20f)
 
-        // Stats container
+        val statsSectionLabel = Label("📊 Statistics", skin, "section-header")
+        statsSectionContainer.add(statsSectionLabel).left()
+
+        container.add(statsSectionContainer).fillX().padBottom(20f).row()
+
+        // Enhanced stats with modern card design
         val statsContainer = Table()
-        statsContainer.background = createStatsBackground()
-        statsContainer.pad(15f)
+        statsContainer.background = createStatsCardBackground()
+        statsContainer.pad(20f)
 
         statsLabels = mutableMapOf()
 
         // Create individual stat items - Updated to include cars
         val statItems = listOf(
-            "Blocks" to "3",
-            "Player" to "Placed",
-            "Objects" to "0",
-            "Items" to "0",
-            "Cars" to "0",
-            "Houses" to "0",
-            "Backgrounds" to "0"
+            "Blocks" to "3" to "🧱",
+            "Player" to "Placed" to "👤",
+            "Objects" to "0" to "📦",
+            "Items" to "0" to "💎",
+            "Cars" to "0" to "🚗",
+            "Houses" to "0" to "🏠",
+            "Backgrounds" to "0" to "🌄"
         )
 
-        for ((key, value) in statItems) {
+        for ((data, icon) in statItems) {
+            val (key, value) = data
             val statRow = Table()
+            statRow.background = createStatRowBackground()
+            statRow.pad(8f, 12f, 8f, 12f)
 
-            val keyLabel = Label("$key:", skin, "stat-key")
-            val valueLabel = Label(value, skin, "stat-value")
+            val iconLabel = Label(icon, skin, "stat-icon")
+            val keyLabel = Label(key, skin, "stat-key-enhanced")
+            val valueLabel = Label(value, skin, "stat-value-enhanced")
             statsLabels[key] = valueLabel
 
-            statRow.add(keyLabel).left().padRight(10f)
-            statRow.add(valueLabel).left().expandX()
+            statRow.add(iconLabel).padRight(10f)
+            statRow.add(keyLabel).left().expandX()
+            statRow.add(valueLabel).right()
 
-            statsContainer.add(statRow).fillX().padBottom(5f).row()
+            statsContainer.add(statRow).fillX().padBottom(6f).row()
         }
 
-        container.add(statsContainer).width(250f).left()
+        container.add(statsContainer).width(300f).fillX()
     }
 
-    private fun createModernPanelBackground(): Drawable {
-        val pixmap = Pixmap(200, 400, Pixmap.Format.RGBA8888)
+    // Enhanced background creation methods
+    private fun createGlassmorphismBackground(): Drawable {
+        val pixmap = Pixmap(400, 600, Pixmap.Format.RGBA8888)
+
+        // Create glassmorphism effect
+        for (y in 0 until 600) {
+            for (x in 0 until 400) {
+                val noise = (sin(x * 0.01f) + cos(y * 0.01f)) * 0.02f
+                val alpha = 0.85f + noise
+                pixmap.setColor(0.06f, 0.08f, 0.15f, alpha)
+                pixmap.drawPixel(x, y)
+            }
+        }
+
+        // Add glowing border
+        pixmap.setColor(PANEL_BORDER.r, PANEL_BORDER.g, PANEL_BORDER.b, 0.9f)
+        pixmap.drawRectangle(0, 0, 400, 600)
+        pixmap.drawRectangle(1, 1, 398, 598)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun createTitleBackground(): Drawable {
+        val pixmap = Pixmap(300, 50, Pixmap.Format.RGBA8888)
+
+        // Gradient background
+        for (y in 0 until 50) {
+            val progress = y / 50f
+            val r = ACCENT_COLOR.r * (1f - progress) + SECONDARY_COLOR.r * progress
+            val g = ACCENT_COLOR.g * (1f - progress) + SECONDARY_COLOR.g * progress
+            val b = ACCENT_COLOR.b * (1f - progress) + SECONDARY_COLOR.b * progress
+            pixmap.setColor(r, g, b, 0.3f)
+            pixmap.drawLine(0, y, 299, y)
+        }
+
+        // Glowing border
+        pixmap.setColor(ACCENT_COLOR.r, ACCENT_COLOR.g, ACCENT_COLOR.b, 0.6f)
+        pixmap.drawRectangle(0, 0, 300, 50)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun createSectionHeaderBackground(): Drawable {
+        val pixmap = Pixmap(350, 40, Pixmap.Format.RGBA8888)
+
+        // Subtle gradient
+        for (y in 0 until 40) {
+            val alpha = 0.15f + (y / 40f) * 0.1f
+            pixmap.setColor(0.15f, 0.2f, 0.3f, alpha)
+            pixmap.drawLine(0, y, 349, y)
+        }
+
+        // Accent line at bottom
+        pixmap.setColor(ACCENT_COLOR.r, ACCENT_COLOR.g, ACCENT_COLOR.b, 0.7f)
+        pixmap.drawLine(0, 38, 349, 38)
+        pixmap.drawLine(0, 39, 349, 39)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun createToolContainerBackground(): Drawable {
+        val pixmap = Pixmap(350, 200, Pixmap.Format.RGBA8888)
+
+        // Dark container with subtle pattern
+        pixmap.setColor(0.1f, 0.12f, 0.18f, 0.9f)
+        pixmap.fill()
+
+        // Add subtle pattern
+        pixmap.setColor(0.15f, 0.17f, 0.23f, 0.5f)
+        for (i in 0 until 350 step 20) {
+            for (j in 0 until 200 step 20) {
+                if ((i + j) % 40 == 0) {
+                    pixmap.fillRectangle(i, j, 1, 1)
+                }
+            }
+        }
+
+        // Border
+        pixmap.setColor(0.25f, 0.3f, 0.4f, 0.8f)
+        pixmap.drawRectangle(0, 0, 350, 200)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun createSelectedToolBackground(accentColor: Color): Drawable {
+        val pixmap = Pixmap(90, 85, Pixmap.Format.RGBA8888)
+
+        // Glowing selected background
+        for (y in 0 until 85) {
+            for (x in 0 until 90) {
+                val centerX = 45f
+                val centerY = 42.5f
+                val dist = kotlin.math.sqrt((x - centerX) * (x - centerX) + (y - centerY) * (y - centerY))
+                val glow = kotlin.math.max(0f, 1f - dist / 45f)
+
+                val alpha = 0.2f + glow * 0.3f
+                pixmap.setColor(accentColor.r, accentColor.g, accentColor.b, alpha)
+                pixmap.drawPixel(x, y)
+            }
+        }
+
+        // Bright border
+        pixmap.setColor(accentColor.r, accentColor.g, accentColor.b, 0.9f)
+        pixmap.drawRectangle(0, 0, 90, 85)
+        pixmap.drawRectangle(1, 1, 88, 83)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun createNormalToolBackground(): Drawable {
+        val pixmap = Pixmap(90, 85, Pixmap.Format.RGBA8888)
+
+        // Subtle gradient
+        for (y in 0 until 85) {
+            val alpha = 0.4f + (y / 85f) * 0.1f
+            pixmap.setColor(0.18f, 0.2f, 0.25f, alpha)
+            pixmap.drawLine(0, y, 89, y)
+        }
+
+        // Subtle border
+        pixmap.setColor(0.3f, 0.35f, 0.4f, 0.6f)
+        pixmap.drawRectangle(0, 0, 90, 85)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun createInfoCardBackground(): Drawable {
+        val pixmap = Pixmap(350, 60, Pixmap.Format.RGBA8888)
+
+        // Card background with subtle glow
+        pixmap.setColor(0.1f, 0.15f, 0.2f, 0.85f)
+        pixmap.fill()
+
+        // Accent border
+        pixmap.setColor(WARNING_COLOR.r, WARNING_COLOR.g, WARNING_COLOR.b, 0.6f)
+        pixmap.drawRectangle(0, 0, 350, 60)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun createInstructionsCardBackground(): Drawable {
+        val pixmap = Pixmap(380, 300, Pixmap.Format.RGBA8888)
+
+        // Enhanced card background
+        pixmap.setColor(0.08f, 0.12f, 0.18f, 0.9f)
+        pixmap.fill()
+
+        // Subtle inner glow
+        pixmap.setColor(0.12f, 0.16f, 0.22f, 0.7f)
+        pixmap.drawRectangle(5, 5, 370, 290)
+
+        // Accent border
+        pixmap.setColor(0.2f, 0.4f, 0.6f, 0.8f)
+        pixmap.drawRectangle(0, 0, 380, 300)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun createStatsCardBackground(): Drawable {
+        val pixmap = Pixmap(300, 250, Pixmap.Format.RGBA8888)
+
+        // Enhanced stats background
+        pixmap.setColor(0.08f, 0.12f, 0.16f, 0.92f)
+        pixmap.fill()
+
+        // Success color accent
+        pixmap.setColor(SUCCESS_COLOR.r, SUCCESS_COLOR.g, SUCCESS_COLOR.b, 0.3f)
+        pixmap.drawRectangle(0, 0, 300, 250)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun createStatRowBackground(): Drawable {
+        val pixmap = Pixmap(280, 35, Pixmap.Format.RGBA8888)
+
+        // Subtle row background
+        pixmap.setColor(0.12f, 0.16f, 0.2f, 0.6f)
+        pixmap.fill()
+
+        // Subtle border
+        pixmap.setColor(0.2f, 0.25f, 0.3f, 0.4f)
+        pixmap.drawRectangle(0, 0, 280, 35)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun createEnhancedToolIcon(tool: Tool): TextureRegion {
+        val pixmap = Pixmap(36, 36, Pixmap.Format.RGBA8888)
+
+        val baseColor = when (tool) {
+            Tool.BLOCK -> Color(0.3f, 0.8f, 0.3f, 1f)
+            Tool.PLAYER -> Color(1f, 0.7f, 0.2f, 1f)
+            Tool.OBJECT -> Color(0.7f, 0.3f, 0.9f, 1f)
+            Tool.ITEM -> Color(1f, 0.9f, 0.2f, 1f)
+            Tool.CAR -> Color(0.9f, 0.3f, 0.6f, 1f)
+            Tool.HOUSE -> Color(0.5f, 0.9f, 0.3f, 1f)
+            Tool.BACKGROUND -> Color(0.2f, 0.7f, 1f, 1f)
+        }
 
         // Create gradient background
-        for (y in 0 until 400) {
-            val alpha = 0.88f + (y / 400f) * 0.07f
-            pixmap.setColor(0.08f, 0.08f, 0.12f, alpha)
-            pixmap.drawLine(0, y, 199, y)
+        for (y in 0 until 36) {
+            for (x in 0 until 36) {
+                val centerDist = kotlin.math.sqrt((x - 18f) * (x - 18f) + (y - 18f) * (y - 18f))
+                val gradient = kotlin.math.max(0f, 1f - centerDist / 18f)
+
+                val r = baseColor.r * (0.7f + gradient * 0.3f)
+                val g = baseColor.g * (0.7f + gradient * 0.3f)
+                val b = baseColor.b * (0.7f + gradient * 0.3f)
+
+                pixmap.setColor(r, g, b, baseColor.a)
+                pixmap.drawPixel(x, y)
+            }
         }
 
-        // Add subtle border
-        pixmap.setColor(0.3f, 0.3f, 0.4f, 0.6f)
-        pixmap.drawRectangle(0, 0, 200, 400)
+        // Add enhanced icons
+        val shadowColor = Color(0f, 0f, 0f, 0.3f)
+        val highlightColor = Color(1f, 1f, 1f, 0.8f)
 
-        val texture = Texture(pixmap)
-        pixmap.dispose()
-
-        return TextureRegionDrawable(TextureRegion(texture))
-    }
-
-    private fun createToolButtonBackground(color: Color): Drawable {
-        val pixmap = Pixmap(80, 70, Pixmap.Format.RGBA8888)
-        pixmap.setColor(color)
-        pixmap.fill()
-
-        // Add border
-        pixmap.setColor(color.r + 0.1f, color.g + 0.1f, color.b + 0.1f, color.a)
-        pixmap.drawRectangle(0, 0, 80, 70)
-
-        val texture = Texture(pixmap)
-        pixmap.dispose()
-
-        return TextureRegionDrawable(TextureRegion(texture))
-    }
-
-    private fun createInstructionsBackground(): Drawable {
-        val pixmap = Pixmap(300, 200, Pixmap.Format.RGBA8888)
-        pixmap.setColor(0.12f, 0.12f, 0.18f, 0.85f)
-        pixmap.fill()
-
-        // Add border
-        pixmap.setColor(0.25f, 0.25f, 0.35f, 0.8f)
-        pixmap.drawRectangle(0, 0, 300, 200)
-
-        val texture = Texture(pixmap)
-        pixmap.dispose()
-
-        return TextureRegionDrawable(TextureRegion(texture))
-    }
-
-    private fun createStatsBackground(): Drawable {
-        val pixmap = Pixmap(250, 100, Pixmap.Format.RGBA8888)
-        pixmap.setColor(0.15f, 0.15f, 0.2f, 0.9f)
-        pixmap.fill()
-
-        // Add border
-        pixmap.setColor(0.3f, 0.4f, 0.5f, 0.7f)
-        pixmap.drawRectangle(0, 0, 250, 100)
-
-        val texture = Texture(pixmap)
-        pixmap.dispose()
-
-        return TextureRegionDrawable(TextureRegion(texture))
-    }
-
-    private fun createToolIcon(tool: Tool): TextureRegion {
-        val pixmap = Pixmap(30, 30, Pixmap.Format.RGBA8888)
-
-        val color = when (tool) {
-            Tool.BLOCK -> Color(0.4f, 0.8f, 0.2f, 1f)
-            Tool.PLAYER -> Color(0.8f, 0.6f, 0.2f, 1f)
-            Tool.OBJECT -> Color(0.6f, 0.4f, 0.8f, 1f)
-            Tool.ITEM -> Color(1f, 0.8f, 0.2f, 1f) // Golden color for items
-            Tool.CAR -> Color(0.9f, 0.3f, 0.6f, 1f) // Pink/magenta color for cars
-            Tool.HOUSE -> Color(0.6f, 0.8f, 0.1f, 1f)
-            Tool.BACKGROUND -> Color(1f, 0.8f, 0.3f, 1f)
-        }
-
-        pixmap.setColor(color)
-        pixmap.fill()
-
-        // Add simple pattern
-        pixmap.setColor(color.r * 0.7f, color.g * 0.7f, color.b * 0.7f, 1f)
         when (tool) {
             Tool.BLOCK -> {
-                // Grid pattern for blocks
-                for (i in 0 until 30 step 6) {
-                    pixmap.drawLine(i, 0, i, 29)
-                    pixmap.drawLine(0, i, 29, i)
+                // 3D block effect
+                pixmap.setColor(shadowColor)
+                pixmap.fillRectangle(10, 10, 16, 16)
+                pixmap.setColor(highlightColor)
+                pixmap.fillRectangle(8, 8, 16, 16)
+                pixmap.setColor(baseColor)
+                pixmap.fillRectangle(9, 9, 14, 14)
+
+                // Grid lines
+                pixmap.setColor(shadowColor)
+                for (i in 9..23 step 5) {
+                    pixmap.drawLine(i, 9, i, 23)
+                    pixmap.drawLine(9, i, 23, i)
                 }
             }
             Tool.PLAYER -> {
-                // Simple figure for player
-                pixmap.fillCircle(15, 20, 8)
-                pixmap.fillRectangle(11, 8, 8, 12)
+                // Enhanced player silhouette
+                pixmap.setColor(shadowColor)
+                pixmap.fillCircle(19, 13, 7) // Head shadow
+                pixmap.fillRectangle(13, 19, 12, 15) // Body shadow
+
+                pixmap.setColor(highlightColor)
+                pixmap.fillCircle(18, 12, 6) // Head
+                pixmap.fillRectangle(12, 18, 12, 14) // Body
+                pixmap.fillRectangle(10, 28, 4, 6) // Left leg
+                pixmap.fillRectangle(22, 28, 4, 6) // Right leg
+                pixmap.fillRectangle(8, 20, 4, 8) // Left arm
+                pixmap.fillRectangle(24, 20, 4, 8) // Right arm
             }
             Tool.OBJECT -> {
-                // Plus sign for objects
-                pixmap.fillRectangle(12, 5, 6, 20)
-                pixmap.fillRectangle(5, 12, 20, 6)
+                // Enhanced 3D cube
+                pixmap.setColor(shadowColor)
+                pixmap.fillRectangle(12, 12, 14, 14)
+                pixmap.setColor(highlightColor)
+                pixmap.fillRectangle(10, 10, 14, 14)
+                pixmap.setColor(baseColor)
+                pixmap.fillRectangle(11, 11, 12, 12)
+
+                // Cross pattern
+                pixmap.setColor(highlightColor)
+                pixmap.fillRectangle(16, 8, 4, 20)
+                pixmap.fillRectangle(8, 16, 20, 4)
             }
             Tool.ITEM -> {
-                // Diamond shape for items
-                pixmap.fillTriangle(15, 5, 8, 15, 15, 15)
-                pixmap.fillTriangle(15, 5, 15, 15, 22, 15)
-                pixmap.fillTriangle(8, 15, 15, 25, 22, 15)
+                // Enhanced diamond/gem
+                pixmap.setColor(shadowColor)
+                pixmap.fillTriangle(19, 8, 12, 18, 19, 18)
+                pixmap.fillTriangle(19, 8, 19, 18, 26, 18)
+                pixmap.fillTriangle(12, 18, 19, 28, 26, 18)
+
+                pixmap.setColor(highlightColor)
+                pixmap.fillTriangle(18, 7, 11, 17, 18, 17)
+                pixmap.fillTriangle(18, 7, 18, 17, 25, 17)
+                pixmap.fillTriangle(11, 17, 18, 27, 25, 17)
+
+                // Sparkle effects
+                pixmap.setColor(Color.WHITE)
+                pixmap.fillRectangle(15, 12, 2, 2)
+                pixmap.fillRectangle(20, 15, 2, 2)
             }
             Tool.CAR -> {
-                // Car shape
-                pixmap.fillRectangle(5, 12, 20, 8) // Main body
-                pixmap.fillRectangle(8, 8, 14, 6) // Top/roof
-                pixmap.fillCircle(10, 22, 2) // Front wheel
-                pixmap.fillCircle(20, 22, 2) // Rear wheel
+                // Enhanced car with more detail
+                pixmap.setColor(shadowColor)
+                pixmap.fillRectangle(8, 18, 22, 10) // Body shadow
+                pixmap.fillRectangle(12, 12, 14, 8) // Roof shadow
+
+                pixmap.setColor(highlightColor)
+                pixmap.fillRectangle(7, 17, 22, 10) // Main body
+                pixmap.fillRectangle(11, 11, 14, 8) // Roof
+
+                // Windows
+                pixmap.setColor(Color(0.6f, 0.8f, 1f, 1f))
+                pixmap.fillRectangle(13, 13, 4, 4)
+                pixmap.fillRectangle(19, 13, 4, 4)
+
+                // Wheels
+                pixmap.setColor(Color.BLACK)
+                pixmap.fillCircle(13, 28, 3)
+                pixmap.fillCircle(23, 28, 3)
+                pixmap.setColor(Color.GRAY)
+                pixmap.fillCircle(13, 28, 2)
+                pixmap.fillCircle(23, 28, 2)
             }
             Tool.HOUSE -> {
-                pixmap.fillRectangle(5, 12, 20, 8) // Main body
+                // Enhanced house
+                pixmap.setColor(shadowColor)
+                pixmap.fillRectangle(9, 18, 20, 16) // House shadow
+                pixmap.fillTriangle(18, 8, 8, 18, 28, 18) // Roof shadow
+
+                pixmap.setColor(highlightColor)
+                pixmap.fillRectangle(8, 17, 20, 16) // House body
+                pixmap.fillTriangle(18, 7, 7, 17, 29, 17) // Roof
+
+                // Door and windows
+                pixmap.setColor(Color(0.4f, 0.2f, 0.1f, 1f))
+                pixmap.fillRectangle(15, 25, 6, 8) // Door
+                pixmap.setColor(Color(0.6f, 0.8f, 1f, 1f))
+                pixmap.fillRectangle(10, 20, 4, 4) // Left window
+                pixmap.fillRectangle(22, 20, 4, 4) // Right window
             }
             Tool.BACKGROUND -> {
-                // Landscape/background icon
-                pixmap.fillRectangle(5, 25, 20, 5) // Ground
-                pixmap.fillTriangle(8, 25, 15, 15, 22, 25) // Mountain
-                pixmap.setColor(color.r * 0.9f, color.g * 0.9f, color.b * 0.3f, 1f)
-                pixmap.fillCircle(35, 18, 4) // Sun
+                // Enhanced landscape
+                pixmap.setColor(shadowColor)
+                pixmap.fillRectangle(6, 26, 26, 8) // Ground shadow
+
+                pixmap.setColor(Color(0.3f, 0.8f, 0.3f, 1f))
+                pixmap.fillRectangle(5, 25, 26, 8) // Ground
+
+                // Mountains with gradient
+                pixmap.setColor(Color(0.4f, 0.6f, 0.8f, 1f))
+                pixmap.fillTriangle(18, 12, 8, 25, 28, 25)
+                pixmap.setColor(Color(0.6f, 0.8f, 1f, 1f))
+                pixmap.fillTriangle(18, 12, 8, 25, 18, 25)
+
+                // Sun with rays
+                pixmap.setColor(Color(1f, 0.9f, 0.3f, 1f))
+                pixmap.fillCircle(27, 13, 4)
+                pixmap.setColor(Color(1f, 1f, 0.7f, 0.8f))
+                for (i in 0..7) {
+                    val angle = i * 45f * kotlin.math.PI / 180f
+                    val x1 = 27 + cos(angle) * 6
+                    val y1 = 13 + sin(angle) * 6
+                    val x2 = 27 + cos(angle) * 8
+                    val y2 = 13 + sin(angle) * 8
+                    pixmap.drawLine(x1.toInt(), y1.toInt(), x2.toInt(), y2.toInt())
+                }
             }
         }
 
         val texture = Texture(pixmap)
         pixmap.dispose()
-
         return TextureRegion(texture)
+    }
+
+    private fun getToolAccentColor(tool: Tool): Color {
+        return when (tool) {
+            Tool.BLOCK -> SUCCESS_COLOR
+            Tool.PLAYER -> WARNING_COLOR
+            Tool.OBJECT -> SECONDARY_COLOR
+            Tool.ITEM -> Color(1f, 0.9f, 0.2f, 1f)
+            Tool.CAR -> Color(0.9f, 0.3f, 0.6f, 1f)
+            Tool.HOUSE -> Color(0.5f, 0.9f, 0.3f, 1f)
+            Tool.BACKGROUND -> ACCENT_COLOR
+        }
     }
 
     private fun getToolDisplayName(tool: Tool): String {
@@ -426,13 +732,11 @@ class UIManager(
                     // TextButton style might not exist
                 }
 
-                // Add custom label styles
-                addCustomLabelStyles(loadedSkin, customFont)
-
+                addEnhancedLabelStyles(loadedSkin, customFont)
                 println("Custom font loaded successfully from ui/default.fnt")
             } catch (e: Exception) {
                 println("Could not load custom font: ${e.message}")
-                addCustomLabelStyles(loadedSkin, loadedSkin.get(BitmapFont::class.java))
+                addEnhancedLabelStyles(loadedSkin, loadedSkin.get(BitmapFont::class.java))
             }
 
             loadedSkin
@@ -442,41 +746,93 @@ class UIManager(
         }
     }
 
-    private fun addCustomLabelStyles(skin: Skin, font: BitmapFont) {
-        // Title style
+    private fun addEnhancedLabelStyles(skin: Skin, font: BitmapFont) {
+        // Enhanced title with gradient effect
+        val titleGradientStyle = Label.LabelStyle()
+        titleGradientStyle.font = font
+        titleGradientStyle.fontColor = TEXT_PRIMARY
+        skin.add("title-gradient", titleGradientStyle)
+
+        // Section headers with accent color
+        val sectionHeaderStyle = Label.LabelStyle()
+        sectionHeaderStyle.font = font
+        sectionHeaderStyle.fontColor = ACCENT_COLOR
+        skin.add("section-header", sectionHeaderStyle)
+
+        // Tool names
+        val toolNameStyle = Label.LabelStyle()
+        toolNameStyle.font = font
+        toolNameStyle.fontColor = TEXT_SECONDARY
+        skin.add("tool-name", toolNameStyle)
+
+        // Enhanced instruction text
+        val instructionEnhancedStyle = Label.LabelStyle()
+        instructionEnhancedStyle.font = font
+        instructionEnhancedStyle.fontColor = TEXT_SECONDARY
+        skin.add("instruction-enhanced", instructionEnhancedStyle)
+
+        // Info card text
+        val infoCardStyle = Label.LabelStyle()
+        infoCardStyle.font = font
+        infoCardStyle.fontColor = WARNING_COLOR
+        skin.add("info-card", infoCardStyle)
+
+        // Enhanced stats styles
+        val statIconStyle = Label.LabelStyle()
+        statIconStyle.font = font
+        statIconStyle.fontColor = ACCENT_COLOR
+        skin.add("stat-icon", statIconStyle)
+
+        val statKeyEnhancedStyle = Label.LabelStyle()
+        statKeyEnhancedStyle.font = font
+        statKeyEnhancedStyle.fontColor = TEXT_SECONDARY
+        skin.add("stat-key-enhanced", statKeyEnhancedStyle)
+
+        val statValueEnhancedStyle = Label.LabelStyle()
+        statValueEnhancedStyle.font = font
+        statValueEnhancedStyle.fontColor = SUCCESS_COLOR
+        skin.add("stat-value-enhanced", statValueEnhancedStyle)
+
+        // Hint text
+        val hintStyle = Label.LabelStyle()
+        hintStyle.font = font
+        hintStyle.fontColor = TEXT_MUTED
+        skin.add("hint", hintStyle)
+
+        // Legacy styles for compatibility
         val titleStyle = Label.LabelStyle()
         titleStyle.font = font
-        titleStyle.fontColor = Color(0.9f, 0.9f, 1f, 1f)
+        titleStyle.fontColor = TEXT_PRIMARY
         skin.add("title", titleStyle)
 
         // Section header style
         val sectionStyle = Label.LabelStyle()
         sectionStyle.font = font
-        sectionStyle.fontColor = Color(0.8f, 0.9f, 1f, 1f)
+        sectionStyle.fontColor = TEXT_SECONDARY
         skin.add("section", sectionStyle)
 
         // Small text style
         val smallStyle = Label.LabelStyle()
         smallStyle.font = font
-        smallStyle.fontColor = Color(0.8f, 0.8f, 0.8f, 1f)
+        smallStyle.fontColor = TEXT_MUTED
         skin.add("small", smallStyle)
 
         // Instruction text style
         val instructionStyle = Label.LabelStyle()
         instructionStyle.font = font
-        instructionStyle.fontColor = Color(0.85f, 0.85f, 0.9f, 1f)
+        instructionStyle.fontColor = TEXT_SECONDARY
         skin.add("instruction", instructionStyle)
 
         // Stats key style
         val statKeyStyle = Label.LabelStyle()
         statKeyStyle.font = font
-        statKeyStyle.fontColor = Color(0.7f, 0.8f, 0.9f, 1f)
+        statKeyStyle.fontColor = TEXT_SECONDARY
         skin.add("stat-key", statKeyStyle)
 
         // Stats value style
         val statValueStyle = Label.LabelStyle()
         statValueStyle.font = font
-        statValueStyle.fontColor = Color(0.9f, 0.9f, 1f, 1f)
+        statValueStyle.fontColor = TEXT_PRIMARY
         skin.add("stat-value", statValueStyle)
     }
 
@@ -516,7 +872,7 @@ class UIManager(
         labelStyle.fontColor = Color.WHITE
         skin.add("default", labelStyle)
 
-        addCustomLabelStyles(skin, font)
+        addEnhancedLabelStyles(skin, font)
 
         return skin
     }
@@ -531,9 +887,9 @@ class UIManager(
 
             // Create smooth transition
             val targetBackground = if (isSelected) {
-                createToolButtonBackground(Color(0.4f, 0.6f, 0.8f, 0.95f))
+                createSelectedToolBackground(getToolAccentColor(tool))
             } else {
-                createToolButtonBackground(Color(0.25f, 0.25f, 0.3f, 0.9f))
+                createNormalToolBackground()
             }
 
             // Animate the selection
@@ -543,35 +899,33 @@ class UIManager(
                     Actions.run { toolButton.background = targetBackground },
                     if (isSelected) {
                         Actions.sequence(
-                            Actions.scaleTo(1.1f, 1.1f, 0.1f, Interpolation.bounceOut),
+                            Actions.scaleTo(1.05f, 1.05f, 0.15f, Interpolation.bounceOut),
                             Actions.scaleTo(1.0f, 1.0f, 0.1f, Interpolation.smooth)
                         )
                     } else {
-                        Actions.scaleTo(1.0f, 1.0f, 0.1f, Interpolation.smooth)
+                        Actions.scaleTo(1.0f, 1.0f, 0.15f, Interpolation.smooth)
                     }
                 )
             )
 
             // Update label color
             val nameLabel = toolButton.children.get(1) as Label
-            nameLabel.color = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
+            nameLabel.color = if (isSelected) TEXT_PRIMARY else TEXT_SECONDARY
         }
-    }
-
-    // Update stats with current values - Updated to include car count
-    fun updateStats(blockCount: Int, playerPlaced: Boolean, objectCount: Int, itemCount: Int = 0, carCount: Int = 0, houseCount: Int = 0, backgroundCount: Int = 0) {
-        statsLabels["Blocks"]?.setText(blockCount.toString())
-        statsLabels["Player"]?.setText(if (playerPlaced) "Placed" else "Not Placed")
-        statsLabels["Objects"]?.setText(objectCount.toString())
-        statsLabels["Items"]?.setText(itemCount.toString())
-        statsLabels["Cars"]?.setText(carCount.toString())
-        statsLabels["Houses"]?.setText(houseCount.toString())
-        statsLabels["Backgrounds"]?.setText(backgroundCount.toString())
     }
 
     fun toggleVisibility() {
         isUIVisible = !isUIVisible
         mainTable.isVisible = isUIVisible
+
+        // Add fade animation
+        mainTable.clearActions()
+        if (isUIVisible) {
+            mainTable.color.a = 0f
+            mainTable.addAction(Actions.fadeIn(0.3f, Interpolation.smooth))
+        } else {
+            mainTable.addAction(Actions.fadeOut(0.2f, Interpolation.smooth))
+        }
     }
 
     // Block selection methods
@@ -613,7 +967,7 @@ class UIManager(
         itemSelectionUI.update()
     }
 
-    // Car selection methods - Add these new methods
+    // Car selection methods
     fun showCarSelection() {
         carSelectionUI.show()
     }
@@ -638,7 +992,7 @@ class UIManager(
         houseSelectionUI.update()
     }
 
-    fun getLightSourceSettings(): Triple<Float, Float, Color> {
+    fun getLightSourceSettings(): Tuple6<Float, Float, Color, Float, Float, Float> {
         return lightSourceUI.getCurrentSettings()
     }
 
@@ -649,6 +1003,15 @@ class UIManager(
     fun updatePlacementInfo(info: String) {
         if (::placementInfoLabel.isInitialized) {
             placementInfoLabel.setText(info)
+
+            // Add pulse animation for new info
+            placementInfoLabel.clearActions()
+            placementInfoLabel.addAction(
+                Actions.sequence(
+                    Actions.scaleTo(1.05f, 1.05f, 0.1f, Interpolation.bounceOut),
+                    Actions.scaleTo(1.0f, 1.0f, 0.1f, Interpolation.smooth)
+                )
+            )
         }
     }
 
@@ -664,7 +1027,6 @@ class UIManager(
         backgroundSelectionUI.update()
     }
 
-    // Method to update the tool display when tool changes
     fun updateToolDisplay() {
         updateToolButtons()
     }
