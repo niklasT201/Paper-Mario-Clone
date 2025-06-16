@@ -89,33 +89,49 @@ class PlayerSystem {
         var moved = false
         var currentMovementDirection = 0f
 
+        // Store original position for rollback if needed
+        val originalX = playerPosition.x
+        val originalZ = playerPosition.z
+
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
             val newX = playerPosition.x - playerSpeed * deltaTime
-            if (canMoveTo(newX, playerPosition.y, playerPosition.z, gameBlocks, gameHouses)) {
+            // Calculate Y position for the new X position
+            val newY = calculateCorrectYPosition(newX, playerPosition.z, gameBlocks)
+            if (canMoveTo(newX, newY, playerPosition.z, gameBlocks, gameHouses)) {
                 playerPosition.x = newX
+                playerPosition.y = newY
                 moved = true
                 currentMovementDirection = -1f
             }
         }
         if (Gdx.input.isKeyPressed(Input.Keys.D)) {
             val newX = playerPosition.x + playerSpeed * deltaTime
-            if (canMoveTo(newX, playerPosition.y, playerPosition.z, gameBlocks, gameHouses)) {
+            // Calculate Y position for the new X position
+            val newY = calculateCorrectYPosition(newX, playerPosition.z, gameBlocks)
+            if (canMoveTo(newX, newY, playerPosition.z, gameBlocks, gameHouses)) {
                 playerPosition.x = newX
+                playerPosition.y = newY
                 moved = true
                 currentMovementDirection = 1f
             }
         }
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
             val newZ = playerPosition.z - playerSpeed * deltaTime
-            if (canMoveTo(playerPosition.x, playerPosition.y, newZ, gameBlocks, gameHouses)) {
+            // Calculate Y position for the new Z position
+            val newY = calculateCorrectYPosition(playerPosition.x, newZ, gameBlocks)
+            if (canMoveTo(playerPosition.x, newY, newZ, gameBlocks, gameHouses)) {
                 playerPosition.z = newZ
+                playerPosition.y = newY
                 moved = true
             }
         }
         if (Gdx.input.isKeyPressed(Input.Keys.S)) {
             val newZ = playerPosition.z + playerSpeed * deltaTime
-            if (canMoveTo(playerPosition.x, playerPosition.y, newZ, gameBlocks, gameHouses)) {
+            // Calculate Y position for the new Z position
+            val newY = calculateCorrectYPosition(playerPosition.x, newZ, gameBlocks)
+            if (canMoveTo(playerPosition.x, newY, newZ, gameBlocks, gameHouses)) {
                 playerPosition.z = newZ
+                playerPosition.y = newY
                 moved = true
             }
         }
@@ -129,13 +145,54 @@ class PlayerSystem {
         // Smoothly interpolate current rotation towards target rotation
         updatePlayerRotation(deltaTime)
 
-        // Update player model position if moved
+        // Update player bounds if moved
         if (moved) {
-            playerPosition.y = 2f
             updatePlayerBounds()
         }
 
         return moved
+    }
+
+    private fun calculateCorrectYPosition(x: Float, z: Float, gameBlocks: Array<GameBlock>): Float {
+        // Find the highest block that the player would be standing on at position (x, z)
+        var highestBlockY = 0f // Ground level
+
+        // Create a small area around the player position to check for blocks
+        val checkRadius = playerSize.x / 2f // Use half the player width for checking
+
+        for (gameBlock in gameBlocks) {
+            val blockCenterX = gameBlock.position.x
+            val blockCenterZ = gameBlock.position.z
+            val blockHalfSize = blockSize / 2f
+
+            // Check if the player's position overlaps with this block horizontally
+            val playerLeft = x - checkRadius
+            val playerRight = x + checkRadius
+            val playerFront = z - checkRadius
+            val playerBack = z + checkRadius
+
+            val blockLeft = blockCenterX - blockHalfSize
+            val blockRight = blockCenterX + blockHalfSize
+            val blockFront = blockCenterZ - blockHalfSize
+            val blockBack = blockCenterZ + blockHalfSize
+
+            // Check for horizontal overlap
+            val horizontalOverlap = !(playerRight < blockLeft || playerLeft > blockRight ||
+                playerBack < blockFront || playerFront > blockBack)
+
+            if (horizontalOverlap) {
+                // Calculate the top of this block
+                val blockHeight = blockSize * gameBlock.blockType.height
+                val blockTop = gameBlock.position.y + blockHeight / 2f
+
+                if (blockTop > highestBlockY) {
+                    highestBlockY = blockTop
+                }
+            }
+        }
+
+        // Return player Y position so their bottom is on the block top
+        return highestBlockY + playerSize.y / 2f
     }
 
     fun placePlayer(ray: Ray, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>): Boolean {
@@ -147,11 +204,36 @@ class PlayerSystem {
             val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
 
-            // Check if the new position would cause a collision
-            if (canMoveTo(gridX, 2f, gridZ, gameBlocks, gameHouses)) {
-                playerPosition.set(gridX, 2f, gridZ)
+            // Find the highest block at this X,Z position
+            var highestBlockY = 0f // Ground level
+
+            for (gameBlock in gameBlocks) {
+                val blockCenterX = gameBlock.position.x
+                val blockCenterZ = gameBlock.position.z
+
+                // Check if this block is at the same grid position
+                val tolerance = blockSize / 4f // Allow some tolerance for floating point precision
+                if (kotlin.math.abs(blockCenterX - gridX) < tolerance &&
+                    kotlin.math.abs(blockCenterZ - gridZ) < tolerance) {
+
+                    // Calculate the top of this block
+                    val blockHeight = blockSize * gameBlock.blockType.height
+                    val blockTop = gameBlock.position.y + blockHeight / 2f
+
+                    if (blockTop > highestBlockY) {
+                        highestBlockY = blockTop
+                    }
+                }
+            }
+
+            // Place player on top of the highest block (or ground if no blocks)
+            val playerY = highestBlockY + playerSize.y / 2f // Position player so their bottom is on the block top
+
+            // Check if the new position would cause a collision with other objects
+            if (canMoveTo(gridX, playerY, gridZ, gameBlocks, gameHouses)) {
+                playerPosition.set(gridX, playerY, gridZ)
                 updatePlayerBounds()
-                println("Player placed at: $gridX, 2, $gridZ")
+                println("Player placed at: $gridX, $playerY, $gridZ")
                 return true
             } else {
                 println("Cannot place player here - collision with block or house")
@@ -163,7 +245,7 @@ class PlayerSystem {
 
     private fun canMoveTo(x: Float, y: Float, z: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>): Boolean {
         // Create a temporary bounding box for the new position
-        val horizontalShrink = 0.3f
+        val horizontalShrink = 0.2f // Reduced shrink for more accurate collision
         val tempBounds = BoundingBox()
         tempBounds.set(
             Vector3(x - (playerSize.x / 2 - horizontalShrink), y - playerSize.y / 2, z - (playerSize.z / 2 - horizontalShrink)),
@@ -179,14 +261,17 @@ class PlayerSystem {
 
             // Check if the temporary player bounds intersect with the block bounds
             if (tempBounds.intersects(blockBounds)) {
-                // Additional check: if player is standing on top of the block, allow movement
+                // Check if player is standing on top of the block
                 val playerBottom = tempBounds.min.y
                 val blockTop = blockBounds.max.y
-                val tolerance = 0.5f
+                val tolerance = 0.1f // Small tolerance for floating point precision
+
+                // Player is on top if their bottom is at or very slightly above the block top
                 if (playerBottom >= blockTop - tolerance) {
-                    continue
+                    continue // Allow movement - player is standing on top
                 }
-                return false
+
+                return false // Block collision detected - player would be inside the block
             }
         }
 

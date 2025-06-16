@@ -24,19 +24,6 @@ data class GameBlock(
         }
     }
 
-    // Method to rotate the block by 90 degrees
-    fun rotate90Degrees() {
-        rotationY = (rotationY + 90f) % 360f
-        updateTransform()
-        println("Block rotated to: ${rotationY}° (${getDirectionName()})")
-    }
-
-    // Method to set specific rotation
-    fun setRotation(degrees: Float) {
-        rotationY = degrees % 360f
-        updateTransform()
-    }
-
     // Helper method to get direction name
     private fun getDirectionName(): String {
         return when (rotationY.toInt()) {
