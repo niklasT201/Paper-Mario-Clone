@@ -52,7 +52,6 @@ public class Lwjgl3Launcher {
 // maybe remove player stepping up blocks
 // improving placing on blocks for items
 // move findLightSourceAtRay to raycastsystem
-// player cant be placed on streets and also not moving
 // improving background system
 
 // fbx-conv house.obj house.g3dj

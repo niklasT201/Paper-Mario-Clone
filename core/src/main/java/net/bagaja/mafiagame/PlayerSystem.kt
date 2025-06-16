@@ -180,8 +180,8 @@ class PlayerSystem {
                 playerBack < blockFront || playerFront > blockBack)
 
             if (horizontalOverlap) {
-                // Calculate the top of this block
-                val blockHeight = blockSize * gameBlock.blockType.height
+                // Calculate the top of this block using ACTUAL block height
+                val blockHeight = blockSize * gameBlock.blockType.height // This accounts for 0.8 height blocks!
                 val blockTop = gameBlock.position.y + blockHeight / 2f
 
                 // Only consider this block if it's below or at the current player position
@@ -236,8 +236,8 @@ class PlayerSystem {
                 if (kotlin.math.abs(blockCenterX - gridX) < tolerance &&
                     kotlin.math.abs(blockCenterZ - gridZ) < tolerance) {
 
-                    // Calculate the top of this block
-                    val blockHeight = blockSize * gameBlock.blockType.height
+                    // Calculate the top of this block using ACTUAL block height
+                    val blockHeight = blockSize * gameBlock.blockType.height // Fixed: now accounts for 0.8 height!
                     val blockTop = gameBlock.position.y + blockHeight / 2f
 
                     if (blockTop > highestBlockY) {
@@ -253,7 +253,7 @@ class PlayerSystem {
             if (canMoveTo(gridX, playerY, gridZ, gameBlocks, gameHouses)) {
                 playerPosition.set(gridX, playerY, gridZ)
                 updatePlayerBounds()
-                println("Player placed at: $gridX, $playerY, $gridZ")
+                println("Player placed at: $gridX, $playerY, $gridZ (block height: $highestBlockY)")
                 return true
             } else {
                 println("Cannot place player here - collision with block or house")
@@ -273,10 +273,12 @@ class PlayerSystem {
         )
 
         for (gameBlock in gameBlocks) {
+            // Calculate block bounds using ACTUAL block height
+            val blockHeight = blockSize * gameBlock.blockType.height
             val blockBounds = BoundingBox()
             blockBounds.set(
-                Vector3(gameBlock.position.x - blockSize / 2, gameBlock.position.y - blockSize / 2, gameBlock.position.z - blockSize / 2),
-                Vector3(gameBlock.position.x + blockSize / 2, gameBlock.position.y + blockSize / 2, gameBlock.position.z + blockSize / 2)
+                Vector3(gameBlock.position.x - blockSize / 2, gameBlock.position.y - blockHeight / 2, gameBlock.position.z - blockSize / 2),
+                Vector3(gameBlock.position.x + blockSize / 2, gameBlock.position.y + blockHeight / 2, gameBlock.position.z + blockSize / 2)
             )
 
             // Check if the temporary player bounds intersect with the block bounds

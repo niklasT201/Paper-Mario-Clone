@@ -100,6 +100,7 @@ enum class BlockType(
     COBBLESTONE("Cobblestone", "textures/objects/cobblestone_tile.png", 1.0f, BlockCategory.STREET),
     STONE("Stone", "textures/objects/stone_tile.png", 1.0f, BlockCategory.STREET),
     STREET_LOW("Street (Low)", "textures/objects/street_cheap.png", 0.8f, BlockCategory.STREET),
+    SIDEWALK_POOR("Sidewalk (Poor)", "textures/objects/sidewalk_poor.png", 1.0f, BlockCategory.STREET),
     SIDEWALK("Sidewalk", "textures/objects/sidewalk.png", 1.0f, BlockCategory.STREET),
     SIDEWALK_START("Sidewalk Start", "textures/objects/sidewalk_start.png", 1.0f, BlockCategory.STREET),
     STREET_TILE("Street Tile", "textures/objects/street_tile.png", 1.0f, BlockCategory.STREET),

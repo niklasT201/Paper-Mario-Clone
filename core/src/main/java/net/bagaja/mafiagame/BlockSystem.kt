@@ -85,6 +85,7 @@ class BlockSystem {
                     BlockType.GRAY_FLOOR -> Color.GRAY
                     BlockType.LIGHT_CEILING -> Color(0.95f, 0.95f, 1f, 1f)
                     BlockType.OFFICE_WALL -> Color(0.9f, 0.9f, 0.85f, 1f)
+                    BlockType.SIDEWALK_POOR -> Color.LIGHT_GRAY
                     BlockType.SIDEWALK -> Color.LIGHT_GRAY
                     BlockType.SIDEWALK_START -> Color.LIGHT_GRAY
                     BlockType.SPRAYED_WALL -> Color(0.7f, 0.8f, 0.6f, 1f)
