@@ -295,6 +295,33 @@ class MafiaGame : ApplicationAdapter() {
         }
     }
 
+    private fun calculateObjectYPosition(x: Float, z: Float, objectHeight: Float = 0f): Float {
+        // Find the highest block at the given X,Z position
+        var highestBlockY = 0f // Ground level
+
+        for (gameBlock in gameBlocks) {
+            val blockCenterX = gameBlock.position.x
+            val blockCenterZ = gameBlock.position.z
+
+            // Check if this block is at the same grid position
+            val tolerance = blockSize / 4f // Allow some tolerance for floating point precision
+            if (kotlin.math.abs(blockCenterX - x) < tolerance &&
+                kotlin.math.abs(blockCenterZ - z) < tolerance) {
+
+                // Calculate the top of this block
+                val blockHeight = blockSize * gameBlock.blockType.height
+                val blockTop = gameBlock.position.y + blockHeight / 2f
+
+                if (blockTop > highestBlockY) {
+                    highestBlockY = blockTop
+                }
+            }
+        }
+
+        // Return the Y position where the object should be placed (on top of highest block + object height offset)
+        return highestBlockY + objectHeight
+    }
+
     private fun placeBlock(ray: Ray) {
         // First, try to find intersection with existing blocks
         val hitBlock = raycastSystem.getBlockAtRay(ray, gameBlocks)
@@ -406,11 +433,17 @@ class MafiaGame : ApplicationAdapter() {
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
             when (objectSystem.currentSelectedObject) {
                 ObjectType.LIGHT_SOURCE -> {
-                    placeLightSource(intersection)
+                    // Snap to grid and calculate proper Y position
+                    val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
+                    val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+                    val properY = calculateObjectYPosition(gridX, gridZ, 0f) // Light sources at block surface
+
+                    placeLightSource(Vector3(gridX, properY, gridZ))
                 }
                 else -> {
                     val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
                     val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+                    val properY = calculateObjectYPosition(gridX, gridZ, 0f)
 
                     // Check if there's already an object at this position (optional)
                     val existingObject = gameObjects.find { gameObject ->
@@ -419,8 +452,8 @@ class MafiaGame : ApplicationAdapter() {
                     }
 
                     if (existingObject == null) {
-                        addObject(gridX, 0f, gridZ, objectSystem.currentSelectedObject)
-                        println("${objectSystem.currentSelectedObject.displayName} placed at: $gridX, 0, $gridZ")
+                        addObject(gridX, properY, gridZ, objectSystem.currentSelectedObject)
+                        println("${objectSystem.currentSelectedObject.displayName} placed at: $gridX, $properY, $gridZ")
                     } else {
                         println("Object already exists near this position")
                     }
@@ -456,6 +489,7 @@ class MafiaGame : ApplicationAdapter() {
         lightingManager.addLightSource(lightSource, instances)
 
         lastPlacedInstance = lightSource
+        println("Light source placed at: ${position.x}, ${position.y}, ${position.z}")
     }
 
     // New function to place items
@@ -464,8 +498,12 @@ class MafiaGame : ApplicationAdapter() {
         val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            // Items can be placed more freely, don't need to snap to grid
-            val itemPosition = Vector3(intersection.x, intersection.y + 1f, intersection.z)
+            // Items can be placed more freely, but still need to be on top of blocks
+            val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+            val properY = calculateObjectYPosition(gridX, gridZ, 1f) // Items float 1 unit above surface
+
+            val itemPosition = Vector3(gridX, properY, gridZ)
 
             // Check if there's already an item too close to this position
             val existingItem = itemSystem.getItemAtPosition(itemPosition, 1.5f)
@@ -552,6 +590,7 @@ class MafiaGame : ApplicationAdapter() {
             // Snap to grid
             val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+            val properY = calculateObjectYPosition(gridX, gridZ, 0f) // Cars sit on block surface
 
             // Check if there's already a car at this position
             val existingCar = gameCars.find { car ->
@@ -560,8 +599,8 @@ class MafiaGame : ApplicationAdapter() {
             }
 
             if (existingCar == null) {
-                addCar(gridX, 0f, gridZ, carSystem.currentSelectedCar)
-                println("${carSystem.currentSelectedCar.displayName} placed at: $gridX, 0, $gridZ")
+                addCar(gridX, properY, gridZ, carSystem.currentSelectedCar)
+                println("${carSystem.currentSelectedCar.displayName} placed at: $gridX, $properY, $gridZ")
             } else {
                 println("Car already exists near this position")
             }
@@ -590,6 +629,7 @@ class MafiaGame : ApplicationAdapter() {
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
             val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+            val properY = calculateObjectYPosition(gridX, gridZ, 0f) // Houses sit on block surface
 
             // Check if there's already a house at this position
             val existingHouse = gameHouses.find { house ->
@@ -598,8 +638,8 @@ class MafiaGame : ApplicationAdapter() {
             }
 
             if (existingHouse == null) {
-                addHouse(gridX, 0f, gridZ, houseSystem.currentSelectedHouse)
-                println("${houseSystem.currentSelectedHouse.displayName} placed at: $gridX, 0, $gridZ")
+                addHouse(gridX, properY, gridZ, houseSystem.currentSelectedHouse)
+                println("${houseSystem.currentSelectedHouse.displayName} placed at: $gridX, $properY, $gridZ")
             } else {
                 println("House already exists near this position")
             }
@@ -630,16 +670,20 @@ class MafiaGame : ApplicationAdapter() {
         val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+            val properY = calculateObjectYPosition(gridX, gridZ, 0f) // Backgrounds at block surface
+
             val newBackground = backgroundSystem.addBackground(
-                intersection.x,
-                intersection.y,
-                intersection.z,
+                gridX,
+                properY,
+                gridZ,
                 backgroundSystem.currentSelectedBackground
             )
 
             if (newBackground != null) {
                 lastPlacedInstance = newBackground
-                println("${backgroundSystem.currentSelectedBackground.displayName} placed successfully")
+                println("${backgroundSystem.currentSelectedBackground.displayName} placed successfully at: $gridX, $properY, $gridZ")
             }
         }
     }

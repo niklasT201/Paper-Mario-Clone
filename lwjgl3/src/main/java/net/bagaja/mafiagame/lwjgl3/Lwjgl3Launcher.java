@@ -44,13 +44,16 @@ public class Lwjgl3Launcher {
 // animations
 // add driving
 // add shadow option
-// rotate light source
 // spotlight effect
 // objects with default light source
 // ui for sky color change
 // key for light source rotation testing
 // item pickups have a glow
 // maybe remove player stepping up blocks
+// improving placing on blocks for items
+// light source being removeable
+// player cant be placed on streets and also not moving
+// improving background system
 
 // fbx-conv house.obj house.g3dj
 // fbx-conv -f house.obj house.g3dj
