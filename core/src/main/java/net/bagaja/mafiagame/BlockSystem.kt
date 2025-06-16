@@ -132,6 +132,14 @@ class BlockSystem {
         return blockTextures[currentSelectedBlock]
     }
 
+    fun setSelectedBlock(index: Int) {
+        if (index >= 0 && index < BlockType.entries.size) {
+            currentSelectedBlockIndex = index
+            currentSelectedBlock = BlockType.entries.toTypedArray()[index]
+            println("Selected block: ${currentSelectedBlock.displayName}")
+        }
+    }
+
     fun dispose() {
         blockModels.values.forEach { it.dispose() }
         blockTextures.values.forEach { it.dispose() }

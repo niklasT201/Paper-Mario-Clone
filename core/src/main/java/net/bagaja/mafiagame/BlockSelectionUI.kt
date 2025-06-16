@@ -6,9 +6,11 @@ import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
+import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
@@ -19,11 +21,15 @@ class BlockSelectionUI(
     private val stage: Stage
 ) {
     private lateinit var blockSelectionTable: Table
+    private lateinit var categoryTabsTable: Table
     private lateinit var blockContainer: ScrollPane
     private lateinit var blockItemsTable: Table
     private lateinit var blockItems: MutableList<BlockSelectionItem>
-    private val loadedTextures = mutableMapOf<String, Texture>() // Cache for loaded textures
-    private var lastSelectedIndex = -1 // Track last selected index to detect changes
+    private lateinit var categoryButtons: MutableList<Button>
+    private val loadedTextures = mutableMapOf<String, Texture>()
+    private var lastSelectedIndex = -1
+    private var currentCategory = BlockCategory.NATURAL
+    private var filteredBlockTypes = listOf<BlockType>()
 
     // Data class to hold block selection item components
     private data class BlockSelectionItem(
@@ -32,7 +38,8 @@ class BlockSelectionUI(
         val nameLabel: Label,
         val background: Drawable,
         val selectedBackground: Drawable,
-        val blockType: BlockType
+        val blockType: BlockType,
+        val globalIndex: Int
     )
 
     fun initialize() {
@@ -58,8 +65,11 @@ class BlockSelectionUI(
         // Title with modern styling
         val titleLabel = Label("Block Selection", skin)
         titleLabel.setFontScale(1.4f)
-        titleLabel.color = Color(0.9f, 0.9f, 0.9f, 1f) // Light gray
+        titleLabel.color = Color(0.9f, 0.9f, 0.9f, 1f)
         mainContainer.add(titleLabel).padBottom(15f).row()
+
+        // Create category tabs
+        setupCategoryTabs(mainContainer)
 
         // Create scrollable container for block items
         blockItemsTable = Table()
@@ -67,23 +77,110 @@ class BlockSelectionUI(
 
         // Create scroll pane to handle many blocks
         blockContainer = ScrollPane(blockItemsTable, skin)
-        blockContainer.setScrollingDisabled(false, true) // Allow horizontal scrolling only
+        blockContainer.setScrollingDisabled(false, true)
         blockContainer.setFadeScrollBars(false)
 
         // Set max size to prevent UI from becoming too large
         mainContainer.add(blockContainer).size(800f, 120f).padBottom(10f).row()
 
-        // Instructions with modern styling
-        val instructionLabel = Label("Hold [B] + Mouse Wheel to change blocks", skin)
-        instructionLabel.setFontScale(0.9f)
-        instructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f) // Darker gray
-        mainContainer.add(instructionLabel)
+        // Instructions
+        val instructionLabel = Label("Hold [B] + Mouse Wheel to change blocks | Click category tabs to filter", skin)
+        instructionLabel.setFontScale(0.8f)
+        instructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f)
+        instructionLabel.setWrap(true)
+        instructionLabel.setAlignment(Align.center)
+        mainContainer.add(instructionLabel).width(800f)
 
         blockSelectionTable.add(mainContainer)
         stage.addActor(blockSelectionTable)
 
-        // Initial setup of block items
+        // Initialize with first category
+        updateCurrentCategory()
         refreshBlockItems()
+    }
+
+    private fun setupCategoryTabs(mainContainer: Table) {
+        categoryTabsTable = Table()
+        categoryButtons = mutableListOf()
+
+        val categories = BlockCategory.entries.toTypedArray()
+
+        for (category in categories) {
+            val categoryButton = TextButton(category.displayName, skin)
+            categoryButton.label.setFontScale(0.8f)
+
+            // Create custom button style based on category color
+            val buttonStyle = createCategoryButtonStyle(category)
+            categoryButton.style = buttonStyle
+
+            categoryButton.addListener(object : ClickListener() {
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                    selectCategory(category)
+                }
+            })
+
+            categoryButtons.add(categoryButton)
+            categoryTabsTable.add(categoryButton).size(120f, 35f).pad(2f)
+        }
+
+        mainContainer.add(categoryTabsTable).padBottom(15f).row()
+        updateCategoryButtonStates()
+    }
+
+    private fun createCategoryButtonStyle(category: BlockCategory): TextButton.TextButtonStyle {
+        val style = TextButton.TextButtonStyle()
+
+        // Create normal and active backgrounds
+        val normalColor = Color(0.3f, 0.3f, 0.35f, 0.9f)
+        val activeColor = Color.valueOf(category.color.toString(16).padStart(6, '0'))
+        activeColor.a = 0.8f
+
+        style.up = createButtonBackground(normalColor)
+        style.down = createButtonBackground(activeColor)
+        style.checked = createButtonBackground(activeColor)
+        style.font = skin.getFont("default-font")
+        style.fontColor = Color.WHITE
+        style.downFontColor = Color.WHITE
+        style.checkedFontColor = Color.WHITE
+
+        return style
+    }
+
+    private fun createButtonBackground(color: Color): Drawable {
+        val pixmap = Pixmap(120, 35, Pixmap.Format.RGBA8888)
+        pixmap.setColor(color)
+        pixmap.fill()
+
+        // Add border
+        pixmap.setColor(color.r + 0.1f, color.g + 0.1f, color.b + 0.1f, color.a)
+        pixmap.drawRectangle(0, 0, 120, 35)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun selectCategory(category: BlockCategory) {
+        if (currentCategory != category) {
+            currentCategory = category
+            updateCurrentCategory()
+            refreshBlockItems()
+            updateCategoryButtonStates()
+        }
+    }
+
+    private fun updateCurrentCategory() {
+        filteredBlockTypes = BlockType.getByCategory(currentCategory)
+    }
+
+    private fun updateCategoryButtonStates() {
+        val categories = BlockCategory.entries.toTypedArray()
+        for (i in categoryButtons.indices) {
+            val button = categoryButtons[i]
+            val category = categories[i]
+            button.isChecked = category == currentCategory
+        }
     }
 
     private fun refreshBlockItems() {
@@ -91,13 +188,16 @@ class BlockSelectionUI(
         blockItemsTable.clear()
         blockItems = mutableListOf()
 
-        val blockTypes = BlockType.values()
         val currentSelectedIndex = blockSystem.currentSelectedBlockIndex
+        val allBlockTypes = BlockType.entries.toTypedArray()
 
-        // Create block items for each block type
-        for (i in blockTypes.indices) {
-            val blockType = blockTypes[i]
-            val item = createBlockItem(blockType, i == currentSelectedIndex)
+        // Create block items for filtered blocks
+        for (i in filteredBlockTypes.indices) {
+            val blockType = filteredBlockTypes[i]
+            val globalIndex = allBlockTypes.indexOf(blockType)
+            val isSelected = globalIndex == currentSelectedIndex
+
+            val item = createBlockItem(blockType, isSelected, globalIndex)
             blockItems.add(item)
 
             // Add spacing between items
@@ -112,14 +212,15 @@ class BlockSelectionUI(
     }
 
     private fun scrollToSelectedItem() {
-        val selectedIndex = blockSystem.currentSelectedBlockIndex
-        val totalItems = BlockType.values().size
+        val currentSelectedIndex = blockSystem.currentSelectedBlockIndex
+        val allBlockTypes = BlockType.entries.toTypedArray()
+        val selectedBlockType = allBlockTypes[currentSelectedIndex]
 
-        if (totalItems > 0) {
-            // Calculate the percentage position of the selected item
-            val scrollPercentage = selectedIndex.toFloat() / (totalItems - 1).toFloat()
+        // Find the index of the selected block in the current filtered list
+        val filteredIndex = filteredBlockTypes.indexOf(selectedBlockType)
 
-            // Smooth scroll to the selected item
+        if (filteredIndex != -1 && filteredBlockTypes.isNotEmpty()) {
+            val scrollPercentage = filteredIndex.toFloat() / (filteredBlockTypes.size - 1).toFloat()
             blockContainer.addAction(
                 Actions.run {
                     blockContainer.scrollPercentX = scrollPercentage.coerceIn(0f, 1f)
@@ -128,17 +229,17 @@ class BlockSelectionUI(
         }
     }
 
-    private fun createBlockItem(blockType: BlockType, isSelected: Boolean): BlockSelectionItem {
+    private fun createBlockItem(blockType: BlockType, isSelected: Boolean, globalIndex: Int): BlockSelectionItem {
         val container = Table()
         container.pad(8f)
 
-        // Create backgrounds for normal and selected states
+        // Create backgrounds
         val normalBg = createItemBackground(Color(0.3f, 0.3f, 0.35f, 0.9f))
         val selectedBg = createItemBackground(Color(0.4f, 0.6f, 0.8f, 0.95f))
 
         container.background = if (isSelected) selectedBg else normalBg
 
-        // Block icon - try to load actual texture first, fallback to generated icon
+        // Block icon
         val iconTexture = loadBlockTexture(blockType)
         val iconImage = Image(iconTexture)
         container.add(iconImage).size(40f, 40f).padBottom(8f).row()
@@ -151,7 +252,14 @@ class BlockSelectionUI(
         nameLabel.color = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
         container.add(nameLabel).width(70f).center()
 
-        return BlockSelectionItem(container, iconImage, nameLabel, normalBg, selectedBg, blockType)
+        // Add click listener to select this block
+        container.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                blockSystem.setSelectedBlock(globalIndex)
+            }
+        })
+
+        return BlockSelectionItem(container, iconImage, nameLabel, normalBg, selectedBg, blockType, globalIndex)
     }
 
     private fun loadBlockTexture(blockType: BlockType): TextureRegion {
@@ -167,8 +275,7 @@ class BlockSelectionUI(
             val fileHandle = Gdx.files.internal(texturePath)
             if (fileHandle.exists()) {
                 val texture = Texture(fileHandle)
-                loadedTextures[texturePath] = texture // Cache it
-                println("Loaded block texture: $texturePath")
+                loadedTextures[texturePath] = texture
                 TextureRegion(texture)
             } else {
                 println("Texture not found: $texturePath, using fallback")
@@ -186,7 +293,7 @@ class BlockSelectionUI(
 
         // Gradient effect
         for (y in 0 until 60) {
-            val alpha = 0.85f + (y / 60f) * 0.1f // Subtle gradient
+            val alpha = 0.85f + (y / 60f) * 0.1f
             pixmap.setColor(0.1f, 0.1f, 0.15f, alpha)
             pixmap.drawLine(0, y, 99, y)
         }
@@ -227,46 +334,14 @@ class BlockSelectionUI(
             BlockType.CARGO_FLOOR -> Color(0.7f, 0.6f, 0.4f, 1f)
             BlockType.BRICK_WALL -> Color(0.8f, 0.4f, 0.3f, 1f)
             BlockType.STREET_LOW -> Color.BLUE
-            BlockType.BETON_TILE -> Color(0.75f, 0.75f, 0.75f, 1f)
-            BlockType.BRICK_WALL_PNG -> Color(0.8f, 0.4f, 0.3f, 1f)
-            BlockType.BROKEN_CEILING -> Color(0.8f, 0.8f, 0.8f, 1f)
-            BlockType.BROKEN_WALL -> Color(0.7f, 0.6f, 0.5f, 1f)
-            BlockType.BROWN_BRICK_WALL -> Color(0.6f, 0.4f, 0.3f, 1f)
-            BlockType.BROWN_CLEAR_FLOOR -> Color(0.7f, 0.5f, 0.3f, 1f)
-            BlockType.BROWN_FLOOR -> Color(0.6f, 0.4f, 0.2f, 1f)
-            BlockType.CARD_FLOOR -> Color(0.9f, 0.9f, 0.8f, 1f)
-            BlockType.CARPET -> Color(0.6f, 0.2f, 0.2f, 1f)
-            BlockType.CEILING_WITH_LAMP -> Color(0.95f, 0.95f, 0.9f, 1f)
-            BlockType.CEILING -> Color(0.9f, 0.9f, 0.9f, 1f)
-            BlockType.CLUSTER_FLOOR -> Color(0.6f, 0.6f, 0.7f, 1f)
-            BlockType.CRACKED_WALL -> Color(0.8f, 0.8f, 0.7f, 1f)
-            BlockType.DARK_WALL -> Color(0.3f, 0.3f, 0.3f, 1f)
-            BlockType.DARK_YELLOW_FLOOR -> Color(0.7f, 0.6f, 0.2f, 1f)
-            BlockType.DIRTY_GROUND -> Color(0.5f, 0.4f, 0.3f, 1f)
-            BlockType.FLIESSEN -> Color(0.9f, 0.95f, 1f, 1f)
-            BlockType.FLOOR -> Color(0.8f, 0.8f, 0.8f, 1f)
-            BlockType.GRAY_FLOOR -> Color(0.6f, 0.6f, 0.6f, 1f)
-            BlockType.LIGHT_CEILING -> Color(0.95f, 0.95f, 1f, 1f)
-            BlockType.OFFICE_WALL -> Color(0.9f, 0.9f, 0.85f, 1f)
-            BlockType.SIDEWALK -> Color(0.7f, 0.7f, 0.7f, 1f)
-            BlockType.SIDEWALK_START -> Color(0.75f, 0.75f, 0.75f, 1f)
-            BlockType.SPRAYED_WALL -> Color(0.7f, 0.8f, 0.6f, 1f)
-            BlockType.STREET_TILE -> Color(0.4f, 0.4f, 0.4f, 1f)
-            BlockType.STRIPED_FLOOR -> Color(0.8f, 0.7f, 0.6f, 1f)
-            BlockType.STRIPED_TAPETE -> Color(0.9f, 0.8f, 0.7f, 1f)
-            BlockType.TAPETE -> Color(0.8f, 0.7f, 0.6f, 1f)
-            BlockType.TAPETE_WALL -> Color(0.85f, 0.75f, 0.65f, 1f)
-            BlockType.TRANS_WALL -> Color(0.9f, 0.9f, 0.9f, 0.8f)
-            BlockType.WALL -> Color(0.9f, 0.9f, 0.9f, 1f)
-            BlockType.WOOD_WALL -> Color(0.6f, 0.4f, 0.2f, 1f)
-            BlockType.WOODEN_FLOOR -> Color(0.7f, 0.5f, 0.3f, 1f)
+            else -> Color.GRAY // Default for any new blocks
         }
 
         // Fill with base color
         pixmap.setColor(color)
         pixmap.fill()
 
-        // Add some texture/pattern
+        // Add texture pattern
         pixmap.setColor(color.r * 0.8f, color.g * 0.8f, color.b * 0.8f, 1f)
         for (i in 0 until 32 step 4) {
             pixmap.drawLine(i, 0, i, 31)
@@ -281,27 +356,24 @@ class BlockSelectionUI(
 
     fun update() {
         val currentIndex = blockSystem.currentSelectedBlockIndex
+        val allBlockTypes = BlockType.entries.toTypedArray()
+        val selectedBlockType = allBlockTypes[currentIndex]
 
-        // Check if selection has changed
-        if (currentIndex != lastSelectedIndex) {
-            lastSelectedIndex = currentIndex
-
-            // If we don't have the right number of items, refresh completely
-            if (blockItems.size != BlockType.values().size) {
-                refreshBlockItems()
-                return
-            }
-
-            // Scroll to the selected item
-            scrollToSelectedItem()
+        // Check if we need to switch category to show the selected block
+        if (selectedBlockType.category != currentCategory) {
+            selectCategory(selectedBlockType.category)
+            return
         }
 
-        // Animate all block items
-        for (i in blockItems.indices) {
-            val item = blockItems[i]
-            val isSelected = i == currentIndex
+        if (currentIndex != lastSelectedIndex) {
+            lastSelectedIndex = currentIndex
+            refreshBlockItems()
+            return
+        }
 
-            // Create smooth transition animations
+        // Animate block items
+        for (item in blockItems) {
+            val isSelected = item.globalIndex == currentIndex
             val targetScale = if (isSelected) 1.1f else 1.0f
             val targetColor = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
             val targetBackground = if (isSelected) item.selectedBackground else item.background
@@ -333,7 +405,7 @@ class BlockSelectionUI(
 
     fun show() {
         blockSelectionTable.setVisible(true)
-        // Refresh items when showing to ensure we have all current blocks
+        updateCurrentCategory()
         refreshBlockItems()
     }
 

@@ -10,50 +10,87 @@ data class GameBlock(
     val position: Vector3
 )
 
-// Block type definitions
-enum class BlockType(val displayName: String, val texturePath: String, val height: Float = 1.0f) {
-    GRASS("Grass", "textures/objects/grass.png"),
-    COBBLESTONE("Cobblestone", "textures/objects/cobblestone_tile.png"),
-    ROOM_FLOOR("Room Floor", "textures/objects/room_floor_tile.png"),
-    STONE("Stone", "textures/objects/stone_tile.png"),
-    WINDOW_OPENED("Window Opened", "textures/objects/window.png"),
-    WINDOW_CLOSE("Window Closed", "textures/objects/window_closed.png"),
-    RESTAURANT_FLOOR("Restaurant Floor", "textures/objects/floor_tile.png"),
-    CARGO_FLOOR("Cargo Floor", "textures/objects/cargo_tile.png"),
-    BRICK_WALL("Brick Wall", "textures/objects/wall_brick.png"),
-    STREET_LOW("Street (Low)", "textures/objects/street_cheap.png", 0.8f),
+// Block categories for better organization
+enum class BlockCategory(val displayName: String, val color: Int) {
+    NATURAL("Natural", 0x4CAF50),        // Green
+    FLOORS("Floors", 0x8D6E63),          // Brown
+    WALLS("Walls", 0x757575),            // Gray
+    CEILINGS("Ceilings", 0xF5F5F5),      // Light Gray
+    STREET("Street & Outdoor", 0x424242), // Dark Gray
+    WINDOWS("Windows & Doors", 0x2196F3), // Blue
+}
 
-    BETON_TILE("Beton Tile", "textures/objects/beton_tile.png"),
-    BRICK_WALL_PNG("Brick Wall Alt", "textures/objects/brick_wall.png"),
-    BROKEN_CEILING("Broken Ceiling", "textures/objects/broken_ceiling.png"),
-    BROKEN_WALL("Broken Wall", "textures/objects/broken_wall.png"),
-    BROWN_BRICK_WALL("Brown Brick Wall", "textures/objects/brown_brick_wall.png"),
-    BROWN_CLEAR_FLOOR("Brown Clear Floor", "textures/objects/brown_clear_floor.png"),
-    BROWN_FLOOR("Brown Floor", "textures/objects/brown_floor.png"),
-    CARD_FLOOR("Card Floor", "textures/objects/card_floor.png"),
-    CARPET("Carpet", "textures/objects/carpet.png"),
-    CEILING_WITH_LAMP("Ceiling with Lamp", "textures/objects/ceiling_with_lamp.png"),
-    CEILING("Ceiling", "textures/objects/ceiling.png"),
-    CLUSTER_FLOOR("Cluster Floor", "textures/objects/cluster_floor.png"),
-    CRACKED_WALL("Cracked Wall", "textures/objects/cracked_wall.png"),
-    DARK_WALL("Dark Wall", "textures/objects/dark_wall.png"),
-    DARK_YELLOW_FLOOR("Dark Yellow Floor", "textures/objects/dark_yellow_floor.png"),
-    DIRTY_GROUND("Dirty Ground", "textures/objects/dirty_ground.png"),
-    FLIESSEN("Fliessen", "textures/objects/fliessen.png"),
-    FLOOR("Floor", "textures/objects/floor.png"),
-    GRAY_FLOOR("Gray Floor", "textures/objects/gray_floor.png"),
-    LIGHT_CEILING("Light Ceiling", "textures/objects/light_ceiling.png"),
-    OFFICE_WALL("Office Wall", "textures/objects/office_wall.png"),
-    SIDEWALK("Sidewalk", "textures/objects/sidewalk.png"),
-    SIDEWALK_START("Sidewalk Start", "textures/objects/sidewalk_start.png"),
-    SPRAYED_WALL("Sprayed Wall", "textures/objects/sprayed_wall.png"),
-    STREET_TILE("Street Tile", "textures/objects/street_tile.png"),
-    STRIPED_FLOOR("Striped Floor", "textures/objects/striped_floor.png"),
-    STRIPED_TAPETE("Striped Tapete", "textures/objects/striped_tapete.png"),
-    TAPETE("Tapete", "textures/objects/tapete.png"),
-    TAPETE_WALL("Tapete Wall", "textures/objects/tapete_wall.png"),
-    TRANS_WALL("Trans Wall", "textures/objects/trans_wall.png"),
-    WALL("Wall", "textures/objects/wall.png"),
-    WOOD_WALL("Wood Wall", "textures/objects/wood_wall.png"),
-    WOODEN_FLOOR("Wooden Floor", "textures/objects/wooden_floor.png");
+// Block type definitions with categories
+enum class BlockType(
+    val displayName: String,
+    val texturePath: String,
+    val height: Float = 1.0f,
+    val category: BlockCategory
+) {
+    // NATURAL
+    GRASS("Grass", "textures/objects/grass.png", 1.0f, BlockCategory.NATURAL),
+    DIRTY_GROUND("Dirty Ground", "textures/objects/dirty_ground.png", 1.0f, BlockCategory.NATURAL),
+
+    // FLOORS
+    ROOM_FLOOR("Room Floor", "textures/objects/room_floor_tile.png", 1.0f, BlockCategory.FLOORS),
+    RESTAURANT_FLOOR("Restaurant Floor", "textures/objects/floor_tile.png", 1.0f, BlockCategory.FLOORS),
+    CARGO_FLOOR("Cargo Floor", "textures/objects/cargo_tile.png", 1.0f, BlockCategory.FLOORS),
+    BROWN_CLEAR_FLOOR("Brown Clear Floor", "textures/objects/brown_clear_floor.png", 1.0f, BlockCategory.FLOORS),
+    BROWN_FLOOR("Brown Floor", "textures/objects/brown_floor.png", 1.0f, BlockCategory.FLOORS),
+    CARD_FLOOR("Card Floor", "textures/objects/card_floor.png", 1.0f, BlockCategory.FLOORS),
+    CLUSTER_FLOOR("Cluster Floor", "textures/objects/cluster_floor.png", 1.0f, BlockCategory.FLOORS),
+    DARK_YELLOW_FLOOR("Dark Yellow Floor", "textures/objects/dark_yellow_floor.png", 1.0f, BlockCategory.FLOORS),
+    FLOOR("Floor", "textures/objects/floor.png", 1.0f, BlockCategory.FLOORS),
+    GRAY_FLOOR("Gray Floor", "textures/objects/gray_floor.png", 1.0f, BlockCategory.FLOORS),
+    STRIPED_FLOOR("Striped Floor", "textures/objects/striped_floor.png", 1.0f, BlockCategory.FLOORS),
+    WOODEN_FLOOR("Wooden Floor", "textures/objects/wooden_floor.png", 1.0f, BlockCategory.FLOORS),
+    CARPET("Carpet", "textures/objects/carpet.png", 1.0f, BlockCategory.FLOORS),
+    BETON_TILE("Beton Tile", "textures/objects/beton_tile.png", 1.0f, BlockCategory.FLOORS),
+    FLIESSEN("Fliessen", "textures/objects/fliessen.png", 1.0f, BlockCategory.FLOORS),
+
+    // WALLS
+    BRICK_WALL("Brick Wall", "textures/objects/wall_brick.png", 1.0f, BlockCategory.WALLS),
+    BRICK_WALL_PNG("Brick Wall Alt", "textures/objects/brick_wall.png", 1.0f, BlockCategory.WALLS),
+    BROWN_BRICK_WALL("Brown Brick Wall", "textures/objects/brown_brick_wall.png", 1.0f, BlockCategory.WALLS),
+    BROKEN_WALL("Broken Wall", "textures/objects/broken_wall.png", 1.0f, BlockCategory.WALLS),
+    CRACKED_WALL("Cracked Wall", "textures/objects/cracked_wall.png", 1.0f, BlockCategory.WALLS),
+    DARK_WALL("Dark Wall", "textures/objects/dark_wall.png", 1.0f, BlockCategory.WALLS),
+    OFFICE_WALL("Office Wall", "textures/objects/office_wall.png", 1.0f, BlockCategory.WALLS),
+    SPRAYED_WALL("Sprayed Wall", "textures/objects/sprayed_wall.png", 1.0f, BlockCategory.WALLS),
+    TAPETE_WALL("Tapete Wall", "textures/objects/tapete_wall.png", 1.0f, BlockCategory.WALLS),
+    TRANS_WALL("Trans Wall", "textures/objects/trans_wall.png", 1.0f, BlockCategory.WALLS),
+    WALL("Wall", "textures/objects/wall.png", 1.0f, BlockCategory.WALLS),
+    WOOD_WALL("Wood Wall", "textures/objects/wood_wall.png", 1.0f, BlockCategory.WALLS),
+    STRIPED_TAPETE("Striped Tapete", "textures/objects/striped_tapete.png", 1.0f, BlockCategory.WALLS),
+    TAPETE("Tapete", "textures/objects/tapete.png", 1.0f, BlockCategory.WALLS),
+
+    // CEILINGS
+    CEILING("Ceiling", "textures/objects/ceiling.png", 1.0f, BlockCategory.CEILINGS),
+    CEILING_WITH_LAMP("Ceiling with Lamp", "textures/objects/ceiling_with_lamp.png", 1.0f, BlockCategory.CEILINGS),
+    LIGHT_CEILING("Light Ceiling", "textures/objects/light_ceiling.png", 1.0f, BlockCategory.CEILINGS),
+    BROKEN_CEILING("Broken Ceiling", "textures/objects/broken_ceiling.png", 1.0f, BlockCategory.CEILINGS),
+
+    // STREET & OUTDOOR
+    COBBLESTONE("Cobblestone", "textures/objects/cobblestone_tile.png", 1.0f, BlockCategory.STREET),
+    STONE("Stone", "textures/objects/stone_tile.png", 1.0f, BlockCategory.STREET),
+    STREET_LOW("Street (Low)", "textures/objects/street_cheap.png", 0.8f, BlockCategory.STREET),
+    SIDEWALK("Sidewalk", "textures/objects/sidewalk.png", 1.0f, BlockCategory.STREET),
+    SIDEWALK_START("Sidewalk Start", "textures/objects/sidewalk_start.png", 1.0f, BlockCategory.STREET),
+    STREET_TILE("Street Tile", "textures/objects/street_tile.png", 1.0f, BlockCategory.STREET),
+
+    // WINDOWS & DOORS
+    WINDOW_OPENED("Window Opened", "textures/objects/window.png", 1.0f, BlockCategory.WINDOWS),
+    WINDOW_CLOSE("Window Closed", "textures/objects/window_closed.png", 1.0f, BlockCategory.WINDOWS);
+
+    companion object {
+        // Get all block types for a specific category
+        fun getByCategory(category: BlockCategory): List<BlockType> {
+            return entries.filter { it.category == category }
+        }
+
+        // Get all categories that have blocks
+        fun getUsedCategories(): List<BlockCategory> {
+            return entries.map { it.category }.distinct().sortedBy { it.ordinal }
+        }
+    }
 }

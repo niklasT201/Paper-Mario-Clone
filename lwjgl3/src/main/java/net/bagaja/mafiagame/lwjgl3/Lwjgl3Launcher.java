@@ -51,7 +51,6 @@ public class Lwjgl3Launcher {
 // key for light source rotation testing
 // item pickups have a glow
 // rotation for blocks
-// sort block selection ui
 
 // fbx-conv house.obj house.g3dj
 // fbx-conv -f house.obj house.g3dj
