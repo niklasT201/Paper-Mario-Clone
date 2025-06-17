@@ -203,34 +203,21 @@ class PlayerSystem {
                     Vector3(x + checkRadius, currentY + playerSize.y / 2f, z + checkRadius)
                 )
 
-                // Check if we're touching the stair at current height
+                // Check if we're colliding with the stair at current height
                 if (house.collidesWithMesh(testBounds)) {
-                    // We're colliding with stair, try stepping up in small increments
-                    val stepSize = 0.5f // Small step increments
-                    val maxStepUp = 3f // Maximum we can step up at once
+                    // Calculate the appropriate step height based on stair geometry
+                    val stairStepHeight = findStairStepHeight(house, x, z, currentY)
 
-                    for (stepHeight in generateSequence(stepSize) { it + stepSize }.takeWhile { it <= maxStepUp }) {
-                        val testYPosition = currentY + stepHeight
-                        val elevatedBounds = BoundingBox()
-                        elevatedBounds.set(
-                            Vector3(x - checkRadius, testYPosition - playerSize.y / 2f, z - checkRadius),
-                            Vector3(x + checkRadius, testYPosition + playerSize.y / 2f, z + checkRadius)
-                        )
-
-                        // If we no longer collide with the stair at this height, we can step here
-                        if (!house.collidesWithMesh(elevatedBounds)) {
-                            val stairSupportY = testYPosition - playerSize.y / 2f
-                            if (stairSupportY > highestBlockY) {
-                                highestBlockY = stairSupportY
-                                foundSupportingBlock = true
-                            }
-                            break // Found our step height
-                        }
+                    if (stairStepHeight > highestBlockY) {
+                        highestBlockY = stairStepHeight
+                        foundSupportingBlock = true
                     }
-
-                    // If we still collide even after trying to step up, stay at current position
-                    if (!foundSupportingBlock) {
-                        return currentY
+                } else {
+                    // Not colliding with stair - check if we're standing on top of it
+                    val supportHeight = findStairSupportHeight(house, x, z, currentY)
+                    if (supportHeight > highestBlockY) {
+                        highestBlockY = supportHeight
+                        foundSupportingBlock = true
                     }
                 }
             }
@@ -247,13 +234,67 @@ class PlayerSystem {
             return kotlin.math.max(fallingY, groundY)
         }
 
+        // Smooth transition to prevent shaking - only move if the difference is significant
+        val heightDifference = kotlin.math.abs(targetY - currentY)
+        val smoothingThreshold = 0.1f // Don't adjust for very small differences
+
+        if (heightDifference < smoothingThreshold) {
+            return currentY // Stay at current position to prevent micro-adjustments
+        }
+
         // Limit step height to prevent teleporting
-        val maxStepHeight = 1.5f // Smaller step to prevent flying
+        val maxStepHeight = 1.5f
         if (targetY > currentY + maxStepHeight) {
             return currentY + maxStepHeight
         }
 
-        return targetY
+        // Smooth interpolation for stepping up/down
+        val lerpSpeed = 8f // Adjust this value to control step smoothness
+        return currentY + (targetY - currentY) * lerpSpeed * Gdx.graphics.deltaTime
+    }
+
+    private fun findStairStepHeight(house: GameHouse, x: Float, z: Float, currentY: Float): Float {
+        val checkRadius = playerSize.x / 2f
+        val stepSize = 0.2f // Smaller step increments for more precision
+        val maxStepUp = 3f
+
+        // Try different heights to find where we stop colliding
+        for (stepHeight in generateSequence(stepSize) { it + stepSize }.takeWhile { it <= maxStepUp }) {
+            val testYPosition = currentY + stepHeight
+            val testBounds = BoundingBox()
+            testBounds.set(
+                Vector3(x - checkRadius, testYPosition - playerSize.y / 2f, z - checkRadius),
+                Vector3(x + checkRadius, testYPosition + playerSize.y / 2f, z + checkRadius)
+            )
+
+            // If we no longer collide at this height, this is our step height
+            if (!house.collidesWithMesh(testBounds)) {
+                return testYPosition - playerSize.y / 2f
+            }
+        }
+
+        // If we still collide after max step up, return current position
+        return currentY - playerSize.y / 2f
+    }
+
+    private fun findStairSupportHeight(house: GameHouse, x: Float, z: Float, currentY: Float): Float {
+        val checkRadius = playerSize.x / 2f
+
+        // Check downward from current position to find the stair surface
+        for (checkHeight in generateSequence(currentY) { it - 0.1f }.takeWhile { it >= 0f }) {
+            val testBounds = BoundingBox()
+            testBounds.set(
+                Vector3(x - checkRadius, checkHeight - playerSize.y / 2f, z - checkRadius),
+                Vector3(x + checkRadius, checkHeight + playerSize.y / 2f, z + checkRadius)
+            )
+
+            // If we start colliding at this height, the surface is just above
+            if (house.collidesWithMesh(testBounds)) {
+                return checkHeight + 0.1f // Surface is slightly above collision point
+            }
+        }
+
+        return 0f // Ground level if no collision found
     }
 
     fun placePlayer(ray: Ray, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>): Boolean {
