@@ -298,11 +298,9 @@ class PlayerSystem {
         }
 
         for (house in gameHouses) {
-            // Get the house's bounding box
-            val houseBounds = house.getBoundingBox()
-            // Check for intersection
-            if (tempBounds.intersects(houseBounds)) {
-                return false // Collision with a house detected
+          // Accurate Mesh Collision
+            if (house.collidesWithMesh(tempBounds)) {
+                return false // Collision with the actual house mesh detected
             }
         }
 
