@@ -236,5 +236,6 @@ enum class HouseType(
     HOUSE_1("Flat Left", "Models/flat_left.png", 10f, 10f, "Models/flat_left.g3dj"),
     HOUSE_2("Flat Middle", "Models/flat_middle.png", 12f, 12f, "Models/flat_middle.g3dj"),
     HOUSE_3("Flat Right", "Models/flat_right.png", 15f, 15f, "Models/flat_right.g3dj"),
-    HOUSE_4("House", "Models/house_model.png", 18f, 18f, "Models/house.g3dj")
+    HOUSE_4("House", "Models/house_model.png", 18f, 18f, "Models/house.g3dj"),
+    STAIR("Stair", "Models/stair_flat.png", 18f, 18f, "Models/stair.g3dj")
 }

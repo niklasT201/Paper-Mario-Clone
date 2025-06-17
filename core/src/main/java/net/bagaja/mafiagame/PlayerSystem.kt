@@ -97,7 +97,7 @@ class PlayerSystem {
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
             val newX = playerPosition.x - playerSpeed * deltaTime
             // Try to move horizontally first, then adjust Y if needed
-            val adjustedY = calculateSafeYPosition(newX, playerPosition.z, originalY, gameBlocks)
+            val adjustedY = calculateSafeYPosition(newX, playerPosition.z, originalY, gameBlocks, gameHouses)
             if (canMoveTo(newX, adjustedY, playerPosition.z, gameBlocks, gameHouses)) {
                 playerPosition.x = newX
                 playerPosition.y = adjustedY
@@ -107,7 +107,7 @@ class PlayerSystem {
         }
         if (Gdx.input.isKeyPressed(Input.Keys.D)) {
             val newX = playerPosition.x + playerSpeed * deltaTime
-            val adjustedY = calculateSafeYPosition(newX, playerPosition.z, originalY, gameBlocks)
+            val adjustedY = calculateSafeYPosition(newX, playerPosition.z, originalY, gameBlocks, gameHouses)
             if (canMoveTo(newX, adjustedY, playerPosition.z, gameBlocks, gameHouses)) {
                 playerPosition.x = newX
                 playerPosition.y = adjustedY
@@ -117,7 +117,7 @@ class PlayerSystem {
         }
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
             val newZ = playerPosition.z - playerSpeed * deltaTime
-            val adjustedY = calculateSafeYPosition(playerPosition.x, newZ, originalY, gameBlocks)
+            val adjustedY = calculateSafeYPosition(playerPosition.x, newZ, originalY, gameBlocks, gameHouses)
             if (canMoveTo(playerPosition.x, adjustedY, newZ, gameBlocks, gameHouses)) {
                 playerPosition.z = newZ
                 playerPosition.y = adjustedY
@@ -126,7 +126,7 @@ class PlayerSystem {
         }
         if (Gdx.input.isKeyPressed(Input.Keys.S)) {
             val newZ = playerPosition.z + playerSpeed * deltaTime
-            val adjustedY = calculateSafeYPosition(playerPosition.x, newZ, originalY, gameBlocks)
+            val adjustedY = calculateSafeYPosition(playerPosition.x, newZ, originalY, gameBlocks, gameHouses)
             if (canMoveTo(playerPosition.x, adjustedY, newZ, gameBlocks, gameHouses)) {
                 playerPosition.z = newZ
                 playerPosition.y = adjustedY
@@ -151,7 +151,7 @@ class PlayerSystem {
         return moved
     }
 
-    private fun calculateSafeYPosition(x: Float, z: Float, currentY: Float, gameBlocks: Array<GameBlock>): Float {
+    private fun calculateSafeYPosition(x: Float, z: Float, currentY: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>): Float {
         // Find the highest block that the player would be standing on at position (x, z)
         var highestBlockY = 0f // Ground level
         var foundSupportingBlock = false
@@ -159,6 +159,7 @@ class PlayerSystem {
         // Create a small area around the player position to check for blocks
         val checkRadius = playerSize.x / 2f
 
+        // Check blocks first
         for (gameBlock in gameBlocks) {
             val blockCenterX = gameBlock.position.x
             val blockCenterZ = gameBlock.position.z
@@ -180,16 +181,56 @@ class PlayerSystem {
                 playerBack < blockFront || playerFront > blockBack)
 
             if (horizontalOverlap) {
-                // Calculate the top of this block using ACTUAL block height
-                val blockHeight = blockSize * gameBlock.blockType.height // This accounts for 0.8 height blocks!
+                val blockHeight = blockSize * gameBlock.blockType.height
                 val blockTop = gameBlock.position.y + blockHeight / 2f
 
-                // Only consider this block if it's below or at the current player position
-                // This prevents teleporting to much higher blocks
-                if (blockTop <= currentY + playerSize.y / 2f + blockSize) { // Allow some tolerance for stepping up
+                if (blockTop <= currentY + playerSize.y / 2f + blockSize) {
                     if (blockTop > highestBlockY) {
                         highestBlockY = blockTop
                         foundSupportingBlock = true
+                    }
+                }
+            }
+        }
+
+        // Handle stairs by finding the appropriate step height
+        for (house in gameHouses) {
+            if (house.houseType == HouseType.STAIR) {
+                // Create test bounds at current position
+                val testBounds = BoundingBox()
+                testBounds.set(
+                    Vector3(x - checkRadius, currentY - playerSize.y / 2f, z - checkRadius),
+                    Vector3(x + checkRadius, currentY + playerSize.y / 2f, z + checkRadius)
+                )
+
+                // Check if we're touching the stair at current height
+                if (house.collidesWithMesh(testBounds)) {
+                    // We're colliding with stair, try stepping up in small increments
+                    val stepSize = 0.5f // Small step increments
+                    val maxStepUp = 3f // Maximum we can step up at once
+
+                    for (stepHeight in generateSequence(stepSize) { it + stepSize }.takeWhile { it <= maxStepUp }) {
+                        val testYPosition = currentY + stepHeight
+                        val elevatedBounds = BoundingBox()
+                        elevatedBounds.set(
+                            Vector3(x - checkRadius, testYPosition - playerSize.y / 2f, z - checkRadius),
+                            Vector3(x + checkRadius, testYPosition + playerSize.y / 2f, z + checkRadius)
+                        )
+
+                        // If we no longer collide with the stair at this height, we can step here
+                        if (!house.collidesWithMesh(elevatedBounds)) {
+                            val stairSupportY = testYPosition - playerSize.y / 2f
+                            if (stairSupportY > highestBlockY) {
+                                highestBlockY = stairSupportY
+                                foundSupportingBlock = true
+                            }
+                            break // Found our step height
+                        }
+                    }
+
+                    // If we still collide even after trying to step up, stay at current position
+                    if (!foundSupportingBlock) {
+                        return currentY
                     }
                 }
             }
@@ -200,16 +241,16 @@ class PlayerSystem {
 
         // If no supporting block found and we're above ground, gradually fall to ground
         if (!foundSupportingBlock && currentY > playerSize.y / 2f) {
-            val fallSpeed = 20f // Adjust this for fall speed
+            val fallSpeed = 20f
             val groundY = 0f + playerSize.y / 2f
             val fallingY = currentY - fallSpeed * Gdx.graphics.deltaTime
             return kotlin.math.max(fallingY, groundY)
         }
 
-        // If the target Y is much higher than current Y, limit the step height
-        val maxStepHeight = blockSize * 1.1f // Can step up about one block height
+        // Limit step height to prevent teleporting
+        val maxStepHeight = 1.5f // Smaller step to prevent flying
         if (targetY > currentY + maxStepHeight) {
-            return currentY // Don't allow stepping up too high
+            return currentY + maxStepHeight
         }
 
         return targetY
@@ -272,6 +313,7 @@ class PlayerSystem {
             Vector3(x + (playerSize.x / 2 - horizontalShrink), y + playerSize.y / 2, z + (playerSize.z / 2 - horizontalShrink))
         )
 
+        // Check block collisions
         for (gameBlock in gameBlocks) {
             // Calculate block bounds using ACTUAL block height
             val blockHeight = blockSize * gameBlock.blockType.height
@@ -292,15 +334,19 @@ class PlayerSystem {
                 if (playerBottom >= blockTop - tolerance) {
                     continue // Allow movement - player is standing on top
                 }
-
-                return false // Block collision detected - player would be inside the block
+                return false // Block collision detected
             }
         }
 
+        // Check house collisions
         for (house in gameHouses) {
-          // Accurate Mesh Collision
-            if (house.collidesWithMesh(tempBounds)) {
-                return false // Collision with the actual house mesh detected
+            if (house.houseType == HouseType.STAIR) {
+                continue
+            } else {
+                // For non-stair houses, use normal mesh collision (blocks movement)
+                if (house.collidesWithMesh(tempBounds)) {
+                    return false // Collision with house detected
+                }
             }
         }
 

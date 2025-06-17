@@ -53,6 +53,7 @@ public class Lwjgl3Launcher {
 // improving placing on blocks for items
 // move findLightSourceAtRay to raycastsystem
 // improving background system
+// step up for stairs
 
 // fbx-conv house.obj house.g3dj
 // fbx-conv -f house.obj house.g3dj
