@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g3d.loader.G3dModelLoader
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.Intersector
+import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.JsonReader
 
 class HouseSystem: IFinePositionable {
@@ -111,13 +112,33 @@ data class GameHouse(
         mesh.getIndices(indexShorts)
     }
 
-    // Proper BoundingBox reference
-    fun getBoundingBox(): BoundingBox {
-        val bounds = BoundingBox()
-        // The modelInstance's transform already includes the position
-        modelInstance.calculateBoundingBox(bounds)
-        return bounds
+    fun intersectsRay(ray: Ray, outIntersection: Vector3): Boolean {
+        // Loop through all the triangles in the mesh
+        for (i in indexShorts.indices step 3) {
+            // Get the indices of the three vertices that form this triangle
+            val idx1 = indexShorts[i].toInt()
+            val idx2 = indexShorts[i + 1].toInt()
+            val idx3 = indexShorts[i + 2].toInt()
+
+            // Extract the local (x, y, z) position for each vertex
+            v1.set(vertexFloats[idx1 * vertexSize], vertexFloats[idx1 * vertexSize + 1], vertexFloats[idx1 * vertexSize + 2])
+            v2.set(vertexFloats[idx2 * vertexSize], vertexFloats[idx2 * vertexSize + 1], vertexFloats[idx2 * vertexSize + 2])
+            v3.set(vertexFloats[idx3 * vertexSize], vertexFloats[idx3 * vertexSize + 1], vertexFloats[idx3 * vertexSize + 2])
+
+            // Transform the vertices from local model space to world space
+            v1.mul(modelInstance.transform)
+            v2.mul(modelInstance.transform)
+            v3.mul(modelInstance.transform)
+
+            // Now, check if the ray intersects with this single, world-space triangle
+            if (Intersector.intersectRayTriangle(ray, v1, v2, v3, outIntersection)) {
+                return true // Collision found! No need to check other triangles.
+            }
+        }
+
+        return false // No triangles collided with the ray.
     }
+
 
     fun collidesWithMesh(playerBounds: BoundingBox): Boolean {
         // Loop through all the triangles in the mesh

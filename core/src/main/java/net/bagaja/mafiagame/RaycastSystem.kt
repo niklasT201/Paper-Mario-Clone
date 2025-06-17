@@ -110,10 +110,10 @@ class RaycastSystem(private val blockSize: Float) {
         var closestDistance = Float.MAX_VALUE
 
         for (house in gameHouses) {
-            val bounds = house.getBoundingBox()
             val intersection = Vector3()
 
-            if (Intersector.intersectRayBounds(ray, bounds, intersection)) {
+            // Check against the actual model mesh
+            if (house.intersectsRay(ray, intersection)) {
                 val distance = ray.origin.dst2(intersection)
                 if (distance < closestDistance) {
                     closestDistance = distance
