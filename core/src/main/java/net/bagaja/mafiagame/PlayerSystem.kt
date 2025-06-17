@@ -223,8 +223,9 @@ class PlayerSystem {
             }
         }
 
-        // Calculate where the player should be
-        val targetY = highestBlockY + playerSize.y / 2f
+        // Calculate where the player should be - REDUCED MARGIN FOR TIGHTER CONTACT
+        val surfaceMargin = 0.05f // Much smaller margin - player will be closer to surface
+        val targetY = highestBlockY + playerSize.y / 2f + surfaceMargin
 
         // If no supporting block found and we're above ground, gradually fall to ground
         if (!foundSupportingBlock && currentY > playerSize.y / 2f) {
@@ -236,30 +237,32 @@ class PlayerSystem {
 
         // Smooth transition to prevent shaking - only move if the difference is significant
         val heightDifference = kotlin.math.abs(targetY - currentY)
-        val smoothingThreshold = 0.1f // Don't adjust for very small differences
+        val smoothingThreshold = 0.05f // Reduced threshold for more responsive stepping
 
         if (heightDifference < smoothingThreshold) {
             return currentY // Stay at current position to prevent micro-adjustments
         }
 
         // Limit step height to prevent teleporting
-        val maxStepHeight = 1.5f
+        val maxStepHeight = 1.2f // Slightly reduced max step height
         if (targetY > currentY + maxStepHeight) {
             return currentY + maxStepHeight
         }
 
-        // Smooth interpolation for stepping up/down
-        val lerpSpeed = 8f // Adjust this value to control step smoothness
+        // Smooth interpolation for stepping up/down - FASTER RESPONSE
+        val lerpSpeed = 12f // Increased speed for more responsive stepping
         return currentY + (targetY - currentY) * lerpSpeed * Gdx.graphics.deltaTime
     }
 
     private fun findStairStepHeight(house: GameHouse, x: Float, z: Float, currentY: Float): Float {
         val checkRadius = playerSize.x / 2f
-        val stepSize = 0.2f // Smaller step increments for more precision
+        val stepSize = 0.1f // Even smaller step increments for more precision
         val maxStepUp = 3f
 
+        var lastCollisionHeight = currentY - playerSize.y / 2f
+
         // Try different heights to find where we stop colliding
-        for (stepHeight in generateSequence(stepSize) { it + stepSize }.takeWhile { it <= maxStepUp }) {
+        for (stepHeight in generateSequence(0f) { it + stepSize }.takeWhile { it <= maxStepUp }) {
             val testYPosition = currentY + stepHeight
             val testBounds = BoundingBox()
             testBounds.set(
@@ -267,9 +270,13 @@ class PlayerSystem {
                 Vector3(x + checkRadius, testYPosition + playerSize.y / 2f, z + checkRadius)
             )
 
-            // If we no longer collide at this height, this is our step height
-            if (!house.collidesWithMesh(testBounds)) {
-                return testYPosition - playerSize.y / 2f
+            if (house.collidesWithMesh(testBounds)) {
+                lastCollisionHeight = testYPosition - playerSize.y / 2f
+            } else {
+                // Found the first non-colliding height - this is just above the step surface
+                // Add a small margin to ensure we're clearly above the step but not floating
+                val surfaceHeight = lastCollisionHeight + 0.1f // Small margin above collision
+                return surfaceHeight
             }
         }
 
@@ -279,18 +286,23 @@ class PlayerSystem {
 
     private fun findStairSupportHeight(house: GameHouse, x: Float, z: Float, currentY: Float): Float {
         val checkRadius = playerSize.x / 2f
+        val stepSize = 0.05f // Smaller steps for more precision
 
         // Check downward from current position to find the stair surface
-        for (checkHeight in generateSequence(currentY) { it - 0.1f }.takeWhile { it >= 0f }) {
+        var lastNonCollisionHeight = 0f
+
+        for (checkHeight in generateSequence(currentY) { it - stepSize }.takeWhile { it >= 0f }) {
             val testBounds = BoundingBox()
             testBounds.set(
                 Vector3(x - checkRadius, checkHeight - playerSize.y / 2f, z - checkRadius),
                 Vector3(x + checkRadius, checkHeight + playerSize.y / 2f, z + checkRadius)
             )
 
-            // If we start colliding at this height, the surface is just above
             if (house.collidesWithMesh(testBounds)) {
-                return checkHeight + 0.1f // Surface is slightly above collision point
+                // Found collision - the surface is just above this point
+                return lastNonCollisionHeight + 0.05f // Minimal margin above surface
+            } else {
+                lastNonCollisionHeight = checkHeight - playerSize.y / 2f
             }
         }
 
