@@ -186,4 +186,30 @@ class RaycastSystem(private val blockSize: Float) {
         }
         return closestImage
     }
+
+    fun getLightSourceAtRay(ray: Ray, lightingManager: LightingManager): LightSource? {
+        var closestLight: LightSource? = null
+        var closestDistance = Float.MAX_VALUE
+
+        val lightSources = lightingManager.getLightSources()
+
+        for ((_, lightSource) in lightSources) {
+            // Create a sphere around the light source position
+            val lightCenter = Vector3(lightSource.position)
+            val lightRadius = LightSource.LIGHT_SIZE // Use the light's size as radius
+
+            // Check if ray intersects with sphere
+            val intersection = Vector3()
+            if (Intersector.intersectRaySphere(ray, lightCenter, lightRadius, intersection)) {
+                val distance = ray.origin.dst(intersection)
+
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestLight = lightSource
+                }
+            }
+        }
+
+        return closestLight
+    }
 }

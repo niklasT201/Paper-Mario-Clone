@@ -34,6 +34,9 @@ public class Lwjgl3Launcher {
     }
 }
 
+// fire asset
+// industrial assets
+
 // improve general placing
 // physics
 // adding saving for world building
@@ -51,8 +54,6 @@ public class Lwjgl3Launcher {
 // item pickups have a glow
 // maybe remove player stepping up blocks
 // improving placing on blocks for items
-// move findLightSourceAtRay to raycastsystem
-// improving background system
 
 // fbx-conv house.obj house.g3dj
 // fbx-conv -f house.obj house.g3dj

@@ -204,7 +204,7 @@ class MafiaGame : ApplicationAdapter() {
             UIManager.Tool.OBJECT -> {
                 if (objectSystem.currentSelectedObject == ObjectType.LIGHT_SOURCE) {
                     // Handle light source removal with proper 3D raycasting
-                    val lightToRemove = findLightSourceAtRay(ray)
+                    val lightToRemove = raycastSystem.getLightSourceAtRay(ray, lightingManager)
                     if (lightToRemove != null) {
                         lightingManager.removeLightSource(lightToRemove.id)
                         objectSystem.removeLightSource(lightToRemove.id)
@@ -262,32 +262,6 @@ class MafiaGame : ApplicationAdapter() {
             }
         }
         return false
-    }
-
-    private fun findLightSourceAtRay(ray: Ray): LightSource? {
-        var closestLight: LightSource? = null
-        var closestDistance = Float.MAX_VALUE
-
-        val lightSources = lightingManager.getLightSources()
-
-        for ((_, lightSource) in lightSources) {
-            // Create a sphere around the light source position
-            val lightCenter = Vector3(lightSource.position)
-            val lightRadius = LightSource.LIGHT_SIZE // Use the light's size as radius
-
-            // Check if ray intersects with sphere
-            val intersection = Vector3()
-            if (com.badlogic.gdx.math.Intersector.intersectRaySphere(ray, lightCenter, lightRadius, intersection)) {
-                val distance = ray.origin.dst(intersection)
-
-                if (distance < closestDistance) {
-                    closestDistance = distance
-                    closestLight = lightSource
-                }
-            }
-        }
-
-        return closestLight
     }
 
     private fun handleFinePosMove(deltaX: Float, deltaY: Float, deltaZ: Float) {
