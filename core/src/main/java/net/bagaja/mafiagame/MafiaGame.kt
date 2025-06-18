@@ -45,6 +45,7 @@ class MafiaGame : ApplicationAdapter() {
     private var lastPlacedInstance: Any? = null
 
     private lateinit var backgroundSystem: BackgroundSystem
+    private lateinit var parallaxBackgroundSystem: ParallaxBackgroundSystem
 
     // Block size
     private val blockSize = 4f
@@ -59,9 +60,10 @@ class MafiaGame : ApplicationAdapter() {
         setupCarSystem()
         setupHouseSystem()
         setupBackgroundSystem()
+        setupParallaxSystem()
 
         // Initialize UI Manager
-        uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem, houseSystem, backgroundSystem)
+        uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem, houseSystem, backgroundSystem, parallaxBackgroundSystem)
         uiManager.initialize()
 
         // Initialize Input Handler
@@ -74,6 +76,7 @@ class MafiaGame : ApplicationAdapter() {
             carSystem,
             houseSystem,
             backgroundSystem,
+            parallaxBackgroundSystem,
             this::handleLeftClickAction,
             this::handleRightClickAndRemoveAction,
             this::handleFinePosMove
@@ -139,6 +142,11 @@ class MafiaGame : ApplicationAdapter() {
         backgroundSystem.initialize()
     }
 
+    private fun setupParallaxSystem() {
+        parallaxBackgroundSystem = ParallaxBackgroundSystem()
+        parallaxBackgroundSystem.initialize()
+    }
+
     private fun handlePlayerInput() {
         val deltaTime = Gdx.graphics.deltaTime
 
@@ -177,6 +185,7 @@ class MafiaGame : ApplicationAdapter() {
                 placeBackground(ray)
                 backgroundSystem.hidePreview() // Hide preview after placement
             }
+            UIManager.Tool.PARALLAX -> placeParallaxImage(ray)
         }
     }
 
@@ -237,6 +246,17 @@ class MafiaGame : ApplicationAdapter() {
                 val backgroundToRemove = raycastSystem.getBackgroundAtRay(ray, backgroundSystem.getBackgrounds())
                 if (backgroundToRemove != null) {
                     removeBackground(backgroundToRemove)
+                    return true
+                }
+            }
+            UIManager.Tool.PARALLAX -> { // NEW
+                val parallaxImageToRemove = raycastSystem.getParallaxImageAtRay(ray, parallaxBackgroundSystem)
+                if (parallaxImageToRemove != null) {
+                    // Use the parallax system's remove function with its required parameters
+                    parallaxBackgroundSystem.removeImage(
+                        parallaxImageToRemove.layerIndex,
+                        parallaxImageToRemove.basePosition.x
+                    )
                     return true
                 }
             }
@@ -708,6 +728,31 @@ class MafiaGame : ApplicationAdapter() {
         }
     }
 
+    private fun placeParallaxImage(ray: Ray) {
+        // Parallax images are placed based on where the cursor intersects the ground plane.
+        val intersection = Vector3()
+        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            val imageType = uiManager.getCurrentParallaxImageType()
+            val layerIndex = uiManager.getCurrentParallaxLayer()
+
+            // The x-position comes from the ray intersection with the ground.
+            val xPosition = intersection.x
+
+            // Attempt to add the image using the parallax system.
+            val success = parallaxBackgroundSystem.addParallaxImage(imageType, xPosition, layerIndex)
+
+            if (success) {
+                println("Placed ${imageType.displayName} at X: $xPosition in layer $layerIndex")
+                // Clear the last placed instance to prevent accidental fine-positioning of other objects
+                lastPlacedInstance = null
+            } else {
+                println("Failed to place ${imageType.displayName}. Is there enough space?")
+            }
+        }
+    }
+
     private fun removeBackground(backgroundToRemove: GameBackground) {
         backgroundSystem.removeBackground(backgroundToRemove)
         println("${backgroundToRemove.backgroundType.displayName} removed at: ${backgroundToRemove.position}")
@@ -724,7 +769,6 @@ class MafiaGame : ApplicationAdapter() {
 
         // Get delta time for this frame
         val deltaTime = Gdx.graphics.deltaTime
-
         val timeMultiplier = if (inputHandler.isTimeSpeedUpActive()) 200f else 1f
 
         // Update lighting manager
@@ -749,6 +793,7 @@ class MafiaGame : ApplicationAdapter() {
             gameCars,
             gameHouses,
             backgroundSystem,
+            parallaxBackgroundSystem,
             itemSystem,
             objectSystem,
             raycastSystem
@@ -756,6 +801,8 @@ class MafiaGame : ApplicationAdapter() {
 
         //shaderProvider.setEnvironment(environment)
         //println("MafiaGame.render: Passing environment to provider, hash: ${environment.hashCode()}")
+
+        parallaxBackgroundSystem.update(cameraManager.camera.position)
 
         val environment = lightingManager.getEnvironment()
 
@@ -767,6 +814,9 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render sun
         lightingManager.renderSun(modelBatch, cameraManager.camera)
+
+        // Render parallax backgrounds
+        parallaxBackgroundSystem.render(modelBatch, cameraManager.camera, environment)
 
         // Render all blocks
         for (gameBlock in gameBlocks) {
@@ -841,6 +891,7 @@ class MafiaGame : ApplicationAdapter() {
         backgroundSystem.dispose()
         highlightSystem.dispose()
         lightingManager.dispose()
+        parallaxBackgroundSystem.dispose()
 
         // Dispose UIManager
         uiManager.dispose()

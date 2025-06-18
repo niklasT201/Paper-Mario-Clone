@@ -47,7 +47,7 @@ class BackgroundSystem: IFinePositionable {
 
     fun initialize() {
         // Load textures and create models for each background type
-        for (backgroundType in BackgroundType.values()) {
+        for (backgroundType in BackgroundType.entries) {
             try {
                 // Load texture for 2D backgrounds
                 val texture = Texture(Gdx.files.internal(backgroundType.texturePath))
@@ -103,7 +103,7 @@ class BackgroundSystem: IFinePositionable {
         return modelBuilder.end()
     }
 
-    fun createPreviewModel(backgroundType: BackgroundType): Model? {
+    private fun createPreviewModel(backgroundType: BackgroundType): Model? {
         val originalModel = backgroundModels[backgroundType] ?: return null
 
         // Create a semi-transparent preview material
@@ -161,7 +161,7 @@ class BackgroundSystem: IFinePositionable {
     }
 
     private fun getAlignedPosition(position: Vector3): Vector3 {
-        if (gameBackgrounds.isEmpty()) {
+        if (gameBackgrounds.isEmpty) {
             return snapToGrid(position) // Fall back to grid if no backgrounds exist
         }
 
@@ -264,8 +264,8 @@ class BackgroundSystem: IFinePositionable {
     }
 
     fun nextBackground() {
-        currentSelectedBackgroundIndex = (currentSelectedBackgroundIndex + 1) % BackgroundType.values().size
-        currentSelectedBackground = BackgroundType.values()[currentSelectedBackgroundIndex]
+        currentSelectedBackgroundIndex = (currentSelectedBackgroundIndex + 1) % BackgroundType.entries.size
+        currentSelectedBackground = BackgroundType.entries.toTypedArray()[currentSelectedBackgroundIndex]
 
         // Clear preview when changing background type
         previewInstance = null
@@ -277,9 +277,9 @@ class BackgroundSystem: IFinePositionable {
         currentSelectedBackgroundIndex = if (currentSelectedBackgroundIndex > 0) {
             currentSelectedBackgroundIndex - 1
         } else {
-            BackgroundType.values().size - 1
+            BackgroundType.entries.size - 1
         }
-        currentSelectedBackground = BackgroundType.values()[currentSelectedBackgroundIndex]
+        currentSelectedBackground = BackgroundType.entries.toTypedArray()[currentSelectedBackgroundIndex]
 
         // Clear preview when changing background type
         previewInstance = null
@@ -287,7 +287,7 @@ class BackgroundSystem: IFinePositionable {
         println("Selected background: ${currentSelectedBackground.displayName}")
     }
 
-    fun createBackgroundInstance(backgroundType: BackgroundType): ModelInstance? {
+    private fun createBackgroundInstance(backgroundType: BackgroundType): ModelInstance? {
         val model = backgroundModels[backgroundType]
         return model?.let { ModelInstance(it) }
     }

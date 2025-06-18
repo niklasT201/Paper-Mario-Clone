@@ -35,7 +35,8 @@ class HighlightSystem(private val blockSize: Float) {
         UIManager.Tool.CAR to Color(1f, 0f, 1f, 0.3f),        // Purple
         UIManager.Tool.PLAYER to Color(0f, 1f, 0f, 0.3f),     // Green
         UIManager.Tool.HOUSE to Color(0f, 1f, 1f, 0.3f),      // Cyan
-        UIManager.Tool.BACKGROUND to Color(1f, 0.5f, 0f, 0.3f) // Orange
+        UIManager.Tool.BACKGROUND to Color(1f, 0.5f, 0f, 0.3f), // Orange
+        UIManager.Tool.PARALLAX to Color(0.4f, 0.8f, 0.7f, 0.3f)  // Teal
     )
 
     fun initialize() {
@@ -83,6 +84,7 @@ class HighlightSystem(private val blockSize: Float) {
         gameCars: Array<GameCar>,
         gameHouses: Array<GameHouse>,
         backgroundSystem: BackgroundSystem,
+        parallaxSystem: ParallaxBackgroundSystem,
         itemSystem: ItemSystem,
         objectSystem: ObjectSystem,
         raycastSystem: RaycastSystem
@@ -99,6 +101,7 @@ class HighlightSystem(private val blockSize: Float) {
             UIManager.Tool.PLAYER -> updatePlayerHighlight(ray, gameBlocks, raycastSystem)
             UIManager.Tool.HOUSE -> updateHouseHighlight(ray, gameHouses, raycastSystem, uiManager)
             UIManager.Tool.BACKGROUND -> updateBackgroundHighlight(ray, backgroundSystem, raycastSystem, uiManager)
+            UIManager.Tool.PARALLAX -> updateParallaxHighlight(ray, uiManager, parallaxSystem, raycastSystem)
         }
     }
 
@@ -286,6 +289,49 @@ class HighlightSystem(private val blockSize: Float) {
                 val placementPos = Vector3(intersection.x, intersection.y + backgroundSize.y / 2, intersection.z)
                 showHighlight(placementPos, toolColors[UIManager.Tool.BACKGROUND]!!)
             }
+        } else {
+            hideHighlight()
+        }
+    }
+
+    private fun updateParallaxHighlight(ray: Ray, uiManager: UIManager, parallaxSystem: ParallaxBackgroundSystem, raycastSystem: RaycastSystem) {
+        // First, check if we're hovering over an existing image to remove it
+        val imageToRemove = raycastSystem.getParallaxImageAtRay(ray, parallaxSystem)
+        if (imageToRemove != null) {
+            val imageSize = Vector3(imageToRemove.width, imageToRemove.height, 1f)
+            updateHighlightSize(imageSize)
+
+            // The position of a parallax image is its current, camera-adjusted position
+            // We calculate the center for the highlight box
+            val highlightPos = Vector3(
+                imageToRemove.currentPosition.x,
+                imageToRemove.currentPosition.y + imageSize.y / 2f,
+                imageToRemove.currentPosition.z
+            )
+            showHighlight(highlightPos, removeColor)
+            return
+        }
+
+        // If not removing, show a placement highlight
+        val intersection = Vector3()
+        val groundPlane = Plane(Vector3.Y, 0f)
+
+        if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            val imageType = uiManager.getCurrentParallaxImageType()
+            val layerIndex = uiManager.getCurrentParallaxLayer()
+            val layer = parallaxSystem.getLayers()[layerIndex]
+
+            val highlightSize = Vector3(imageType.width, imageType.height, 1f)
+            updateHighlightSize(highlightSize)
+
+            // Position the highlight where the image *would* be placed.
+            // X comes from the cursor, while Y and Z (depth) come from the layer's properties.
+            val placementPos = Vector3(
+                intersection.x,
+                layer.height + highlightSize.y / 2f,
+                -layer.depth
+            )
+            showHighlight(placementPos, toolColors[UIManager.Tool.PARALLAX]!!)
         } else {
             hideHighlight()
         }

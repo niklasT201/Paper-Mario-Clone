@@ -160,4 +160,30 @@ class RaycastSystem(private val blockSize: Float) {
 
         return closestBackground
     }
+
+    fun getParallaxImageAtRay(ray: Ray, parallaxSystem: ParallaxBackgroundSystem): ParallaxBackgroundSystem.ParallaxImage? {
+        var closestImage: ParallaxBackgroundSystem.ParallaxImage? = null
+        var closestDistance = Float.MAX_VALUE
+
+        for (layer in parallaxSystem.getLayers()) {
+            for (image in layer.images) {
+                val bounds = BoundingBox()
+                // Step 1: Calculate the local bounding box of the model
+                image.modelInstance.calculateBoundingBox(bounds)
+
+                // Step 2: Transform the box to its world position
+                bounds.mul(image.modelInstance.transform)
+
+                val intersection = Vector3()
+                if (Intersector.intersectRayBounds(ray, bounds, intersection)) {
+                    val distance = ray.origin.dst2(intersection)
+                    if (distance < closestDistance) {
+                        closestDistance = distance
+                        closestImage = image
+                    }
+                }
+            }
+        }
+        return closestImage
+    }
 }

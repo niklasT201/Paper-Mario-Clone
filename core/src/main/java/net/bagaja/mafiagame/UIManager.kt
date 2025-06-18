@@ -23,6 +23,7 @@ class UIManager(
     private val carSystem: CarSystem,
     private val houseSystem: HouseSystem,
     private val backgroundSystem: BackgroundSystem,
+    private val parallaxSystem: ParallaxBackgroundSystem,
 ) {
     private lateinit var stage: Stage
     private lateinit var skin: Skin
@@ -32,6 +33,7 @@ class UIManager(
     private lateinit var carSelectionUI: CarSelectionUI
     private lateinit var houseSelectionUI: HouseSelectionUI
     private lateinit var backgroundSelectionUI: BackgroundSelectionUI
+    private lateinit var parallaxSelectionUI: ParallaxSelectionUI
     private lateinit var lightSourceUI: LightSourceUI
     private lateinit var mainTable: Table
     private lateinit var toolButtons: MutableList<Table>
@@ -54,7 +56,7 @@ class UIManager(
     private val TEXT_MUTED = Color(0.6f, 0.6f, 0.7f, 1f)
 
     enum class Tool {
-        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND
+        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX
     }
 
     fun initialize() {
@@ -89,6 +91,10 @@ class UIManager(
         // Initialize background selection UI
         backgroundSelectionUI = BackgroundSelectionUI(backgroundSystem, skin, stage)
         backgroundSelectionUI.initialize()
+
+        // Initialize parallax selection UI
+        parallaxSelectionUI = ParallaxSelectionUI(parallaxSystem, skin, stage)
+        parallaxSelectionUI.initialize()
 
         // Set initial visibility for the main UI panel
         mainTable.isVisible = isUIVisible
@@ -134,7 +140,7 @@ class UIManager(
 
         val scrollPane = ScrollPane(mainContainer, skin)
         scrollPane.setScrollingDisabled(true, false)
-        scrollPane.setFadeScrollBars(true)
+        scrollPane.fadeScrollBars = true
         scrollPane.setFlickScroll(false)
         scrollPane.setOverscroll(false, false)
 
@@ -162,7 +168,7 @@ class UIManager(
         toolContainer.pad(20f)
 
         toolButtons = mutableListOf()
-        val tools = Tool.values()
+        val tools = Tool.entries.toTypedArray()
 
         // Create tool grid with better spacing
         val toolGrid = Table()
@@ -291,7 +297,8 @@ class UIManager(
             "Items" to "0" to "💎",
             "Cars" to "0" to "🚗",
             "Houses" to "0" to "🏠",
-            "Backgrounds" to "0" to "🌄"
+            "Backgrounds" to "0" to "🌄",
+            "Parallax" to "0" to "🏞️",
         )
 
         for ((data, icon) in statItems) {
@@ -532,6 +539,7 @@ class UIManager(
             Tool.CAR -> Color(0.9f, 0.3f, 0.6f, 1f)
             Tool.HOUSE -> Color(0.5f, 0.9f, 0.3f, 1f)
             Tool.BACKGROUND -> Color(0.2f, 0.7f, 1f, 1f)
+            Tool.PARALLAX -> Color(0.4f, 0.8f, 0.7f, 1f)
         }
 
         // Create gradient background
@@ -682,6 +690,19 @@ class UIManager(
                     pixmap.drawLine(x1.toInt(), y1.toInt(), x2.toInt(), y2.toInt())
                 }
             }
+            Tool.PARALLAX -> {
+                // Layered landscape icon
+                // Far mountains
+                pixmap.setColor(Color(0.4f, 0.5f, 0.7f, 0.8f))
+                pixmap.fillTriangle(18, 10, 8, 28, 28, 28)
+                // Mid hills
+                pixmap.setColor(Color(0.5f, 0.7f, 0.4f, 0.9f))
+                pixmap.fillTriangle(5, 18, 15, 30, 25, 30)
+                pixmap.fillTriangle(15, 20, 25, 32, 32, 32)
+                // Near ground
+                pixmap.setColor(Color(0.3f, 0.6f, 0.2f, 1f))
+                pixmap.fillRectangle(4, 26, 28, 8)
+            }
         }
 
         val texture = Texture(pixmap)
@@ -698,6 +719,7 @@ class UIManager(
             Tool.CAR -> Color(0.9f, 0.3f, 0.6f, 1f)
             Tool.HOUSE -> Color(0.5f, 0.9f, 0.3f, 1f)
             Tool.BACKGROUND -> ACCENT_COLOR
+            Tool.PARALLAX -> Color(0.4f, 0.8f, 0.7f, 1f)
         }
     }
 
@@ -710,6 +732,7 @@ class UIManager(
             Tool.CAR -> "Car"
             Tool.HOUSE -> "House"
             Tool.BACKGROUND -> "Background"
+            Tool.PARALLAX -> "Parallax"
         }
     }
 
@@ -878,7 +901,7 @@ class UIManager(
     }
 
     private fun updateToolButtons() {
-        val tools = Tool.values()
+        val tools = Tool.entries.toTypedArray()
 
         for (i in toolButtons.indices) {
             val toolButton = toolButtons[i]
@@ -1000,6 +1023,34 @@ class UIManager(
         lightSourceUI.toggle()
     }
 
+    fun showParallaxSelection() {
+        parallaxSelectionUI.show()
+    }
+
+    fun hideParallaxSelection() {
+        parallaxSelectionUI.hide()
+    }
+
+    fun nextParallaxImage() {
+        parallaxSelectionUI.nextImage()
+    }
+
+    fun previousParallaxImage() {
+        parallaxSelectionUI.previousImage()
+    }
+
+    fun nextParallaxLayer() {
+        parallaxSelectionUI.nextLayer()
+    }
+
+    fun getCurrentParallaxImageType(): ParallaxBackgroundSystem.ParallaxImageType {
+        return parallaxSelectionUI.getCurrentSelectedImageType()
+    }
+
+    fun getCurrentParallaxLayer(): Int {
+        return parallaxSelectionUI.getCurrentSelectedLayer()
+    }
+
     fun updatePlacementInfo(info: String) {
         if (::placementInfoLabel.isInitialized) {
             placementInfoLabel.setText(info)
@@ -1049,6 +1100,7 @@ class UIManager(
         carSelectionUI.dispose()
         houseSelectionUI.dispose()
         backgroundSelectionUI.dispose()
+        parallaxSelectionUI.dispose()
         lightSourceUI.dispose()
         stage.dispose()
         skin.dispose()

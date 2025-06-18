@@ -16,6 +16,7 @@ class InputHandler(
     private val carSystem: CarSystem,
     private val houseSystem: HouseSystem,
     private val backgroundSystem: BackgroundSystem,
+    private val parallaxSystem: ParallaxBackgroundSystem,
     private val onLeftClick: (screenX: Int, screenY: Int) -> Unit,
     private val onRightClickAttemptBlockRemove: (screenX: Int, screenY: Int) -> Boolean,
     private val onFinePosMove: (deltaX: Float, deltaY: Float, deltaZ: Float) -> Unit
@@ -30,6 +31,7 @@ class InputHandler(
     private var isCarSelectionMode = false
     private var isHouseSelectionMode = false
     private var isBackgroundSelectionMode = false
+    private var isParallaxSelectionMode = false // NEW
     private var isTimeSpeedUpPressed = false
 
     // Variables for continuous block placement/removal
@@ -181,6 +183,9 @@ class InputHandler(
                     if (amountY > 0) backgroundSystem.nextBackground() else backgroundSystem.previousBackground()
                     uiManager.updateBackgroundSelection()
                     return true
+                } else if (isParallaxSelectionMode) {
+                    if (amountY > 0) uiManager.nextParallaxImage() else uiManager.previousParallaxImage()
+                    return true
                 } else {
                     // Normal camera zoom
                     cameraManager.handleMouseScroll(amountY)
@@ -216,6 +221,10 @@ class InputHandler(
                         return true
                     }
                     Input.Keys.L -> {
+                        if (isParallaxSelectionMode) {
+                            uiManager.nextParallaxLayer()
+                            return true
+                        }
                         uiManager.toggleLightSourceUI()
                         return true
                     }
@@ -252,6 +261,12 @@ class InputHandler(
                     }
                     // Key to cycle background placement modes
                     Input.Keys.P -> {
+                        // If parallax tool is active, this key now shows the parallax selection UI
+                        if (uiManager.selectedTool == Tool.PARALLAX) {
+                            isParallaxSelectionMode = true
+                            uiManager.showParallaxSelection()
+                            return true
+                        }
                         if (uiManager.selectedTool == Tool.BACKGROUND) {
                             backgroundSystem.cyclePlacementMode()
                             // Force an update of the preview to reflect the new mode
@@ -289,6 +304,7 @@ class InputHandler(
                     Input.Keys.NUMPAD_5 -> uiManager.selectedTool = Tool.CAR
                     Input.Keys.NUMPAD_6 -> uiManager.selectedTool = Tool.HOUSE
                     Input.Keys.NUMPAD_7 -> uiManager.selectedTool = Tool.BACKGROUND
+                    Input.Keys.NUMPAD_8 -> uiManager.selectedTool = Tool.PARALLAX
                     // Fine positioning controls
                     Input.Keys.LEFT -> {
                         if (getCurrentPositionableSystem()?.finePosMode == true) {
@@ -339,7 +355,7 @@ class InputHandler(
                     }
                 }
                 // Update UI after tool selection
-                if (keycode in Input.Keys.NUMPAD_1..Input.Keys.NUMPAD_7) {
+                if (keycode in Input.Keys.NUMPAD_1..Input.Keys.NUMPAD_8) {
                     uiManager.updateToolDisplay()
                     // Update preview in case we switched to/from the background tool
                     handleBackgroundPreviewUpdate(Gdx.input.x, Gdx.input.y)
@@ -355,6 +371,13 @@ class InputHandler(
                     Input.Keys.M -> { isCarSelectionMode = false; uiManager.hideCarSelection(); return true }
                     Input.Keys.H -> { isHouseSelectionMode = false; uiManager.hideHouseSelection(); return true }
                     Input.Keys.N -> { isBackgroundSelectionMode = false; uiManager.hideBackgroundSelection(); return true }
+                    Input.Keys.P -> {
+                        if (isParallaxSelectionMode) {
+                            isParallaxSelectionMode = false
+                            uiManager.hideParallaxSelection()
+                            return true
+                        }
+                    }
                     // Release fine positioning keys
                     Input.Keys.LEFT -> { leftPressed = false; return true }
                     Input.Keys.RIGHT -> { rightPressed = false; return true }
