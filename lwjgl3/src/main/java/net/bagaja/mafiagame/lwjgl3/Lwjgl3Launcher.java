@@ -37,7 +37,15 @@ public class Lwjgl3Launcher {
 // fire asset
 // industrial assets
 
-// improve general placing
+// room/open world transition effect
+// file-based saving/loading
+// camera updating when room switching
+// always black background in rooms
+// smoother day/night transition
+// removing stairs from house models
+// cars and houses can be locked
+// enemies have an inventory and collect items
+// footprints when moving through dead enemies
 // physics
 // adding saving for world building
 // adding guns
@@ -52,7 +60,6 @@ public class Lwjgl3Launcher {
 // ui for sky color change
 // key for light source rotation testing
 // item pickups have a glow
-// improving placing on blocks for items
 
 // fbx-conv house.obj house.g3dj
 // fbx-conv -f house.obj house.g3dj

@@ -11,6 +11,7 @@ import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.JsonReader
+import java.util.*
 
 class HouseSystem: IFinePositionable {
     private val houseModels = mutableMapOf<HouseType, Model>()
@@ -91,7 +92,8 @@ class HouseSystem: IFinePositionable {
 data class GameHouse(
     val modelInstance: ModelInstance,
     val houseType: HouseType,
-    val position: Vector3
+    val position: Vector3,
+    val id: String = UUID.randomUUID().toString()
 ) {
     // Data for Mesh Collision
     private val mesh = modelInstance.model.meshes.first() // Get the first mesh from the model

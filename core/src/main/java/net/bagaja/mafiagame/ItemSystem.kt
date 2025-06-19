@@ -1,13 +1,11 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.VertexAttributes
-import com.badlogic.gdx.graphics.g3d.Material
-import com.badlogic.gdx.graphics.g3d.Model
-import com.badlogic.gdx.graphics.g3d.ModelBatch
-import com.badlogic.gdx.graphics.g3d.ModelInstance
+import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
@@ -123,15 +121,19 @@ class ItemSystem: IFinePositionable {
         }
     }
 
-    fun addItem(position: Vector3, itemType: ItemType): GameItem? {
+    fun createItem(position: Vector3, itemType: ItemType): GameItem? {
         val modelInstance = createItemInstance(itemType)
         if (modelInstance != null) {
-            val gameItem = GameItem(modelInstance, itemType, position.cpy())
-            gameItems.add(gameItem)
-            println("Added ${itemType.displayName} at position: $position")
-            return gameItem
+            // Returns a new GameItem instance. The caller is responsible for adding it to a list.
+            return GameItem(modelInstance, itemType, position.cpy())
         }
         return null
+    }
+
+    fun setActiveItems(newItems: Array<GameItem>) {
+        gameItems.clear()
+        gameItems.addAll(newItems)
+        println("ItemSystem has been updated with ${newItems.size} active items.")
     }
 
     fun removeItem(item: GameItem) {
@@ -162,7 +164,7 @@ class ItemSystem: IFinePositionable {
         }
     }
 
-    fun render(camera: com.badlogic.gdx.graphics.Camera, environment: com.badlogic.gdx.graphics.g3d.Environment) {
+    fun render(camera: Camera, environment: Environment) {
         billboardShaderProvider.setEnvironment(environment)
 
         itemModelBatch.begin(camera)

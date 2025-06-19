@@ -2,6 +2,7 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.ApplicationAdapter
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.*
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g3d.*
@@ -29,10 +30,9 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var objectSystem: ObjectSystem
     private lateinit var itemSystem: ItemSystem
     private lateinit var carSystem: CarSystem
-    private val gameCars = Array<GameCar>()
-    private val gameObjects = Array<GameObject>()
+    private lateinit var sceneManager: SceneManager
+    private lateinit var interiorLayoutSystem: InteriorLayoutSystem
     private lateinit var houseSystem: HouseSystem
-    private val gameHouses = Array<GameHouse>()
 
     // Highlight System
     private lateinit var highlightSystem: HighlightSystem
@@ -41,7 +41,6 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var playerSystem: PlayerSystem
 
     // Game objects
-    private val gameBlocks = Array<GameBlock>()
     private var lastPlacedInstance: Any? = null
 
     private lateinit var backgroundSystem: BackgroundSystem
@@ -61,6 +60,17 @@ class MafiaGame : ApplicationAdapter() {
         setupHouseSystem()
         setupBackgroundSystem()
         setupParallaxSystem()
+        playerSystem = PlayerSystem()
+        playerSystem.initialize(blockSize)
+
+        interiorLayoutSystem = InteriorLayoutSystem()
+        sceneManager = SceneManager(
+            playerSystem,
+            blockSystem,
+            objectSystem,
+            itemSystem,
+            interiorLayoutSystem
+        )
 
         // Initialize UI Manager
         uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem, houseSystem, backgroundSystem, parallaxBackgroundSystem)
@@ -84,16 +94,17 @@ class MafiaGame : ApplicationAdapter() {
         inputHandler.initialize()
         raycastSystem = RaycastSystem(blockSize)
 
-        playerSystem = PlayerSystem()
-        playerSystem.initialize(blockSize)
-
         highlightSystem = HighlightSystem(blockSize)
         highlightSystem.initialize()
 
-        // initial test blocks
-        addBlock(0f, 0f, 0f, BlockType.GRASS)
-        addBlock(blockSize, 0f, 0f, BlockType.COBBLESTONE)
-        addBlock(0f, 0f, blockSize, BlockType.ROOM_FLOOR)
+        // Pass the initial world data to the SceneManager
+        sceneManager.initializeWorld(
+            Array<GameBlock>(),
+            Array<GameObject>(),
+            Array<GameCar>(),
+            Array<GameHouse>(),
+            Array<GameItem>()
+        )
     }
 
     private fun setupGraphics() {
@@ -150,23 +161,48 @@ class MafiaGame : ApplicationAdapter() {
     private fun handlePlayerInput() {
         val deltaTime = Gdx.graphics.deltaTime
 
+        // House Interaction Logic
+        handleInteractionInput()
+
         if (cameraManager.isFreeCameraMode) {
             // Handle free camera movement
             cameraManager.handleInput(deltaTime)
         } else {
             // Handle player movement through PlayerSystem
-            val moved = playerSystem.handleMovement(deltaTime, gameBlocks, gameHouses)
+            val moved = playerSystem.handleMovement(deltaTime, sceneManager.activeBlocks, sceneManager.activeHouses)
 
             if (moved) {
                 // Update camera manager with player position
                 cameraManager.setPlayerPosition(playerSystem.getPosition())
 
-                // Auto-switch to player camera when moving (optional)
+                // Auto-switch to player camera when moving
                 cameraManager.switchToPlayerCamera()
             }
 
             // Handle camera input for player camera mode
             cameraManager.handleInput(deltaTime)
+        }
+    }
+
+    private fun handleInteractionInput() {
+        if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            when (sceneManager.currentScene) {
+                SceneType.WORLD -> {
+                    // Try to enter a house
+                    val playerPos = playerSystem.getPosition()
+                    val closestHouse = sceneManager.activeHouses.minByOrNull { it.position.dst(playerPos) }
+
+                    if (closestHouse != null && playerPos.dst(closestHouse.position) < 8f) { // 8f is interaction radius
+                        sceneManager.transitionToInterior(closestHouse)
+                    } else {
+                        println("No house nearby to enter.")
+                    }
+                }
+                SceneType.HOUSE_INTERIOR -> {
+                    // Try to exit the house
+                    sceneManager.transitionToWorld()
+                }
+            }
         }
     }
 
@@ -181,9 +217,9 @@ class MafiaGame : ApplicationAdapter() {
             UIManager.Tool.CAR -> placeCar(ray)
             UIManager.Tool.HOUSE -> placeHouse(ray)
             UIManager.Tool.BACKGROUND -> {
-                val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
-                placeBackground(ray)
-                backgroundSystem.hidePreview() // Hide preview after placement
+                val bgRay = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+                placeBackground(bgRay)
+                backgroundSystem.hidePreview()
             }
             UIManager.Tool.PARALLAX -> placeParallaxImage(ray)
         }
@@ -195,7 +231,7 @@ class MafiaGame : ApplicationAdapter() {
 
         when (uiManager.selectedTool) {
             UIManager.Tool.BLOCK -> {
-                val blockToRemove = raycastSystem.getBlockAtRay(ray, gameBlocks)
+                val blockToRemove = raycastSystem.getBlockAtRay(ray, sceneManager.activeBlocks)
                 if (blockToRemove != null) {
                     removeBlock(blockToRemove)
                     return true
@@ -211,37 +247,40 @@ class MafiaGame : ApplicationAdapter() {
                         return true
                     }
                 } else {
-                    val objectToRemove = raycastSystem.getObjectAtRay(ray, gameObjects)
+                    val objectToRemove = raycastSystem.getObjectAtRay(ray, sceneManager.activeObjects)
                     if (objectToRemove != null) {
                         removeObject(objectToRemove)
                         return true
                     }
                 }
             }
-            UIManager.Tool.PLAYER -> {
-                return false
-            }
             UIManager.Tool.ITEM -> {
                 val itemToRemove = raycastSystem.getItemAtRay(ray, itemSystem)
                 if (itemToRemove != null) {
-                    itemSystem.removeItem(itemToRemove)
+                    // 1. Remove from the SceneManager's master list for this scene
+                    sceneManager.activeItems.removeValue(itemToRemove, true)
+                    // 2. Tell the ItemSystem to update its active list immediately
+                    itemSystem.setActiveItems(sceneManager.activeItems)
+
+                    println("Removed ${itemToRemove.itemType.displayName}")
                     return true
                 }
             }
             UIManager.Tool.CAR -> {
-                val carToRemove = raycastSystem.getCarAtRay(ray, gameCars)
+                val carToRemove = raycastSystem.getCarAtRay(ray, sceneManager.activeCars)
                 if (carToRemove != null) {
                     removeCar(carToRemove)
                     return true
                 }
             }
             UIManager.Tool.HOUSE -> {
-                val houseToRemove = raycastSystem.getHouseAtRay(ray, gameHouses)
+                val houseToRemove = raycastSystem.getHouseAtRay(ray, sceneManager.activeHouses)
                 if (houseToRemove != null) {
                     removeHouse(houseToRemove)
                     return true
                 }
             }
+            UIManager.Tool.PLAYER -> return false
             UIManager.Tool.BACKGROUND -> {
                 val backgroundToRemove = raycastSystem.getBackgroundAtRay(ray, backgroundSystem.getBackgrounds())
                 if (backgroundToRemove != null) {
@@ -249,7 +288,7 @@ class MafiaGame : ApplicationAdapter() {
                     return true
                 }
             }
-            UIManager.Tool.PARALLAX -> { // NEW
+            UIManager.Tool.PARALLAX -> {
                 val parallaxImageToRemove = raycastSystem.getParallaxImageAtRay(ray, parallaxBackgroundSystem)
                 if (parallaxImageToRemove != null) {
                     // Use the parallax system's remove function with its required parameters
@@ -330,12 +369,11 @@ class MafiaGame : ApplicationAdapter() {
         // Find the highest block at the given X,Z position
         var highestBlockY = 0f // Ground level
 
-        for (gameBlock in gameBlocks) {
+        for (gameBlock in sceneManager.activeBlocks) {
             val blockCenterX = gameBlock.position.x
             val blockCenterZ = gameBlock.position.z
 
-            // Check if this block is at the same grid position
-            val tolerance = blockSize / 4f // Allow some tolerance for floating point precision
+            val tolerance = blockSize / 4f
             if (kotlin.math.abs(blockCenterX - x) < tolerance &&
                 kotlin.math.abs(blockCenterZ - z) < tolerance) {
 
@@ -354,8 +392,7 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeBlock(ray: Ray) {
-        // First, try to find intersection with existing blocks
-        val hitBlock = raycastSystem.getBlockAtRay(ray, gameBlocks)
+        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeBlocks)
 
         if (hitBlock != null) {
             // We hit an existing block, place new block adjacent to it
@@ -371,7 +408,7 @@ class MafiaGame : ApplicationAdapter() {
                 val gridZ = floor(intersection.z / blockSize) * blockSize
 
                 // Check if block already exists at this position
-                val existingBlock = gameBlocks.find { gameBlock ->
+                val existingBlock = sceneManager.activeBlocks.find { gameBlock ->
                     kotlin.math.abs(gameBlock.position.x - (gridX + blockSize / 2)) < 0.1f &&
                         kotlin.math.abs(gameBlock.position.y - (blockSize / 2)) < 0.1f &&
                         kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize / 2)) < 0.1f
@@ -421,7 +458,7 @@ class MafiaGame : ApplicationAdapter() {
             val gridZ = floor(newZ / blockSize) * blockSize
 
             // Check if block already exists at this position
-            val existingBlock = gameBlocks.find { gameBlock ->
+            val existingBlock = sceneManager.activeBlocks.find { gameBlock ->
                 kotlin.math.abs(gameBlock.position.x - (gridX + blockSize / 2)) < 0.1f &&
                     kotlin.math.abs(gameBlock.position.y - (gridY + blockSize / 2)) < 0.1f &&
                     kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize / 2)) < 0.1f
@@ -437,24 +474,24 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun removeBlock(blockToRemove: GameBlock) {
-        gameBlocks.removeValue(blockToRemove, true)
+        sceneManager.activeBlocks.removeValue(blockToRemove, true)
         println("${blockToRemove.blockType.displayName} block removed at: ${blockToRemove.position}")
     }
 
     private fun removeObject(objectToRemove: GameObject) {
         objectSystem.removeGameObjectWithLight(objectToRemove, lightingManager)
 
-        gameObjects.removeValue(objectToRemove, true)
+        sceneManager.activeObjects.removeValue(objectToRemove, true)
         println("${objectToRemove.objectType.displayName} removed at: ${objectToRemove.position}")
     }
 
     private fun placePlayer(ray: Ray) {
-        playerSystem.placePlayer(ray, gameBlocks, gameHouses)
+        playerSystem.placePlayer(ray, sceneManager.activeBlocks, sceneManager.activeHouses)
     }
 
     private fun placeObject(ray: Ray) {
         // First try to hit existing blocks
-        val hitBlock = raycastSystem.getBlockAtRay(ray, gameBlocks)
+        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeBlocks)
 
         if (hitBlock != null) {
             placeObjectOnBlock(ray, hitBlock)
@@ -482,7 +519,7 @@ class MafiaGame : ApplicationAdapter() {
                     hitBlock.position.z
                 )
 
-                val existingObject = gameObjects.find { gameObject ->
+                val existingObject = sceneManager.activeObjects.find { gameObject ->
                     kotlin.math.abs(gameObject.position.x - objectPosition.x) < 1f &&
                         kotlin.math.abs(gameObject.position.z - objectPosition.z) < 1f
                 }
@@ -517,7 +554,7 @@ class MafiaGame : ApplicationAdapter() {
                     val properY = calculateObjectYPosition(gridX, gridZ, 0f)
 
                     // Check if there's already an object at this position (optional)
-                    val existingObject = gameObjects.find { gameObject ->
+                    val existingObject = sceneManager.activeObjects.find { gameObject ->
                         kotlin.math.abs(gameObject.position.x - gridX) < 1f &&
                             kotlin.math.abs(gameObject.position.z - gridZ) < 1f
                     }
@@ -563,11 +600,24 @@ class MafiaGame : ApplicationAdapter() {
         println("Light source placed at: ${position.x}, ${position.y}, ${position.z}")
     }
 
+    private fun addItemToScene(position: Vector3) {
+        // 1. Use the ItemSystem as a factory to create a new item
+        val newItem = itemSystem.createItem(position, itemSystem.currentSelectedItem)
+
+        if (newItem != null) {
+            // 2. Add the new item to the SceneManager's master list
+            sceneManager.activeItems.add(newItem)
+            // 3. Immediately sync the ItemSystem with the updated list
+            itemSystem.setActiveItems(sceneManager.activeItems)
+
+            lastPlacedInstance = newItem
+            println("${newItem.itemType.displayName} placed in scene at: $position")
+        }
+    }
+
     // New function to place items
     private fun placeItem(ray: Ray) {
-        // First, try to find intersection with existing blocks (like block placement does)
-        val hitBlock = raycastSystem.getBlockAtRay(ray, gameBlocks)
-
+        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeBlocks)
         if (hitBlock != null) {
             // We hit a block directly - place item on top of it
             placeItemOnBlock(ray, hitBlock)
@@ -581,8 +631,16 @@ class MafiaGame : ApplicationAdapter() {
         // Calculate intersection point with the hit block
         val blockBounds = BoundingBox()
         blockBounds.set(
-            Vector3(hitBlock.position.x - blockSize / 2, hitBlock.position.y - blockSize / 2, hitBlock.position.z - blockSize / 2),
-            Vector3(hitBlock.position.x + blockSize / 2, hitBlock.position.y + blockSize / 2, hitBlock.position.z + blockSize / 2)
+            Vector3(
+                hitBlock.position.x - blockSize / 2,
+                hitBlock.position.y - blockSize / 2,
+                hitBlock.position.z - blockSize / 2
+            ),
+            Vector3(
+                hitBlock.position.x + blockSize / 2,
+                hitBlock.position.y + blockSize / 2,
+                hitBlock.position.z + blockSize / 2
+            )
         )
 
         val intersection = Vector3()
@@ -615,13 +673,7 @@ class MafiaGame : ApplicationAdapter() {
             val existingItem = itemSystem.getItemAtPosition(itemPosition, 1.5f)
 
             if (existingItem == null) {
-                // Capture the result of addItem
-                val newItem = itemSystem.addItem(itemPosition, itemSystem.currentSelectedItem)
-                // If it was created successfully, set it as the last placed instance
-                if (newItem != null) {
-                    lastPlacedInstance = newItem
-                    println("${itemSystem.currentSelectedItem.displayName} placed on block at: ${itemPosition.x}, ${itemPosition.y}, ${itemPosition.z}")
-                }
+                addItemToScene(itemPosition)
             } else {
                 println("Item already exists near this position")
             }
@@ -644,13 +696,7 @@ class MafiaGame : ApplicationAdapter() {
             val existingItem = itemSystem.getItemAtPosition(itemPosition, 1.5f)
 
             if (existingItem == null) {
-                // Capture the result of addItem
-                val newItem = itemSystem.addItem(itemPosition, itemSystem.currentSelectedItem)
-                // If it was created successfully, set it as the last placed instance
-                if (newItem != null) {
-                    lastPlacedInstance = newItem
-                    println("${itemSystem.currentSelectedItem.displayName} placed on ground at: ${itemPosition.x}, ${itemPosition.y}, ${itemPosition.z}")
-                }
+                addItemToScene(itemPosition)
             } else {
                 println("Item already exists near this position")
             }
@@ -669,7 +715,7 @@ class MafiaGame : ApplicationAdapter() {
             newGameObject.modelInstance.transform.setTranslation(position)
             newGameObject.debugInstance?.transform?.setTranslation(position)
 
-            gameObjects.add(newGameObject)
+            sceneManager.activeObjects.add(newGameObject)
             lastPlacedInstance = newGameObject
             println("${objectType.displayName} placed at: ${position.x}, ${position.y}, ${position.z}")
         } else {
@@ -678,24 +724,25 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun addBlock(x: Float, y: Float, z: Float, blockType: BlockType) {
-        val blockInstance = blockSystem.createBlockInstance(blockType)
-        if (blockInstance != null) {
-            val blockHeight = blockSize * blockType.height
-            val position = Vector3(x + blockSize/2, y + blockHeight/2, z + blockSize/2)
+        addBlockToCollection(x, y, z, blockType, sceneManager.activeBlocks)
+    }
 
-            // Create GameBlock with current rotation
-            val gameBlock = GameBlock(
-                blockInstance,
-                blockType,
-                position,
-                blockSystem.currentBlockRotation  // Store the rotation used
-            )
+    private fun addBlockToCollection(x: Float, y: Float, z: Float, blockType: BlockType, collection: Array<GameBlock>) {
+        val blockInstance = blockSystem.createBlockInstance(blockType) ?: return
+        val blockHeight = blockSize * blockType.height
+        val position = Vector3(x + blockSize / 2, y + blockHeight / 2, z + blockSize / 2)
+        val gameBlock = GameBlock(blockInstance, blockType, position, blockSystem.currentBlockRotation)
+        gameBlock.updateTransform()
+        collection.add(gameBlock)
+    }
 
-            // Set position and rotation using the GameBlock's method
-            gameBlock.updateTransform()
-
-            gameBlocks.add(gameBlock)
-        }
+    private fun addHouseToCollection(x: Float, y: Float, z: Float, houseType: HouseType, collection: Array<GameHouse>) {
+        val houseInstance = houseSystem.createHouseInstance(houseType) ?: return
+        val position = Vector3(x, y, z)
+        houseInstance.transform.setToTranslationAndScaling(position, Vector3(6f, 6f, 6f))
+        val gameHouse = GameHouse(houseInstance, houseType, position) // ID is generated automatically
+        collection.add(gameHouse)
+        lastPlacedInstance = gameHouse
     }
 
     private fun placeCar(ray: Ray) {
@@ -709,7 +756,7 @@ class MafiaGame : ApplicationAdapter() {
             val properY = calculateObjectYPosition(gridX, gridZ, 0f) // Cars sit on block surface
 
             // Check if there's already a car at this position
-            val existingCar = gameCars.find { car ->
+            val existingCar = sceneManager.activeCars.find { car ->
                 kotlin.math.abs(car.position.x - gridX) < 2f &&
                     kotlin.math.abs(car.position.z - gridZ) < 2f
             }
@@ -728,13 +775,13 @@ class MafiaGame : ApplicationAdapter() {
         if (carInstance != null) {
             val position = Vector3(x, y, z)
             val gameCar = GameCar(carInstance, carType, position, 0f) // 0f = facing north
-            gameCars.add(gameCar)
+            sceneManager.activeCars.add(gameCar)
             lastPlacedInstance = gameCar
         }
     }
 
     private fun removeCar(carToRemove: GameCar) {
-        gameCars.removeValue(carToRemove, true)
+        sceneManager.activeCars.removeValue(carToRemove, true)
         println("${carToRemove.carType.displayName} removed at: ${carToRemove.position}")
     }
 
@@ -748,7 +795,7 @@ class MafiaGame : ApplicationAdapter() {
             val properY = calculateObjectYPosition(gridX, gridZ, 0f) // Houses sit on block surface
 
             // Check if there's already a house at this position
-            val existingHouse = gameHouses.find { house ->
+            val existingHouse = sceneManager.activeHouses.find { house ->
                 kotlin.math.abs(house.position.x - gridX) < 3f &&
                     kotlin.math.abs(house.position.z - gridZ) < 3f
             }
@@ -763,21 +810,11 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun addHouse(x: Float, y: Float, z: Float, houseType: HouseType) {
-        val houseInstance = houseSystem.createHouseInstance(houseType)
-        if (houseInstance != null) {
-            val position = Vector3(x, y, z)
-
-            // Scale up ALL houses uniformly
-            houseInstance.transform.setToTranslationAndScaling(position, Vector3(6f, 6f, 6f))
-
-            val gameHouse = GameHouse(houseInstance, houseType, position)
-            gameHouses.add(gameHouse)
-            lastPlacedInstance = gameHouse
-        }
+        addHouseToCollection(x, y, z, houseType, sceneManager.activeHouses)
     }
 
     private fun removeHouse(houseToRemove: GameHouse) {
-        gameHouses.removeValue(houseToRemove, true)
+        sceneManager.activeHouses.removeValue(houseToRemove, true)
         println("${houseToRemove.houseType.displayName} removed at: ${houseToRemove.position}")
     }
 
@@ -864,10 +901,10 @@ class MafiaGame : ApplicationAdapter() {
         highlightSystem.update(
             cameraManager,
             uiManager,
-            gameBlocks,
-            gameObjects,
-            gameCars,
-            gameHouses,
+            sceneManager.activeBlocks,
+            sceneManager.activeObjects,
+            sceneManager.activeCars,
+            sceneManager.activeHouses,
             backgroundSystem,
             parallaxBackgroundSystem,
             itemSystem,
@@ -895,27 +932,26 @@ class MafiaGame : ApplicationAdapter() {
         parallaxBackgroundSystem.render(modelBatch, cameraManager.camera, environment)
 
         // Render all blocks
-        for (gameBlock in gameBlocks) {
+        for (gameBlock in sceneManager.activeBlocks) {
             modelBatch.render(gameBlock.modelInstance, environment)
         }
 
         // Render all objects
-        for (gameObject in gameObjects) {
-            val renderInstance = gameObject.getRenderInstance(objectSystem.debugMode)
-            if (renderInstance != null) {
-                modelBatch.render(renderInstance, environment)
+        for (gameObject in sceneManager.activeObjects) {
+            gameObject.getRenderInstance(objectSystem.debugMode)?.let {
+                modelBatch.render(it, environment)
             }
         }
 
         // Render light sources
         lightingManager.renderLightInstances(modelBatch, environment, objectSystem.debugMode)
 
-        for (car in gameCars) {
+        for (car in sceneManager.activeCars) {
             car.updateTransform()
             modelBatch.render(car.modelInstance, environment)
         }
 
-        for (house in gameHouses) {
+        for (house in sceneManager.activeHouses) {
             modelBatch.render(house.modelInstance, environment)
         }
 

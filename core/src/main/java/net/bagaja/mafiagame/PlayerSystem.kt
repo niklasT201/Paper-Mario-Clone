@@ -85,6 +85,12 @@ class PlayerSystem {
         updatePlayerTransform()
     }
 
+    fun setPosition(newPosition: Vector3) {
+        playerPosition.set(newPosition)
+        updatePlayerBounds()
+        println("Player position set to: $newPosition")
+    }
+
     fun handleMovement(deltaTime: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>): Boolean {
         var moved = false
         var currentMovementDirection = 0f
