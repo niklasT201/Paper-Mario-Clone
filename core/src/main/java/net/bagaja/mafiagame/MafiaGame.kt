@@ -875,9 +875,17 @@ class MafiaGame : ApplicationAdapter() {
         // Clear screen
         Gdx.gl.glViewport(0, 0, Gdx.graphics.width, Gdx.graphics.height)
 
-        // Get current sky color for clearing
-        val skyColor = lightingManager.getCurrentSkyColor()
-        Gdx.gl.glClearColor(skyColor.r, skyColor.g, skyColor.b, skyColor.a)
+        // Check if we are in an interior
+        val isInInterior = sceneManager.currentScene == SceneType.HOUSE_INTERIOR
+
+        // If in an interior, use a black background
+        val clearColor = if (isInInterior) {
+            Color.BLACK
+        } else {
+            // Get current sky color for clearing
+            lightingManager.getCurrentSkyColor()
+        }
+        Gdx.gl.glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a)
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
 
         // Get delta time for this frame
@@ -922,11 +930,14 @@ class MafiaGame : ApplicationAdapter() {
         // Render 3D scene
         modelBatch.begin(cameraManager.camera)
 
-        // Render sky FIRST
-        lightingManager.renderSky(modelBatch, cameraManager.camera)
+         // Only render the sky and sun when we are in the outside world scene.
+        if (!isInInterior) {
+            // Render sky FIRST
+            lightingManager.renderSky(modelBatch, cameraManager.camera)
 
-        // Render sun
-        lightingManager.renderSun(modelBatch, cameraManager.camera)
+            // Render sun
+            lightingManager.renderSun(modelBatch, cameraManager.camera)
+        }
 
         // Render parallax backgrounds
         parallaxBackgroundSystem.render(modelBatch, cameraManager.camera, environment)

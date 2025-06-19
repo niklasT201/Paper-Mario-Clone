@@ -154,6 +154,6 @@ class SkySystem {
     }
 
     fun dispose() {
-        skyboxModel?.dispose()
+        skyboxModel.dispose()
     }
 }
