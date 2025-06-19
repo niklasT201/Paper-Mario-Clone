@@ -280,6 +280,23 @@ class MafiaGame : ApplicationAdapter() {
                 instance.position.add(deltaX, deltaY, deltaZ)
                 instance.modelInstance.transform.setTranslation(instance.position)
                 instance.debugInstance?.transform?.setTranslation(instance.position)
+
+                // If it has an associated light, move that too.
+                instance.associatedLightId?.let { lightId ->
+                    val lightSource = lightingManager.getLightSources()[lightId]
+                    if (lightSource != null) {
+                        // The light's position must follow the object's position, including its offset.
+                        val objectType = instance.objectType
+                        lightSource.position.set(
+                            instance.position.x,
+                            instance.position.y + objectType.lightOffsetY,
+                            instance.position.z
+                        )
+                        // Update the light's render data and models
+                        lightSource.updateTransform()
+                        lightSource.updatePointLight()
+                    }
+                }
                 println("Moved Object to ${instance.position}")
             }
             is LightSource -> {
@@ -425,12 +442,7 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun removeObject(objectToRemove: GameObject) {
-        // Remove light from lighting manager if it exists
-        if (objectToRemove.pointLight != null) {
-            val environment = lightingManager.getEnvironment()
-            environment.remove(objectToRemove.pointLight)
-            println("Light removed from environment")
-        }
+        objectSystem.removeGameObjectWithLight(objectToRemove, lightingManager)
 
         gameObjects.removeValue(objectToRemove, true)
         println("${objectToRemove.objectType.displayName} removed at: ${objectToRemove.position}")
@@ -466,7 +478,7 @@ class MafiaGame : ApplicationAdapter() {
                     }
 
                     if (existingObject == null) {
-                        addObject(gridX, properY, gridZ, objectSystem.currentSelectedObject)
+                        addObject(Vector3(gridX, properY, gridZ), objectSystem.currentSelectedObject)
                         println("${objectSystem.currentSelectedObject.displayName} placed at: $gridX, $properY, $gridZ")
                     } else {
                         println("Object already exists near this position")
@@ -535,43 +547,23 @@ class MafiaGame : ApplicationAdapter() {
         }
     }
 
-    private fun addObject(x: Float, y: Float, z: Float, objectType: ObjectType) {
-        val objectInstance = objectSystem.createObjectInstance(objectType)
-        if (objectInstance != null) {
-            val position = Vector3(x, y, z)
-            objectInstance.transform.setTranslation(position)
+    private fun addObject(position: Vector3, objectType: ObjectType) {
+        val newGameObject = objectSystem.createGameObjectWithLight(
+            objectType = objectType,
+            position = position,
+            lightingManager = lightingManager
+        )
 
-            val gameObject = GameObject(objectInstance, objectType, position)
+        if (newGameObject != null) {
+            // Apply initial transform to the model instance(s)
+            newGameObject.modelInstance.transform.setTranslation(position)
+            newGameObject.debugInstance?.transform?.setTranslation(position)
 
-            // Create debug instance for invisible objects
-            if (objectType.isInvisible) {
-                val debugInstance = objectSystem.createDebugInstance(objectType)
-                gameObject.debugInstance = debugInstance
-                debugInstance?.transform?.setTranslation(position)
-            }
-
-            // Create and add light source if it's a light object
-            if (objectType == ObjectType.LIGHT_SOURCE) {
-                val light = gameObject.createLight()
-                if (light != null) {
-                    // Use lighting manager instead of direct environment/activeLights access
-                    val environment = lightingManager.getEnvironment()
-                    val currentLightCount = lightingManager.getActiveLightsCount()
-                    val maxLights = lightingManager.getMaxLights()
-
-                    if (currentLightCount < maxLights) {
-                        environment.add(light)
-                        println("Light source added at position: $position (Total lights: ${currentLightCount + 1})")
-                    } else {
-                        println("Warning: Maximum number of lights ($maxLights) reached!")
-                    }
-                } else {
-                    println("Light object created, but light component is null or not added.")
-                }
-            }
-
-            gameObjects.add(gameObject)
-            lastPlacedInstance = gameObject
+            gameObjects.add(newGameObject)
+            lastPlacedInstance = newGameObject
+            println("${objectType.displayName} placed at: ${position.x}, ${position.y}, ${position.z}")
+        } else {
+            println("Failed to create ${objectType.displayName}")
         }
     }
 

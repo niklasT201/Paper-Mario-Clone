@@ -13,7 +13,6 @@ import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
-import com.badlogic.gdx.graphics.g3d.environment.PointLight
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 
@@ -42,6 +41,10 @@ class ObjectSystem: IFinePositionable {
             field = value
             println("Debug mode: ${if (value) "ON" else "OFF"}")
         }
+
+    // Keep track of object-light associations
+    private val objectLightAssociations = mutableMapOf<Int, Int>()
+    private var nextObjectId = 1
 
     fun initialize() {
         val modelBuilder = ModelBuilder()
@@ -85,9 +88,9 @@ class ObjectSystem: IFinePositionable {
             IntAttribute.createCullFace(GL20.GL_NONE) // Disable culling so it doesn't interfere
         )
 
-        // Create a tiny invisible point - use a very small size to minimize interference
+        // Create a tiny invisible point
         val invisibleModel = modelBuilder.createBox(
-            0.1f, 0.1f, 0.1f, // Very small size
+            0.1f, 0.1f, 0.1f,
             invisibleMaterial,
             (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
         )
@@ -183,14 +186,86 @@ class ObjectSystem: IFinePositionable {
         debugMode = !debugMode
     }
 
-    fun createObjectInstance(objectType: ObjectType): ModelInstance? {
+    private fun createObjectInstance(objectType: ObjectType): ModelInstance? {
         val model = objectModels[objectType]
         return model?.let { ModelInstance(it) }
     }
 
-    fun createDebugInstance(objectType: ObjectType): ModelInstance? {
+    private fun createDebugInstance(objectType: ObjectType): ModelInstance? {
         val debugModel = debugModels[objectType]
         return debugModel?.let { ModelInstance(it) }
+    }
+
+    // Enhanced method to create game object with automatic light source
+    fun createGameObjectWithLight(
+        objectType: ObjectType,
+        position: Vector3,
+        lightingManager: LightingManager? = null
+    ): GameObject? {
+        val modelInstance = createObjectInstance(objectType) ?: return null
+        val debugInstance = if (objectType.isInvisible) createDebugInstance(objectType) else null
+
+        val objectId = nextObjectId++
+        var associatedLightId: Int? = null
+
+        // Create light source if the object type has one
+        if (objectType.hasLightSource) {
+            val lightPosition = Vector3(position).apply {
+                y += objectType.lightOffsetY
+            }
+
+            val lightSource = createLightSource(
+                position = lightPosition,
+                intensity = objectType.lightIntensity,
+                range = objectType.lightRange,
+                color = objectType.getLightColor()
+            )
+
+            associatedLightId = lightSource.id
+            objectLightAssociations[objectId] = lightSource.id
+
+            // Add to lighting manager if provided
+            lightingManager?.let { lm ->
+                val lightInstances = createLightSourceInstances(lightSource)
+                lm.addLightSource(lightSource, lightInstances)
+            }
+
+            println("Created ${objectType.displayName} with light source #${lightSource.id}")
+        }
+
+        return GameObject(
+            id = objectId,
+            modelInstance = modelInstance,
+            objectType = objectType,
+            position = position,
+            debugInstance = debugInstance,
+            associatedLightId = associatedLightId
+        )
+    }
+
+    // Method to remove game object and its associated light
+    fun removeGameObjectWithLight(gameObject: GameObject, lightingManager: LightingManager? = null) {
+        // Remove associated light source if it exists
+        gameObject.associatedLightId?.let { lightId ->
+            lightingManager?.removeLightSource(lightId)
+            removeLightSource(lightId)
+            objectLightAssociations.remove(gameObject.id)
+            println("Removed light source #$lightId associated with object #${gameObject.id}")
+        }
+    }
+
+    // Method to toggle light for objects that support it
+    fun toggleObjectLight(gameObject: GameObject, lightingManager: LightingManager): Boolean {
+        if (!gameObject.objectType.hasLightSource) return false
+
+        val lightId = gameObject.associatedLightId ?: return false
+        val lightSource = lightSources[lightId] ?: return false
+
+        lightSource.isEnabled = !lightSource.isEnabled
+        lightSource.updatePointLight()
+
+        println("${gameObject.objectType.displayName} light #$lightId: ${if (lightSource.isEnabled) "ON" else "OFF"}")
+        return true
     }
 
     fun createLightSource(
@@ -234,16 +309,18 @@ class ObjectSystem: IFinePositionable {
         debugModels.values.forEach { it.dispose() }
         lightSources.values.forEach { it.dispose() }
         lightSources.clear()
+        objectLightAssociations.clear()
     }
 }
 
 // Game object class to store object data
 data class GameObject(
+    val id: Int,
     val modelInstance: ModelInstance,
     val objectType: ObjectType,
     val position: Vector3,
     var debugInstance: ModelInstance? = null, // For debug visualization of invisible objects
-    var pointLight: PointLight? = null, // Actual light source for lighting effects
+    var associatedLightId: Int? = null, // Link to light source if this object has one
     var isBroken: Boolean = false // For future lantern breaking functionality
 ) {
     // Get bounding box for collision detection
@@ -271,42 +348,27 @@ data class GameObject(
         } else if (!objectType.isInvisible) {
             modelInstance
         } else {
-            null // Invisible object not in debug mode - don't render at all
+            null // Invisible object not in debug mode
         }
     }
 
-    // Create actual light source for lighting effects
-    fun createLight(): PointLight? {
-        return if (objectType.isInvisible && objectType == ObjectType.LIGHT_SOURCE) {
-            val light = PointLight()
-            light.set(
-                Color(1f, 0.9f, 0.7f, 1f), // Warm white light
-                position.x, position.y + objectType.height / 2f, position.z,
-                50f
-            )
-            pointLight = light
-            light
-        } else {
-            null
-        }
-    }
+    // Check if this object has an associated light source
+    fun hasLight(): Boolean = associatedLightId != null && objectType.hasLightSource
 
-    // Update light position if the object moves
-    fun updateLightPosition() {
-        pointLight?.set(
-            pointLight!!.color,
-            position.x, position.y + objectType.height / 2f, position.z,
-            pointLight!!.intensity
-        )
-    }
-
-    // For future functionality: break the lantern (change texture)
-    fun breakLantern() {
+    // Break the lantern (disable its light)
+    fun breakLantern(objectSystem: ObjectSystem, lightingManager: LightingManager) {
         if (objectType == ObjectType.LANTERN && !isBroken) {
             isBroken = true
-            // TODO: Change texture to broken lantern
-            // This would require texture swapping functionality
-            println("Lantern at ${position} is now broken!")
+
+            // Disable the associated light
+            associatedLightId?.let { lightId ->
+                objectSystem.getAllLightSources().find { it.id == lightId }?.let { lightSource ->
+                    lightSource.isEnabled = false
+                    lightSource.updatePointLight()
+                }
+            }
+
+            println("Lantern at $position is now broken! Light disabled.")
         }
     }
 }
@@ -318,11 +380,39 @@ enum class ObjectType(
     val width: Float,
     val height: Float,
     val isInvisible: Boolean = false,
-    val canBePlacedAnywhere: Boolean = false // For allowing placement inside blocks
+    val canBePlacedAnywhere: Boolean = false, // For allowing placement inside blocks
+    val hasLightSource: Boolean = false,
+    val lightIntensity: Float = 0f,
+    val lightRange: Float = 0f,
+    val lightColorR: Float = 1f,
+    val lightColorG: Float = 1f,
+    val lightColorB: Float = 1f,
+    val lightOffsetY: Float = 0f // Vertical offset from object center
 ) {
     TREE("Tree", "textures/objects/models/tree.png", 14.5f, 15.6f),
-    LANTERN("Lantern", "textures/objects/models/lantern.png", 3f, 11f),
-    LIGHT_SOURCE("Light Source", "", 2f, 2f, true, true), // Invisible, can be placed anywhere
-    BROKEN_LANTERN("Broken Lantern", "textures/objects/models/broken_lantern.png", 3f, 11f),
-    TURNEDOFF_LANTERN("Turned Off Lantern", "textures/objects/models/turnedoff_lantern.png", 3f, 11f),
+
+    LANTERN("Lantern", "textures/objects/models/lantern.png", 3f, 11f,
+        hasLightSource = true,
+        lightIntensity = 25f,
+        lightRange = 10f,
+        lightColorR = 1f,    // Orange color
+        lightColorG = 0.6f,
+        lightColorB = 0.2f,
+        lightOffsetY = 5.5f  // Place light at middle of lantern
+    ),
+
+    LIGHT_SOURCE("Light Source", "", 2f, 2f, true, true),
+
+    BROKEN_LANTERN("Broken Lantern", "textures/objects/models/broken_lantern.png", 3f, 11f,
+        hasLightSource = false // Broken lanterns don't emit light
+    ),
+
+    TURNEDOFF_LANTERN("Turned Off Lantern", "textures/objects/models/turnedoff_lantern.png", 3f, 11f,
+        hasLightSource = false // Turned off lanterns don't emit light
+    );
+
+    // Helper function to get light color as Color object
+    fun getLightColor(): Color {
+        return Color(lightColorR, lightColorG, lightColorB, 1f)
+    }
 }
