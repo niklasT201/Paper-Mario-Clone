@@ -69,7 +69,8 @@ class MafiaGame : ApplicationAdapter() {
             blockSystem,
             objectSystem,
             itemSystem,
-            interiorLayoutSystem
+            interiorLayoutSystem,
+            cameraManager
         )
 
         // Initialize UI Manager

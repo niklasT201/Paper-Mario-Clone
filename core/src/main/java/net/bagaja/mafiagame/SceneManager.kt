@@ -22,7 +22,8 @@ class SceneManager(
     private val blockSystem: BlockSystem,
     private val objectSystem: ObjectSystem,
     private val itemSystem: ItemSystem,
-    private val interiorLayoutSystem: InteriorLayoutSystem
+    private val interiorLayoutSystem: InteriorLayoutSystem,
+    private val cameraManager: CameraManager
 ) {
     // --- ACTIVE SCENE DATA ---
     // The main game loop will render whatever is in these arrays.
@@ -77,7 +78,11 @@ class SceneManager(
         currentScene = SceneType.HOUSE_INTERIOR
 
         // Position player at the entrance defined in the layout
-        playerSystem.setPosition(interior.playerPosition)
+        val newPlayerPos = interior.playerPosition
+        playerSystem.setPosition(newPlayerPos)
+
+        // NEW: Force the camera to snap to the player's new position
+        cameraManager.resetAndSnapToPlayer(newPlayerPos)
     }
 
     fun transitionToWorld() {
@@ -91,7 +96,13 @@ class SceneManager(
         currentInteriorId = null
 
         // Position the player at the saved exit position
-        worldState?.let { playerSystem.setPosition(it.playerPosition) }
+        worldState?.let {
+            val newPlayerPos = it.playerPosition
+            playerSystem.setPosition(newPlayerPos)
+
+            // NEW: Force the camera to snap to the player's new position
+            cameraManager.resetAndSnapToPlayer(newPlayerPos)
+        }
     }
 
     // --- PRIVATE HELPER METHODS ---

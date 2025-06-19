@@ -39,7 +39,7 @@ public class Lwjgl3Launcher {
 
 // room/open world transition effect
 // file-based saving/loading
-// camera updating when room switching
+// room needing a door for moving out again
 
 // smoother day/night transition
 // removing stairs from house models

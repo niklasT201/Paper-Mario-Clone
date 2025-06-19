@@ -66,11 +66,19 @@ class CameraManager {
         camera.update()
     }
 
-    fun setPlayerPosition(position: Vector3) {
+    fun setPlayerPosition(position: Vector3, forceSnap: Boolean = false) {
         playerPosition.set(position)
-        if (currentCameraMode == CameraMode.PLAYER) {
-            calculatePlayerCameraTarget()
+        calculatePlayerCameraTarget()
+
+        // If a snap is forced, immediately move the camera to the target.
+        if (forceSnap) {
+            currentPlayerCameraPosition.set(targetPlayerCameraPosition)
         }
+    }
+
+    fun resetAndSnapToPlayer(position: Vector3) {
+        setPlayerPosition(position, true)
+        handlePlayerCameraInput(0f) // Call with 0f delta to immediately update camera matrix
     }
 
     fun toggleFreeCameraMode() {
