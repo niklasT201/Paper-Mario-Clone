@@ -453,6 +453,51 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeObject(ray: Ray) {
+        // First try to hit existing blocks
+        val hitBlock = raycastSystem.getBlockAtRay(ray, gameBlocks)
+
+        if (hitBlock != null) {
+            placeObjectOnBlock(ray, hitBlock)
+        } else {
+            placeObjectOnGround(ray)
+        }
+    }
+
+    private fun placeObjectOnBlock(ray: Ray, hitBlock: GameBlock) {
+        when (objectSystem.currentSelectedObject) {
+            ObjectType.LIGHT_SOURCE -> {
+                // For light sources, place them on the block surface
+                val lightPosition = Vector3(
+                    hitBlock.position.x,
+                    hitBlock.position.y + blockSize / 2, // On the block surface
+                    hitBlock.position.z
+                )
+                placeLightSource(lightPosition)
+            }
+            else -> {
+                // For other objects, place them on top of the block
+                val objectPosition = Vector3(
+                    hitBlock.position.x,
+                    hitBlock.position.y + blockSize / 2, // On the block surface
+                    hitBlock.position.z
+                )
+
+                val existingObject = gameObjects.find { gameObject ->
+                    kotlin.math.abs(gameObject.position.x - objectPosition.x) < 1f &&
+                        kotlin.math.abs(gameObject.position.z - objectPosition.z) < 1f
+                }
+
+                if (existingObject == null) {
+                    addObject(objectPosition, objectSystem.currentSelectedObject)
+                    println("${objectSystem.currentSelectedObject.displayName} placed on block at: ${objectPosition.x}, ${objectPosition.y}, ${objectPosition.z}")
+                } else {
+                    println("Object already exists near this position")
+                }
+            }
+        }
+    }
+
+    private fun placeObjectOnGround(ray: Ray) {
         val intersection = Vector3()
         val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
@@ -520,6 +565,70 @@ class MafiaGame : ApplicationAdapter() {
 
     // New function to place items
     private fun placeItem(ray: Ray) {
+        // First, try to find intersection with existing blocks (like block placement does)
+        val hitBlock = raycastSystem.getBlockAtRay(ray, gameBlocks)
+
+        if (hitBlock != null) {
+            // We hit a block directly - place item on top of it
+            placeItemOnBlock(ray, hitBlock)
+        } else {
+            // No block hit, use the original ground plane method
+            placeItemOnGround(ray)
+        }
+    }
+
+    private fun placeItemOnBlock(ray: Ray, hitBlock: GameBlock) {
+        // Calculate intersection point with the hit block
+        val blockBounds = BoundingBox()
+        blockBounds.set(
+            Vector3(hitBlock.position.x - blockSize / 2, hitBlock.position.y - blockSize / 2, hitBlock.position.z - blockSize / 2),
+            Vector3(hitBlock.position.x + blockSize / 2, hitBlock.position.y + blockSize / 2, hitBlock.position.z + blockSize / 2)
+        )
+
+        val intersection = Vector3()
+        if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, blockBounds, intersection)) {
+            // Determine which face was hit
+            val relativePos = Vector3(intersection).sub(hitBlock.position)
+
+            // Find the dominant axis (which face was hit)
+            val absX = kotlin.math.abs(relativePos.x)
+            val absY = kotlin.math.abs(relativePos.y)
+            val absZ = kotlin.math.abs(relativePos.z)
+
+            val itemPosition = when {
+                // Hit top face - place item on top
+                absY >= absX && absY >= absZ && relativePos.y > 0 -> {
+                    Vector3(
+                        hitBlock.position.x,
+                        hitBlock.position.y + blockSize / 2 + 1f, // 1f above the block surface
+                        hitBlock.position.z
+                    )
+                }
+                // Hit side faces - place item at the side but on the same level as block top
+                else -> {
+                    val blockTop = hitBlock.position.y + blockSize / 2
+                    Vector3(intersection.x, blockTop + 1f, intersection.z)
+                }
+            }
+
+            // Check if there's already an item too close to this position
+            val existingItem = itemSystem.getItemAtPosition(itemPosition, 1.5f)
+
+            if (existingItem == null) {
+                // Capture the result of addItem
+                val newItem = itemSystem.addItem(itemPosition, itemSystem.currentSelectedItem)
+                // If it was created successfully, set it as the last placed instance
+                if (newItem != null) {
+                    lastPlacedInstance = newItem
+                    println("${itemSystem.currentSelectedItem.displayName} placed on block at: ${itemPosition.x}, ${itemPosition.y}, ${itemPosition.z}")
+                }
+            } else {
+                println("Item already exists near this position")
+            }
+        }
+    }
+
+    private fun placeItemOnGround(ray: Ray) {
         val intersection = Vector3()
         val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
@@ -540,6 +649,7 @@ class MafiaGame : ApplicationAdapter() {
                 // If it was created successfully, set it as the last placed instance
                 if (newItem != null) {
                     lastPlacedInstance = newItem
+                    println("${itemSystem.currentSelectedItem.displayName} placed on ground at: ${itemPosition.x}, ${itemPosition.y}, ${itemPosition.z}")
                 }
             } else {
                 println("Item already exists near this position")

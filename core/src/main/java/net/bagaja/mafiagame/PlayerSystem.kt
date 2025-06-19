@@ -152,14 +152,14 @@ class PlayerSystem {
     }
 
     private fun calculateSafeYPosition(x: Float, z: Float, currentY: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>): Float {
-        // Find the highest block that the player would be standing on at position (x, z)
-        var highestBlockY = 0f // Ground level
-        var foundSupportingBlock = false
+        // Find the highest block/surface that the player is standing on at position (x, z)
+        var highestSupportY = 0f // Ground level
+        var foundSupport = false
 
-        // Create a small area around the player position to check for blocks
+        // Create a small area around the player position to check for support
         val checkRadius = playerSize.x / 2f
 
-        // Check blocks first
+        // Check blocks - but DON'T allow stepping up onto them
         for (gameBlock in gameBlocks) {
             val blockCenterX = gameBlock.position.x
             val blockCenterZ = gameBlock.position.z
@@ -184,10 +184,12 @@ class PlayerSystem {
                 val blockHeight = blockSize * gameBlock.blockType.height
                 val blockTop = gameBlock.position.y + blockHeight / 2f
 
-                if (blockTop <= currentY + playerSize.y / 2f + blockSize) {
-                    if (blockTop > highestBlockY) {
-                        highestBlockY = blockTop
-                        foundSupportingBlock = true
+                // Only consider this block as support if player is already on or very close to its top
+                val tolerance = 0.5f // Small tolerance for being "on" the block
+                if (kotlin.math.abs(currentY - playerSize.y / 2f - blockTop) <= tolerance) {
+                    if (blockTop > highestSupportY) {
+                        highestSupportY = blockTop
+                        foundSupport = true
                     }
                 }
             }
@@ -208,50 +210,50 @@ class PlayerSystem {
                     // Calculate the appropriate step height based on stair geometry
                     val stairStepHeight = findStairStepHeight(house, x, z, currentY)
 
-                    if (stairStepHeight > highestBlockY) {
-                        highestBlockY = stairStepHeight
-                        foundSupportingBlock = true
+                    if (stairStepHeight > highestSupportY) {
+                        highestSupportY = stairStepHeight
+                        foundSupport = true
                     }
                 } else {
                     // Not colliding with stair - check if we're standing on top of it
                     val supportHeight = findStairSupportHeight(house, x, z, currentY)
-                    if (supportHeight > highestBlockY) {
-                        highestBlockY = supportHeight
-                        foundSupportingBlock = true
+                    if (supportHeight > highestSupportY) {
+                        highestSupportY = supportHeight
+                        foundSupport = true
                     }
                 }
             }
         }
 
-        // Calculate where the player should be - REDUCED MARGIN FOR TIGHTER CONTACT
-        val surfaceMargin = 0.05f // Much smaller margin - player will be closer to surface
-        val targetY = highestBlockY + playerSize.y / 2f + surfaceMargin
+        // Calculate where the player should be
+        val surfaceMargin = 0.05f
+        val targetY = highestSupportY + playerSize.y / 2f + surfaceMargin
 
-        // If no supporting block found and we're above ground, gradually fall to ground
-        if (!foundSupportingBlock && currentY > playerSize.y / 2f) {
+        // If no supporting surface found and we're above ground, gradually fall to ground
+        if (!foundSupport && currentY > playerSize.y / 2f) {
             val fallSpeed = 20f
             val groundY = 0f + playerSize.y / 2f
             val fallingY = currentY - fallSpeed * Gdx.graphics.deltaTime
             return kotlin.math.max(fallingY, groundY)
         }
 
-        // Smooth transition to prevent shaking - only move if the difference is significant
-        val heightDifference = kotlin.math.abs(targetY - currentY)
-        val smoothingThreshold = 0.05f // Reduced threshold for more responsive stepping
+        // If we found support, smoothly move to the target position
+        if (foundSupport) {
+            // Smooth transition to prevent shaking
+            val heightDifference = kotlin.math.abs(targetY - currentY)
+            val smoothingThreshold = 0.05f
 
-        if (heightDifference < smoothingThreshold) {
-            return currentY // Stay at current position to prevent micro-adjustments
+            if (heightDifference < smoothingThreshold) {
+                return currentY // Stay at current position to prevent micro-adjustments
+            }
+
+            // Smooth interpolation for stepping on stairs
+            val lerpSpeed = 12f
+            return currentY + (targetY - currentY) * lerpSpeed * Gdx.graphics.deltaTime
         }
 
-        // Limit step height to prevent teleporting
-        val maxStepHeight = 1.2f // Slightly reduced max step height
-        if (targetY > currentY + maxStepHeight) {
-            return currentY + maxStepHeight
-        }
-
-        // Smooth interpolation for stepping up/down - FASTER RESPONSE
-        val lerpSpeed = 12f // Increased speed for more responsive stepping
-        return currentY + (targetY - currentY) * lerpSpeed * Gdx.graphics.deltaTime
+        // Default: stay at current Y position if no support changes
+        return currentY
     }
 
     private fun findStairStepHeight(house: GameHouse, x: Float, z: Float, currentY: Float): Float {
