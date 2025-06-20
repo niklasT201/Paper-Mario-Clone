@@ -21,6 +21,7 @@ class HouseSelectionUI(
     private lateinit var houseSelectionTable: Table
     private lateinit var houseItems: MutableList<HouseSelectionItem>
     private val loadedTextures = mutableMapOf<String, Texture>() // Cache for loaded textures
+    private lateinit var lockStatusLabel: Label
 
     // Data class to hold house selection item components
     private data class HouseSelectionItem(
@@ -80,11 +81,22 @@ class HouseSelectionUI(
 
         mainContainer.add(houseContainer).padBottom(10f).row()
 
+        // Lock Status Display
+        lockStatusLabel = Label("", skin) // Create the label
+        lockStatusLabel.setFontScale(1.1f)
+        mainContainer.add(lockStatusLabel).padBottom(15f).row()
+
         // Instructions with modern styling
         val instructionLabel = Label("Hold [H] + Mouse Wheel to change houses", skin)
         instructionLabel.setFontScale(0.9f)
         instructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f) // Darker gray
         mainContainer.add(instructionLabel).padBottom(5f).row()
+
+        // New instruction for locking
+        val lockInstructionLabel = Label("Hold [H] + [L] to toggle Lock", skin)
+        lockInstructionLabel.setFontScale(0.9f)
+        lockInstructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f)
+        mainContainer.add(lockInstructionLabel).padBottom(5f).row()
 
         // Additional instructions
         val additionalLabel = Label("Houses have collision - players cannot walk through them", skin)
@@ -94,6 +106,8 @@ class HouseSelectionUI(
 
         houseSelectionTable.add(mainContainer)
         stage.addActor(houseSelectionTable)
+
+        update()
     }
 
     private fun createHouseItem(houseType: HouseType, isSelected: Boolean): HouseSelectionItem {
@@ -233,6 +247,15 @@ class HouseSelectionUI(
 
     fun update() {
         val currentIndex = houseSystem.currentSelectedHouseIndex
+
+        // Update the lock status label based on the state in HouseSystem
+        if (houseSystem.isNextHouseLocked) {
+            lockStatusLabel.setText("State: [LOCKED]")
+            lockStatusLabel.color = Color.FIREBRICK // A nice red color
+        } else {
+            lockStatusLabel.setText("State: [OPEN]")
+            lockStatusLabel.color = Color.FOREST // A nice green color
+        }
 
         // Animate all house items
         for (i in houseItems.indices) {

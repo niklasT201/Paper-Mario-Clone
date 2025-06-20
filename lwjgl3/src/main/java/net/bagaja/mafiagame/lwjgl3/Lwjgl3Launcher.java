@@ -43,7 +43,7 @@ public class Lwjgl3Launcher {
 
 // smoother day/night transition
 // removing stairs from house models
-// cars and houses can be locked
+// cars can be locked
 // enemies have an inventory and collect items
 // footprints when moving through dead enemies
 // physics

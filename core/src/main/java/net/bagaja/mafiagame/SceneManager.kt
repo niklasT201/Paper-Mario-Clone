@@ -2,11 +2,12 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
-import java.util.UUID
 
 enum class SceneType {
     WORLD,
-    HOUSE_INTERIOR
+    HOUSE_INTERIOR,
+    TRANSITIONING_TO_INTERIOR,
+    TRANSITIONING_TO_WORLD
 }
 
 data class SceneTransition(
@@ -23,10 +24,10 @@ class SceneManager(
     private val objectSystem: ObjectSystem,
     private val itemSystem: ItemSystem,
     private val interiorLayoutSystem: InteriorLayoutSystem,
-    private val cameraManager: CameraManager
+    private val cameraManager: CameraManager,
+    private val transitionSystem: TransitionSystem
 ) {
     // --- ACTIVE SCENE DATA ---
-    // The main game loop will render whatever is in these arrays.
     val activeBlocks = Array<GameBlock>()
     val activeObjects = Array<GameObject>()
     val activeCars = Array<GameCar>()
@@ -39,9 +40,9 @@ class SceneManager(
     private var worldState: WorldState? = null // Holds the saved world data
     private val interiorStates = mutableMapOf<String, InteriorState>()
     private var currentInteriorId: String? = null
+    private var pendingHouse: GameHouse? = null
 
     // --- INITIALIZATION ---
-    // Called once at the start to populate the world for the first time
     fun initializeWorld(
         initialBlocks: Array<GameBlock>,
         initialObjects: Array<GameObject>,
@@ -57,20 +58,51 @@ class SceneManager(
 
         currentScene = SceneType.WORLD
 
-        // NEW: Synchronize the ItemSystem with the initial world items
+        // Synchronize the ItemSystem with the initial world items
         itemSystem.setActiveItems(activeItems)
-
         println("SceneManager initialized. World scene is active.")
     }
 
+    fun update(deltaTime: Float) {
+        // Checks if an animation has finished
+        if (transitionSystem.isFinished()) {
+            when (currentScene) {
+                SceneType.TRANSITIONING_TO_INTERIOR -> completeTransitionToInterior()
+                SceneType.TRANSITIONING_TO_WORLD -> completeTransitionToWorld()
+                else -> {} // Do nothing
+            }
+            transitionSystem.reset() // Reset for the next use
+        }
+    }
+
+    fun isTransitioning(): Boolean {
+        return currentScene == SceneType.TRANSITIONING_TO_INTERIOR ||
+            currentScene == SceneType.TRANSITIONING_TO_WORLD
+    }
+
     // --- TRANSITION LOGIC ---
-
     fun transitionToInterior(house: GameHouse) {
-        if (currentScene == SceneType.HOUSE_INTERIOR) return // Already inside
+        if (isTransitioning()) return // Prevent starting a new transition while one is active
 
-        println("Transitioning to interior of house: ${house.id}")
+        println("Starting transition to interior of house: ${house.id}")
         saveWorldState()
+        pendingHouse = house
+        currentScene = SceneType.TRANSITIONING_TO_INTERIOR
+        transitionSystem.start(duration = 0.7f) // Start the 0.7 second animation
+    }
 
+    fun transitionToWorld() {
+        if (isTransitioning()) return
+
+        println("Starting transition back to world...")
+        saveCurrentInteriorState()
+        currentScene = SceneType.TRANSITIONING_TO_WORLD
+        transitionSystem.start(duration = 0.7f) // Start the 0.7 second animation
+    }
+
+    private fun completeTransitionToInterior() {
+        val house = pendingHouse ?: return
+        println("Transition finished. Loading interior for ${house.id}")
         val interior = interiorStates[house.id] ?: createInteriorForHouse(house)
         loadInteriorState(interior)
 
@@ -81,15 +113,13 @@ class SceneManager(
         val newPlayerPos = interior.playerPosition
         playerSystem.setPosition(newPlayerPos)
 
-        // NEW: Force the camera to snap to the player's new position
+        // Force the camera to snap to the player's new position
         cameraManager.resetAndSnapToPlayer(newPlayerPos)
+        pendingHouse = null
     }
 
-    fun transitionToWorld() {
-        if (currentScene == SceneType.WORLD) return // Already in world
-
-        println("Transitioning back to world...")
-        saveCurrentInteriorState()
+    private fun completeTransitionToWorld() {
+        println("Transition finished. Restoring world.")
         restoreWorldState()
 
         currentScene = SceneType.WORLD
@@ -100,7 +130,7 @@ class SceneManager(
             val newPlayerPos = it.playerPosition
             playerSystem.setPosition(newPlayerPos)
 
-            // NEW: Force the camera to snap to the player's new position
+            // Force the camera to snap to the player's new position
             cameraManager.resetAndSnapToPlayer(newPlayerPos)
         }
     }

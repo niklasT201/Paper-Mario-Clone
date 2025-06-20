@@ -24,7 +24,8 @@ class HouseSystem: IFinePositionable {
         private set
     var currentSelectedHouseIndex = 0
         private set
-
+    var isNextHouseLocked: Boolean = false
+        private set
     override var finePosMode = false
     override val fineStep = 0.25f
 
@@ -77,6 +78,11 @@ class HouseSystem: IFinePositionable {
         println("Selected house: ${currentSelectedHouse.displayName}")
     }
 
+    fun toggleLockState() {
+        isNextHouseLocked = !isNextHouseLocked
+        println("Next house will be placed as: ${if (isNextHouseLocked) "Locked" else "Open"}")
+    }
+
     fun createHouseInstance(houseType: HouseType): ModelInstance? {
         val model = houseModels[houseType]
         return model?.let { ModelInstance(it) }
@@ -93,6 +99,7 @@ data class GameHouse(
     val modelInstance: ModelInstance,
     val houseType: HouseType,
     val position: Vector3,
+    val isLocked: Boolean,
     val id: String = UUID.randomUUID().toString()
 ) {
     // Data for Mesh Collision

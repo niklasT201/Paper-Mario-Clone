@@ -221,6 +221,14 @@ class InputHandler(
                         return true
                     }
                     Input.Keys.L -> {
+                        // If holding H, toggle the lock state
+                        if (isHouseSelectionMode) {
+                            houseSystem.toggleLockState()
+                            uiManager.updateHouseSelection() // This will refresh the UI label
+                            return true // Consume the key event
+                        }
+
+                        // Otherwise normal key actions
                         if (isParallaxSelectionMode) {
                             uiManager.nextParallaxLayer()
                             return true

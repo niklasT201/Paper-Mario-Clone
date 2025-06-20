@@ -37,6 +37,9 @@ class MafiaGame : ApplicationAdapter() {
     // Highlight System
     private lateinit var highlightSystem: HighlightSystem
 
+    // Transition System
+    private lateinit var transitionSystem: TransitionSystem
+
     // 2D Player (but positioned in 3D space)
     private lateinit var playerSystem: PlayerSystem
 
@@ -60,6 +63,10 @@ class MafiaGame : ApplicationAdapter() {
         setupHouseSystem()
         setupBackgroundSystem()
         setupParallaxSystem()
+
+        // Initialize Transition System
+        transitionSystem = TransitionSystem()
+
         playerSystem = PlayerSystem()
         playerSystem.initialize(blockSize)
 
@@ -70,8 +77,11 @@ class MafiaGame : ApplicationAdapter() {
             objectSystem,
             itemSystem,
             interiorLayoutSystem,
-            cameraManager
+            cameraManager,
+            transitionSystem
         )
+
+        transitionSystem.create(cameraManager.findUiCamera())
 
         // Initialize UI Manager
         uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem, houseSystem, backgroundSystem, parallaxBackgroundSystem)
@@ -186,6 +196,11 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun handleInteractionInput() {
+        // Prevent interaction while a transition is active
+        if (sceneManager.isTransitioning()) {
+            return
+        }
+
         if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
             when (sceneManager.currentScene) {
                 SceneType.WORLD -> {
@@ -195,6 +210,13 @@ class MafiaGame : ApplicationAdapter() {
                     val closestHouse = sceneManager.activeHouses.minByOrNull { it.position.dst(playerPos) }
 
                     if (closestHouse != null) {
+                        // Check if the house is locked before proceeding
+                        if (closestHouse.isLocked) {
+                            println("This house is locked.")
+                            // Here you could play a "locked door" sound or show a UI message
+                            return // Stop the interaction
+                        }
+
                         val doorPosition = Vector3(closestHouse.position.x, door_level_y, closestHouse.position.z)
 
                         if (playerPos.dst(doorPosition) < 8f) {
@@ -211,6 +233,7 @@ class MafiaGame : ApplicationAdapter() {
                     // Try to exit the house
                     sceneManager.transitionToWorld()
                 }
+                else -> {} // Do nothing in other states
             }
         }
     }
@@ -749,7 +772,13 @@ class MafiaGame : ApplicationAdapter() {
         val houseInstance = houseSystem.createHouseInstance(houseType) ?: return
         val position = Vector3(x, y, z)
         houseInstance.transform.setToTranslationAndScaling(position, Vector3(6f, 6f, 6f))
-        val gameHouse = GameHouse(houseInstance, houseType, position) // ID is generated automatically
+
+        val gameHouse = GameHouse(
+            modelInstance = houseInstance,
+            houseType = houseType,
+            position = position,
+            isLocked = houseSystem.isNextHouseLocked
+        )
         collection.add(gameHouse)
         lastPlacedInstance = gameHouse
     }
@@ -901,6 +930,9 @@ class MafiaGame : ApplicationAdapter() {
         val deltaTime = Gdx.graphics.deltaTime
         val timeMultiplier = if (inputHandler.isTimeSpeedUpActive()) 200f else 1f
 
+        sceneManager.update(deltaTime)
+        transitionSystem.update(deltaTime)
+
         // Update lighting manager
         lightingManager.update(deltaTime, cameraManager.camera.position, timeMultiplier)
 
@@ -1003,6 +1035,9 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render UI using UIManager
         uiManager.render()
+
+        // Render the transition animation ON TOP of everything else.
+        transitionSystem.render()
     }
 
     override fun resize(width: Int, height: Int) {
@@ -1024,6 +1059,7 @@ class MafiaGame : ApplicationAdapter() {
         highlightSystem.dispose()
         lightingManager.dispose()
         parallaxBackgroundSystem.dispose()
+        transitionSystem.dispose()
 
         // Dispose UIManager
         uiManager.dispose()

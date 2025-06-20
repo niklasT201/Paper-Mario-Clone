@@ -1,7 +1,9 @@
+// file: net/bagaja/mafiagame/CameraManager.kt
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
+import com.badlogic.gdx.graphics.OrthographicCamera // NEW: Import OrthographicCamera
 import com.badlogic.gdx.graphics.PerspectiveCamera
 import com.badlogic.gdx.math.Vector3
 import kotlin.math.cos
@@ -9,6 +11,10 @@ import kotlin.math.sin
 
 class CameraManager {
     lateinit var camera: PerspectiveCamera
+        private set
+
+    // Camera specifically for 2D UI and overlays
+    lateinit var uiCamera: OrthographicCamera
         private set
 
     // Camera modes
@@ -49,7 +55,7 @@ class CameraManager {
     private val paperMarioHeight = 8f
 
     fun initialize() {
-        // Setup camera for Paper Mario style (side view)
+        // Setup 3D camera
         camera = PerspectiveCamera(67f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
 
         // Initialize player camera settings for Paper Mario style
@@ -64,6 +70,28 @@ class CameraManager {
         camera.near = 1f
         camera.far = 300f
         camera.update()
+
+        // Setup the 2D UI camera
+        uiCamera = OrthographicCamera(Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
+        uiCamera.position.set(uiCamera.viewportWidth / 2f, uiCamera.viewportHeight / 2f, 0f)
+        uiCamera.update()
+    }
+
+    fun findUiCamera(): OrthographicCamera {
+        return uiCamera
+    }
+
+    fun resize(width: Int, height: Int) {
+        // Update the 3D camera
+        camera.viewportWidth = width.toFloat()
+        camera.viewportHeight = height.toFloat()
+        camera.update()
+
+        // NEW: Also update the 2D UI camera
+        uiCamera.viewportWidth = width.toFloat()
+        uiCamera.viewportHeight = height.toFloat()
+        uiCamera.position.set(uiCamera.viewportWidth / 2f, uiCamera.viewportHeight / 2f, 0f)
+        uiCamera.update()
     }
 
     fun setPlayerPosition(position: Vector3, forceSnap: Boolean = false) {
@@ -167,12 +195,6 @@ class CameraManager {
                 // Could add zoom functionality for free camera if needed
             }
         }
-    }
-
-    fun resize(width: Int, height: Int) {
-        camera.viewportWidth = width.toFloat()
-        camera.viewportHeight = height.toFloat()
-        camera.update()
     }
 
     private fun updateCameraPosition() {
