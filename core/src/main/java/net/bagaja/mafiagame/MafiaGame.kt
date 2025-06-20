@@ -190,13 +190,21 @@ class MafiaGame : ApplicationAdapter() {
             when (sceneManager.currentScene) {
                 SceneType.WORLD -> {
                     // Try to enter a house
+                    val door_level_y = 4.5f
                     val playerPos = playerSystem.getPosition()
                     val closestHouse = sceneManager.activeHouses.minByOrNull { it.position.dst(playerPos) }
 
-                    if (closestHouse != null && playerPos.dst(closestHouse.position) < 8f) { // 8f is interaction radius
-                        sceneManager.transitionToInterior(closestHouse)
+                    if (closestHouse != null) {
+                        val doorPosition = Vector3(closestHouse.position.x, door_level_y, closestHouse.position.z)
+
+                        if (playerPos.dst(doorPosition) < 8f) {
+                            // Success! The player is close enough to the door.
+                            sceneManager.transitionToInterior(closestHouse)
+                        } else {
+                            println("No house nearby to enter. (Too far from the door)")
+                        }
                     } else {
-                        println("No house nearby to enter.")
+                        println("No houses in the scene.")
                     }
                 }
                 SceneType.HOUSE_INTERIOR -> {
