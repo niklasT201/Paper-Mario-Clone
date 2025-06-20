@@ -19,29 +19,28 @@ class SkySystem {
         val bottomColor: Color
     )
 
-    // Predefined sky color palettes
-    private val dayColors = SkyColors(
-        topColor = Color(0.4f, 0.7f, 1.0f, 1.0f),      // Light blue
-        horizonColor = Color(0.7f, 0.9f, 1.0f, 1.0f),   // Very light blue
-        bottomColor = Color(0.8f, 0.95f, 1.0f, 1.0f)    // Almost white blue
-    )
-
-    private val sunriseColors = SkyColors(
-        topColor = Color(0.3f, 0.4f, 0.7f, 1.0f),       // Deep blue
-        horizonColor = Color(1.0f, 0.6f, 0.3f, 1.0f),   // Orange
-        bottomColor = Color(1.0f, 0.8f, 0.4f, 1.0f)     // Light orange
-    )
-
-    private val sunsetColors = SkyColors(
-        topColor = Color(0.2f, 0.3f, 0.6f, 1.0f),       // Darker blue
-        horizonColor = Color(1.0f, 0.4f, 0.2f, 1.0f),   // Red-orange
-        bottomColor = Color(1.0f, 0.7f, 0.3f, 1.0f)     // Orange
-    )
-
-    private val nightColors = SkyColors(
-        topColor = Color(0.02f, 0.02f, 0.08f, 1.0f),    // Very dark blue
-        horizonColor = Color(0.05f, 0.05f, 0.15f, 1.0f), // Dark purple-blue
-        bottomColor = Color(0.08f, 0.08f, 0.2f, 1.0f)   // Slightly lighter dark blue
+    // Using a map makes it easy to look up colors by TimeOfDay
+    private val colorPalettes = mapOf(
+        DayNightCycle.TimeOfDay.DAY to SkyColors(
+            topColor = Color(0.4f, 0.7f, 1.0f, 1.0f),
+            horizonColor = Color(0.7f, 0.9f, 1.0f, 1.0f),
+            bottomColor = Color(0.8f, 0.95f, 1.0f, 1.0f)
+        ),
+        DayNightCycle.TimeOfDay.SUNRISE to SkyColors(
+            topColor = Color(0.3f, 0.4f, 0.7f, 1.0f),
+            horizonColor = Color(1.0f, 0.6f, 0.3f, 1.0f),
+            bottomColor = Color(1.0f, 0.8f, 0.4f, 1.0f)
+        ),
+        DayNightCycle.TimeOfDay.SUNSET to SkyColors(
+            topColor = Color(0.2f, 0.3f, 0.6f, 1.0f),
+            horizonColor = Color(1.0f, 0.4f, 0.2f, 1.0f),
+            bottomColor = Color(1.0f, 0.7f, 0.3f, 1.0f)
+        ),
+        DayNightCycle.TimeOfDay.NIGHT to SkyColors(
+            topColor = Color(0.02f, 0.02f, 0.08f, 1.0f),
+            horizonColor = Color(0.05f, 0.05f, 0.15f, 1.0f),
+            bottomColor = Color(0.08f, 0.08f, 0.2f, 1.0f)
+        )
     )
 
     private val currentSkyColors = SkyColors(
@@ -72,37 +71,22 @@ class SkySystem {
         )
 
         skyboxInstance = ModelInstance(skyboxModel)
-
-        // Apply initial colors
-        updateSkyColors(dayColors)
+        updateSkyColors(colorPalettes.getValue(DayNightCycle.TimeOfDay.DAY))
     }
 
     fun update(dayNightCycle: DayNightCycle, cameraPosition: Vector3) {
         // Update skybox position to follow camera
         skyboxInstance.transform.setToTranslation(cameraPosition)
 
-        // Calculate current sky colors based on time of day
-        val timeOfDay = dayNightCycle.getCurrentTimeOfDay()
-        val sunIntensity = dayNightCycle.getSunIntensity()
+        // Get the continuous interpolation data from the cycle
+        val interpolationInfo = dayNightCycle.getSkyColorInterpolation()
 
-        when (timeOfDay) {
-            DayNightCycle.TimeOfDay.DAY -> {
-                updateSkyColors(dayColors)
-            }
-            DayNightCycle.TimeOfDay.SUNRISE -> {
-                // Interpolate between night and sunrise colors
-                val progress = sunIntensity // 0 to 1 during sunrise
-                interpolateColors(nightColors, sunriseColors, progress)
-            }
-            DayNightCycle.TimeOfDay.SUNSET -> {
-                // Interpolate between day and sunset colors
-                val progress = 1.0f - sunIntensity // 0 to 1 during sunset
-                interpolateColors(dayColors, sunsetColors, progress)
-            }
-            DayNightCycle.TimeOfDay.NIGHT -> {
-                updateSkyColors(nightColors)
-            }
-        }
+        // Get the 'from' and 'to' color palettes from our map
+        val fromColors = colorPalettes.getValue(interpolationInfo.from)
+        val toColors = colorPalettes.getValue(interpolationInfo.to)
+
+        // Interpolate and apply the colors
+        interpolateColors(fromColors, toColors, interpolationInfo.progress)
     }
 
     private fun interpolateColors(from: SkyColors, to: SkyColors, progress: Float) {
@@ -117,7 +101,6 @@ class SkySystem {
         currentSkyColors.topColor.set(colors.topColor)
         currentSkyColors.horizonColor.set(colors.horizonColor)
         currentSkyColors.bottomColor.set(colors.bottomColor)
-
         applySkyColors()
     }
 

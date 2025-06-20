@@ -12,11 +12,11 @@ class DayNightCycle {
     private val totalCycleDuration = dayDuration + nightDuration
 
     // Transition periods (in seconds)
-    val sunriseTransition = 2f * 60f  // 2 minutes sunrise
-    private val sunsetTransition = 2f * 60f   // 2 minutes sunset
+    val sunriseTime = 2f * 60f  // Sunrise colors are strongest at this time
+    val sunsetTime = dayDuration - (2f * 60f) // Sunset colors are strongest at this time
 
-    // Start at full daylight (after sunrise transition)
-    var currentTime = sunriseTransition + 22f * 60f  // Start 5 minutes into the day
+    // Start at full daylight
+    var currentTime = 7f * 60f  // Start 7 minutes into the day (well after sunrise)
 
     enum class TimeOfDay {
         SUNRISE,
@@ -25,54 +25,95 @@ class DayNightCycle {
         NIGHT
     }
 
+    data class SkyInterpolationInfo(
+        val from: TimeOfDay,
+        val to: TimeOfDay,
+        val progress: Float
+    )
+
     fun update(deltaTime: Float, timeMultiplier: Float = 1.0f) {
-        currentTime += deltaTime * timeMultiplier // Apply the multiplier here
-        if (currentTime >= totalCycleDuration) {
-            currentTime = 0f
-        }
+        currentTime += deltaTime * timeMultiplier
+        currentTime %= totalCycleDuration // Use modulo for clean wrapping
     }
 
-    fun getCurrentTimeOfDay(): TimeOfDay {
+    private fun getCurrentTimeOfDay(): TimeOfDay {
         return when {
-            currentTime < sunriseTransition -> TimeOfDay.SUNRISE
-            currentTime < dayDuration - sunsetTransition -> TimeOfDay.DAY
+            currentTime < sunriseTime -> TimeOfDay.SUNRISE
+            currentTime < sunsetTime -> TimeOfDay.DAY
             currentTime < dayDuration -> TimeOfDay.SUNSET
             else -> TimeOfDay.NIGHT
         }
     }
 
-    fun getDayProgress(): Float {
-        return currentTime / totalCycleDuration
-    }
-
-    fun getSunIntensity(): Float {
-        return when (getCurrentTimeOfDay()) {
-            TimeOfDay.SUNRISE -> {
-                val progress = currentTime / sunriseTransition
-                // Smooth transition from 0 to 1
-                smoothStep(0f, 1f, progress)
+    fun getSkyColorInterpolation(): SkyInterpolationInfo {
+        return when {
+            // 1. Transition: Night -> Sunrise
+            currentTime < sunriseTime -> {
+                val progress = currentTime / sunriseTime
+                SkyInterpolationInfo(TimeOfDay.NIGHT, TimeOfDay.SUNRISE, smoothStep(progress))
             }
-            TimeOfDay.DAY -> 1f
-            TimeOfDay.SUNSET -> {
-                val sunsetStart = dayDuration - sunsetTransition
-                val progress = (currentTime - sunsetStart) / sunsetTransition
-                // Smooth transition from 1 to 0
-                smoothStep(1f, 0f, progress)
+            // 2. Transition: Sunrise -> Day
+            currentTime < sunsetTime -> {
+                val segmentDuration = sunsetTime - sunriseTime
+                val timeInSegment = currentTime - sunriseTime
+                val progress = timeInSegment / segmentDuration
+                SkyInterpolationInfo(TimeOfDay.SUNRISE, TimeOfDay.DAY, smoothStep(progress))
             }
-            TimeOfDay.NIGHT -> 0f
+            // 3. Transition: Day -> Sunset
+            currentTime < dayDuration -> {
+                val segmentDuration = dayDuration - sunsetTime
+                val timeInSegment = currentTime - sunsetTime
+                val progress = timeInSegment / segmentDuration
+                SkyInterpolationInfo(TimeOfDay.DAY, TimeOfDay.SUNSET, smoothStep(progress))
+            }
+            // 4. Transition: Sunset -> Night
+            else -> {
+                val segmentDuration = totalCycleDuration - dayDuration
+                val timeInSegment = currentTime - dayDuration
+                val progress = timeInSegment / segmentDuration
+                SkyInterpolationInfo(TimeOfDay.SUNSET, TimeOfDay.NIGHT, smoothStep(progress))
+            }
         }
     }
 
+    fun getSunIntensity(): Float {
+        // This logic remains similar, as it controls light intensity, not just color.
+        val sunriseTransition = 2f * 60f
+        val sunsetTransition = 2f * 60f
+
+        return when {
+            // Rising
+            currentTime < sunriseTransition -> currentTime / sunriseTransition
+            // Full Day
+            currentTime < dayDuration - sunsetTransition -> 1f
+            // Setting
+            currentTime < dayDuration -> {
+                val sunsetStart = dayDuration - sunsetTransition
+                1.0f - ((currentTime - sunsetStart) / sunsetTransition)
+            }
+            // Night
+            else -> 0f
+        }.coerceIn(0f, 1f)
+    }
+
     fun getAmbientIntensity(): Float {
+        // We can also smooth this for better transitions
+        val dayAmbient = 0.4f
+        val nightAmbient = 0.05f
+        val transitionAmbient = 0.25f
+
+        val sunIntensity = getSunIntensity()
+
         return when (getCurrentTimeOfDay()) {
-            TimeOfDay.NIGHT -> 0.05f  // Very dark ambient for deep shadows
-            TimeOfDay.SUNRISE -> 0.25f // Brighter during transitions
-            TimeOfDay.SUNSET -> 0.25f
-            TimeOfDay.DAY -> 0.4f     // A gentle ambient light for daytime shadows
+            TimeOfDay.DAY -> dayAmbient
+            TimeOfDay.NIGHT -> nightAmbient
+            TimeOfDay.SUNRISE -> lerp(nightAmbient, transitionAmbient, sunIntensity)
+            TimeOfDay.SUNSET -> lerp(nightAmbient, transitionAmbient, sunIntensity)
         }
     }
 
     fun getSunColor(): Triple<Float, Float, Float> {
+        // Can also be interpolated for smoother color changes on objects
         return when (getCurrentTimeOfDay()) {
             TimeOfDay.SUNRISE -> Triple(1f, 0.7f, 0.4f)      // Orange sunrise
             TimeOfDay.DAY -> Triple(1f, 1f, 0.9f)            // Bright white/yellow
@@ -81,9 +122,18 @@ class DayNightCycle {
         }
     }
 
-    private fun smoothStep(edge0: Float, edge1: Float, x: Float): Float {
-        val t = kotlin.math.max(0f, kotlin.math.min(1f, (x - edge0) / (edge1 - edge0)))
+    private fun smoothStep(x: Float): Float {
+        val t = x.coerceIn(0f, 1f)
         return t * t * (3f - 2f * t)
+    }
+
+    // Linear interpolation helper
+    private fun lerp(a: Float, b: Float, f: Float): Float {
+        return a + f * (b - a)
+    }
+
+    fun getDayProgress(): Float {
+        return currentTime / totalCycleDuration
     }
 
     fun getTimeString(): String {
@@ -98,9 +148,8 @@ class DayNightCycle {
     }
 
     fun skipToDay() {
-        currentTime = sunriseTransition + 1f
+        currentTime = sunriseTime + 1f
     }
-
 
     fun getCurrentTimeInfo(): String {
         return "${getTimeString()} - ${getCurrentTimeOfDay()}"
@@ -111,14 +160,6 @@ class DayNightCycle {
 
         // Convert progress to an angle (0 to PI radians, or 0 to 180 degrees)
         val angle = dayProgress * PI.toFloat()
-
-        // Create the direction vector
-        val direction = Vector3(
-            cos(angle),
-            -sin(angle),
-            -0.3f
-        ).nor()
-
-        return direction
+        return Vector3(cos(angle), -sin(angle), -0.3f).nor()
     }
 }

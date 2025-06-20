@@ -41,7 +41,6 @@ public class Lwjgl3Launcher {
 // file-based saving/loading
 // room needing a door for moving out again
 
-// smoother day/night transition
 // removing stairs from house models
 // cars can be locked
 // enemies have an inventory and collect items
