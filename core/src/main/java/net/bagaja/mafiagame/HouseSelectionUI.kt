@@ -378,13 +378,23 @@ class HouseSelectionUI(
     }
 
     fun update() {
+        val selectedHouseType = houseSystem.currentSelectedHouse
+        val canHaveRoomOrBeLocked = selectedHouseType.canHaveRoom
+
         // Update Lock Status and Room Selection Visibility
-        if (houseSystem.isNextHouseLocked) {
+        if (!canHaveRoomOrBeLocked) {
+            // stair, cannot be locked or have a room
+            lockStatusLabel.setText("State: N/A (Cannot have interior)")
+            lockStatusLabel.color = Color.GRAY
+            roomSelectionContainer.isVisible = false
+        } else if (houseSystem.isNextHouseLocked) {
+            // regular house that is set to be locked
             lockStatusLabel.setText("State: [LOCKED]")
             lockStatusLabel.color = Color.FIREBRICK
             roomSelectionContainer.isVisible = false
             houseSystem.selectedRoomTemplateId = null // Ensure no room is selected for a locked house
         } else {
+            // regular house that is open
             lockStatusLabel.setText("State: [OPEN]")
             lockStatusLabel.color = Color.FOREST
             roomSelectionContainer.isVisible = true

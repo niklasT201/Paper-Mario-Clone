@@ -42,6 +42,8 @@ public class Lwjgl3Launcher {
 // file-based saving/loading
 // room needing a door for moving out again
 
+// map saving
+// saving rooms with name
 // cars can be locked
 // enemies have an inventory and collect items
 // footprints when moving through dead enemies

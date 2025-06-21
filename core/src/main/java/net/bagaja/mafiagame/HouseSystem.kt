@@ -68,6 +68,9 @@ class HouseSystem: IFinePositionable {
     fun nextHouse() {
         currentSelectedHouseIndex = (currentSelectedHouseIndex + 1) % HouseType.entries.size
         currentSelectedHouse = HouseType.entries.toTypedArray()[currentSelectedHouseIndex]
+        if (!currentSelectedHouse.canHaveRoom) {
+            isNextHouseLocked = false // Reset lock state if stairs are selected
+        }
         println("Selected house: ${currentSelectedHouse.displayName}")
     }
 
@@ -78,12 +81,20 @@ class HouseSystem: IFinePositionable {
             HouseType.entries.size - 1
         }
         currentSelectedHouse = HouseType.entries.toTypedArray()[currentSelectedHouseIndex]
+        if (!currentSelectedHouse.canHaveRoom) {
+            isNextHouseLocked = false // Reset lock state if stairs are selected
+        }
         println("Selected house: ${currentSelectedHouse.displayName}")
     }
 
     fun toggleLockState() {
-        isNextHouseLocked = !isNextHouseLocked
-        println("Next house will be placed as: ${if (isNextHouseLocked) "Locked" else "Open"}")
+        if (currentSelectedHouse.canHaveRoom) {
+            isNextHouseLocked = !isNextHouseLocked
+            println("Next house will be placed as: ${if (isNextHouseLocked) "Locked" else "Open"}")
+        } else {
+            isNextHouseLocked = false // Ensure stairs are never locked
+            println("Cannot lock/unlock a ${currentSelectedHouse.displayName}.")
+        }
     }
 
     fun createHouseInstance(houseType: HouseType): ModelInstance? {
@@ -239,11 +250,12 @@ enum class HouseType(
     val texturePath: String,
     val width: Float,
     val height: Float,
-    val modelPath: String
+    val modelPath: String,
+    val canHaveRoom: Boolean
 ) {
-    HOUSE_1("Flat Left", "Models/flat_left.png", 10f, 10f, "Models/flat_left.g3dj"),
-    HOUSE_2("Flat Middle", "Models/flat_middle.png", 12f, 12f, "Models/flat_middle.g3dj"),
-    HOUSE_3("Flat Right", "Models/flat_right.png", 15f, 15f, "Models/flat_right.g3dj"),
-    HOUSE_4("House", "Models/house_model.png", 18f, 18f, "Models/house.g3dj"),
-    STAIR("Stair", "Models/stair_flat.png", 18f, 18f, "Models/stair.g3dj")
+    HOUSE_1("Flat Left", "Models/flat_left.png", 10f, 10f, "Models/flat_left.g3dj", true),
+    HOUSE_2("Flat Middle", "Models/flat_middle.png", 12f, 12f, "Models/flat_middle.g3dj", true),
+    HOUSE_3("Flat Right", "Models/flat_right.png", 15f, 15f, "Models/flat_right.g3dj", true),
+    HOUSE_4("House", "Models/house_model.png", 18f, 18f, "Models/house.g3dj", true),
+    STAIR("Stair", "Models/stair_flat.png", 18f, 18f, "Models/stair.g3dj", false)
 }

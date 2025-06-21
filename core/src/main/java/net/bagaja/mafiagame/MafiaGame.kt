@@ -777,18 +777,15 @@ class MafiaGame : ApplicationAdapter() {
         val position = Vector3(x, y, z)
         houseInstance.transform.setToTranslationAndScaling(position, Vector3(6f, 6f, 6f))
 
-        // Decide which room template to assign. If the house is locked, no room is assigned.
-        val roomTemplateId = if (houseSystem.isNextHouseLocked) {
-            null
-        } else {
-            houseSystem.selectedRoomTemplateId
-        }
+        val canHaveRoom = houseType.canHaveRoom
+        val isLocked = if (canHaveRoom) houseSystem.isNextHouseLocked else false
+        val roomTemplateId = if (isLocked || !canHaveRoom) null else houseSystem.selectedRoomTemplateId
 
         val gameHouse = GameHouse(
             modelInstance = houseInstance,
             houseType = houseType,
             position = position,
-            isLocked = houseSystem.isNextHouseLocked,
+            isLocked = isLocked,
             assignedRoomTemplateId = roomTemplateId
         )
         collection.add(gameHouse)
@@ -985,7 +982,7 @@ class MafiaGame : ApplicationAdapter() {
         // Render 3D scene
         modelBatch.begin(cameraManager.camera)
 
-         // Only render the sky and sun when we are in the outside world scene.
+        // Only render the sky and sun when we are in the outside world scene.
         if (!isInInterior) {
             // Render sky FIRST
             lightingManager.renderSky(modelBatch, cameraManager.camera)
