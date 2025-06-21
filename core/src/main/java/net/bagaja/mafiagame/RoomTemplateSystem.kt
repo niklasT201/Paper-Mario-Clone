@@ -2,14 +2,13 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.math.Vector3
-import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.Json
 import com.badlogic.gdx.utils.JsonWriter
 
 // Data classes for room building
 data class RoomElement(
-    val position: Vector3,
-    val elementType: RoomElementType,
+    val position: Vector3 = Vector3(),
+    val elementType: RoomElementType = RoomElementType.BLOCK,
     val blockType: BlockType? = null,
     val objectType: ObjectType? = null,
     val itemType: ItemType? = null,
@@ -23,16 +22,14 @@ enum class RoomElementType {
     ITEM
 }
 
-data class RoomTemplateList(val templates: List<RoomTemplate> = emptyList())
-
 data class RoomTemplate(
-    val id: String,
-    val name: String,
-    val description: String,
-    val size: Vector3,
-    val elements: List<RoomElement>,
-    val entrancePosition: Vector3,
-    val exitTriggerPosition: Vector3,
+    val id: String = "",
+    val name: String = "Unnamed Room",
+    val description: String = "",
+    val size: Vector3 = Vector3(),
+    val elements: List<RoomElement> = emptyList(),
+    val entrancePosition: Vector3 = Vector3(),
+    val exitTriggerPosition: Vector3 = Vector3(),
     val exitTriggerSize: Vector3 = Vector3(4f, 4f, 2f),
     val category: String = "default"
 )
@@ -158,50 +155,58 @@ class RoomTemplateManager {
                 dirHandle.mkdirs()
             }
             val fileHandle = dirHandle.child("${template.id}.json")
-            val jsonString = json.toJson(template)
+            val jsonString = json.prettyPrint(template) // Use prettyPrint for easier debugging
             fileHandle.writeString(jsonString, false)
-            println("Saved template '${template.id}' to ${fileHandle.path()}")
+            println("Saved template '${template.name}' to ${fileHandle.path()}")
         } catch (e: Exception) {
-            println("Failed to save room template '${template.id}': ${e.message}")
+            println("ERROR: Failed to save room template '${template.id}': ${e.message}")
+            e.printStackTrace()
         }
     }
 
     private fun loadAllTemplates() {
         templates.clear()
         val dirHandle = Gdx.files.local(templatesDir)
+        println("RoomTemplateManager: Attempting to load templates from ${dirHandle.path()}...")
 
-        if (dirHandle.exists() && dirHandle.isDirectory() && dirHandle.list().isNotEmpty()) {
-            println("Loading room templates from directory: $templatesDir/")
+        if (!dirHandle.exists()) {
+            println("RoomTemplateManager: Directory '$templatesDir' not found. Creating it for future use.")
+            dirHandle.mkdirs()
+            return
+        }
+        if (!dirHandle.isDirectory) {
+            println("RoomTemplateManager: Error - '$templatesDir' is a file, not a directory. Cannot load templates.")
+            return
+        }
 
-            dirHandle.list("json").forEach { file ->
-                try {
-                    val jsonString = file.readString()
-                    val template = json.fromJson(RoomTemplate::class.java, jsonString)
-                    if (template != null) {
-                        templates[template.id] = template
-                        println(" -> Loaded template: ${template.name} (id: ${template.id})")
-                    }
-                } catch (e: Exception) {
-                    println("Error loading template from ${file.name()}: ${e.message}")
+        val templateFiles = dirHandle.list(".json")
+        if (templateFiles.isEmpty()) {
+            println("RoomTemplateManager: Directory exists but contains no '.json' files.")
+            return
+        }
+
+        println("RoomTemplateManager: Found ${templateFiles.size} potential template file(s).")
+        templateFiles.forEach { file ->
+            try {
+                val jsonString = file.readString()
+                if (jsonString.isBlank()) {
+                    println(" -> WARNING: File ${file.name()} is empty. Skipping.")
+                    return@forEach
                 }
-            }
-        } else {
-            val oldFileHandle = Gdx.files.local("room_templates.json")
-            if (oldFileHandle.exists()) {
-                println("'$templatesDir/' directory not found or is empty. Falling back to 'room_templates.json'.")
-                try {
-                    val jsonString = oldFileHandle.readString()
-                    val templateList = json.fromJson(RoomTemplateList::class.java, jsonString)
-                    templateList?.templates?.forEach { template ->
-                        templates[template.id] = template
-                        println(" -> Loaded template from old file: ${template.name} (id: ${template.id})")
-                    }
-                } catch (e: Exception) {
-                    println("Failed to load room templates from 'room_templates.json': ${e.message}")
+
+                val template = json.fromJson(RoomTemplate::class.java, jsonString)
+
+                if (template != null && template.id.isNotEmpty()) {
+                    templates[template.id] = template
+                    println(" -> Successfully loaded template: ${template.name} (ID: ${template.id})")
+                } else {
+                    println(" -> ERROR: Failed to parse template from ${file.name()}. The result was null or had no ID.")
                 }
-            } else {
-                println("No room template files found.")
+            } catch (e: Exception) {
+                println(" -> EXCEPTION while loading template from ${file.name()}: ${e.message}")
+                e.printStackTrace()
             }
         }
+        println("RoomTemplateManager: Finished loading templates. Total loaded: ${templates.size}")
     }
 }
