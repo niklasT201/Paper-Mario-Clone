@@ -26,6 +26,9 @@ class HouseSystem: IFinePositionable {
         private set
     var isNextHouseLocked: Boolean = false
         private set
+
+    var selectedRoomTemplateId: String? = null
+
     override var finePosMode = false
     override val fineStep = 0.25f
 
@@ -100,6 +103,7 @@ data class GameHouse(
     val houseType: HouseType,
     val position: Vector3,
     val isLocked: Boolean,
+    val assignedRoomTemplateId: String? = null,
     val id: String = UUID.randomUUID().toString()
 ) {
     // Data for Mesh Collision
@@ -144,10 +148,8 @@ data class GameHouse(
                 return true // Collision found! No need to check other triangles.
             }
         }
-
         return false // No triangles collided with the ray.
     }
-
 
     fun collidesWithMesh(playerBounds: BoundingBox): Boolean {
         // Loop through all the triangles in the mesh
@@ -220,14 +222,11 @@ data class GameHouse(
         val direction = Vector3(end).sub(start)
         val length = direction.len()
         direction.nor()
-
-        val ray = com.badlogic.gdx.math.collision.Ray(start, direction)
+        val ray = Ray(start, direction)
         val intersection = Vector3()
 
         if (Intersector.intersectRayBounds(ray, bounds, intersection)) {
-            // Check if intersection point is within the line segment
-            val distanceToIntersection = start.dst(intersection)
-            return distanceToIntersection <= length
+            return start.dst(intersection) <= length
         }
 
         return false

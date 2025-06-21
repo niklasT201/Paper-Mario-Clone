@@ -24,6 +24,7 @@ class UIManager(
     private val houseSystem: HouseSystem,
     private val backgroundSystem: BackgroundSystem,
     private val parallaxSystem: ParallaxBackgroundSystem,
+    private val roomTemplateManager: RoomTemplateManager
 ) {
     private lateinit var stage: Stage
     private lateinit var skin: Skin
@@ -85,7 +86,7 @@ class UIManager(
         lightSourceUI.initialize()
 
         // Initialize house selection UI
-        houseSelectionUI = HouseSelectionUI(houseSystem, skin, stage)
+        houseSelectionUI = HouseSelectionUI(houseSystem, roomTemplateManager, skin, stage)
         houseSelectionUI.initialize()
 
         // Initialize background selection UI
@@ -1080,6 +1081,12 @@ class UIManager(
 
     fun updateToolDisplay() {
         updateToolButtons()
+    }
+
+    fun refreshHouseRoomList() {
+        if (::houseSelectionUI.isInitialized) {
+            houseSelectionUI.refreshRoomList()
+        }
     }
 
     fun getStage(): Stage = stage

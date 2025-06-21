@@ -8,6 +8,7 @@ import net.bagaja.mafiagame.MafiaGame;
 public class Lwjgl3Launcher {
     public static void main(String[] args) {
         if (StartupHelper.startNewJvmIfRequired()) return; // This handles macOS support and helps on Windows.
+        System.out.println("Current Working Directory: " + new java.io.File(".").getAbsolutePath());
         createApplication();
     }
 

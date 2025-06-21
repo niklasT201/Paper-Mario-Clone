@@ -6,96 +6,92 @@ import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
+import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
 
 class HouseSelectionUI(
     private val houseSystem: HouseSystem,
+    private val roomTemplateManager: RoomTemplateManager,
     private val skin: Skin,
     private val stage: Stage
 ) {
     private lateinit var houseSelectionTable: Table
     private lateinit var houseItems: MutableList<HouseSelectionItem>
-    private val loadedTextures = mutableMapOf<String, Texture>() // Cache for loaded textures
+    private val loadedTextures = mutableMapOf<String, Texture>()
     private lateinit var lockStatusLabel: Label
 
-    // Data class to hold house selection item components
+    // UI elements for room selection
+    private lateinit var roomSelectionContainer: Table
+    private lateinit var roomSelectBox: SelectBox<String>
+
     private data class HouseSelectionItem(
-        val container: Table,
-        val iconImage: Image,
-        val nameLabel: Label,
-        val background: Drawable,
-        val selectedBackground: Drawable,
-        val houseType: HouseType
+        val container: Table, val iconImage: Image, val nameLabel: Label,
+        val background: Drawable, val selectedBackground: Drawable, val houseType: HouseType
     )
 
     fun initialize() {
         setupHouseSelectionUI()
-        houseSelectionTable.setVisible(false)
+        houseSelectionTable.isVisible = false
     }
 
     private fun setupHouseSelectionUI() {
         // Create house selection table at the top center
         houseSelectionTable = Table()
         houseSelectionTable.setFillParent(true)
-        houseSelectionTable.top()
-        houseSelectionTable.pad(40f)
+        houseSelectionTable.top().pad(40f)
 
         // Create main container with modern styling
         val mainContainer = Table()
-
-        // Create a more modern background with rounded corners and shadow effect
-        val backgroundStyle = createModernBackground()
-        mainContainer.background = backgroundStyle
+        mainContainer.background = createModernBackground()
         mainContainer.pad(20f, 30f, 20f, 30f)
 
-        // Title with modern styling
-        val titleLabel = Label("House Selection", skin)
-        titleLabel.setFontScale(1.4f)
-        titleLabel.color = Color(0.9f, 0.9f, 0.9f, 1f) // Light gray
+        val titleLabel = Label("House Selection", skin).apply {
+            setFontScale(1.4f)
+            color = Color(0.9f, 0.9f, 0.9f, 1f)
+        }
         mainContainer.add(titleLabel).padBottom(15f).row()
 
-        // Create horizontal container for house items
-        val houseContainer = Table()
-        houseContainer.pad(10f)
-
-        // Create house items for each house type
+        val houseContainer = Table().apply { pad(10f) }
         houseItems = mutableListOf()
-        val houseTypes = HouseType.values()
-
-        for (i in houseTypes.indices) {
-            val houseType = houseTypes[i]
+        val houseTypes = HouseType.entries.toTypedArray()
+        houseTypes.forEachIndexed { i, houseType ->
             val item = createHouseItem(houseType, i == houseSystem.currentSelectedHouseIndex)
             houseItems.add(item)
 
             // Add spacing between items
-            if (i > 0) {
-                houseContainer.add().width(15f) // Spacer
-            }
+            if (i > 0) houseContainer.add().width(15f)
             houseContainer.add(item.container).size(90f, 110f)
         }
 
         mainContainer.add(houseContainer).padBottom(10f).row()
 
         // Lock Status Display
-        lockStatusLabel = Label("", skin) // Create the label
-        lockStatusLabel.setFontScale(1.1f)
+        roomSelectionContainer = Table()
+        val roomSelectionLabel = Label("Room:", skin)
+        roomSelectBox = SelectBox<String>(skin)
+        roomSelectionContainer.add(roomSelectionLabel).padRight(10f)
+        roomSelectionContainer.add(roomSelectBox).width(200f)
+        mainContainer.add(roomSelectionContainer).padBottom(15f).row()
+
+        lockStatusLabel = Label("", skin).apply { setFontScale(1.1f) }
         mainContainer.add(lockStatusLabel).padBottom(15f).row()
 
-        // Instructions with modern styling
-        val instructionLabel = Label("Hold [H] + Mouse Wheel to change houses", skin)
-        instructionLabel.setFontScale(0.9f)
-        instructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f) // Darker gray
+        val instructionLabel = Label("Hold [H] + Mouse Wheel to change houses", skin).apply {
+            setFontScale(0.9f)
+            color = Color(0.7f, 0.7f, 0.7f, 1f)
+        }
         mainContainer.add(instructionLabel).padBottom(5f).row()
 
-        // New instruction for locking
-        val lockInstructionLabel = Label("Hold [H] + [L] to toggle Lock", skin)
-        lockInstructionLabel.setFontScale(0.9f)
-        lockInstructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f)
+        val lockInstructionLabel = Label("Hold [H] + [L] to toggle Lock", skin).apply {
+            setFontScale(0.9f)
+            color = Color(0.7f, 0.7f, 0.7f, 1f)
+        }
         mainContainer.add(lockInstructionLabel).padBottom(5f).row()
 
         // Additional instructions
@@ -246,21 +242,22 @@ class HouseSelectionUI(
     }
 
     fun update() {
-        val currentIndex = houseSystem.currentSelectedHouseIndex
-
-        // Update the lock status label based on the state in HouseSystem
+        // Update Lock Status and Room Selection Visibility
         if (houseSystem.isNextHouseLocked) {
             lockStatusLabel.setText("State: [LOCKED]")
-            lockStatusLabel.color = Color.FIREBRICK // A nice red color
+            lockStatusLabel.color = Color.FIREBRICK
+            roomSelectionContainer.isVisible = false
+            houseSystem.selectedRoomTemplateId = null // Ensure no room is selected for a locked house
         } else {
             lockStatusLabel.setText("State: [OPEN]")
-            lockStatusLabel.color = Color.FOREST // A nice green color
+            lockStatusLabel.color = Color.FOREST
+            roomSelectionContainer.isVisible = true
+            updateRoomSelection() // Populate and manage the room selection box
         }
 
         // Animate all house items
-        for (i in houseItems.indices) {
-            val item = houseItems[i]
-            val isSelected = i == currentIndex
+        houseItems.forEachIndexed { i, item ->
+            val isSelected = i == houseSystem.currentSelectedHouseIndex
 
             // Create smooth transition animations
             val targetScale = if (isSelected) 1.1f else 1.0f
@@ -292,12 +289,52 @@ class HouseSelectionUI(
         }
     }
 
+    private fun updateRoomSelection() {
+        val allTemplates = roomTemplateManager.getAllTemplates()
+        val templateNames = allTemplates.map { it.name }.toTypedArray()
+
+        if (templateNames.isNotEmpty()) {
+            roomSelectBox.items = com.badlogic.gdx.utils.Array(templateNames)
+            roomSelectBox.isDisabled = false
+
+            roomSelectBox.clearListeners()
+            roomSelectBox.addListener(object : ChangeListener() {
+                override fun changed(event: ChangeEvent?, actor: Actor?) {
+                    val selectedTemplate = allTemplates.find { it.name == roomSelectBox.selected }
+                    houseSystem.selectedRoomTemplateId = selectedTemplate?.id
+                    println("UI Selected Room Template ID: ${houseSystem.selectedRoomTemplateId}")
+                }
+            })
+
+            val currentTemplate = allTemplates.find { it.id == houseSystem.selectedRoomTemplateId }
+            val idx = allTemplates.indexOf(currentTemplate)
+
+            if (idx != -1) {
+                roomSelectBox.selectedIndex = idx
+            } else {
+                val firstTemplate = allTemplates.first()
+                houseSystem.selectedRoomTemplateId = firstTemplate.id
+                roomSelectBox.selectedIndex = 0
+            }
+        } else {
+            roomSelectBox.items = com.badlogic.gdx.utils.Array(arrayOf("No Rooms Available"))
+            roomSelectBox.isDisabled = true
+            houseSystem.selectedRoomTemplateId = null
+        }
+    }
+
     fun show() {
-        houseSelectionTable.setVisible(true)
+        houseSelectionTable.isVisible = true
+        refreshRoomList()
     }
 
     fun hide() {
         houseSelectionTable.setVisible(false)
+    }
+
+    fun refreshRoomList() {
+        println("HouseSelectionUI: Refreshing room list.")
+        updateRoomSelection()
     }
 
     fun dispose() {

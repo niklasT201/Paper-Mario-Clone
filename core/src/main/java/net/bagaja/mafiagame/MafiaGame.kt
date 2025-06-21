@@ -86,7 +86,7 @@ class MafiaGame : ApplicationAdapter() {
         transitionSystem.create(cameraManager.findUiCamera())
 
         // Initialize UI Manager
-        uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem, houseSystem, backgroundSystem, parallaxBackgroundSystem)
+        uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem, houseSystem, backgroundSystem, parallaxBackgroundSystem, roomTemplateManager)
         uiManager.initialize()
 
         // Initialize Input Handler
@@ -777,14 +777,24 @@ class MafiaGame : ApplicationAdapter() {
         val position = Vector3(x, y, z)
         houseInstance.transform.setToTranslationAndScaling(position, Vector3(6f, 6f, 6f))
 
+        // Decide which room template to assign. If the house is locked, no room is assigned.
+        val roomTemplateId = if (houseSystem.isNextHouseLocked) {
+            null
+        } else {
+            houseSystem.selectedRoomTemplateId
+        }
+
         val gameHouse = GameHouse(
             modelInstance = houseInstance,
             houseType = houseType,
             position = position,
-            isLocked = houseSystem.isNextHouseLocked
+            isLocked = houseSystem.isNextHouseLocked,
+            assignedRoomTemplateId = roomTemplateId
         )
         collection.add(gameHouse)
         lastPlacedInstance = gameHouse
+
+        println("Placed ${houseType.displayName}. Locked: ${gameHouse.isLocked}. Room Template ID: ${gameHouse.assignedRoomTemplateId ?: "None"}")
     }
 
     private fun placeCar(ray: Ray) {

@@ -1,10 +1,10 @@
 package net.bagaja.mafiagame
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.Json
-import com.badlogic.gdx.Gdx
-import kotlin.collections.List
+import com.badlogic.gdx.utils.JsonWriter
 
 // Data classes for room building
 data class RoomElement(
@@ -23,12 +23,14 @@ enum class RoomElementType {
     ITEM
 }
 
+data class RoomTemplateList(val templates: List<RoomTemplate> = emptyList())
+
 data class RoomTemplate(
     val id: String,
     val name: String,
     val description: String,
     val size: Vector3,
-    val elements: List<RoomElement>, // Use Kotlin List
+    val elements: List<RoomElement>,
     val entrancePosition: Vector3,
     val exitTriggerPosition: Vector3,
     val exitTriggerSize: Vector3 = Vector3(4f, 4f, 2f),
@@ -130,107 +132,76 @@ class RoomBuilder {
 // Manages all available room templates
 class RoomTemplateManager {
     private val templates = mutableMapOf<String, RoomTemplate>()
-    private val json = Json()
+    private val json = Json().apply {
+        setUsePrototypes(false)
+        setOutputType(JsonWriter.OutputType.json)
+    }
+    private val templatesDir = "room_templates"
 
     fun initialize() {
-        createDefaultTemplates()
-        loadTemplatesFromFile()
-    }
-
-    private fun createDefaultTemplates() {
-        if (templates.containsKey("living_room")) return // Don't recreate if loaded from file
-
-        val livingRoom = RoomBuilder()
-            .setSize(20f, 8f, 16f)
-            .setEntrance(10f, 2f, 13f)
-            .setExitTrigger(10f, 2f, 14f)
-            .addFloor().addWalls()
-            .addObject(3f, 0f, 3f, ObjectType.LANTERN)
-            .addObject(17f, 0f, 3f, ObjectType.TREE)
-            .build("living_room", "Living Room", "A cozy living room.", "residential")
-        templates[livingRoom.id] = livingRoom
-
-        val bedroom = RoomBuilder()
-            .setSize(12f, 8f, 12f)
-            .setEntrance(6f, 2f, 9f)
-            .setExitTrigger(6f, 2f, 10f)
-            .addFloor(BlockType.CARPET).addWalls(BlockType.TAPETE_WALL)
-            .addObject(2f, 0f, 2f, ObjectType.LANTERN)
-            .build("bedroom", "Bedroom", "A small bedroom.", "residential")
-        templates[bedroom.id] = bedroom
+        loadAllTemplates()
     }
 
     fun addTemplate(template: RoomTemplate) {
         templates[template.id] = template
-        saveTemplatesToFile()
+        saveTemplateToFile(template)
     }
 
     fun getTemplate(id: String): RoomTemplate? = templates[id]
     fun getAllTemplates(): List<RoomTemplate> = templates.values.toList()
     fun getTemplatesByCategory(category: String): List<RoomTemplate> = templates.values.filter { it.category == category }
 
-    private fun saveTemplatesToFile() {
+    private fun saveTemplateToFile(template: RoomTemplate) {
         try {
-            val fileHandle = Gdx.files.local("room_templates.json")
-            val jsonString = json.toJson(templates.values.toList())
-            fileHandle.writeString(jsonString, false)
-            println("Room templates saved successfully")
-        } catch (e: Exception) {
-            println("Failed to save room templates: ${e.message}")
-        }
-    }
-    private fun loadTemplatesFromFile() {
-        try {
-            val fileHandle = Gdx.files.local("room_templates.json")
-            if (fileHandle.exists()) {
-                val jsonString = fileHandle.readString()
-                val loadedTemplates = json.fromJson(Array<RoomTemplate>().javaClass, jsonString)
-                loadedTemplates?.forEach { template ->
-                    templates[template.id] = template
-                }
-                println("Room templates loaded successfully")
+            val dirHandle = Gdx.files.local(templatesDir)
+            if (!dirHandle.exists()) {
+                dirHandle.mkdirs()
             }
+            val fileHandle = dirHandle.child("${template.id}.json")
+            val jsonString = json.toJson(template)
+            fileHandle.writeString(jsonString, false)
+            println("Saved template '${template.id}' to ${fileHandle.path()}")
         } catch (e: Exception) {
-            println("Failed to load room templates: ${e.message}")
+            println("Failed to save room template '${template.id}': ${e.message}")
         }
     }
-}
 
-// This is the Adapter that connects the RoomTemplate system to the SceneManager
-class EnhancedInteriorLayoutSystem(private val templateManager: RoomTemplateManager) {
+    private fun loadAllTemplates() {
+        templates.clear()
+        val dirHandle = Gdx.files.local(templatesDir)
 
-    private val houseToTemplateMap = mutableMapOf<HouseType, String>(
-        HouseType.HOUSE_1 to "bedroom",
-        HouseType.HOUSE_2 to "living_room",
-        HouseType.HOUSE_3 to "living_room",
-        HouseType.HOUSE_4 to "living_room",
-        HouseType.STAIR to "bedroom"
-    )
+        if (dirHandle.exists() && dirHandle.isDirectory() && dirHandle.list().isNotEmpty()) {
+            println("Loading room templates from directory: $templatesDir/")
 
-    fun assignTemplateToHouseType(houseType: HouseType, templateId: String) {
-        houseToTemplateMap[houseType] = templateId
-    }
-
-    fun getLayout(houseType: HouseType): InteriorLayout? {
-        val templateId = houseToTemplateMap[houseType] ?: return null
-        val template = templateManager.getTemplate(templateId) ?: return null
-        return convertTemplateToLayout(template)
-    }
-
-    private fun convertTemplateToLayout(template: RoomTemplate): InteriorLayout {
-        val blocks = template.elements.filter { it.elementType == RoomElementType.BLOCK }
-            .mapNotNull { element -> element.blockType?.let { Pair(element.position.cpy(), it) } }
-
-        val furniture = template.elements.filter { it.elementType == RoomElementType.OBJECT }
-            .mapNotNull { element -> element.objectType?.let { Pair(element.position.cpy(), it) } }
-
-        return InteriorLayout(
-            size = template.size,
-            defaultBlocks = blocks,
-            defaultFurniture = furniture,
-            entrancePosition = template.entrancePosition,
-            exitTriggerPosition = template.exitTriggerPosition,
-            exitTriggerSize = template.exitTriggerSize
-        )
+            dirHandle.list("json").forEach { file ->
+                try {
+                    val jsonString = file.readString()
+                    val template = json.fromJson(RoomTemplate::class.java, jsonString)
+                    if (template != null) {
+                        templates[template.id] = template
+                        println(" -> Loaded template: ${template.name} (id: ${template.id})")
+                    }
+                } catch (e: Exception) {
+                    println("Error loading template from ${file.name()}: ${e.message}")
+                }
+            }
+        } else {
+            val oldFileHandle = Gdx.files.local("room_templates.json")
+            if (oldFileHandle.exists()) {
+                println("'$templatesDir/' directory not found or is empty. Falling back to 'room_templates.json'.")
+                try {
+                    val jsonString = oldFileHandle.readString()
+                    val templateList = json.fromJson(RoomTemplateList::class.java, jsonString)
+                    templateList?.templates?.forEach { template ->
+                        templates[template.id] = template
+                        println(" -> Loaded template from old file: ${template.name} (id: ${template.id})")
+                    }
+                } catch (e: Exception) {
+                    println("Failed to load room templates from 'room_templates.json': ${e.message}")
+                }
+            } else {
+                println("No room template files found.")
+            }
+        }
     }
 }

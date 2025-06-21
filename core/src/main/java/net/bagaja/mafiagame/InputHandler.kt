@@ -202,10 +202,19 @@ class InputHandler(
                 }
 
                 if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) && keycode == Input.Keys.S) {
-                    val templateId = "user_room_${System.currentTimeMillis()}"
-                    val templateName = "My Saved Room"
-                    sceneManager.saveCurrentInteriorAsTemplate(templateId, templateName, "user_created")
-                    uiManager.updatePlacementInfo("Room saved as template: $templateId")
+                    val timestamp = System.currentTimeMillis()
+                    val templateId = "user_room_$timestamp"
+                    val templateName = "My Room $timestamp" // Use timestamp for unique name
+
+                    val success = sceneManager.saveCurrentInteriorAsTemplate(templateId, templateName, "user_created")
+                    if (success) {
+                        uiManager.updatePlacementInfo("Room saved as template: $templateName")
+                        // THIS IS THE CRUCIAL NEW LINE
+                        uiManager.refreshHouseRoomList()
+                    } else {
+                        uiManager.updatePlacementInfo("Failed to save room.")
+                    }
+
                     return true // Consume the input
                 }
 
