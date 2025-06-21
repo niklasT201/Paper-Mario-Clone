@@ -237,16 +237,14 @@ class InputHandler(
                         return true
                     }
                     Input.Keys.H -> {
-                        // House selection mode
-                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isBackgroundSelectionMode) {
+                        if (!isHouseSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isBackgroundSelectionMode) {
                             isHouseSelectionMode = true
                             uiManager.showHouseSelection()
                         }
                         return true
                     }
                     Input.Keys.N -> {
-                        // Background selection mode
-                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode) {
+                        if (!isBackgroundSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode) {
                             isBackgroundSelectionMode = true
                             uiManager.showBackgroundSelection()
                         }
@@ -269,31 +267,28 @@ class InputHandler(
                         return true
                     }
                     Input.Keys.B -> {
-                        // Only activate block selection if not in other selection modes
-                        if (!isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
+                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
                             isBlockSelectionMode = true
                             uiManager.showBlockSelection()
                         }
                         return true
                     }
                     Input.Keys.O -> {
-                        // Object selection mode (similar to B for blocks)
-                        if (!isBlockSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
+                        if (!isObjectSelectionMode && !isBlockSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
                             isObjectSelectionMode = true
                             uiManager.showObjectSelection()
                         }
                         return true
                     }
                     Input.Keys.I -> {
-                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
+                        if (!isItemSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
                             isItemSelectionMode = true
                             uiManager.showItemSelection()
                         }
                         return true
                     }
                     Input.Keys.M -> {
-                        // Car selection mode
-                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
+                        if (!isCarSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
                             isCarSelectionMode = true
                             uiManager.showCarSelection()
                         }
@@ -303,8 +298,10 @@ class InputHandler(
                     Input.Keys.P -> {
                         // If parallax tool is active, this key now shows the parallax selection UI
                         if (uiManager.selectedTool == Tool.PARALLAX) {
-                            isParallaxSelectionMode = true
-                            uiManager.showParallaxSelection()
+                            if (!isParallaxSelectionMode) {
+                                isParallaxSelectionMode = true
+                                uiManager.showParallaxSelection()
+                            }
                             return true
                         }
                         if (uiManager.selectedTool == Tool.BACKGROUND) {

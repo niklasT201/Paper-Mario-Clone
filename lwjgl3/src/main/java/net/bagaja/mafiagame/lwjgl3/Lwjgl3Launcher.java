@@ -41,9 +41,7 @@ public class Lwjgl3Launcher {
 // room/open world transition effect
 // file-based saving/loading
 // room needing a door for moving out again
-// adding option for choosing the room for a house
 
-// removing stairs from house models
 // cars can be locked
 // enemies have an inventory and collect items
 // footprints when moving through dead enemies

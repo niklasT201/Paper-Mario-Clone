@@ -6,11 +6,11 @@ import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
-import com.badlogic.gdx.scenes.scene2d.Actor
+import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
-import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
@@ -24,11 +24,16 @@ class HouseSelectionUI(
     private lateinit var houseSelectionTable: Table
     private lateinit var houseItems: MutableList<HouseSelectionItem>
     private val loadedTextures = mutableMapOf<String, Texture>()
+    private val generatedTextures = mutableListOf<Texture>()
     private lateinit var lockStatusLabel: Label
 
-    // UI elements for room selection
+    // UI elements for room selection - redesigned
     private lateinit var roomSelectionContainer: Table
-    private lateinit var roomSelectBox: SelectBox<String>
+    private lateinit var roomListContainer: ScrollPane
+    private lateinit var roomCountLabel: Label
+    private lateinit var selectedRoomLabel: Label
+    private var currentRoomTemplates = listOf<RoomTemplate>()
+    private var selectedRoomIndex = 0
 
     private data class HouseSelectionItem(
         val container: Table, val iconImage: Image, val nameLabel: Label,
@@ -71,14 +76,12 @@ class HouseSelectionUI(
 
         mainContainer.add(houseContainer).padBottom(10f).row()
 
-        // Lock Status Display
+        // Room Selection Section
         roomSelectionContainer = Table()
-        val roomSelectionLabel = Label("Room:", skin)
-        roomSelectBox = SelectBox<String>(skin)
-        roomSelectionContainer.add(roomSelectionLabel).padRight(10f)
-        roomSelectionContainer.add(roomSelectBox).width(200f)
+        setupRoomSelectionUI()
         mainContainer.add(roomSelectionContainer).padBottom(15f).row()
 
+        // Lock Status Display
         lockStatusLabel = Label("", skin).apply { setFontScale(1.1f) }
         mainContainer.add(lockStatusLabel).padBottom(15f).row()
 
@@ -94,6 +97,13 @@ class HouseSelectionUI(
         }
         mainContainer.add(lockInstructionLabel).padBottom(5f).row()
 
+        // Room navigation instructions
+        val roomInstructionLabel = Label("Use ↑↓ arrows to navigate rooms, Enter to select", skin).apply {
+            setFontScale(0.8f)
+            color = Color(0.6f, 0.6f, 0.8f, 1f)
+        }
+        mainContainer.add(roomInstructionLabel).padBottom(5f).row()
+
         // Additional instructions
         val additionalLabel = Label("Houses have collision - players cannot walk through them", skin)
         additionalLabel.setFontScale(0.8f)
@@ -104,6 +114,129 @@ class HouseSelectionUI(
         stage.addActor(houseSelectionTable)
 
         update()
+    }
+
+    private fun setupRoomSelectionUI() {
+        roomSelectionContainer.clear()
+
+        // Room selection header
+        val roomHeaderTable = Table()
+        val roomLabel = Label("Interior Room:", skin).apply {
+            setFontScale(1.0f)
+            color = Color(0.9f, 0.9f, 0.9f, 1f)
+        }
+        roomHeaderTable.add(roomLabel).padRight(10f)
+
+        // Room count label
+        roomCountLabel = Label("(0 rooms)", skin).apply {
+            setFontScale(0.9f)
+            color = Color(0.7f, 0.7f, 0.7f, 1f)
+        }
+        roomHeaderTable.add(roomCountLabel)
+
+        roomSelectionContainer.add(roomHeaderTable).padBottom(8f).row()
+
+        // Selected room display
+        selectedRoomLabel = Label("No room selected", skin).apply {
+            setFontScale(1.0f)
+            color = Color(0.8f, 0.9f, 1.0f, 1f)
+            setWrap(true)
+            setAlignment(Align.center)
+        }
+
+        // FIX: Error 2 - Set background via style
+        val selectedRoomBg = createRoomItemBackground(Color(0.2f, 0.3f, 0.4f, 0.8f), true)
+        val newStyle = Label.LabelStyle(selectedRoomLabel.style)
+        newStyle.background = selectedRoomBg
+        selectedRoomLabel.style = newStyle
+
+        roomSelectionContainer.add(selectedRoomLabel).width(300f).height(40f).pad(5f).padBottom(10f).row()
+
+        // Navigation buttons
+        val navButtonTable = Table()
+
+        val prevButton = TextButton("↑ Previous", skin).apply {
+            addListener(object : ClickListener() {
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                    navigateRooms(-1)
+                }
+            })
+        }
+
+        val nextButton = TextButton("↓ Next", skin).apply {
+            addListener(object : ClickListener() {
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                    navigateRooms(1)
+                }
+            })
+        }
+
+        val selectButton = TextButton("✓ Select", skin).apply {
+            addListener(object : ClickListener() {
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                    selectCurrentRoom()
+                }
+            })
+        }
+
+        navButtonTable.add(prevButton).width(80f).height(30f).padRight(5f)
+        navButtonTable.add(nextButton).width(80f).height(30f).padRight(5f)
+        navButtonTable.add(selectButton).width(80f).height(30f)
+
+        roomSelectionContainer.add(navButtonTable).padBottom(10f).row()
+
+        // Room list preview (scrollable)
+        createRoomListPreview()
+    }
+
+    private fun createRoomListPreview() {
+        val roomListTable = Table()
+        roomListTable.pad(5f)
+
+        roomListContainer = ScrollPane(roomListTable, skin)
+        roomListContainer.setScrollingDisabled(true, false)
+        roomListContainer.fadeScrollBars = false
+        roomSelectionContainer.add(roomListContainer).width(300f).height(120f)
+    }
+
+    private fun createRoomItemBackground(color: Color, isSelected: Boolean): Drawable {
+        val pixmap = Pixmap(280, 25, Pixmap.Format.RGBA8888)
+        pixmap.setColor(color)
+        pixmap.fill()
+
+        if (isSelected) {
+            // Add border for selected item
+            pixmap.setColor(color.r + 0.2f, color.g + 0.2f, color.b + 0.2f, color.a)
+            pixmap.drawRectangle(0, 0, 280, 25)
+            pixmap.drawRectangle(1, 1, 278, 23)
+        }
+
+        val texture = Texture(pixmap)
+        generatedTextures.add(texture) // Track texture for disposal
+        pixmap.dispose()
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun navigateRooms(direction: Int) {
+        if (currentRoomTemplates.isEmpty()) return
+
+        selectedRoomIndex = (selectedRoomIndex + direction).coerceIn(0, currentRoomTemplates.size - 1)
+        updateRoomSelection()
+    }
+
+    private fun selectCurrentRoom() {
+        if (currentRoomTemplates.isNotEmpty() && selectedRoomIndex < currentRoomTemplates.size) {
+            val selectedTemplate = currentRoomTemplates[selectedRoomIndex]
+            houseSystem.selectedRoomTemplateId = selectedTemplate.id
+            println("UI Selected Room Template ID: ${houseSystem.selectedRoomTemplateId}")
+            updateSelectedRoomDisplay()
+        }
+    }
+
+    private fun updateSelectedRoomDisplay() {
+        val currentTemplate = currentRoomTemplates.find { it.id == houseSystem.selectedRoomTemplateId }
+        selectedRoomLabel.setText(currentTemplate?.name ?: "No room selected")
+        selectedRoomLabel.color = if (currentTemplate != null) Color(0.8f, 1.0f, 0.8f, 1f) else Color(0.8f, 0.8f, 0.8f, 1f)
     }
 
     private fun createHouseItem(houseType: HouseType, isSelected: Boolean): HouseSelectionItem {
@@ -176,6 +309,7 @@ class HouseSelectionUI(
         }
 
         val texture = Texture(pixmap)
+        generatedTextures.add(texture) // Track texture for disposal
         pixmap.dispose()
 
         return TextureRegionDrawable(TextureRegion(texture))
@@ -191,6 +325,7 @@ class HouseSelectionUI(
         pixmap.drawRectangle(0, 0, 90, 110)
 
         val texture = Texture(pixmap)
+        generatedTextures.add(texture) // Track texture for disposal
         pixmap.dispose()
 
         return TextureRegionDrawable(TextureRegion(texture))
@@ -236,6 +371,7 @@ class HouseSelectionUI(
         }
 
         val texture = Texture(pixmap)
+        generatedTextures.add(texture) // Track texture for disposal
         pixmap.dispose()
 
         return TextureRegion(texture)
@@ -252,7 +388,7 @@ class HouseSelectionUI(
             lockStatusLabel.setText("State: [OPEN]")
             lockStatusLabel.color = Color.FOREST
             roomSelectionContainer.isVisible = true
-            updateRoomSelection() // Populate and manage the room selection box
+            updateRoomSelection() // Populate and manage the room selection
         }
 
         // Animate all house items
@@ -290,36 +426,61 @@ class HouseSelectionUI(
     }
 
     private fun updateRoomSelection() {
-        val allTemplates = roomTemplateManager.getAllTemplates()
-        val templateNames = allTemplates.map { it.name }.toTypedArray()
+        currentRoomTemplates = roomTemplateManager.getAllTemplates()
 
-        if (templateNames.isNotEmpty()) {
-            roomSelectBox.items = com.badlogic.gdx.utils.Array(templateNames)
-            roomSelectBox.isDisabled = false
+        // Update room count
+        roomCountLabel.setText("(${currentRoomTemplates.size} rooms)")
+        roomCountLabel.color = if (currentRoomTemplates.isNotEmpty()) Color(0.7f, 0.9f, 0.7f, 1f) else Color(0.9f, 0.7f, 0.7f, 1f)
 
-            roomSelectBox.clearListeners()
-            roomSelectBox.addListener(object : ChangeListener() {
-                override fun changed(event: ChangeEvent?, actor: Actor?) {
-                    val selectedTemplate = allTemplates.find { it.name == roomSelectBox.selected }
-                    houseSystem.selectedRoomTemplateId = selectedTemplate?.id
-                    println("UI Selected Room Template ID: ${houseSystem.selectedRoomTemplateId}")
+        if (currentRoomTemplates.isNotEmpty()) {
+            // Ensure selected index is valid
+            selectedRoomIndex = selectedRoomIndex.coerceIn(0, currentRoomTemplates.size - 1)
+
+            // Try to find current selected template
+            val currentTemplate = currentRoomTemplates.find { it.id == houseSystem.selectedRoomTemplateId }
+            if (currentTemplate != null) {
+                selectedRoomIndex = currentRoomTemplates.indexOf(currentTemplate)
+            } else {
+                // Select first template if none selected
+                houseSystem.selectedRoomTemplateId = currentRoomTemplates.first().id
+                selectedRoomIndex = 0
+            }
+        } else {
+            houseSystem.selectedRoomTemplateId = null
+            selectedRoomIndex = 0
+        }
+
+        updateSelectedRoomDisplay()
+
+        val roomListTable = roomListContainer.actor as? Table
+        if (roomListTable == null) return // Safety check
+
+        roomListTable.clear() // Clear all old room labels from the table
+        currentRoomTemplates.forEachIndexed { index, template ->
+            val isSelected = index == selectedRoomIndex
+            val roomItem = Label(template.name, skin).apply {
+                setFontScale(0.8f)
+                color = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
+                setWrap(true)
+                setAlignment(Align.left)
+
+                val newStyle = Label.LabelStyle(style)
+                newStyle.background = createRoomItemBackground(
+                    if (isSelected) Color(0.4f, 0.6f, 0.8f, 0.7f) else Color(0.3f, 0.3f, 0.3f, 0.5f),
+                    isSelected
+                )
+                style = newStyle
+            }
+
+            roomItem.addListener(object : ClickListener() {
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                    selectedRoomIndex = index
+                    selectCurrentRoom()
+                    updateRoomSelection()
                 }
             })
 
-            val currentTemplate = allTemplates.find { it.id == houseSystem.selectedRoomTemplateId }
-            val idx = allTemplates.indexOf(currentTemplate)
-
-            if (idx != -1) {
-                roomSelectBox.selectedIndex = idx
-            } else {
-                val firstTemplate = allTemplates.first()
-                houseSystem.selectedRoomTemplateId = firstTemplate.id
-                roomSelectBox.selectedIndex = 0
-            }
-        } else {
-            roomSelectBox.items = com.badlogic.gdx.utils.Array(arrayOf("No Rooms Available"))
-            roomSelectBox.isDisabled = true
-            houseSystem.selectedRoomTemplateId = null
+            roomListTable.add(roomItem).width(280f).height(25f).pad(2f).row()
         }
     }
 
@@ -338,10 +499,16 @@ class HouseSelectionUI(
     }
 
     fun dispose() {
-        // Dispose cached textures
+        // Dispose cached textures from files
         for (texture in loadedTextures.values) {
             texture.dispose()
         }
         loadedTextures.clear()
+
+        // Dispose dynamically generated textures
+        for (texture in generatedTextures) {
+            texture.dispose()
+        }
+        generatedTextures.clear()
     }
 }
