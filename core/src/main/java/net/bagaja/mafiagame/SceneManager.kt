@@ -23,7 +23,7 @@ class SceneManager(
     private val blockSystem: BlockSystem,
     private val objectSystem: ObjectSystem,
     private val itemSystem: ItemSystem,
-    private val interiorLayoutSystem: InteriorLayoutSystem,
+    private val roomTemplateManager: RoomTemplateManager,
     private val cameraManager: CameraManager,
     private val transitionSystem: TransitionSystem
 ) {
@@ -37,7 +37,7 @@ class SceneManager(
     // --- STATE MANAGEMENT ---
     var currentScene: SceneType = SceneType.WORLD
         private set
-    private var worldState: WorldState? = null // Holds the saved world data
+    private var worldState: WorldState? = null
     private val interiorStates = mutableMapOf<String, InteriorState>()
     private var currentInteriorId: String? = null
     private var pendingHouse: GameHouse? = null
@@ -88,14 +88,14 @@ class SceneManager(
         saveWorldState()
         pendingHouse = house
         currentScene = SceneType.TRANSITIONING_TO_INTERIOR
-        transitionSystem.start(duration = 0.7f) // Start the 0.7 second animation
+        transitionSystem.start(duration = 0.7f)
     }
 
     fun transitionToWorld() {
         if (isTransitioning()) return
 
         println("Starting transition back to world...")
-        saveCurrentInteriorState()
+        saveCurrentInteriorState() // Save any changes made to the live interior
         currentScene = SceneType.TRANSITIONING_TO_WORLD
         transitionSystem.start(duration = 0.7f) // Start the 0.7 second animation
     }
@@ -103,7 +103,9 @@ class SceneManager(
     private fun completeTransitionToInterior() {
         val house = pendingHouse ?: return
         println("Transition finished. Loading interior for ${house.id}")
-        val interior = interiorStates[house.id] ?: createInteriorForHouse(house)
+
+        val interior = interiorStates[house.id] ?: createNewEmptyInteriorFor(house)
+
         loadInteriorState(interior)
 
         currentInteriorId = house.id
@@ -164,7 +166,7 @@ class SceneManager(
         activeHouses.addAll(state.houses)
         activeItems.addAll(state.items)
 
-        // NEW: Synchronize the ItemSystem with the restored world items
+        // Synchronize the ItemSystem with the restored world items
         itemSystem.setActiveItems(activeItems)
     }
 
@@ -172,8 +174,8 @@ class SceneManager(
     private fun saveCurrentInteriorState() {
         val id = currentInteriorId ?: return
         val currentState = interiorStates[id] ?: return
+        println("Saving state for interior instance: $id")
 
-        println("Saving state for interior: $id")
         // Update the state with the latest data from the active scene
         currentState.blocks.clear(); currentState.blocks.addAll(activeBlocks)
         currentState.objects.clear(); currentState.objects.addAll(activeObjects)
@@ -182,56 +184,146 @@ class SceneManager(
     }
 
     private fun loadInteriorState(state: InteriorState) {
-        println("Loading state for interior: ${state.houseId}")
+        println("Loading state for interior instance: ${state.houseId}")
         clearActiveScene()
         activeBlocks.addAll(state.blocks)
         activeObjects.addAll(state.objects)
         activeItems.addAll(state.items)
 
-        // NEW: Synchronize the ItemSystem with the loaded interior items
+        // Synchronize the ItemSystem with the loaded interior items
         itemSystem.setActiveItems(activeItems)
     }
 
-    private fun createInteriorForHouse(house: GameHouse): InteriorState {
-        println("No saved state for ${house.id}, creating new interior...")
-        val layout = interiorLayoutSystem.getLayout(house.houseType) ?: run {
-            println("WARNING: No interior layout found for house type ${house.houseType}. Creating empty interior.")
-            // Return a default empty interior so the game doesn't crash
-            return InteriorState(house.id, playerPosition = Vector3(0f, 1f, 0f))
-        }
+    private fun createNewEmptyInteriorFor(house: GameHouse): InteriorState {
+        println("No saved state for this house instance. Creating a new empty interior.")
+
+        // Create a default room with just a floor.
+        val builder = RoomBuilder()
+            .setSize(20f, 8f, 20f) // A decent default size
+            .setEntrance(10f, 4f, 18f)
+            .addFloor()
 
         val newState = InteriorState(
             houseId = house.id,
-            playerPosition = layout.entrancePosition.cpy()
+            // You can decide if an empty room should have a floor by default
+            playerPosition = Vector3(10f, 4f, 18f) // Default entrance
         )
 
-        // Generate blocks (walls, floor, ceiling) from layout
-        layout.defaultBlocks.forEach { (pos, type) ->
-            val blockInstance = blockSystem.createBlockInstance(type)
-            if (blockInstance != null) {
-                // NOTE: This assumes a fixed block size and rotation for interiors.
-                // You could extend the layout data to include this.
-                val gameBlock = GameBlock(blockInstance, type, pos.cpy(), 0f)
-                gameBlock.updateTransform()
-                newState.blocks.add(gameBlock)
-            }
+        // Add a default floor so the player doesn't fall.
+        val floorBlock = blockSystem.createBlockInstance(BlockType.WOODEN_FLOOR)
+        if(floorBlock != null) {
+            val gameBlock = GameBlock(floorBlock, BlockType.WOODEN_FLOOR, Vector3(10f, 2f, 10f), 0f)
+            newState.blocks.add(gameBlock)
         }
-
-        // Generate furniture and other objects from layout
-        layout.defaultFurniture.forEach { (pos, type) ->
-            val newGameObject = objectSystem.createGameObjectWithLight(type, pos.cpy())
-            if (newGameObject != null) {
-                newGameObject.modelInstance.transform.setTranslation(pos)
-                newState.objects.add(newGameObject)
-            }
-        }
-
-        // You could add items here too if layouts supported them
-        // layout.defaultItems.forEach { ... }
 
         interiorStates[house.id] = newState
         println("New interior created and saved for ${house.id}")
         return newState
+    }
+
+    fun saveCurrentInteriorAsTemplate(id: String, name: String, category: String) {
+        if (currentScene != SceneType.HOUSE_INTERIOR) {
+            println("Error: Must be in an interior to save it as a template.")
+            return
+        }
+
+        println("Converting current room to template with ID: $id")
+        val elements = mutableListOf<RoomElement>()
+
+        // Convert active blocks to RoomElements
+        activeBlocks.forEach { block ->
+            elements.add(RoomElement(
+                position = block.position.cpy(),
+                elementType = RoomElementType.BLOCK,
+                blockType = block.blockType,
+                rotation = block.rotationY
+            ))
+        }
+
+        // Convert active objects to RoomElements
+        activeObjects.forEach { obj ->
+            elements.add(RoomElement(
+                position = obj.position.cpy(),
+                elementType = RoomElementType.OBJECT,
+                objectType = obj.objectType,
+                rotation = 0f // Assuming objects don't rotate for now
+            ))
+        }
+
+        // Convert active items to RoomElements
+        activeItems.forEach { item ->
+            elements.add(RoomElement(
+                position = item.position.cpy(),
+                elementType = RoomElementType.ITEM,
+                itemType = item.itemType
+            ))
+        }
+
+        val newTemplate = RoomTemplate(
+            id = id,
+            name = name,
+            description = "A user-created room.",
+            size = Vector3(20f, 8f, 20f), // You could calculate this dynamically
+            elements = elements,
+            entrancePosition = playerSystem.getPosition(), // Use current pos as a sensible default
+            exitTriggerPosition = playerSystem.getPosition().add(0f, 0f, 1f),
+            category = category
+        )
+
+        roomTemplateManager.addTemplate(newTemplate)
+        println("Successfully saved room as template '$id'!")
+    }
+
+    /**
+     * Wipes the current interior and rebuilds it from a saved template.
+     */
+    fun loadTemplateIntoCurrentInterior(templateId: String) {
+        if (currentScene != SceneType.HOUSE_INTERIOR) {
+            println("Error: Must be in an interior to load a template.")
+            return
+        }
+
+        val template = roomTemplateManager.getTemplate(templateId)
+        if (template == null) {
+            println("Error: Template with ID '$templateId' not found.")
+            return
+        }
+
+        println("Loading template '$templateId' into current room...")
+        clearActiveScene()
+
+        // Build the scene from the template's elements
+        template.elements.forEach { element ->
+            when (element.elementType) {
+                RoomElementType.BLOCK -> {
+                    val instance = blockSystem.createBlockInstance(element.blockType!!)
+                    if (instance != null) {
+                        val gameBlock = GameBlock(instance, element.blockType, element.position.cpy(), element.rotation)
+                        gameBlock.updateTransform()
+                        activeBlocks.add(gameBlock)
+                    }
+                }
+                RoomElementType.OBJECT -> {
+                    val gameObject = objectSystem.createGameObjectWithLight(element.objectType!!, element.position.cpy())
+                    if (gameObject != null) {
+                        activeObjects.add(gameObject)
+                    }
+                }
+                RoomElementType.ITEM -> {
+                    val gameItem = itemSystem.createItem(element.position.cpy(), element.itemType!!)
+                    if (gameItem != null) {
+                        activeItems.add(gameItem)
+                    }
+                }
+            }
+        }
+
+        // Update the item system with the new items
+        itemSystem.setActiveItems(activeItems)
+
+        // Move player to the template's entrance
+        playerSystem.setPosition(template.entrancePosition)
+        cameraManager.resetAndSnapToPlayer(template.entrancePosition)
     }
 
     private fun clearActiveScene() {

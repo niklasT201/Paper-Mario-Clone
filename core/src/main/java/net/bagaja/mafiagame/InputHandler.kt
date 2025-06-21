@@ -17,6 +17,8 @@ class InputHandler(
     private val houseSystem: HouseSystem,
     private val backgroundSystem: BackgroundSystem,
     private val parallaxSystem: ParallaxBackgroundSystem,
+    private val sceneManager: SceneManager,
+    private val roomTemplateManager: RoomTemplateManager,
     private val onLeftClick: (screenX: Int, screenY: Int) -> Unit,
     private val onRightClickAttemptBlockRemove: (screenX: Int, screenY: Int) -> Boolean,
     private val onFinePosMove: (deltaX: Float, deltaY: Float, deltaZ: Float) -> Unit
@@ -197,6 +199,27 @@ class InputHandler(
                 // If the user is typing in a UI text field, DO NOT process any game keybinds.
                 if (uiManager.getStage().keyboardFocus != null) {
                     return false
+                }
+
+                if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) && keycode == Input.Keys.S) {
+                    val templateId = "user_room_${System.currentTimeMillis()}"
+                    val templateName = "My Saved Room"
+                    sceneManager.saveCurrentInteriorAsTemplate(templateId, templateName, "user_created")
+                    uiManager.updatePlacementInfo("Room saved as template: $templateId")
+                    return true // Consume the input
+                }
+
+                // LOAD TEMPLATE HOTKEY
+                if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) && keycode == Input.Keys.L) {
+                    val firstTemplate = roomTemplateManager.getAllTemplates().firstOrNull()
+                    if (firstTemplate != null) {
+                        sceneManager.loadTemplateIntoCurrentInterior(firstTemplate.id)
+                        uiManager.updatePlacementInfo("Loaded template: ${firstTemplate.name}")
+                    } else {
+                        println("No saved templates to load!")
+                        uiManager.updatePlacementInfo("No saved templates to load!")
+                    }
+                    return true // Consume the input
                 }
 
                 when (keycode) {

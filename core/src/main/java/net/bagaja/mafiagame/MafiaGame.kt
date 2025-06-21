@@ -31,7 +31,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var itemSystem: ItemSystem
     private lateinit var carSystem: CarSystem
     private lateinit var sceneManager: SceneManager
-    private lateinit var interiorLayoutSystem: InteriorLayoutSystem
+    private lateinit var roomTemplateManager: RoomTemplateManager
     private lateinit var houseSystem: HouseSystem
 
     // Highlight System
@@ -64,19 +64,21 @@ class MafiaGame : ApplicationAdapter() {
         setupBackgroundSystem()
         setupParallaxSystem()
 
+        roomTemplateManager = RoomTemplateManager()
+        roomTemplateManager.initialize()
+
         // Initialize Transition System
         transitionSystem = TransitionSystem()
 
         playerSystem = PlayerSystem()
         playerSystem.initialize(blockSize)
 
-        interiorLayoutSystem = InteriorLayoutSystem()
         sceneManager = SceneManager(
             playerSystem,
             blockSystem,
             objectSystem,
             itemSystem,
-            interiorLayoutSystem,
+            roomTemplateManager,
             cameraManager,
             transitionSystem
         )
@@ -98,6 +100,8 @@ class MafiaGame : ApplicationAdapter() {
             houseSystem,
             backgroundSystem,
             parallaxBackgroundSystem,
+            sceneManager,
+            roomTemplateManager,
             this::handleLeftClickAction,
             this::handleRightClickAndRemoveAction,
             this::handleFinePosMove
