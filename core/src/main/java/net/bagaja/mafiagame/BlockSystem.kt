@@ -63,6 +63,12 @@ class BlockSystem {
                     BlockType.CARGO_FLOOR -> Color.WHITE
                     BlockType.BRICK_WALL -> Color.ORANGE
                     BlockType.STREET_LOW -> Color.BLUE
+                    BlockType.STREET_INDUSTRY -> Color.BROWN
+                    BlockType.CONCRETE -> Color.GRAY
+                    BlockType.CONCRETE_WALL -> Color.GRAY
+                    BlockType.WALL_EGG_BOTTOM -> Color.YELLOW
+                    BlockType.WALL_EGG -> Color.YELLOW
+                    BlockType.STONE_WALL -> Color.BLACK
 
                     BlockType.BETON_TILE -> Color.LIGHT_GRAY
                     BlockType.BRICK_WALL_PNG -> Color.ORANGE
@@ -87,6 +93,7 @@ class BlockSystem {
                     BlockType.OFFICE_WALL -> Color(0.9f, 0.9f, 0.85f, 1f)
                     BlockType.SIDEWALK_POOR -> Color.LIGHT_GRAY
                     BlockType.SIDEWALK -> Color.LIGHT_GRAY
+                    BlockType.SIDEWALK_INDUSTRY -> Color.BROWN
                     BlockType.SIDEWALK_START -> Color.LIGHT_GRAY
                     BlockType.SPRAYED_WALL -> Color(0.7f, 0.8f, 0.6f, 1f)
                     BlockType.STREET_TILE -> Color(0.4f, 0.4f, 0.4f, 1f)

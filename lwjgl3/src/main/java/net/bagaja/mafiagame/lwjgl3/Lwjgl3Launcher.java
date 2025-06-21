@@ -41,10 +41,12 @@ public class Lwjgl3Launcher {
 // room/open world transition effect
 // file-based saving/loading
 // room needing a door for moving out again
+// adding random generation for room interior
 
 // map saving
-// saving rooms with name
 // cars can be locked
+// N,E, S, W side of blocks rotation
+// maybe changing 30 min daycicle to 50
 // enemies have an inventory and collect items
 // footprints when moving through dead enemies
 // physics
@@ -56,7 +58,6 @@ public class Lwjgl3Launcher {
 // animations
 // add driving
 // add shadow option
-// lantern light modifying
 // spotlight effect
 // ui for sky color change
 // key for light source rotation testing

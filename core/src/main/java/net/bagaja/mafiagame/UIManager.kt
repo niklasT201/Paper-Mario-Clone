@@ -7,9 +7,11 @@ import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
+import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.viewport.ScreenViewport
@@ -1065,6 +1067,60 @@ class UIManager(
                 )
             )
         }
+    }
+
+    fun showSaveRoomDialog(sceneManager: SceneManager) {
+        // Check if we are actually in a room to save.
+        if (sceneManager.currentScene != SceneType.HOUSE_INTERIOR) {
+            updatePlacementInfo("Error: Can only save a room when inside a house.")
+            return
+        }
+
+        val dialog = Dialog("Save Room As Template", skin, "dialog")
+        dialog.text("Enter a name for the new room.\nLeave blank for a default name.")
+
+        // Add a text field for the user to type in
+        val nameField = TextField("", skin)
+        dialog.contentTable.row()
+        dialog.contentTable.add(nameField).width(250f).pad(10f)
+
+        // "Save" button logic
+        val saveButton = TextButton("Save", skin)
+        saveButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                val inputName = nameField.text.trim()
+                val timestamp = System.currentTimeMillis()
+                val templateId = "user_room_$timestamp"
+
+                // Use the input name if provided, otherwise create a default one
+                val templateName = if (inputName.isNotBlank()) inputName else "Room - ${templateId.takeLast(6)}"
+
+                // Use the SceneManager to save the template
+                val success = sceneManager.saveCurrentInteriorAsTemplate(templateId, templateName, "user_created")
+                if (success) {
+                    updatePlacementInfo("Room saved as '$templateName'")
+                    // This is crucial: Refresh the house UI to show the new room in the list
+                    houseSelectionUI.refreshRoomList()
+                } else {
+                    updatePlacementInfo("Failed to save room template.")
+                }
+                dialog.hide()
+            }
+        })
+
+        // "Cancel" button logic
+        val cancelButton = TextButton("Cancel", skin)
+        cancelButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                dialog.hide()
+            }
+        })
+
+        dialog.buttonTable.padTop(10f)
+        dialog.buttonTable.add(saveButton).width(100f).padRight(10f)
+        dialog.buttonTable.add(cancelButton).width(100f)
+
+        dialog.show(stage)
     }
 
     fun showBackgroundSelection() {

@@ -393,12 +393,12 @@ enum class ObjectType(
 
     LANTERN("Lantern", "textures/objects/models/lantern.png", 3f, 11f,
         hasLightSource = true,
-        lightIntensity = 25f,
-        lightRange = 10f,
+        lightIntensity = 55f,
+        lightRange = 20f,
         lightColorR = 1f,    // Orange color
         lightColorG = 0.6f,
         lightColorB = 0.2f,
-        lightOffsetY = 5.5f  // Place light at middle of lantern
+        lightOffsetY = 7.5f  // Place light at middle of lantern
     ),
 
     LIGHT_SOURCE("Light Source", "", 2f, 2f, true, true),

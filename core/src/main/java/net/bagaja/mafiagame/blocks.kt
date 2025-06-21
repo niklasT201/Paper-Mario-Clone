@@ -87,11 +87,16 @@ enum class BlockType(
     TRANS_WALL("Trans Wall", "textures/objects/trans_wall.png", 1.0f, BlockCategory.WALLS),
     WALL("Wall", "textures/objects/wall.png", 1.0f, BlockCategory.WALLS),
     WOOD_WALL("Wood Wall", "textures/objects/wood_wall.png", 1.0f, BlockCategory.WALLS),
+    CONCRETE("Concrete", "textures/objects/concrete.png", 1.0f, BlockCategory.WALLS),
+    CONCRETE_WALL("Concrete Wall", "textures/objects/concrete_wall.png", 1.0f, BlockCategory.WALLS),
     STRIPED_TAPETE("Striped Tapete", "textures/objects/striped_tapete.png", 1.0f, BlockCategory.WALLS),
     TAPETE("Tapete", "textures/objects/tapete.png", 1.0f, BlockCategory.WALLS),
+    WALL_EGG_BOTTOM("Beige Wall Bottom", "textures/objects/wall_bottom.png", 1.0f, BlockCategory.WALLS),
+    WALL_EGG("Beige Wall", "textures/objects/wall_eggyellow.png", 1.0f, BlockCategory.WALLS),
+    STONE_WALL("Stone Wall", "textures/objects/wall_stone.png", 1.0f, BlockCategory.WALLS),
 
     // CEILINGS
-    CEILING("Ceiling", "textures/objects/ceiling.png", 1.0f, BlockCategory.CEILINGS),
+    CEILING("Ceiling", "textures/objects/celiling.png", 1.0f, BlockCategory.CEILINGS),
     CEILING_WITH_LAMP("Ceiling with Lamp", "textures/objects/ceiling_with_lamp.png", 1.0f, BlockCategory.CEILINGS),
     LIGHT_CEILING("Light Ceiling", "textures/objects/light_ceiling.png", 1.0f, BlockCategory.CEILINGS),
     BROKEN_CEILING("Broken Ceiling", "textures/objects/broken_ceiling.png", 1.0f, BlockCategory.CEILINGS),
@@ -101,8 +106,10 @@ enum class BlockType(
     STONE("Stone", "textures/objects/stone_tile.png", 1.0f, BlockCategory.STREET),
     STREET_LOW("Street (Low)", "textures/objects/street_cheap.png", 0.8f, BlockCategory.STREET),
     SIDEWALK_POOR("Sidewalk (Poor)", "textures/objects/sidewalk_poor.png", 1.0f, BlockCategory.STREET),
+    STREET_INDUSTRY("Street (Industry)", "textures/objects/street_industry.png", 0.8f, BlockCategory.STREET),
     SIDEWALK("Sidewalk", "textures/objects/sidewalk.png", 1.0f, BlockCategory.STREET),
     SIDEWALK_START("Sidewalk Start", "textures/objects/sidewalk_start.png", 1.0f, BlockCategory.STREET),
+    SIDEWALK_INDUSTRY("Sidewalk (Industry)", "textures/objects/sidewalk_indutry.png", 1.0f, BlockCategory.STREET),
     STREET_TILE("Street Tile", "textures/objects/street_tile.png", 1.0f, BlockCategory.STREET),
 
     // WINDOWS & DOORS
