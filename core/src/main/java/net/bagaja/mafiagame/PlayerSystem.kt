@@ -91,7 +91,7 @@ class PlayerSystem {
         println("Player position set to: $newPosition")
     }
 
-    fun handleMovement(deltaTime: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>): Boolean {
+    fun handleMovement(deltaTime: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {
         var moved = false
         var currentMovementDirection = 0f
 
@@ -103,8 +103,8 @@ class PlayerSystem {
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
             val newX = playerPosition.x - playerSpeed * deltaTime
             // Try to move horizontally first, then adjust Y if needed
-            val adjustedY = calculateSafeYPosition(newX, playerPosition.z, originalY, gameBlocks, gameHouses)
-            if (canMoveTo(newX, adjustedY, playerPosition.z, gameBlocks, gameHouses)) {
+            val adjustedY = calculateSafeYPosition(newX, playerPosition.z, originalY, gameBlocks, gameHouses, gameInteriors)
+            if (canMoveTo(newX, adjustedY, playerPosition.z, gameBlocks, gameHouses, gameInteriors)) {
                 playerPosition.x = newX
                 playerPosition.y = adjustedY
                 moved = true
@@ -113,8 +113,8 @@ class PlayerSystem {
         }
         if (Gdx.input.isKeyPressed(Input.Keys.D)) {
             val newX = playerPosition.x + playerSpeed * deltaTime
-            val adjustedY = calculateSafeYPosition(newX, playerPosition.z, originalY, gameBlocks, gameHouses)
-            if (canMoveTo(newX, adjustedY, playerPosition.z, gameBlocks, gameHouses)) {
+            val adjustedY = calculateSafeYPosition(newX, playerPosition.z, originalY, gameBlocks, gameHouses, gameInteriors)
+            if (canMoveTo(newX, adjustedY, playerPosition.z, gameBlocks, gameHouses, gameInteriors)) {
                 playerPosition.x = newX
                 playerPosition.y = adjustedY
                 moved = true
@@ -123,8 +123,8 @@ class PlayerSystem {
         }
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
             val newZ = playerPosition.z - playerSpeed * deltaTime
-            val adjustedY = calculateSafeYPosition(playerPosition.x, newZ, originalY, gameBlocks, gameHouses)
-            if (canMoveTo(playerPosition.x, adjustedY, newZ, gameBlocks, gameHouses)) {
+            val adjustedY = calculateSafeYPosition(playerPosition.x, newZ, originalY, gameBlocks, gameHouses, gameInteriors)
+            if (canMoveTo(playerPosition.x, adjustedY, newZ, gameBlocks, gameHouses, gameInteriors)) {
                 playerPosition.z = newZ
                 playerPosition.y = adjustedY
                 moved = true
@@ -132,8 +132,8 @@ class PlayerSystem {
         }
         if (Gdx.input.isKeyPressed(Input.Keys.S)) {
             val newZ = playerPosition.z + playerSpeed * deltaTime
-            val adjustedY = calculateSafeYPosition(playerPosition.x, newZ, originalY, gameBlocks, gameHouses)
-            if (canMoveTo(playerPosition.x, adjustedY, newZ, gameBlocks, gameHouses)) {
+            val adjustedY = calculateSafeYPosition(playerPosition.x, newZ, originalY, gameBlocks, gameHouses, gameInteriors)
+            if (canMoveTo(playerPosition.x, adjustedY, newZ, gameBlocks, gameHouses, gameInteriors)) {
                 playerPosition.z = newZ
                 playerPosition.y = adjustedY
                 moved = true
@@ -157,7 +157,7 @@ class PlayerSystem {
         return moved
     }
 
-    private fun calculateSafeYPosition(x: Float, z: Float, currentY: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>): Float {
+    private fun calculateSafeYPosition(x: Float, z: Float, currentY: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Float {
         // Find the highest block/surface that the player is standing on at position (x, z)
         var highestSupportY = 0f // Ground level
         var foundSupport = false
@@ -225,6 +225,28 @@ class PlayerSystem {
                     val supportHeight = findStairSupportHeight(house, x, z, currentY)
                     if (supportHeight > highestSupportY) {
                         highestSupportY = supportHeight
+                        foundSupport = true
+                    }
+                }
+            }
+        }
+
+        for (interior in gameInteriors) {
+            // Only solid 3D interiors can be stood on
+            if (!interior.interiorType.is3D || !interior.interiorType.hasCollision) continue
+
+            // A simplified check: is the player horizontally "over" the object?
+            val objectBounds = interior.instance.calculateBoundingBox(BoundingBox())
+            if (x >= objectBounds.min.x && x <= objectBounds.max.x &&
+                z >= objectBounds.min.z && z <= objectBounds.max.z) {
+
+                val interiorTop = objectBounds.max.y
+
+                // Only consider this interior as support if the player is on or very close to its top
+                val tolerance = 0.5f
+                if (kotlin.math.abs(currentY - playerSize.y / 2f - interiorTop) <= tolerance) {
+                    if (interiorTop > highestSupportY) {
+                        highestSupportY = interiorTop
                         foundSupport = true
                     }
                 }
@@ -317,7 +339,7 @@ class PlayerSystem {
         return 0f // Ground level if no collision found
     }
 
-    fun placePlayer(ray: Ray, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>): Boolean {
+    fun placePlayer(ray: Ray, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {
         val intersection = Vector3()
         val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
@@ -352,7 +374,7 @@ class PlayerSystem {
             val playerY = highestBlockY + playerSize.y / 2f // Position player so their bottom is on the block top
 
             // Check if the new position would cause a collision with other objects
-            if (canMoveTo(gridX, playerY, gridZ, gameBlocks, gameHouses)) {
+            if (canMoveTo(gridX, playerY, gridZ, gameBlocks, gameHouses, gameInteriors)) {
                 playerPosition.set(gridX, playerY, gridZ)
                 updatePlayerBounds()
                 println("Player placed at: $gridX, $playerY, $gridZ (block height: $highestBlockY)")
@@ -365,7 +387,7 @@ class PlayerSystem {
         return false
     }
 
-    private fun canMoveTo(x: Float, y: Float, z: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>): Boolean {
+    private fun canMoveTo(x: Float, y: Float, z: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {
         // Create a temporary bounding box for the new position
         val horizontalShrink = 0.2f // Reduced shrink for more accurate collision
         val tempBounds = BoundingBox()
@@ -411,7 +433,25 @@ class PlayerSystem {
             }
         }
 
-        return true // No collision with blocks or houses
+        for (interior in gameInteriors) {
+            // Skip if this interior type has no collision
+            if (!interior.interiorType.hasCollision) continue
+
+            if (interior.interiorType.is3D) {
+                // Use the more accurate mesh collision for 3D objects
+                if (interior.collidesWithMesh(tempBounds)) {
+                    return false // Collision with 3D interior detected
+                }
+            } else {
+                // Use the simpler 2D circle-style collision for billboards
+                val playerRadius = playerSize.x / 2f
+                if (interior.collidesWithPlayer2D(Vector3(x, y, z), playerRadius)) {
+                    return false // Collision with 2D interior detected
+                }
+            }
+        }
+
+        return true // No collision with blocks, houses, or interiors
     }
 
     private fun updatePlayerBounds() {

@@ -2,15 +2,17 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Camera
+import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.Texture
+import com.badlogic.gdx.graphics.VertexAttributes
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g2d.TextureRegion
-import com.badlogic.gdx.graphics.g3d.Environment
-import com.badlogic.gdx.graphics.g3d.Model
-import com.badlogic.gdx.graphics.g3d.ModelBatch
-import com.badlogic.gdx.graphics.g3d.ModelInstance
+import com.badlogic.gdx.graphics.g3d.*
+import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
+import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.loader.G3dModelLoader
+import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
@@ -65,6 +67,8 @@ class InteriorSystem : IFinePositionable {
     private val interiorModels = mutableMapOf<InteriorType, Model>()
     private val interiorTextures = mutableMapOf<InteriorType, Texture>()
     private val modelLoader = G3dModelLoader(JsonReader())
+    private val billboardModelBatch: ModelBatch // For rendering 2D billboards
+    private val billboardShaderProvider: BillboardShaderProvider
 
     var currentSelectedInterior = InteriorType.BAR
     var currentSelectedInteriorIndex = 0
@@ -77,38 +81,58 @@ class InteriorSystem : IFinePositionable {
         private set
     private val rotationStep = 90f
 
+    init {
+        billboardShaderProvider = BillboardShaderProvider()
+        billboardShaderProvider.setBillboardLightingStrength(0.8f) // Adjust lighting as needed
+        billboardShaderProvider.setMinLightLevel(0.4f)
+        billboardModelBatch = ModelBatch(billboardShaderProvider)
+    }
+
     fun initialize() {
         println("Initializing Interior System...")
+        val modelBuilder = ModelBuilder() // Create one ModelBuilder to reuse
 
         for (interiorType in InteriorType.entries) {
             try {
-                // Load texture (common for both 2D and 3D)
                 val texture = Texture(Gdx.files.internal(interiorType.texturePath), false)
                 texture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest)
                 interiorTextures[interiorType] = texture
 
-                // Load 3D model if it exists
+                // Create a material that will be used by the model
+                val material = Material(
+                    TextureAttribute.createDiffuse(texture),
+                    BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
+                    IntAttribute.createCullFace(GL20.GL_NONE) // Don't cull back-face
+                )
+
                 if (interiorType.is3D) {
+                    // Your existing 3D model loading logic
                     val model = modelLoader.loadModel(Gdx.files.internal(interiorType.modelPath!!))
-
-                    // Apply texture to model materials
-                    for (material in model.materials) {
-                        val textureAttribute = TextureAttribute.createDiffuse(texture)
-                        material.set(textureAttribute)
+                    for (mat in model.materials) {
+                        mat.set(TextureAttribute.createDiffuse(texture))
                     }
-
                     interiorModels[interiorType] = model
                     println("Loaded 3D interior model: ${interiorType.displayName}")
                 } else {
-                    println("Loaded 2D interior texture: ${interiorType.displayName}")
+                    // NEW: Create a billboard model for 2D types
+                    val model = modelBuilder.createRect(
+                        -interiorType.width / 2f, -interiorType.height / 2f, 0f,
+                        interiorType.width / 2f, -interiorType.height / 2f, 0f,
+                        interiorType.width / 2f,  interiorType.height / 2f, 0f,
+                        -interiorType.width / 2f,  interiorType.height / 2f, 0f,
+                        0f, 0f, 1f,
+                        material,
+                        (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
+                    )
+                    interiorModels[interiorType] = model // Store this new billboard model
+                    println("Created 2D billboard model for: ${interiorType.displayName}")
                 }
             } catch (e: Exception) {
-                println("Failed to load interior ${interiorType.displayName}: ${e.message}")
+                println("Failed to load/create interior model for ${interiorType.displayName}: ${e.message}")
                 e.printStackTrace()
             }
         }
-
-        println("Interior System initialized with ${interiorTextures.size} items")
+        println("Interior System initialized with ${interiorModels.size} models.")
     }
 
     fun nextInterior() {
@@ -133,22 +157,23 @@ class InteriorSystem : IFinePositionable {
     }
 
     fun createInteriorInstance(interiorType: InteriorType): GameInterior? {
-        return when {
-            interiorType.is3D -> {
-                val model = interiorModels[interiorType]
-                model?.let {
-                    val instance = ModelInstance(it)
-                    GameInterior(interiorType, instance = instance)
-                }
-            }
-            interiorType.is2D -> {
-                val texture = interiorTextures[interiorType]
-                texture?.let {
-                    GameInterior(interiorType, texture = it)
-                }
-            }
-            else -> null
+        // Both 2D and 3D types now have a model in `interiorModels`
+        val model = interiorModels[interiorType]
+        return model?.let {
+            GameInterior(interiorType, instance = ModelInstance(it))
         }
+    }
+
+    fun renderBillboards(camera: Camera, environment: Environment, interiors: com.badlogic.gdx.utils.Array<GameInterior>) {
+        billboardShaderProvider.setEnvironment(environment)
+        billboardModelBatch.begin(camera)
+        for (interior in interiors) {
+            if (interior.interiorType.is2D) {
+                // The billboard shader will handle facing the camera
+                billboardModelBatch.render(interior.instance, environment)
+            }
+        }
+        billboardModelBatch.end()
     }
 
     fun getTexture(interiorType: InteriorType): Texture? {
@@ -158,21 +183,22 @@ class InteriorSystem : IFinePositionable {
     fun dispose() {
         interiorModels.values.forEach { it.dispose() }
         interiorTextures.values.forEach { it.dispose() }
+        billboardModelBatch.dispose()
+        billboardShaderProvider.dispose()
     }
 }
 
 // Game interior class that handles both 2D and 3D objects
 data class GameInterior(
     val interiorType: InteriorType,
-    val instance: ModelInstance? = null, // For 3D objects
-    val texture: Texture? = null, // For 2D objects
+    val instance: ModelInstance, // Changed to non-nullable, as we always create one now
     val position: Vector3 = Vector3(),
-    var rotation: Float = 0f,
+    var rotation: Float = 0f, // Keep this for user-controlled rotation
     val scale: Vector3 = Vector3(1f, 1f, 1f),
     val id: String = UUID.randomUUID().toString()
 ) {
     // For 3D collision detection (same as GameHouse)
-    private val mesh = instance?.model?.meshes?.firstOrNull()
+    private val mesh = instance.model?.meshes?.firstOrNull()
     private val vertexFloats: FloatArray?
     private val indexShorts: ShortArray?
     private val vertexSize: Int
@@ -203,55 +229,16 @@ data class GameInterior(
     }
 
     fun updateTransform() {
-        if (interiorType.is3D && instance != null) {
-            // Update 3D model transform
-            instance.transform.setToTranslation(position)
-            instance.transform.rotate(Vector3.Y, rotation)
-            instance.transform.scale(scale.x, scale.y, scale.z)
-        } else if (interiorType.is2D) {
-            // Update 2D billboard matrix
-            billboardMatrix.setToTranslation(position)
-            billboardMatrix.rotate(Vector3.Y, rotation)
-            billboardMatrix.scale(scale.x, scale.y, scale.z)
-        }
+        // This logic now works for BOTH 2D and 3D models
+        instance.transform.setToTranslation(position)
+        instance.transform.rotate(Vector3.Y, rotation)
+        instance.transform.scale(scale.x, scale.y, scale.z)
     }
 
-    fun render3D(modelBatch: ModelBatch, environment: Environment) {
-        if (interiorType.is3D && instance != null) {
+    fun render(modelBatch: ModelBatch, environment: Environment) {
+        // This will be used for 3D objects only now
+        if (interiorType.is3D) {
             modelBatch.render(instance, environment)
-        }
-    }
-
-    fun render2D(spriteBatch: SpriteBatch, camera: Camera) {
-        if (interiorType.is2D && texture != null) {
-            spriteBatch.begin()
-
-            // Calculate billboard position facing camera
-            val camPos = camera.position
-            val dirToCam = Vector3(camPos).sub(position).nor()
-            val right = Vector3(dirToCam).crs(Vector3.Y).nor()
-            val up = Vector3.Y
-
-            // Calculate billboard corners
-            val halfWidth = interiorType.width * scale.x * 0.5f
-            val halfHeight = interiorType.height * scale.y * 0.5f
-
-            val bottomLeft = Vector3(position).sub(right.x * halfWidth, halfHeight, right.z * halfWidth)
-            val bottomRight = Vector3(position).add(right.x * halfWidth, -halfHeight, right.z * halfWidth)
-            val topLeft = Vector3(position).sub(right.x * halfWidth, halfHeight, right.z * halfWidth)
-            val topRight = Vector3(position).add(right.x * halfWidth, halfHeight, right.z * halfWidth)
-
-            // Project to screen coordinates and draw
-            val textureRegion = TextureRegion(texture)
-
-            // Simple billboard rendering (you may need to adjust based on your camera system)
-            spriteBatch.draw(textureRegion,
-                position.x - halfWidth, position.z - halfWidth,
-                halfWidth, halfWidth,
-                interiorType.width * scale.x, interiorType.height * scale.y,
-                1f, 1f, rotation)
-
-            spriteBatch.end()
         }
     }
 
@@ -270,7 +257,7 @@ data class GameInterior(
             v2.set(vertexFloats[idx2 * vertexSize], vertexFloats[idx2 * vertexSize + 1], vertexFloats[idx2 * vertexSize + 2])
             v3.set(vertexFloats[idx3 * vertexSize], vertexFloats[idx3 * vertexSize + 1], vertexFloats[idx3 * vertexSize + 2])
 
-            v1.mul(instance!!.transform)
+            v1.mul(instance.transform)
             v2.mul(instance.transform)
             v3.mul(instance.transform)
 
@@ -295,7 +282,7 @@ data class GameInterior(
             v2.set(vertexFloats[idx2 * vertexSize], vertexFloats[idx2 * vertexSize + 1], vertexFloats[idx2 * vertexSize + 2])
             v3.set(vertexFloats[idx3 * vertexSize], vertexFloats[idx3 * vertexSize + 1], vertexFloats[idx3 * vertexSize + 2])
 
-            v1.mul(instance!!.transform)
+            v1.mul(instance.transform)
             v2.mul(instance.transform)
             v3.mul(instance.transform)
 
@@ -311,10 +298,12 @@ data class GameInterior(
         if (!interiorType.is2D || !interiorType.hasCollision) {
             return false
         }
-
-        val distance = Vector3(playerPos).sub(position).len()
-        val collisionRadius = (interiorType.width + interiorType.depth) * 0.5f * scale.x
-        return distance < (playerRadius + collisionRadius)
+        // Simplified 2D collision check on the XZ plane
+        val dx = playerPos.x - position.x
+        val dz = playerPos.z - position.z
+        val distance2D = kotlin.math.sqrt(dx * dx + dz * dz)
+        val collisionRadius = (interiorType.width * scale.x) * 0.5f
+        return distance2D < (playerRadius + collisionRadius)
     }
 
     private fun intersectTriangleBounds(v1: Vector3, v2: Vector3, v3: Vector3, bounds: BoundingBox): Boolean {

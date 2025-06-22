@@ -193,7 +193,7 @@ class MafiaGame : ApplicationAdapter() {
             cameraManager.handleInput(deltaTime)
         } else {
             // Handle player movement through PlayerSystem
-            val moved = playerSystem.handleMovement(deltaTime, sceneManager.activeBlocks, sceneManager.activeHouses)
+            val moved = playerSystem.handleMovement(deltaTime, sceneManager.activeBlocks, sceneManager.activeHouses, sceneManager.activeInteriors)
 
             if (moved) {
                 // Update camera manager with player position
@@ -545,7 +545,7 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placePlayer(ray: Ray) {
-        playerSystem.placePlayer(ray, sceneManager.activeBlocks, sceneManager.activeHouses)
+        playerSystem.placePlayer(ray, sceneManager.activeBlocks, sceneManager.activeHouses, sceneManager.activeInteriors)
     }
 
     private fun placeObject(ray: Ray) {
@@ -1085,13 +1085,7 @@ class MafiaGame : ApplicationAdapter() {
         }
 
         for (interior in sceneManager.activeInteriors) {
-            if (interior.interiorType.is3D) {
-                interior.render3D(modelBatch, environment)
-            } else {
-                // NOTE: The render2D method in GameInterior is flawed as it uses SpriteBatch.
-                // A proper billboard system that works with the 3D pipeline is required here.
-                // For now, this will only render your 3D interior objects.
-            }
+            interior.render(modelBatch, environment) // This will only render the 3D ones
         }
 
         // Render background preview
@@ -1104,6 +1098,8 @@ class MafiaGame : ApplicationAdapter() {
         itemSystem.render(cameraManager.camera, environment)
 
         modelBatch.end()
+
+        interiorSystem.renderBillboards(cameraManager.camera, environment, sceneManager.activeInteriors)
 
         // NEW: Render highlight using HighlightSystem
         highlightSystem.render(modelBatch, cameraManager.camera, environment)
