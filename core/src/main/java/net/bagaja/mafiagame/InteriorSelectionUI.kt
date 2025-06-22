@@ -332,92 +332,172 @@ class InteriorSelectionUI(
             InteriorCategory.FURNITURE -> {
                 pixmap.setColor(Color(0.6f, 0.4f, 0.2f, 1f)) // Brown for furniture
                 when (interiorType) {
-                    InteriorType.SHELF -> {
-                        pixmap.fillRectangle(15, 35, 30, 20) // Table top
-                        pixmap.fillRectangle(20, 45, 5, 10) // Legs
+                    InteriorType.BAR -> {
+                        // Bar counter
+                        pixmap.fillRectangle(10, 35, 40, 15) // Bar top
+                        pixmap.fillRectangle(15, 45, 5, 10) // Support legs
                         pixmap.fillRectangle(35, 45, 5, 10)
+                        pixmap.setColor(Color.DARK_GRAY)
+                        pixmap.fillRectangle(12, 25, 36, 10) // Bar front
                     }
-                    InteriorType.CHAIR_3D -> {
+                    InteriorType.BARREL -> {
+                        // Barrel shape
+                        pixmap.setColor(Color(0.5f, 0.3f, 0.1f, 1f))
+                        pixmap.fillCircle(30, 35, 12) // Barrel body
+                        pixmap.setColor(Color.DARK_GRAY)
+                        pixmap.drawLine(18, 25, 42, 25) // Barrel bands
+                        pixmap.drawLine(18, 35, 42, 35)
+                        pixmap.drawLine(18, 45, 42, 45)
+                    }
+                    InteriorType.CHAIR -> {
+                        // Simple chair
                         pixmap.fillRectangle(20, 30, 20, 15) // Seat
                         pixmap.fillRectangle(20, 15, 20, 15) // Back
-                        pixmap.fillRectangle(20, 45, 5, 10) // Legs
-                        pixmap.fillRectangle(35, 45, 5, 10)
+                        pixmap.fillRectangle(22, 45, 4, 10) // Front legs
+                        pixmap.fillRectangle(34, 45, 4, 10)
+                        pixmap.fillRectangle(22, 30, 4, 15) // Back legs
+                        pixmap.fillRectangle(34, 30, 4, 15)
                     }
-                    InteriorType.SOFA_3D -> {
-                        pixmap.fillRectangle(10, 30, 40, 20) // Seat
-                        pixmap.fillRectangle(10, 15, 40, 15) // Back
+                    InteriorType.OFFICE_CHAIR -> {
+                        // Office chair with wheels
+                        pixmap.fillRectangle(18, 30, 24, 15) // Seat
+                        pixmap.fillRectangle(18, 15, 24, 15) // Back
+                        pixmap.fillRectangle(28, 40, 4, 12) // Central post
+                        pixmap.setColor(Color.DARK_GRAY)
+                        pixmap.fillCircle(20, 50, 3) // Wheels
+                        pixmap.fillCircle(30, 50, 3)
+                        pixmap.fillCircle(40, 50, 3)
                     }
-                    InteriorType.BED_3D -> {
-                        pixmap.fillRectangle(10, 25, 40, 25) // Bed
-                        pixmap.fillRectangle(10, 15, 40, 10) // Pillow area
-                    }
-                    InteriorType.DESK_3D -> {
-                        pixmap.fillRectangle(10, 35, 40, 15) // Desktop
+                    InteriorType.TABLE -> {
+                        // Simple table
+                        pixmap.fillRectangle(10, 35, 40, 10) // Table top
                         pixmap.fillRectangle(15, 45, 5, 10) // Legs
                         pixmap.fillRectangle(40, 45, 5, 10)
+                        pixmap.fillRectangle(15, 25, 5, 10)
+                        pixmap.fillRectangle(40, 25, 5, 10)
                     }
-                    InteriorType.CABINET_3D -> {
-                        pixmap.fillRectangle(15, 20, 30, 35) // Cabinet body
-                        pixmap.setColor(Color.DARK_GRAY)
-                        pixmap.fillRectangle(18, 30, 24, 2) // Shelf line
+                    InteriorType.TABLE_DISH -> {
+                        // Table with dishes
+                        pixmap.fillRectangle(10, 35, 40, 10) // Table top
+                        pixmap.fillRectangle(15, 45, 5, 10) // Legs
+                        pixmap.fillRectangle(40, 45, 5, 10)
+                        pixmap.setColor(Color.WHITE)
+                        pixmap.fillCircle(25, 40, 4) // Plate
+                        pixmap.fillCircle(35, 40, 3) // Cup
                     }
-                    InteriorType.BOOKSHELF_2D -> {
+                    InteriorType.BOOKSHELF_3D -> {
+                        // 3D Bookshelf
                         pixmap.fillRectangle(15, 10, 30, 45) // Shelf body
                         pixmap.setColor(Color.DARK_GRAY)
                         pixmap.fillRectangle(18, 20, 24, 2) // Shelf lines
                         pixmap.fillRectangle(18, 30, 24, 2)
                         pixmap.fillRectangle(18, 40, 24, 2)
+                        pixmap.setColor(Color(0.8f, 0.2f, 0.2f, 1f)) // Books
+                        pixmap.fillRectangle(20, 22, 3, 6)
+                        pixmap.fillRectangle(25, 22, 4, 6)
+                        pixmap.fillRectangle(32, 22, 3, 6)
                     }
-                    else -> pixmap.fillRectangle(20, 20, 20, 20) // Generic furniture
+                    else -> {
+                        // Generic furniture
+                        pixmap.fillRectangle(20, 20, 20, 20)
+                    }
                 }
             }
             InteriorCategory.DECORATION -> {
                 pixmap.setColor(Color(0.4f, 0.8f, 0.4f, 1f)) // Green for decoration
                 when (interiorType) {
-                    InteriorType.PLANT_SMALL -> {
-                        pixmap.fillRectangle(25, 45, 10, 10) // Pot
-                        pixmap.setColor(Color.GREEN)
-                        pixmap.fillCircle(30, 35, 8) // Plant
+                    InteriorType.BOARD -> {
+                        // Notice board or bulletin board
+                        pixmap.setColor(Color(0.8f, 0.6f, 0.4f, 1f)) // Wood frame
+                        pixmap.fillRectangle(15, 20, 30, 25)
+                        pixmap.setColor(Color.WHITE) // Paper/board surface
+                        pixmap.fillRectangle(18, 23, 24, 19)
+                        pixmap.setColor(Color.BLACK) // Text lines
+                        pixmap.drawLine(20, 35, 38, 35)
+                        pixmap.drawLine(20, 30, 35, 30)
+                        pixmap.drawLine(20, 25, 40, 25)
                     }
-                    InteriorType.PAINTING -> {
+                    InteriorType.ITEM_FRAME -> {
+                        // Picture frame
                         pixmap.setColor(Color(0.8f, 0.6f, 0.4f, 1f)) // Frame
                         pixmap.fillRectangle(15, 20, 30, 25)
                         pixmap.setColor(Color(0.2f, 0.4f, 0.8f, 1f)) // Picture
                         pixmap.fillRectangle(18, 23, 24, 19)
+                        pixmap.setColor(Color.YELLOW) // Highlight
+                        pixmap.fillRectangle(20, 25, 8, 8)
                     }
-                    else -> pixmap.fillCircle(30, 30, 15) // Generic decoration
+                    else -> {
+                        // Generic decoration
+                        pixmap.fillCircle(30, 30, 15)
+                    }
                 }
             }
             InteriorCategory.LIGHTING -> {
                 pixmap.setColor(Color(0.9f, 0.9f, 0.4f, 1f)) // Yellow for lighting
                 when (interiorType) {
-                    InteriorType.LAMP -> {
+                    InteriorType.BROKEN_LAMP -> {
+                        // Broken lamp with cracks
                         pixmap.fillRectangle(28, 40, 4, 15) // Stand
+                        pixmap.setColor(Color(0.7f, 0.7f, 0.3f, 1f)) // Dimmer shade
                         pixmap.fillCircle(30, 25, 10) // Lampshade
+                        pixmap.setColor(Color.BLACK) // Crack lines
+                        pixmap.drawLine(25, 20, 35, 30)
+                        pixmap.drawLine(22, 25, 32, 35)
                     }
-                    else -> pixmap.fillCircle(30, 30, 12) // Generic light
-                }
-            }
-            InteriorCategory.APPLIANCE -> {
-                pixmap.setColor(Color(0.7f, 0.7f, 0.7f, 1f)) // Gray for appliances
-                when (interiorType) {
-                    InteriorType.STOVE_3D -> {
-                        pixmap.fillRectangle(15, 30, 30, 25) // Stove body
-                        pixmap.setColor(Color.BLACK)
-                        pixmap.fillCircle(25, 40, 3) // Burner
-                        pixmap.fillCircle(35, 40, 3) // Burner
+                    InteriorType.DESK_LAMP -> {
+                        // Desk lamp with adjustable arm
+                        pixmap.fillRectangle(25, 45, 10, 8) // Base
+                        pixmap.fillRectangle(28, 35, 4, 10) // Arm
+                        pixmap.fillRectangle(25, 25, 4, 10) // Upper arm
+                        pixmap.fillCircle(25, 20, 6) // Lamp head
                     }
-                    InteriorType.FRIDGE_3D -> {
-                        pixmap.fillRectangle(20, 10, 20, 45) // Fridge body
-                        pixmap.setColor(Color.DARK_GRAY)
-                        pixmap.fillRectangle(22, 30, 16, 2) // Door line
+                    InteriorType.HANDLANTERN -> {
+                        // Hand lantern
+                        pixmap.setColor(Color(0.4f, 0.4f, 0.4f, 1f)) // Metal
+                        pixmap.fillRectangle(25, 15, 10, 8) // Top handle
+                        pixmap.fillRectangle(27, 25, 6, 20) // Body
+                        pixmap.setColor(Color.YELLOW) // Light
+                        pixmap.fillCircle(30, 30, 4)
                     }
-                    else -> pixmap.fillRectangle(20, 20, 20, 20) // Generic appliance
+                    else -> {
+                        // Generic light
+                        pixmap.fillCircle(30, 30, 12)
+                    }
                 }
             }
             InteriorCategory.MISC -> {
                 pixmap.setColor(Color(0.6f, 0.6f, 0.6f, 1f)) // Gray for misc
-                pixmap.fillRectangle(20, 20, 20, 20) // Generic box
+                when (interiorType) {
+                    InteriorType.MONEY_STACK -> {
+                        // Stack of money/bills
+                        pixmap.setColor(Color(0.2f, 0.7f, 0.2f, 1f)) // Green money
+                        pixmap.fillRectangle(20, 40, 20, 4) // Bills
+                        pixmap.fillRectangle(22, 36, 16, 4)
+                        pixmap.fillRectangle(24, 32, 12, 4)
+                        pixmap.setColor(Color.YELLOW) // Coins
+                        pixmap.fillCircle(35, 45, 3)
+                        pixmap.fillCircle(38, 42, 2)
+                    }
+                    InteriorType.TELEPHONE -> {
+                        // Old telephone
+                        pixmap.setColor(Color.BLACK) // Phone body
+                        pixmap.fillRectangle(20, 35, 20, 15) // Base
+                        pixmap.fillRectangle(25, 25, 10, 10) // Handset
+                        pixmap.setColor(Color.DARK_GRAY) // Dial/buttons
+                        pixmap.fillCircle(25, 40, 2)
+                        pixmap.fillCircle(30, 40, 2)
+                        pixmap.fillCircle(35, 40, 2)
+                    }
+                    else -> {
+                        // Generic misc item
+                        pixmap.fillRectangle(20, 20, 20, 20)
+                    }
+                }
+            }
+            InteriorCategory.APPLIANCE -> {
+                pixmap.setColor(Color(0.7f, 0.7f, 0.7f, 1f)) // Gray for appliances
+                // No appliances in your current enum, so just generic
+                pixmap.fillRectangle(20, 20, 20, 20)
             }
         }
 

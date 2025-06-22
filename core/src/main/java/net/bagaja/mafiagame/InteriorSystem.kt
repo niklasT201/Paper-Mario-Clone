@@ -30,21 +30,23 @@ enum class InteriorType(
     val hasCollision: Boolean = true,
     val category: InteriorCategory = InteriorCategory.FURNITURE
 ) {
-    // 2D Billboard objects
-    PLANT_SMALL("Small Plant", "textures/interior/room_floor_tile.png", null, 1f, 2f, 1f, false, InteriorCategory.DECORATION),
-    PAINTING("Painting", "Interiors/painting.png", null, 2f, 1.5f, 0.1f, false, InteriorCategory.DECORATION),
-    LAMP("Lamp", "Interiors/lamp.png", null, 0.8f, 2.5f, 0.8f, false, InteriorCategory.LIGHTING),
-    BOOKSHELF_2D("Bookshelf", "Interiors/bookshelf.png", null, 2f, 3f, 0.5f, true, InteriorCategory.FURNITURE),
+    // 2D Billboard objects using your actual textures
+    BAR("Bar", "textures/interior/bar.png", null, 2f, 1.5f, 1f, true, InteriorCategory.FURNITURE),
+    BARREL("Barrel", "textures/interior/barrel.png", null, 1f, 1.5f, 1f, true, InteriorCategory.FURNITURE),
+    BOARD("Board", "textures/interior/board.png", null, 2f, 1.5f, 0.1f, false, InteriorCategory.DECORATION),
+    BROKEN_LAMP("Broken Lamp", "textures/interior/broken_lamp.png", null, 0.8f, 2f, 0.8f, false, InteriorCategory.LIGHTING),
+    CHAIR("Chair", "textures/interior/chair.png", null, 1f, 2f, 1f, true, InteriorCategory.FURNITURE),
+    DESK_LAMP("Desk Lamp", "textures/interior/desk_lamp.png", null, 0.6f, 1f, 0.6f, false, InteriorCategory.LIGHTING),
+    HANDLANTERN("Hand Lantern", "textures/interior/handlantern.png", null, 0.5f, 1f, 0.5f, false, InteriorCategory.LIGHTING),
+    ITEM_FRAME("Item Frame", "textures/interior/itemframe.png", null, 1.5f, 1.5f, 0.1f, false, InteriorCategory.DECORATION),
+    MONEY_STACK("Money Stack", "textures/interior/money_stack.png", null, 0.5f, 0.3f, 0.5f, false, InteriorCategory.MISC),
+    OFFICE_CHAIR("Office Chair", "textures/interior/office_chair.png", null, 1f, 2f, 1f, true, InteriorCategory.FURNITURE),
+    TABLE("Table", "textures/interior/table.png", null, 2f, 1.2f, 2f, true, InteriorCategory.FURNITURE),
+    TABLE_DISH("Table with Dish", "textures/interior/table_dish.png", null, 2f, 1.2f, 2f, true, InteriorCategory.FURNITURE),
+    TELEPHONE("Telephone", "textures/interior/telephone.png", null, 0.4f, 0.6f, 0.4f, false, InteriorCategory.MISC),
 
-    // 3D Model objects (same system as houses)
-    SHELF("Wooden Table", "Models/shelf_model.png", "Models/bookshelf.g3dj", 2f, 1f, 4f, true, InteriorCategory.FURNITURE),
-    CHAIR_3D("Chair", "Interiors/chair.png", "Interiors/chair.g3dj", 1f, 2f, 1f, true, InteriorCategory.FURNITURE),
-    SOFA_3D("Sofa", "Interiors/sofa.png", "Interiors/sofa.g3dj", 1.5f, 1f, 3f, true, InteriorCategory.FURNITURE),
-    BED_3D("Bed", "Interiors/bed.png", "Interiors/bed.g3dj", 2f, 1f, 4f, true, InteriorCategory.FURNITURE),
-    DESK_3D("Desk", "Interiors/desk.png", "Interiors/desk.g3dj", 1.5f, 1.2f, 3f, true, InteriorCategory.FURNITURE),
-    CABINET_3D("Cabinet", "Interiors/cabinet.png", "Interiors/cabinet.g3dj", 1f, 2.5f, 2f, true, InteriorCategory.FURNITURE),
-    STOVE_3D("Stove", "Interiors/stove.png", "Interiors/stove.g3dj", 1f, 1.2f, 2f, true, InteriorCategory.APPLIANCE),
-    FRIDGE_3D("Refrigerator", "Interiors/fridge.png", "Interiors/fridge.g3dj", 1.5f, 2.5f, 2f, true, InteriorCategory.APPLIANCE);
+    // 3D Model objects - only the bookshelf for now
+    BOOKSHELF_3D("Bookshelf", "Models/shelf_model.png", "Models/bookshelf.g3dj", 2f, 3f, 1f, true, InteriorCategory.FURNITURE);
 
     val is3D: Boolean get() = modelPath != null
     val is2D: Boolean get() = modelPath == null
@@ -64,7 +66,7 @@ class InteriorSystem : IFinePositionable {
     private val interiorTextures = mutableMapOf<InteriorType, Texture>()
     private val modelLoader = G3dModelLoader(JsonReader())
 
-    var currentSelectedInterior = InteriorType.SHELF
+    var currentSelectedInterior = InteriorType.BAR
     var currentSelectedInteriorIndex = 0
 
     override var finePosMode = false
