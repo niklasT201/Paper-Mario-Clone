@@ -26,7 +26,8 @@ class UIManager(
     private val houseSystem: HouseSystem,
     private val backgroundSystem: BackgroundSystem,
     private val parallaxSystem: ParallaxBackgroundSystem,
-    private val roomTemplateManager: RoomTemplateManager
+    private val roomTemplateManager: RoomTemplateManager,
+    private val interiorSystem: InteriorSystem
 ) {
     private lateinit var stage: Stage
     private lateinit var skin: Skin
@@ -37,6 +38,7 @@ class UIManager(
     private lateinit var houseSelectionUI: HouseSelectionUI
     private lateinit var backgroundSelectionUI: BackgroundSelectionUI
     private lateinit var parallaxSelectionUI: ParallaxSelectionUI
+    private lateinit var interiorSelectionUI: InteriorSelectionUI
     private lateinit var lightSourceUI: LightSourceUI
     private lateinit var mainTable: Table
     private lateinit var toolButtons: MutableList<Table>
@@ -59,7 +61,7 @@ class UIManager(
     private val TEXT_MUTED = Color(0.6f, 0.6f, 0.7f, 1f)
 
     enum class Tool {
-        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX
+        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR
     }
 
     fun initialize() {
@@ -98,6 +100,10 @@ class UIManager(
         // Initialize parallax selection UI
         parallaxSelectionUI = ParallaxSelectionUI(parallaxSystem, skin, stage)
         parallaxSelectionUI.initialize()
+
+        // Initialize interior selection UI
+        interiorSelectionUI = InteriorSelectionUI(interiorSystem, skin, stage)
+        interiorSelectionUI.initialize()
 
         // Set initial visibility for the main UI panel
         mainTable.isVisible = isUIVisible
@@ -302,6 +308,7 @@ class UIManager(
             "Houses" to "0" to "🏠",
             "Backgrounds" to "0" to "🌄",
             "Parallax" to "0" to "🏞️",
+            "Interiors" to "0" to "🛋️",
         )
 
         for ((data, icon) in statItems) {
@@ -543,6 +550,7 @@ class UIManager(
             Tool.HOUSE -> Color(0.5f, 0.9f, 0.3f, 1f)
             Tool.BACKGROUND -> Color(0.2f, 0.7f, 1f, 1f)
             Tool.PARALLAX -> Color(0.4f, 0.8f, 0.7f, 1f)
+            Tool.INTERIOR -> Color.BROWN
         }
 
         // Create gradient background
@@ -706,6 +714,18 @@ class UIManager(
                 pixmap.setColor(Color(0.3f, 0.6f, 0.2f, 1f))
                 pixmap.fillRectangle(4, 26, 28, 8)
             }
+            Tool.INTERIOR -> {
+                // A simple chair icon
+                pixmap.setColor(shadowColor)
+                pixmap.fillRectangle(12, 20, 14, 8) // Seat shadow
+                pixmap.fillRectangle(22, 10, 4, 12) // Back shadow
+
+                pixmap.setColor(highlightColor)
+                pixmap.fillRectangle(11, 19, 14, 8) // Seat
+                pixmap.fillRectangle(21, 9, 4, 12)  // Back
+                pixmap.fillRectangle(12, 27, 4, 6) // Front leg
+                pixmap.fillRectangle(20, 27, 4, 6) // Back leg
+            }
         }
 
         val texture = Texture(pixmap)
@@ -723,6 +743,7 @@ class UIManager(
             Tool.HOUSE -> Color(0.5f, 0.9f, 0.3f, 1f)
             Tool.BACKGROUND -> ACCENT_COLOR
             Tool.PARALLAX -> Color(0.4f, 0.8f, 0.7f, 1f)
+            Tool.INTERIOR -> Color(0.8f, 0.5f, 0.2f, 1f)
         }
     }
 
@@ -736,6 +757,7 @@ class UIManager(
             Tool.HOUSE -> "House"
             Tool.BACKGROUND -> "Background"
             Tool.PARALLAX -> "Parallax"
+            Tool.INTERIOR -> "Interior"
         }
     }
 
@@ -1018,6 +1040,18 @@ class UIManager(
         houseSelectionUI.update()
     }
 
+    fun showInteriorSelection() {
+        interiorSelectionUI.show()
+    }
+
+    fun hideInteriorSelection() {
+        interiorSelectionUI.hide()
+    }
+
+    fun updateInteriorSelection() {
+        interiorSelectionUI.update()
+    }
+
     fun getLightSourceSettings(): Tuple6<Float, Float, Color, Float, Float, Float> {
         return lightSourceUI.getCurrentSettings()
     }
@@ -1164,6 +1198,7 @@ class UIManager(
         houseSelectionUI.dispose()
         backgroundSelectionUI.dispose()
         parallaxSelectionUI.dispose()
+        interiorSelectionUI.dispose()
         lightSourceUI.dispose()
         stage.dispose()
         skin.dispose()

@@ -17,6 +17,7 @@ class InputHandler(
     private val houseSystem: HouseSystem,
     private val backgroundSystem: BackgroundSystem,
     private val parallaxSystem: ParallaxBackgroundSystem,
+    private val interiorSystem: InteriorSystem,
     private val sceneManager: SceneManager,
     private val roomTemplateManager: RoomTemplateManager,
     private val onLeftClick: (screenX: Int, screenY: Int) -> Unit,
@@ -33,7 +34,8 @@ class InputHandler(
     private var isCarSelectionMode = false
     private var isHouseSelectionMode = false
     private var isBackgroundSelectionMode = false
-    private var isParallaxSelectionMode = false // NEW
+    private var isParallaxSelectionMode = false
+    private var isInteriorSelectionMode = false
     private var isTimeSpeedUpPressed = false
 
     // Variables for continuous block placement/removal
@@ -188,6 +190,10 @@ class InputHandler(
                 } else if (isParallaxSelectionMode) {
                     if (amountY > 0) uiManager.nextParallaxImage() else uiManager.previousParallaxImage()
                     return true
+                } else if (isInteriorSelectionMode) {
+                    if (amountY > 0) interiorSystem.nextInterior() else interiorSystem.previousInterior()
+                    uiManager.updateInteriorSelection()
+                    return true
                 } else {
                     // Normal camera zoom
                     cameraManager.handleMouseScroll(amountY)
@@ -300,6 +306,11 @@ class InputHandler(
                         return true
                     }
                     Input.Keys.F -> {
+                        if (isInteriorSelectionMode) {
+                            interiorSystem.toggleFinePosMode()
+                            uiManager.updateInteriorSelection()
+                            return true
+                        }
                         getCurrentPositionableSystem()?.toggleFinePosMode()
                         return true
                     }
@@ -330,6 +341,7 @@ class InputHandler(
                     Input.Keys.NUMPAD_6 -> uiManager.selectedTool = Tool.HOUSE
                     Input.Keys.NUMPAD_7 -> uiManager.selectedTool = Tool.BACKGROUND
                     Input.Keys.NUMPAD_8 -> uiManager.selectedTool = Tool.PARALLAX
+                    Input.Keys.NUMPAD_9 -> uiManager.selectedTool = Tool.INTERIOR
                     // Fine positioning controls
                     Input.Keys.LEFT -> {
                         if (getCurrentPositionableSystem()?.finePosMode == true) {
@@ -378,9 +390,23 @@ class InputHandler(
                             return true
                         }
                     }
+                    Input.Keys.J -> {
+                        if (!isInteriorSelectionMode && !isItemSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
+                            isInteriorSelectionMode = true
+                            uiManager.showInteriorSelection()
+                        }
+                        return true
+                    }
+                    Input.Keys.R -> {
+                        if (isInteriorSelectionMode) {
+                            interiorSystem.rotateSelection()
+                            uiManager.updateInteriorSelection()
+                            return true
+                        }
+                    }
                 }
                 // Update UI after tool selection
-                if (keycode in Input.Keys.NUMPAD_1..Input.Keys.NUMPAD_8) {
+                if (keycode in Input.Keys.NUMPAD_1..Input.Keys.NUMPAD_9) {
                     uiManager.updateToolDisplay()
                     // Update preview in case we switched to/from the background tool
                     handleBackgroundPreviewUpdate(Gdx.input.x, Gdx.input.y)
@@ -403,6 +429,7 @@ class InputHandler(
                             return true
                         }
                     }
+                    Input.Keys.J -> { isInteriorSelectionMode = false; uiManager.hideInteriorSelection(); return true }
                     // Release fine positioning keys
                     Input.Keys.LEFT -> { leftPressed = false; return true }
                     Input.Keys.RIGHT -> { rightPressed = false; return true }
@@ -493,6 +520,7 @@ class InputHandler(
             Tool.HOUSE -> houseSystem
             Tool.ITEM -> itemSystem
             Tool.BACKGROUND -> backgroundSystem
+            Tool.INTERIOR -> interiorSystem
             else -> null
         }
     }

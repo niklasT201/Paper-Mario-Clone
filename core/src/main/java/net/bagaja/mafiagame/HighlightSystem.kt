@@ -36,7 +36,9 @@ class HighlightSystem(private val blockSize: Float) {
         UIManager.Tool.PLAYER to Color(0f, 1f, 0f, 0.3f),     // Green
         UIManager.Tool.HOUSE to Color(0f, 1f, 1f, 0.3f),      // Cyan
         UIManager.Tool.BACKGROUND to Color(1f, 0.5f, 0f, 0.3f), // Orange
-        UIManager.Tool.PARALLAX to Color(0.4f, 0.8f, 0.7f, 0.3f)  // Teal
+        UIManager.Tool.PARALLAX to Color(0.4f, 0.8f, 0.7f, 0.3f),  // Teal
+        UIManager.Tool.INTERIOR to Color(0.8f, 0.5f, 0.2f, 0.3f) // Brown
+
     )
 
     fun initialize() {
@@ -87,7 +89,9 @@ class HighlightSystem(private val blockSize: Float) {
         parallaxSystem: ParallaxBackgroundSystem,
         itemSystem: ItemSystem,
         objectSystem: ObjectSystem,
-        raycastSystem: RaycastSystem
+        raycastSystem: RaycastSystem,
+        gameInteriors: Array<GameInterior>,
+        interiorSystem: InteriorSystem,
     ) {
         val mouseX = Gdx.input.x.toFloat()
         val mouseY = Gdx.input.y.toFloat()
@@ -102,6 +106,7 @@ class HighlightSystem(private val blockSize: Float) {
             UIManager.Tool.HOUSE -> updateHouseHighlight(ray, gameHouses, raycastSystem, uiManager)
             UIManager.Tool.BACKGROUND -> updateBackgroundHighlight(ray, backgroundSystem, raycastSystem, uiManager)
             UIManager.Tool.PARALLAX -> updateParallaxHighlight(ray, uiManager, parallaxSystem, raycastSystem)
+            UIManager.Tool.INTERIOR -> updateInteriorHighlight(ray, gameInteriors, interiorSystem, raycastSystem)
         }
     }
 
@@ -358,6 +363,33 @@ class HighlightSystem(private val blockSize: Float) {
             } else {
                 hideHighlight()
             }
+        } else {
+            hideHighlight()
+        }
+    }
+
+    private fun updateInteriorHighlight(ray: Ray, gameInteriors: Array<GameInterior>, interiorSystem: InteriorSystem, raycastSystem: RaycastSystem) {
+        // First, check if hovering over an existing interior to remove it
+        val interiorToRemove = raycastSystem.getInteriorAtRay(ray, gameInteriors)
+        if (interiorToRemove != null) {
+            val size = Vector3(interiorToRemove.interiorType.width, interiorToRemove.interiorType.height, interiorToRemove.interiorType.depth)
+            updateHighlightSize(size)
+            showHighlight(interiorToRemove.position, removeColor)
+            return
+        }
+
+        // If not removing, show placement highlight on the floor (Y=0)
+        val intersection = Vector3()
+        val floorPlane = Plane(Vector3.Y, 0f)
+
+        if (Intersector.intersectRayPlane(ray, floorPlane, intersection)) {
+            val selectedType = interiorSystem.currentSelectedInterior
+            val highlightSize = Vector3(selectedType.width, selectedType.height, selectedType.depth)
+            updateHighlightSize(highlightSize)
+
+            // Center the highlight box at the placement position, raised by half its height
+            val placementPos = Vector3(intersection.x, intersection.y + highlightSize.y / 2f, intersection.z)
+            showHighlight(placementPos, toolColors[UIManager.Tool.INTERIOR]!!)
         } else {
             hideHighlight()
         }

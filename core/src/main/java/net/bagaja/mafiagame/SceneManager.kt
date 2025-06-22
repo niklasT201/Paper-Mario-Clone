@@ -23,6 +23,7 @@ class SceneManager(
     private val blockSystem: BlockSystem,
     private val objectSystem: ObjectSystem,
     private val itemSystem: ItemSystem,
+    private val interiorSystem: InteriorSystem,
     private val roomTemplateManager: RoomTemplateManager,
     private val cameraManager: CameraManager,
     private val transitionSystem: TransitionSystem
@@ -33,6 +34,7 @@ class SceneManager(
     val activeCars = Array<GameCar>()
     val activeHouses = Array<GameHouse>()
     val activeItems = Array<GameItem>()
+    val activeInteriors = Array<GameInterior>()
 
     // --- STATE MANAGEMENT ---
     var currentScene: SceneType = SceneType.WORLD
@@ -192,6 +194,7 @@ class SceneManager(
         currentState.blocks.clear(); currentState.blocks.addAll(activeBlocks)
         currentState.objects.clear(); currentState.objects.addAll(activeObjects)
         currentState.items.clear(); currentState.items.addAll(activeItems)
+        currentState.interiors.clear(); currentState.interiors.addAll(activeInteriors)
         currentState.playerPosition.set(playerSystem.getPosition())
     }
 
@@ -201,6 +204,7 @@ class SceneManager(
         activeBlocks.addAll(state.blocks)
         activeObjects.addAll(state.objects)
         activeItems.addAll(state.items)
+        activeInteriors.addAll(state.interiors)
 
         // Synchronize the ItemSystem with the loaded interior items
         itemSystem.setActiveItems(activeItems)
@@ -210,6 +214,7 @@ class SceneManager(
         val newBlocks = Array<GameBlock>()
         val newObjects = Array<GameObject>()
         val newItems = Array<GameItem>()
+        val newInteriors = Array<GameInterior>() // <<< ADD THIS
 
         println("Building interior from template: ${template.name}")
 
@@ -240,6 +245,17 @@ class SceneManager(
                         }
                     }
                 }
+                RoomElementType.INTERIOR -> {
+                    element.interiorType?.let { interiorType ->
+                        interiorSystem.createInteriorInstance(interiorType)?.let { gameInterior ->
+                            gameInterior.position.set(element.position)
+                            gameInterior.rotation = element.rotation
+                            gameInterior.scale.set(element.scale)
+                            gameInterior.updateTransform()
+                            newInteriors.add(gameInterior)
+                        }
+                    }
+                }
             }
         }
 
@@ -248,7 +264,8 @@ class SceneManager(
             blocks = newBlocks,
             objects = newObjects,
             items = newItems,
-            playerPosition = template.entrancePosition.cpy() // Player starts at the template's entrance
+            interiors = newInteriors,
+            playerPosition = template.entrancePosition.cpy()
         )
     }
 
@@ -261,6 +278,7 @@ class SceneManager(
             blocks = Array(), // Empty
             objects = Array(), // Empty
             items = Array(), // Empty
+            interiors = Array(),
             // Set a default player position so they don't spawn at (0,0,0) and fall forever.
             playerPosition = Vector3(0f, 8f, 0f)
         )
@@ -305,6 +323,16 @@ class SceneManager(
                 position = item.position.cpy(),
                 elementType = RoomElementType.ITEM,
                 itemType = item.itemType
+            ))
+        }
+
+        activeInteriors.forEach { interior ->
+            elements.add(RoomElement(
+                position = interior.position.cpy(),
+                elementType = RoomElementType.INTERIOR,
+                interiorType = interior.interiorType,
+                rotation = interior.rotation,
+                scale = interior.scale.cpy()
             ))
         }
 
@@ -365,6 +393,16 @@ class SceneManager(
                         activeItems.add(gameItem)
                     }
                 }
+                RoomElementType.INTERIOR -> {
+                    val gameInterior = interiorSystem.createInteriorInstance(element.interiorType!!)
+                    if (gameInterior != null) {
+                        gameInterior.position.set(element.position)
+                        gameInterior.rotation = element.rotation
+                        gameInterior.scale.set(element.scale)
+                        gameInterior.updateTransform()
+                        activeInteriors.add(gameInterior)
+                    }
+                }
             }
         }
 
@@ -382,6 +420,7 @@ class SceneManager(
         activeCars.clear()
         activeHouses.clear()
         activeItems.clear()
+        activeInteriors.clear()
     }
 }
 
@@ -401,7 +440,8 @@ data class InteriorState(
     val blocks: Array<GameBlock> = Array(),
     val objects: Array<GameObject> = Array(),
     val items: Array<GameItem> = Array(),
-    var playerPosition: Vector3 // var because player can move inside
+    val interiors: Array<GameInterior> = Array(),
+    var playerPosition: Vector3
 )
 
 data class InteriorLayout(

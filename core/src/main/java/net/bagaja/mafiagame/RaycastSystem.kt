@@ -212,4 +212,43 @@ class RaycastSystem(private val blockSize: Float) {
 
         return closestLight
     }
+
+    fun getInteriorAtRay(ray: Ray, gameInteriors: Array<GameInterior>): GameInterior? {
+        var closestInterior: GameInterior? = null
+        var closestDistance = Float.MAX_VALUE
+
+        for (interior in gameInteriors) {
+            val intersection = Vector3()
+            var intersects = false
+
+            if (interior.interiorType.is3D) {
+                // Use the precise mesh intersection for 3D objects
+                if (interior.intersectsRay(ray, intersection)) {
+                    intersects = true
+                }
+            } else {
+                // Use a generated bounding box for 2D objects
+                val box = BoundingBox()
+                val center = interior.position
+                // Use the dimensions from the InteriorType enum
+                val dimensions = Vector3(interior.interiorType.width, interior.interiorType.height, interior.interiorType.depth)
+                // Center the box on the object's position
+                val halfDim = Vector3(dimensions).scl(0.5f)
+                box.set(center.cpy().sub(halfDim), center.cpy().add(halfDim))
+
+                if (Intersector.intersectRayBounds(ray, box, intersection)) {
+                    intersects = true
+                }
+            }
+
+            if (intersects) {
+                val distance = ray.origin.dst2(intersection)
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestInterior = interior
+                }
+            }
+        }
+        return closestInterior
+    }
 }

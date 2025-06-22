@@ -12,6 +12,7 @@ data class RoomElement(
     val blockType: BlockType? = null,
     val objectType: ObjectType? = null,
     val itemType: ItemType? = null,
+    val interiorType: InteriorType? = null,
     val rotation: Float = 0f,
     val scale: Vector3 = Vector3(1f, 1f, 1f)
 )
@@ -19,7 +20,8 @@ data class RoomElement(
 enum class RoomElementType {
     BLOCK,
     OBJECT,
-    ITEM
+    ITEM,
+    INTERIOR
 }
 
 data class RoomTemplate(
@@ -58,7 +60,7 @@ class RoomBuilder {
         return this
     }
 
-    fun addBlock(x: Float, y: Float, z: Float, blockType: BlockType, rotation: Float = 0f): RoomBuilder {
+    private fun addBlock(x: Float, y: Float, z: Float, blockType: BlockType, rotation: Float = 0f): RoomBuilder {
         elements.add(RoomElement(
             position = Vector3(x, y, z),
             elementType = RoomElementType.BLOCK,
@@ -111,6 +113,18 @@ class RoomBuilder {
                 addBlock(roomWidth - blockSize, y.toFloat(), z.toFloat(), wallType) // Right wall
             }
         }
+        return this
+    }
+
+    // Add this new method inside the RoomBuilder class
+    fun addInterior(x: Float, y: Float, z: Float, interiorType: InteriorType, rotation: Float = 0f, scale: Vector3 = Vector3(1f, 1f, 1f)): RoomBuilder {
+        elements.add(RoomElement(
+            position = Vector3(x, y, z),
+            elementType = RoomElementType.INTERIOR,
+            interiorType = interiorType,
+            rotation = rotation,
+            scale = scale
+        ))
         return this
     }
 

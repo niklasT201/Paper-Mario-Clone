@@ -48,6 +48,7 @@ class MafiaGame : ApplicationAdapter() {
 
     private lateinit var backgroundSystem: BackgroundSystem
     private lateinit var parallaxBackgroundSystem: ParallaxBackgroundSystem
+    private lateinit var interiorSystem: InteriorSystem
 
     // Block size
     private val blockSize = 4f
@@ -63,6 +64,7 @@ class MafiaGame : ApplicationAdapter() {
         setupHouseSystem()
         setupBackgroundSystem()
         setupParallaxSystem()
+        setupInteriorSystem()
 
         roomTemplateManager = RoomTemplateManager()
         roomTemplateManager.initialize()
@@ -78,6 +80,7 @@ class MafiaGame : ApplicationAdapter() {
             blockSystem,
             objectSystem,
             itemSystem,
+            interiorSystem,
             roomTemplateManager,
             cameraManager,
             transitionSystem
@@ -86,7 +89,7 @@ class MafiaGame : ApplicationAdapter() {
         transitionSystem.create(cameraManager.findUiCamera())
 
         // Initialize UI Manager
-        uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem, houseSystem, backgroundSystem, parallaxBackgroundSystem, roomTemplateManager)
+        uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem, houseSystem, backgroundSystem, parallaxBackgroundSystem, roomTemplateManager, interiorSystem)
         uiManager.initialize()
 
         // Initialize Input Handler
@@ -100,6 +103,7 @@ class MafiaGame : ApplicationAdapter() {
             houseSystem,
             backgroundSystem,
             parallaxBackgroundSystem,
+            interiorSystem,
             sceneManager,
             roomTemplateManager,
             this::handleLeftClickAction,
@@ -171,6 +175,11 @@ class MafiaGame : ApplicationAdapter() {
     private fun setupParallaxSystem() {
         parallaxBackgroundSystem = ParallaxBackgroundSystem()
         parallaxBackgroundSystem.initialize()
+    }
+
+    private fun setupInteriorSystem() {
+        interiorSystem = InteriorSystem()
+        interiorSystem.initialize()
     }
 
     private fun handlePlayerInput() {
@@ -258,6 +267,7 @@ class MafiaGame : ApplicationAdapter() {
                 backgroundSystem.hidePreview()
             }
             UIManager.Tool.PARALLAX -> placeParallaxImage(ray)
+            UIManager.Tool.INTERIOR -> placeInterior(ray)
         }
     }
 
@@ -335,6 +345,14 @@ class MafiaGame : ApplicationAdapter() {
                     return true
                 }
             }
+            UIManager.Tool.INTERIOR -> {
+                // Note: You will need to expose `activeInteriors` from your SceneManager
+                val interiorToRemove = raycastSystem.getInteriorAtRay(ray, sceneManager.activeInteriors)
+                if (interiorToRemove != null) {
+                    removeInterior(interiorToRemove)
+                    return true
+                }
+            }
         }
         return false
     }
@@ -396,6 +414,11 @@ class MafiaGame : ApplicationAdapter() {
                 instance.position.add(deltaX, deltaY, deltaZ)
                 instance.modelInstance.transform.setTranslation(instance.position)
                 println("Moved Background to ${instance.position}")
+            }
+            is GameInterior -> {
+                instance.position.add(deltaX, deltaY, deltaZ)
+                instance.updateTransform()
+                println("Moved Interior to ${instance.position}")
             }
             else -> println("Fine positioning not supported for this object type.")
         }
@@ -920,6 +943,42 @@ class MafiaGame : ApplicationAdapter() {
         println("${backgroundToRemove.backgroundType.displayName} removed at: ${backgroundToRemove.position}")
     }
 
+    private fun placeInterior(ray: Ray) {
+        // Interior placement only makes sense inside a house
+        if (sceneManager.currentScene != SceneType.HOUSE_INTERIOR) {
+            println("Can only place interiors inside a house.")
+            return
+        }
+
+        // Raycast against a floor plane. Assume floor is at Y=0 in local interior space.
+        val intersection = Vector3()
+        val floorPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, floorPlane, intersection)) {
+            addInterior(intersection, interiorSystem.currentSelectedInterior)
+        }
+    }
+
+    private fun addInterior(position: Vector3, interiorType: InteriorType) {
+        val newInterior = interiorSystem.createInteriorInstance(interiorType) ?: return
+
+        newInterior.position.set(position)
+        // Raise the object so its base is at the specified position
+        newInterior.position.y += interiorType.height / 2f
+        newInterior.rotation = interiorSystem.currentRotation
+        newInterior.updateTransform()
+
+        // Add to the scene manager's list of active interiors
+        sceneManager.activeInteriors.add(newInterior)
+        lastPlacedInstance = newInterior
+        println("${interiorType.displayName} placed at: $position")
+    }
+
+    private fun removeInterior(interiorToRemove: GameInterior) {
+        sceneManager.activeInteriors.removeValue(interiorToRemove, true)
+        println("${interiorToRemove.interiorType.displayName} removed at: ${interiorToRemove.position}")
+    }
+
     override fun render() {
         // Clear screen
         Gdx.gl.glViewport(0, 0, Gdx.graphics.width, Gdx.graphics.height)
@@ -969,7 +1028,9 @@ class MafiaGame : ApplicationAdapter() {
             parallaxBackgroundSystem,
             itemSystem,
             objectSystem,
-            raycastSystem
+            raycastSystem,
+            sceneManager.activeInteriors,
+            interiorSystem,
         )
 
         //shaderProvider.setEnvironment(environment)
@@ -1023,6 +1084,16 @@ class MafiaGame : ApplicationAdapter() {
             modelBatch.render(background.modelInstance, environment)
         }
 
+        for (interior in sceneManager.activeInteriors) {
+            if (interior.interiorType.is3D) {
+                interior.render3D(modelBatch, environment)
+            } else {
+                // NOTE: The render2D method in GameInterior is flawed as it uses SpriteBatch.
+                // A proper billboard system that works with the 3D pipeline is required here.
+                // For now, this will only render your 3D interior objects.
+            }
+        }
+
         // Render background preview
         backgroundSystem.renderPreview(modelBatch, cameraManager.camera, environment)
 
@@ -1070,6 +1141,7 @@ class MafiaGame : ApplicationAdapter() {
         highlightSystem.dispose()
         lightingManager.dispose()
         parallaxBackgroundSystem.dispose()
+        interiorSystem.dispose()
         transitionSystem.dispose()
 
         // Dispose UIManager
