@@ -38,16 +38,16 @@ public class Lwjgl3Launcher {
 // fire asset
 // industrial assets
 
-// room/open world transition effect
+// room/open world transition effect being slower and smoother transition itself
 // adding random generation for room interior
 
 // map saving
+// improve camera for interiors
 // cars can be locked
 // maybe changing 30 min daycicle to 50
 // enemies have an inventory and collect items
 // footprints when moving through dead enemies
 // physics
-// adding saving for world building
 // adding guns
 // adding ammunition
 // adding health

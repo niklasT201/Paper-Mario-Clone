@@ -95,6 +95,88 @@ class PlayerSystem {
         println("Player position set to: $newPosition")
     }
 
+    private fun canMoveToWithDoorCollision(x: Float, y: Float, z: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {
+        val horizontalShrink = 0.2f // Normal shrink for most objects
+        val doorHorizontalShrink = 0.8f // Much smaller collision box for doors
+
+        // Create normal collision bounds for blocks and houses
+        val normalBounds = BoundingBox()
+        normalBounds.set(
+            Vector3(x - (playerSize.x / 2 - horizontalShrink), y - playerSize.y / 2, z - (playerSize.z / 2 - horizontalShrink)),
+            Vector3(x + (playerSize.x / 2 - horizontalShrink), y + playerSize.y / 2, z + (playerSize.z / 2 - horizontalShrink))
+        )
+
+        // Create smaller collision bounds specifically for doors
+        val doorBounds = BoundingBox()
+        doorBounds.set(
+            Vector3(x - (playerSize.x / 2 - doorHorizontalShrink), y - playerSize.y / 2, z - (playerSize.z / 2 - doorHorizontalShrink)),
+            Vector3(x + (playerSize.x / 2 - doorHorizontalShrink), y + playerSize.y / 2, z + (playerSize.z / 2 - doorHorizontalShrink))
+        )
+
+        // Check block collisions with normal bounds
+        for (gameBlock in gameBlocks) {
+            val blockHeight = blockSize * gameBlock.blockType.height
+            val blockBounds = BoundingBox()
+            blockBounds.set(
+                Vector3(gameBlock.position.x - blockSize / 2, gameBlock.position.y - blockHeight / 2, gameBlock.position.z - blockSize / 2),
+                Vector3(gameBlock.position.x + blockSize / 2, gameBlock.position.y + blockHeight / 2, gameBlock.position.z + blockSize / 2)
+            )
+
+            if (normalBounds.intersects(blockBounds)) {
+                val playerBottom = normalBounds.min.y
+                val blockTop = blockBounds.max.y
+                val tolerance = 0.1f
+
+                if (playerBottom >= blockTop - tolerance) {
+                    continue // Player is standing on top
+                }
+                return false // Block collision detected
+            }
+        }
+
+        // Check house collisions with normal bounds
+        for (house in gameHouses) {
+            if (house.houseType == HouseType.STAIR) {
+                continue
+            } else {
+                if (house.collidesWithMesh(normalBounds)) {
+                    return false // Collision with house detected
+                }
+            }
+        }
+
+        // Check interior collisions - use different bounds based on interior type
+        for (interior in gameInteriors) {
+            if (!interior.interiorType.hasCollision) continue
+
+            if (interior.interiorType.is3D) {
+                // For 3D objects, check if it's a door and use appropriate bounds
+                val boundsToUse = if (interior.interiorType == InteriorType.DOOR_INTERIOR) doorBounds else normalBounds
+
+                if (interior.collidesWithMesh(boundsToUse)) {
+                    return false
+                }
+            } else {
+                // For 2D objects, use custom collision detection
+                if (interior.interiorType == InteriorType.DOOR_INTERIOR) {
+                    // Use smaller player radius for door collision
+                    val doorPlayerRadius = (playerSize.x / 2f) - doorHorizontalShrink
+                    if (interior.collidesWithPlayer2D(Vector3(x, y, z), doorPlayerRadius)) {
+                        return false
+                    }
+                } else {
+                    // Use normal player radius for other 2D objects
+                    val normalPlayerRadius = (playerSize.x / 2f) - horizontalShrink
+                    if (interior.collidesWithPlayer2D(Vector3(x, y, z), normalPlayerRadius)) {
+                        return false
+                    }
+                }
+            }
+        }
+
+        return true // No collision detected
+    }
+
     fun handleMovement(deltaTime: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {
         var moved = false
         var currentMovementDirection = 0f
@@ -108,7 +190,7 @@ class PlayerSystem {
             val newX = playerPosition.x - playerSpeed * deltaTime
             // Try to move horizontally first, then adjust Y if needed
             val adjustedY = calculateSafeYPosition(newX, playerPosition.z, originalY, gameBlocks, gameHouses, gameInteriors)
-            if (canMoveTo(newX, adjustedY, playerPosition.z, gameBlocks, gameHouses, gameInteriors)) {
+            if (canMoveToWithDoorCollision(newX, adjustedY, playerPosition.z, gameBlocks, gameHouses, gameInteriors)) {
                 playerPosition.x = newX
                 playerPosition.y = adjustedY
                 moved = true
@@ -118,7 +200,7 @@ class PlayerSystem {
         if (Gdx.input.isKeyPressed(Input.Keys.D)) {
             val newX = playerPosition.x + playerSpeed * deltaTime
             val adjustedY = calculateSafeYPosition(newX, playerPosition.z, originalY, gameBlocks, gameHouses, gameInteriors)
-            if (canMoveTo(newX, adjustedY, playerPosition.z, gameBlocks, gameHouses, gameInteriors)) {
+            if (canMoveToWithDoorCollision(newX, adjustedY, playerPosition.z, gameBlocks, gameHouses, gameInteriors)) {
                 playerPosition.x = newX
                 playerPosition.y = adjustedY
                 moved = true
@@ -128,7 +210,7 @@ class PlayerSystem {
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
             val newZ = playerPosition.z - playerSpeed * deltaTime
             val adjustedY = calculateSafeYPosition(playerPosition.x, newZ, originalY, gameBlocks, gameHouses, gameInteriors)
-            if (canMoveTo(playerPosition.x, adjustedY, newZ, gameBlocks, gameHouses, gameInteriors)) {
+            if (canMoveToWithDoorCollision(playerPosition.x, adjustedY, newZ, gameBlocks, gameHouses, gameInteriors)) {
                 playerPosition.z = newZ
                 playerPosition.y = adjustedY
                 moved = true
@@ -137,7 +219,7 @@ class PlayerSystem {
         if (Gdx.input.isKeyPressed(Input.Keys.S)) {
             val newZ = playerPosition.z + playerSpeed * deltaTime
             val adjustedY = calculateSafeYPosition(playerPosition.x, newZ, originalY, gameBlocks, gameHouses, gameInteriors)
-            if (canMoveTo(playerPosition.x, adjustedY, newZ, gameBlocks, gameHouses, gameInteriors)) {
+            if (canMoveToWithDoorCollision(playerPosition.x, adjustedY, newZ, gameBlocks, gameHouses, gameInteriors)) {
                 playerPosition.z = newZ
                 playerPosition.y = adjustedY
                 moved = true
@@ -364,8 +446,7 @@ class PlayerSystem {
                 if (kotlin.math.abs(blockCenterX - gridX) < tolerance &&
                     kotlin.math.abs(blockCenterZ - gridZ) < tolerance) {
 
-                    // Calculate the top of this block using ACTUAL block height
-                    val blockHeight = blockSize * gameBlock.blockType.height // Fixed: now accounts for 0.8 height!
+                    val blockHeight = blockSize * gameBlock.blockType.height
                     val blockTop = gameBlock.position.y + blockHeight / 2f
 
                     if (blockTop > highestBlockY) {
@@ -378,7 +459,7 @@ class PlayerSystem {
             val playerY = highestBlockY + playerSize.y / 2f // Position player so their bottom is on the block top
 
             // Check if the new position would cause a collision with other objects
-            if (canMoveTo(gridX, playerY, gridZ, gameBlocks, gameHouses, gameInteriors)) {
+            if (canMoveToWithDoorCollision(gridX, playerY, gridZ, gameBlocks, gameHouses, gameInteriors)) {
                 playerPosition.set(gridX, playerY, gridZ)
                 updatePlayerBounds()
                 println("Player placed at: $gridX, $playerY, $gridZ (block height: $highestBlockY)")
