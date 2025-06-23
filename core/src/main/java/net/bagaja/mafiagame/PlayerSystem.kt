@@ -27,7 +27,7 @@ class PlayerSystem {
     private val playerPosition = Vector3(0f, 2f, 0f)
     private val playerSpeed = 8f
     private val playerBounds = BoundingBox()
-    private val playerSize = Vector3(3f, 4f, 3f)
+    private val playerSize = Vector3(3f, 4f, 3f) //z = thickness
 
     // Player rotation for Paper Mario effect
     private var playerTargetRotationY = 0f
@@ -37,6 +37,10 @@ class PlayerSystem {
 
     // Reference to block system for collision detection
     private var blockSize = 4f
+
+    fun getPlayerBounds(): BoundingBox {
+        return playerBounds
+    }
 
     fun initialize(blockSize: Float) {
         this.blockSize = blockSize

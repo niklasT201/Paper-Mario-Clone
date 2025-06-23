@@ -115,6 +115,7 @@ data class GameHouse(
     val position: Vector3,
     val isLocked: Boolean,
     val assignedRoomTemplateId: String? = null,
+    var exitDoorId: String? = null,
     val id: String = UUID.randomUUID().toString()
 ) {
     // Data for Mesh Collision

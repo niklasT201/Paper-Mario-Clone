@@ -33,7 +33,8 @@ data class RoomTemplate(
     val entrancePosition: Vector3 = Vector3(),
     val exitTriggerPosition: Vector3 = Vector3(),
     val exitTriggerSize: Vector3 = Vector3(4f, 4f, 2f),
-    val category: String = "default"
+    val category: String = "default",
+    val exitDoorPosition: Vector3 = Vector3()
 )
 
 // The Builder to make creating templates easy

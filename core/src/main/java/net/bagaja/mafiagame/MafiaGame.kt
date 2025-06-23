@@ -49,6 +49,8 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var backgroundSystem: BackgroundSystem
     private lateinit var parallaxBackgroundSystem: ParallaxBackgroundSystem
     private lateinit var interiorSystem: InteriorSystem
+    private var isPlacingExitDoorMode = false
+    private var houseRequiringDoor: GameHouse? = null
 
     // Block size
     private val blockSize = 4f
@@ -83,7 +85,8 @@ class MafiaGame : ApplicationAdapter() {
             interiorSystem,
             roomTemplateManager,
             cameraManager,
-            transitionSystem
+            transitionSystem,
+            this
         )
 
         transitionSystem.create(cameraManager.findUiCamera())
@@ -243,12 +246,80 @@ class MafiaGame : ApplicationAdapter() {
                     }
                 }
                 SceneType.HOUSE_INTERIOR -> {
-                    // Try to exit the house
-                    sceneManager.transitionToWorld()
+                    // If we are in the special placement mode, 'E' does nothing.
+                    if (isPlacingExitDoorMode) {
+                        println("You must place the designated exit door first!")
+                        uiManager.setPersistentMessage("ACTION LOCKED: Place the EXIT DOOR to continue.")
+                        return
+                    }
+
+                    // IMPROVED EXIT LOGIC
+                    val currentHouse = sceneManager.getCurrentHouse()
+                    if (currentHouse == null) {
+                        println("Error: Cannot find current house data.")
+                        return
+                    }
+
+                    val exitDoorId = currentHouse.exitDoorId
+                    if (exitDoorId == null) {
+                        println("This house has no designated exit! This shouldn't happen in normal gameplay.")
+                        enterExitDoorPlacementMode(currentHouse)
+                        return
+                    }
+
+                    // Find the one specific door that is the exit
+                    val exitDoor = sceneManager.activeInteriors.find { it.id == exitDoorId }
+
+                    if (exitDoor == null) {
+                        println("Error: The designated exit door (ID: $exitDoorId) is missing from the room!")
+                        return
+                    }
+
+                    val playerPos = playerSystem.getPosition()
+                    val playerRadius = 1.5f // Half of player width from PlayerSystem
+
+                    // Collision detection for doors
+                    if (isPlayerNearDoor(playerPos, exitDoor)) {
+                        println("Player is at the designated exit. Leaving...")
+                        sceneManager.transitionToWorld()
+                    } else {
+                        val distance = playerPos.dst(exitDoor.position)
+                        println("You are not close enough to the designated exit door. Distance: $distance")
+
+                        // Debug: Print door position and player position
+                        println("Door position: ${exitDoor.position}")
+                        println("Player position: $playerPos")
+                    }
                 }
-                else -> {} // Do nothing in other states
+                else -> {}
             }
         }
+    }
+
+    private fun isPlayerNearDoor(playerPos: Vector3, door: GameInterior): Boolean {
+        val playerBounds = playerSystem.getPlayerBounds()
+
+        // Create a slightly expanded player bounds for door interaction
+        val expandedBounds = BoundingBox(playerBounds)
+        val expansion = 0.5f // Expand by 0.5 units in all directions
+        expandedBounds.set(
+            expandedBounds.min.sub(expansion, 0f, expansion),
+            expandedBounds.max.add(expansion, 0f, expansion)
+        )
+
+        // Use the special door bounding box
+        val doorBounds = door.getBoundingBoxForDoor()
+
+        val intersects = expandedBounds.intersects(doorBounds)
+
+        if (intersects) {
+            println("Door collision detected using bounding box intersection!")
+        } else {
+            println("No door collision. Player bounds: ${expandedBounds.min} to ${expandedBounds.max}")
+            println("Door bounds: ${doorBounds.min} to ${doorBounds.max}")
+        }
+
+        return intersects
     }
 
     // Callback for InputHandler for left mouse click
@@ -809,7 +880,8 @@ class MafiaGame : ApplicationAdapter() {
             houseType = houseType,
             position = position,
             isLocked = isLocked,
-            assignedRoomTemplateId = roomTemplateId
+            assignedRoomTemplateId = roomTemplateId,
+            exitDoorId = null
         )
         collection.add(gameHouse)
         lastPlacedInstance = gameHouse
@@ -943,6 +1015,24 @@ class MafiaGame : ApplicationAdapter() {
         println("${backgroundToRemove.backgroundType.displayName} removed at: ${backgroundToRemove.position}")
     }
 
+    fun enterExitDoorPlacementMode(house: GameHouse) {
+        println("Entering EXIT DOOR PLACEMENT mode for house ${house.id}")
+        isPlacingExitDoorMode = true
+        houseRequiringDoor = house
+
+        // Force the UI and system to the DOOR_INTERIOR tool
+        uiManager.selectedTool = UIManager.Tool.INTERIOR
+        val doorIndex = InteriorType.entries.indexOf(InteriorType.DOOR_INTERIOR)
+        if (doorIndex != -1) {
+            interiorSystem.currentSelectedInteriorIndex = doorIndex
+            interiorSystem.currentSelectedInterior = InteriorType.DOOR_INTERIOR
+            uiManager.updateInteriorSelection() // Refresh the UI to show the door is selected
+        }
+
+        // Show a persistent message on the UI
+        uiManager.setPersistentMessage("PLACE THE EXIT DOOR (Press J to see options)")
+    }
+
     private fun placeInterior(ray: Ray) {
         // Interior placement only makes sense inside a house
         if (sceneManager.currentScene != SceneType.HOUSE_INTERIOR) {
@@ -950,7 +1040,14 @@ class MafiaGame : ApplicationAdapter() {
             return
         }
 
-        // Raycast against a floor plane. Assume floor is at Y=0 in local interior space.
+        if (isPlacingExitDoorMode) {
+            if (interiorSystem.currentSelectedInterior != InteriorType.DOOR_INTERIOR) {
+                println("You must place a DOOR to designate it as the exit.")
+                uiManager.setPersistentMessage("ERROR: You must select and place a DOOR.")
+                return
+            }
+        }
+
         val intersection = Vector3()
         val floorPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
@@ -972,6 +1069,17 @@ class MafiaGame : ApplicationAdapter() {
         sceneManager.activeInteriors.add(newInterior)
         lastPlacedInstance = newInterior
         println("${interiorType.displayName} placed at: $position")
+
+        // Assign the door and exit placement mode
+        if (isPlacingExitDoorMode && interiorType == InteriorType.DOOR_INTERIOR) {
+            houseRequiringDoor?.exitDoorId = newInterior.id
+            println("SUCCESS: Door ${newInterior.id} assigned as exit for house ${houseRequiringDoor?.id}")
+
+            // Exit the special mode
+            isPlacingExitDoorMode = false
+            houseRequiringDoor = null
+            uiManager.clearPersistentMessage()
+        }
     }
 
     private fun removeInterior(interiorToRemove: GameInterior) {

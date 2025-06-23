@@ -14,6 +14,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
+import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.viewport.ScreenViewport
 import kotlin.math.cos
 import kotlin.math.sin
@@ -44,6 +45,7 @@ class UIManager(
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
     private lateinit var placementInfoLabel: Label
+    private lateinit var persistentMessageLabel: Label
 
     var isUIVisible = false
         private set
@@ -69,6 +71,18 @@ class UIManager(
         skin = createSkin()
 
         setupMainUI()
+
+        persistentMessageLabel = Label("", skin, "title") // Use a prominent style like "title"
+        persistentMessageLabel.setAlignment(Align.center)
+        persistentMessageLabel.color = Color.YELLOW
+        persistentMessageLabel.isVisible = false
+
+        // Create a separate table for it so it can be centered easily
+        val persistentMessageTable = Table()
+        persistentMessageTable.setFillParent(true)
+        persistentMessageTable.top().pad(50f) // Position it near the top
+        persistentMessageTable.add(persistentMessageLabel)
+        stage.addActor(persistentMessageTable) // Add it directly to the stage to overlay everyth
 
         blockSelectionUI = BlockSelectionUI(blockSystem, skin, stage)
         blockSelectionUI.initialize()
@@ -1176,6 +1190,29 @@ class UIManager(
     fun refreshHouseRoomList() {
         if (::houseSelectionUI.isInitialized) {
             houseSelectionUI.refreshRoomList()
+        }
+    }
+
+    fun setPersistentMessage(message: String) {
+        if (::persistentMessageLabel.isInitialized) {
+            persistentMessageLabel.setText(message)
+            persistentMessageLabel.isVisible = true
+
+            // Add a pulsing animation to draw attention
+            persistentMessageLabel.clearActions()
+            persistentMessageLabel.addAction(Actions.forever(
+                Actions.sequence(
+                    Actions.color(Color.WHITE, 0.7f, Interpolation.sine),
+                    Actions.color(Color.YELLOW, 0.7f, Interpolation.sine)
+                )
+            ))
+        }
+    }
+
+    fun clearPersistentMessage() {
+        if (::persistentMessageLabel.isInitialized) {
+            persistentMessageLabel.isVisible = false
+            persistentMessageLabel.clearActions() // Stop the pulsing animation
         }
     }
 

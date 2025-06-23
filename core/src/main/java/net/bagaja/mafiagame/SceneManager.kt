@@ -26,7 +26,8 @@ class SceneManager(
     private val interiorSystem: InteriorSystem,
     private val roomTemplateManager: RoomTemplateManager,
     private val cameraManager: CameraManager,
-    private val transitionSystem: TransitionSystem
+    private val transitionSystem: TransitionSystem,
+    private val game: MafiaGame
 ) {
     // --- ACTIVE SCENE DATA ---
     val activeBlocks = Array<GameBlock>()
@@ -104,7 +105,8 @@ class SceneManager(
 
     private fun completeTransitionToInterior() {
         val house = pendingHouse ?: return
-        var interior = interiorStates[house.id]
+        var interior: InteriorState? = interiorStates[house.id]
+        var foundExitDoorId: String? = null // To store the ID from the template
 
         if (interior == null) {
             println("No saved state for this house instance. Generating new interior from template.")
@@ -112,7 +114,11 @@ class SceneManager(
             if (templateId != null) {
                 val template = roomTemplateManager.getTemplate(templateId)
                 if (template != null) {
-                    interior = createInteriorFromTemplate(house, template)
+                    // Call the modified function and get the Pair result
+                    val (newInteriorState, exitDoorId) = createInteriorFromTemplate(house, template)
+                    interior = newInteriorState
+                    foundExitDoorId = exitDoorId // Store the found ID
+
                     interiorStates[house.id] = interior
                 } else {
                     println("Warning: House has template ID '$templateId' but template was not found. Creating empty room.")
@@ -128,6 +134,12 @@ class SceneManager(
             println("Found saved state for this house instance. Loading it.")
         }
 
+        // If we generated a new interior from a template and found an exit door
+        if (foundExitDoorId != null) {
+            house.exitDoorId = foundExitDoorId
+            println("Assigned exit door ID '${house.exitDoorId}' to house '${house.id}' from template.")
+        }
+
         loadInteriorState(interior)
 
         currentInteriorId = house.id
@@ -135,6 +147,17 @@ class SceneManager(
         playerSystem.setPosition(interior.playerPosition)
         cameraManager.resetAndSnapToPlayer(interior.playerPosition)
         pendingHouse = null
+
+        if (house.exitDoorId == null) {
+            game.enterExitDoorPlacementMode(house)
+        }
+    }
+
+    fun getCurrentHouse(): GameHouse? {
+        if (currentScene != SceneType.HOUSE_INTERIOR || currentInteriorId == null) {
+            return null
+        }
+        return worldState?.houses?.find { it.id == currentInteriorId }
     }
 
     private fun completeTransitionToWorld() {
@@ -210,11 +233,11 @@ class SceneManager(
         itemSystem.setActiveItems(activeItems)
     }
 
-    private fun createInteriorFromTemplate(house: GameHouse, template: RoomTemplate): InteriorState {
+    private fun createInteriorFromTemplate(house: GameHouse, template: RoomTemplate): Pair<InteriorState, String?> {
         val newBlocks = Array<GameBlock>()
         val newObjects = Array<GameObject>()
         val newItems = Array<GameItem>()
-        val newInteriors = Array<GameInterior>() // <<< ADD THIS
+        val newInteriors = Array<GameInterior>()
 
         println("Building interior from template: ${template.name}")
 
@@ -259,7 +282,24 @@ class SceneManager(
             }
         }
 
-        return InteriorState(
+        var foundExitDoorId: String? = null
+        // Check if the template has a valid saved door position.
+        if (template.exitDoorPosition.len2() > 0) {
+            // Find the door in the newly created interiors that is closest to the saved position.
+            val closestDoor = newInteriors
+                .filter { it.interiorType == InteriorType.DOOR_INTERIOR }
+                .minByOrNull { it.position.dst2(template.exitDoorPosition) }
+
+            if (closestDoor != null) {
+                foundExitDoorId = closestDoor.id
+                println("Template specified an exit door. Found closest match with new ID: $foundExitDoorId")
+            } else {
+                println("Template has an exit door position, but no door object was found in the template's elements.")
+            }
+        }
+
+        // Create the state object
+        val interiorState = InteriorState(
             houseId = house.id,
             blocks = newBlocks,
             objects = newObjects,
@@ -267,6 +307,9 @@ class SceneManager(
             interiors = newInteriors,
             playerPosition = template.entrancePosition.cpy()
         )
+
+        // Return both the state AND the found door ID
+        return Pair(interiorState, foundExitDoorId)
     }
 
     private fun createNewEmptyInteriorFor(house: GameHouse): InteriorState {
@@ -275,11 +318,10 @@ class SceneManager(
         // Create the state with empty lists of objects.
         val newState = InteriorState(
             houseId = house.id,
-            blocks = Array(), // Empty
-            objects = Array(), // Empty
-            items = Array(), // Empty
-            interiors = Array(),
-            // Set a default player position so they don't spawn at (0,0,0) and fall forever.
+            blocks = Array(),
+            objects = Array(),
+            items = Array(),
+            interiors = Array(), // The interiors list start empty
             playerPosition = Vector3(0f, 8f, 0f)
         )
 
@@ -292,6 +334,20 @@ class SceneManager(
         if (currentScene != SceneType.HOUSE_INTERIOR) {
             println("Error: Must be in an interior to save it as a template.")
             return false
+        }
+
+       // Find the house we are currently in to get its exit door ID
+        val currentHouse = getCurrentHouse()
+        var doorPosition = Vector3() // Default to (0,0,0)
+
+        if (currentHouse != null && currentHouse.exitDoorId != null) {
+            // Find the actual door object in the scene using its ID
+            val exitDoorObject = activeInteriors.find { it.id == currentHouse.exitDoorId }
+            if (exitDoorObject != null) {
+                // We found the door! Save its position.
+                doorPosition = exitDoorObject.position.cpy()
+                println("Found exit door at ${doorPosition}. Saving this position to the template.")
+            }
         }
 
         println("Converting current room to template with ID: $id")
@@ -344,7 +400,8 @@ class SceneManager(
             elements = elements,
             entrancePosition = playerSystem.getPosition(),
             exitTriggerPosition = playerSystem.getPosition().add(0f, 0f, 1f),
-            category = category
+            category = category,
+            exitDoorPosition = doorPosition
         )
 
         roomTemplateManager.addTemplate(newTemplate)

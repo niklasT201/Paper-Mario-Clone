@@ -45,6 +45,7 @@ enum class InteriorType(
     TABLE("Table", "textures/interior/table.png", null, 2f, 1.2f, 2f, true, InteriorCategory.FURNITURE, 1f),
     TABLE_DISH("Table with Dish", "textures/interior/table_dish.png", null, 2f, 1.2f, 2f, true, InteriorCategory.FURNITURE, 1f),
     TELEPHONE("Telephone", "textures/interior/telephone.png", null, 0.4f, 0.6f, 0.4f, false, InteriorCategory.MISC, 1f),
+    DOOR_INTERIOR("Interior Door", "textures/interior/door.png", null, 2f, 3f, 0.5f, true, InteriorCategory.FURNITURE, 1.5f),
 
     // 3D Model objects
     BOOKSHELF_3D("Bookshelf", "Models/shelf_model.png", "Models/bookshelf.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
@@ -210,7 +211,8 @@ data class GameInterior(
     private val v3 = Vector3()
 
     // 2D billboard matrix for rendering
-    private val billboardMatrix = Matrix4()
+    private val worldBoundingBox = BoundingBox()
+    private val tempCenter = Vector3()
 
     init {
         // Pre-load mesh data for 3D objects
@@ -227,6 +229,24 @@ data class GameInterior(
         }
 
         updateTransform()
+    }
+
+    fun getBoundingBoxForDoor(): BoundingBox {
+        // Special handling for doors - create a more generous collision box
+        instance.transform.getTranslation(tempCenter)
+
+        // Make the collision area larger and more accessible
+        val width = interiorType.width * scale.x * 1.2f // 20% larger width
+        val height = interiorType.height * scale.y
+        val depth = 3.0f // Generous depth for easier interaction
+
+        // Create the bounding box
+        worldBoundingBox.set(
+            tempCenter.cpy().sub(width / 2f, 0f, depth / 2f), // Start from ground level
+            tempCenter.cpy().add(width / 2f, height, depth / 2f)
+        )
+
+        return worldBoundingBox
     }
 
     fun updateTransform() {
@@ -302,12 +322,31 @@ data class GameInterior(
         if (!interiorType.is2D || !interiorType.hasCollision) {
             return false
         }
-        // Simplified 2D collision check on the XZ plane
+
+        // For doors specifically, use a more generous and rectangular collision area
+        if (interiorType == InteriorType.DOOR_INTERIOR) {
+            return isPlayerNearDoor2D(playerPos, playerRadius)
+        }
+
+        // For other 2D objects, keep the existing circular collision
         val dx = playerPos.x - position.x
         val dz = playerPos.z - position.z
         val distance2D = kotlin.math.sqrt(dx * dx + dz * dz)
         val collisionRadius = (interiorType.width * scale.x) * 0.5f
         return distance2D < (playerRadius + collisionRadius)
+    }
+
+    private fun isPlayerNearDoor2D(playerPos: Vector3, playerRadius: Float): Boolean {
+        // Create a rectangular interaction area around the door
+        val doorHalfWidth = (interiorType.width * scale.x) * 0.6f // Slightly larger than visual
+        val doorHalfDepth = (interiorType.depth * scale.z) * 0.8f // More depth for easier interaction
+
+        // Check if player is within the rectangular bounds
+        val dx = kotlin.math.abs(playerPos.x - position.x)
+        val dz = kotlin.math.abs(playerPos.z - position.z)
+
+        // Use rectangular collision instead of circular
+        return dx <= (doorHalfWidth + playerRadius) && dz <= (doorHalfDepth + playerRadius)
     }
 
     private fun intersectTriangleBounds(v1: Vector3, v2: Vector3, v3: Vector3, bounds: BoundingBox): Boolean {
