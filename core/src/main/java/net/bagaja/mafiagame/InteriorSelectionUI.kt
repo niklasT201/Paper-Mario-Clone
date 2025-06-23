@@ -29,6 +29,7 @@ class InteriorSelectionUI(
     private lateinit var categoryContainer: Table
     private lateinit var categoryButtons: MutableList<TextButton>
     private var currentCategory: InteriorCategory? = null
+    private lateinit var interiorScrollPane: ScrollPane
 
     // UI elements for placement info
     private lateinit var placementInfoLabel: Label
@@ -130,10 +131,10 @@ class InteriorSelectionUI(
         interiorItems = mutableListOf()
         rebuildInteriorItems(interiorContainer)
 
-        val scrollPane = ScrollPane(interiorContainer, skin)
-        scrollPane.setScrollingDisabled(false, true) // Horizontal scrolling only
-        scrollPane.fadeScrollBars = false
-        return scrollPane
+        interiorScrollPane = ScrollPane(interiorContainer, skin)
+        interiorScrollPane.setScrollingDisabled(false, true) // Horizontal scrolling only
+        interiorScrollPane.fadeScrollBars = false
+        return interiorScrollPane
     }
 
     private fun rebuildInteriorItems(container: Table) {
@@ -153,6 +154,11 @@ class InteriorSelectionUI(
             // Add spacing between items
             if (i > 0) container.add().width(15f)
             container.add(item.container).size(120f, 140f)
+        }
+
+        // Scroll to selected item after rebuilding
+        Gdx.app.postRunnable {
+            scrollToSelectedItem()
         }
     }
 
@@ -542,6 +548,35 @@ class InteriorSelectionUI(
         return TextureRegionDrawable(TextureRegion(texture))
     }
 
+    private fun scrollToSelectedItem() {
+        // Find the index of the currently selected interior
+        val selectedIndex = interiorItems.indexOfFirst {
+            it.interiorType == interiorSystem.currentSelectedInterior
+        }
+
+        if (selectedIndex >= 0 && selectedIndex < interiorItems.size) {
+            // Calculate the position to scroll to
+            val itemWidth = 120f + 15f // Item width + spacing
+            val containerWidth = interiorScrollPane.width
+            val targetX = selectedIndex * itemWidth
+
+            // Calculate the scroll position to center the selected item
+            val scrollX = (targetX - containerWidth / 2f + 60f).coerceAtLeast(0f)
+            val maxScrollX = interiorScrollPane.maxX
+
+            // Smoothly scroll to the target position using scrollTo
+            interiorScrollPane.scrollTo(
+                scrollX.coerceAtMost(maxScrollX),
+                0f,
+                itemWidth,
+                140f // item height
+            )
+
+            // For instant scroll without animation
+            interiorScrollPane.scrollX = scrollX.coerceAtMost(maxScrollX)
+        }
+    }
+
     fun update() {
         // Update info labels
         placementInfoLabel.setText("Selected: ${interiorSystem.currentSelectedInterior.displayName}")
@@ -582,6 +617,9 @@ class InteriorSelectionUI(
                 )
             }
         }
+
+        // Auto-scroll to the selected item
+        scrollToSelectedItem()
     }
 
     fun show() {

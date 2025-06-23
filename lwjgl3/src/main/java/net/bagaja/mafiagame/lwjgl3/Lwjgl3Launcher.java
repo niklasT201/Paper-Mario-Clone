@@ -39,7 +39,6 @@ public class Lwjgl3Launcher {
 // industrial assets
 
 // room/open world transition effect
-// file-based saving/loading
 // room needing a door for moving out again
 // adding random generation for room interior
 
