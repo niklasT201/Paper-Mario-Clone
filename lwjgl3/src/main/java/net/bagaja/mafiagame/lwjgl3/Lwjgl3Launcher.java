@@ -45,7 +45,6 @@ public class Lwjgl3Launcher {
 
 // map saving
 // cars can be locked
-// add interior system for 2d and 3d
 // maybe changing 30 min daycicle to 50
 // enemies have an inventory and collect items
 // footprints when moving through dead enemies

@@ -5,8 +5,6 @@ import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.VertexAttributes
-import com.badlogic.gdx.graphics.g2d.SpriteBatch
-import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
@@ -25,30 +23,33 @@ import java.util.*
 enum class InteriorType(
     val displayName: String,
     val texturePath: String,
-    val modelPath: String? = null, // null means 2D billboard
+    val modelPath: String? = null,
     val width: Float,
     val height: Float,
     val depth: Float = 1f,
     val hasCollision: Boolean = true,
-    val category: InteriorCategory = InteriorCategory.FURNITURE
+    val category: InteriorCategory = InteriorCategory.FURNITURE,
+    val groundOffset: Float = 0f
 ) {
-    // 2D Billboard objects using your actual textures
-    BAR("Bar", "textures/interior/bar.png", null, 2f, 1.5f, 1f, true, InteriorCategory.FURNITURE),
-    BARREL("Barrel", "textures/interior/barrel.png", null, 1f, 1.5f, 1f, true, InteriorCategory.FURNITURE),
-    BOARD("Board", "textures/interior/board.png", null, 2f, 1.5f, 0.1f, false, InteriorCategory.DECORATION),
-    BROKEN_LAMP("Broken Lamp", "textures/interior/broken_lamp.png", null, 0.8f, 2f, 0.8f, false, InteriorCategory.LIGHTING),
-    CHAIR("Chair", "textures/interior/chair.png", null, 1f, 2f, 1f, true, InteriorCategory.FURNITURE),
-    DESK_LAMP("Desk Lamp", "textures/interior/desk_lamp.png", null, 0.6f, 1f, 0.6f, false, InteriorCategory.LIGHTING),
-    HANDLANTERN("Hand Lantern", "textures/interior/handlantern.png", null, 0.5f, 1f, 0.5f, false, InteriorCategory.LIGHTING),
-    ITEM_FRAME("Item Frame", "textures/interior/itemframe.png", null, 1.5f, 1.5f, 0.1f, false, InteriorCategory.DECORATION),
-    MONEY_STACK("Money Stack", "textures/interior/money_stack.png", null, 0.5f, 0.3f, 0.5f, false, InteriorCategory.MISC),
-    OFFICE_CHAIR("Office Chair", "textures/interior/office_chair.png", null, 1f, 2f, 1f, true, InteriorCategory.FURNITURE),
-    TABLE("Table", "textures/interior/table.png", null, 2f, 1.2f, 2f, true, InteriorCategory.FURNITURE),
-    TABLE_DISH("Table with Dish", "textures/interior/table_dish.png", null, 2f, 1.2f, 2f, true, InteriorCategory.FURNITURE),
-    TELEPHONE("Telephone", "textures/interior/telephone.png", null, 0.4f, 0.6f, 0.4f, false, InteriorCategory.MISC),
+    // 2D Billboard objects
+    BAR("Bar", "textures/interior/bar.png", null, 2f, 1.5f, 1f, true, InteriorCategory.FURNITURE, 1f),
+    BARREL("Barrel", "textures/interior/barrel.png", null, 1f, 1.5f, 1f, true, InteriorCategory.FURNITURE, 1f),
+    BOARD("Board", "textures/interior/board.png", null, 2f, 1.5f, 0.1f, false, InteriorCategory.DECORATION, 1f),
+    BROKEN_LAMP("Broken Lamp", "textures/interior/broken_lamp.png", null, 0.8f, 2f, 0.8f, false, InteriorCategory.LIGHTING, 1f),
+    CHAIR("Chair", "textures/interior/chair.png", null, 1f, 2f, 1f, true, InteriorCategory.FURNITURE, 1f),
+    DESK_LAMP("Desk Lamp", "textures/interior/desk_lamp.png", null, 0.6f, 1f, 0.6f, false, InteriorCategory.LIGHTING, 1f),
+    HANDLANTERN("Hand Lantern", "textures/interior/handlantern.png", null, 0.5f, 1f, 0.5f, false, InteriorCategory.LIGHTING, 1f),
+    ITEM_FRAME("Item Frame", "textures/interior/itemframe.png", null, 1.5f, 1.5f, 0.1f, false, InteriorCategory.DECORATION, 1f),
+    MONEY_STACK("Money Stack", "textures/interior/money_stack.png", null, 0.5f, 0.3f, 0.5f, false, InteriorCategory.MISC, 1f),
+    OFFICE_CHAIR("Office Chair", "textures/interior/office_chair.png", null, 1f, 2f, 1f, true, InteriorCategory.FURNITURE, 1f),
+    TABLE("Table", "textures/interior/table.png", null, 2f, 1.2f, 2f, true, InteriorCategory.FURNITURE, 1f),
+    TABLE_DISH("Table with Dish", "textures/interior/table_dish.png", null, 2f, 1.2f, 2f, true, InteriorCategory.FURNITURE, 1f),
+    TELEPHONE("Telephone", "textures/interior/telephone.png", null, 0.4f, 0.6f, 0.4f, false, InteriorCategory.MISC, 1f),
 
-    // 3D Model objects - only the bookshelf for now
-    BOOKSHELF_3D("Bookshelf", "Models/shelf_model.png", "Models/bookshelf.g3dj", 2f, 3f, 1f, true, InteriorCategory.FURNITURE);
+    // 3D Model objects
+    BOOKSHELF_3D("Bookshelf", "Models/shelf_model.png", "Models/bookshelf.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
+    TABLE_3D("Table 3D", "Models/table.png", "Models/table.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
+    RESTAURANT_TABLE("Dinner Table 3D", "Models/restaurant_table.png", "Models/restaurant_table.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f);
 
     val is3D: Boolean get() = modelPath != null
     val is2D: Boolean get() = modelPath == null
@@ -191,10 +192,10 @@ class InteriorSystem : IFinePositionable {
 // Game interior class that handles both 2D and 3D objects
 data class GameInterior(
     val interiorType: InteriorType,
-    val instance: ModelInstance, // Changed to non-nullable, as we always create one now
+    val instance: ModelInstance,
     val position: Vector3 = Vector3(),
-    var rotation: Float = 0f, // Keep this for user-controlled rotation
-    val scale: Vector3 = Vector3(1f, 1f, 1f),
+    var rotation: Float = 0f,
+    val scale: Vector3 = Vector3(2f, 2f, 2f), // Increased default scale
     val id: String = UUID.randomUUID().toString()
 ) {
     // For 3D collision detection (same as GameHouse)
@@ -229,8 +230,11 @@ data class GameInterior(
     }
 
     fun updateTransform() {
-        // This logic now works for BOTH 2D and 3D models
-        instance.transform.setToTranslation(position)
+        // Apply ground offset for both 2D and 3D objects
+        val adjustedPosition = Vector3(position)
+        adjustedPosition.y += interiorType.groundOffset
+
+        instance.transform.setToTranslation(adjustedPosition)
         instance.transform.rotate(Vector3.Y, rotation)
         instance.transform.scale(scale.x, scale.y, scale.z)
     }
