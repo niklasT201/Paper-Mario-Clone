@@ -37,6 +37,8 @@ class MafiaGame : ApplicationAdapter() {
     // Highlight System
     private lateinit var highlightSystem: HighlightSystem
 
+    private lateinit var faceCullingSystem: FaceCullingSystem
+
     // Transition System
     private lateinit var transitionSystem: TransitionSystem
 
@@ -60,6 +62,7 @@ class MafiaGame : ApplicationAdapter() {
     override fun create() {
         setupGraphics()
         setupBlockSystem()
+        faceCullingSystem = FaceCullingSystem(blockSize)
         setupObjectSystem()
         setupItemSystem()
         setupCarSystem()
@@ -86,6 +89,7 @@ class MafiaGame : ApplicationAdapter() {
             roomTemplateManager,
             cameraManager,
             transitionSystem,
+            faceCullingSystem,
             this
         )
 
@@ -604,8 +608,12 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun removeBlock(blockToRemove: GameBlock) {
+        val position = Vector3(blockToRemove.position)
         sceneManager.activeBlocks.removeValue(blockToRemove, true)
         println("${blockToRemove.blockType.displayName} block removed at: ${blockToRemove.position}")
+
+        // Use the centralized system
+        faceCullingSystem.updateFacesAround(position, sceneManager.activeBlocks)
     }
 
     private fun removeObject(objectToRemove: GameObject) {
@@ -858,12 +866,17 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun addBlockToCollection(x: Float, y: Float, z: Float, blockType: BlockType, collection: Array<GameBlock>) {
-        val blockInstance = blockSystem.createBlockInstance(blockType) ?: return
+        val faceInstances = blockSystem.createFaceInstances(blockType) ?: return
+
         val blockHeight = blockSize * blockType.height
         val position = Vector3(x + blockSize / 2, y + blockHeight / 2, z + blockSize / 2)
-        val gameBlock = GameBlock(blockInstance, blockType, position, blockSystem.currentBlockRotation)
+        val gameBlock = GameBlock(faceInstances, blockType, position, blockSystem.currentBlockRotation)
+
         gameBlock.updateTransform()
         collection.add(gameBlock)
+
+        // Use the centralized system
+        faceCullingSystem.updateFacesAround(gameBlock.position, collection)
     }
 
     private fun addHouseToCollection(x: Float, y: Float, z: Float, houseType: HouseType, collection: Array<GameHouse>) {
@@ -1165,7 +1178,12 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render all blocks
         for (gameBlock in sceneManager.activeBlocks) {
-            modelBatch.render(gameBlock.modelInstance, environment)
+            // Only render the faces that are in the visibleFaces set
+            for (face in gameBlock.visibleFaces) {
+                gameBlock.faceInstances[face]?.let { instance ->
+                    modelBatch.render(instance, environment)
+                }
+            }
         }
 
         // Render all objects

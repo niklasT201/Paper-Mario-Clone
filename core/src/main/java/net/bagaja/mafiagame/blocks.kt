@@ -3,24 +3,36 @@ package net.bagaja.mafiagame
 import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.math.Vector3
 
+enum class BlockFace {
+    TOP,
+    BOTTOM,
+    FRONT, // +Z direction
+    BACK,  // -Z direction
+    RIGHT, // +X direction
+    LEFT   // -X direction
+}
+
 // Game block class to store block data
 data class GameBlock(
-    val modelInstance: ModelInstance,
+    val faceInstances: Map<BlockFace, ModelInstance>,
     val blockType: BlockType,
     val position: Vector3,
     var rotationY: Float = 0f
 ) {
+
+    val visibleFaces: MutableSet<BlockFace> = BlockFace.entries.toMutableSet()
+
     // Method to update the block's transform with current rotation
     fun updateTransform() {
-        // Reset transform first to avoid accumulating rotations
-        modelInstance.transform.idt()
-
-        // Apply translation
-        modelInstance.transform.setTranslation(position)
-
-        // Apply rotation around Y axis
-        if (rotationY != 0f) {
-            modelInstance.transform.rotate(Vector3.Y, rotationY)
+        for (instance in faceInstances.values) {
+            // Reset transform first to avoid accumulating rotations
+            instance.transform.idt()
+            // Apply translation
+            instance.transform.setTranslation(position)
+            // Apply rotation around Y axis
+            if (rotationY != 0f) {
+                instance.transform.rotate(Vector3.Y, rotationY)
+            }
         }
     }
 

@@ -3,6 +3,7 @@ package net.bagaja.mafiagame
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Texture
+import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.VertexAttributes
 import com.badlogic.gdx.graphics.g3d.Material
 import com.badlogic.gdx.graphics.g3d.Model
@@ -14,7 +15,8 @@ import com.badlogic.gdx.math.Vector3
 
 // Block system class to manage different block types
 class BlockSystem {
-    private val blockModels = mutableMapOf<BlockType, Model>()
+    // Store a map of models for each face of each block type
+    private val blockFaceModels = mutableMapOf<BlockType, Map<BlockFace, Model>>()
     private val blockTextures = mutableMapOf<BlockType, Texture>()
     var currentSelectedBlock = BlockType.GRASS
         private set
@@ -28,94 +30,97 @@ class BlockSystem {
 
         // Load textures and create models for each block type
         for (blockType in BlockType.entries) {
-            try {
-                // Load texture
+            val material = try {
                 val texture = Texture(Gdx.files.internal(blockType.texturePath))
                 blockTextures[blockType] = texture
-
-                // Create material with texture
-                val material = Material(TextureAttribute.createDiffuse(texture))
-
-                // Use the block's height multiplier
-                val blockHeight = blockSize * blockType.height
-
-                val model = modelBuilder.createBox(
-                    blockSize, blockHeight, blockSize,  // Height varies by block type
-                    material,
-                    (VertexAttributes.Usage.Position or
-                        VertexAttributes.Usage.Normal or
-                        VertexAttributes.Usage.TextureCoordinates).toLong()
-                )
-                blockModels[blockType] = model
-
-                println("Loaded block type: ${blockType.displayName} (height: ${blockType.height})")
+                Material(TextureAttribute.createDiffuse(texture))
             } catch (e: Exception) {
-                println("Failed to load texture for ${blockType.displayName}: ${e.message}")
-                // Create fallback colored block
-                val fallbackColor = when (blockType) {
-                    BlockType.GRASS -> Color.GREEN
-                    BlockType.COBBLESTONE -> Color.GRAY
-                    BlockType.ROOM_FLOOR -> Color.BROWN
-                    BlockType.STONE -> Color.GRAY
-                    BlockType.WINDOW_OPENED -> Color.WHITE
-                    BlockType.WINDOW_CLOSE -> Color.WHITE
-                    BlockType.RESTAURANT_FLOOR -> Color.GOLD
-                    BlockType.CARGO_FLOOR -> Color.WHITE
-                    BlockType.BRICK_WALL -> Color.ORANGE
-                    BlockType.STREET_LOW -> Color.BLUE
-                    BlockType.STREET_INDUSTRY -> Color.BROWN
-                    BlockType.CONCRETE -> Color.GRAY
-                    BlockType.CONCRETE_WALL -> Color.GRAY
-                    BlockType.WALL_EGG_BOTTOM -> Color.YELLOW
-                    BlockType.WALL_EGG -> Color.YELLOW
-                    BlockType.STONE_WALL -> Color.BLACK
-
-                    BlockType.BETON_TILE -> Color.LIGHT_GRAY
-                    BlockType.BRICK_WALL_PNG -> Color.ORANGE
-                    BlockType.BROKEN_CEILING -> Color(0.8f, 0.8f, 0.8f, 1f)
-                    BlockType.BROKEN_WALL -> Color(0.7f, 0.6f, 0.5f, 1f)
-                    BlockType.BROWN_BRICK_WALL -> Color(0.6f, 0.4f, 0.3f, 1f)
-                    BlockType.BROWN_CLEAR_FLOOR -> Color(0.7f, 0.5f, 0.3f, 1f)
-                    BlockType.BROWN_FLOOR -> Color.BROWN
-                    BlockType.CARD_FLOOR -> Color(0.9f, 0.9f, 0.8f, 1f)
-                    BlockType.CARPET -> Color.MAROON
-                    BlockType.CEILING_WITH_LAMP -> Color.WHITE
-                    BlockType.CEILING -> Color.WHITE
-                    BlockType.CLUSTER_FLOOR -> Color(0.6f, 0.6f, 0.7f, 1f)
-                    BlockType.CRACKED_WALL -> Color(0.8f, 0.8f, 0.7f, 1f)
-                    BlockType.DARK_WALL -> Color(0.3f, 0.3f, 0.3f, 1f)
-                    BlockType.DARK_YELLOW_FLOOR -> Color(0.7f, 0.6f, 0.2f, 1f)
-                    BlockType.DIRTY_GROUND -> Color(0.5f, 0.4f, 0.3f, 1f)
-                    BlockType.FLIESSEN -> Color(0.9f, 0.95f, 1f, 1f)
-                    BlockType.FLOOR -> Color(0.8f, 0.8f, 0.8f, 1f)
-                    BlockType.GRAY_FLOOR -> Color.GRAY
-                    BlockType.LIGHT_CEILING -> Color(0.95f, 0.95f, 1f, 1f)
-                    BlockType.OFFICE_WALL -> Color(0.9f, 0.9f, 0.85f, 1f)
-                    BlockType.SIDEWALK_POOR -> Color.LIGHT_GRAY
-                    BlockType.SIDEWALK -> Color.LIGHT_GRAY
-                    BlockType.SIDEWALK_INDUSTRY -> Color.BROWN
-                    BlockType.SIDEWALK_START -> Color.LIGHT_GRAY
-                    BlockType.SPRAYED_WALL -> Color(0.7f, 0.8f, 0.6f, 1f)
-                    BlockType.STREET_TILE -> Color(0.4f, 0.4f, 0.4f, 1f)
-                    BlockType.STRIPED_FLOOR -> Color(0.8f, 0.7f, 0.6f, 1f)
-                    BlockType.STRIPED_TAPETE -> Color(0.9f, 0.8f, 0.7f, 1f)
-                    BlockType.TAPETE -> Color(0.8f, 0.7f, 0.6f, 1f)
-                    BlockType.TAPETE_WALL -> Color(0.85f, 0.75f, 0.65f, 1f)
-                    BlockType.TRANS_WALL -> Color(0.9f, 0.9f, 0.9f, 0.8f)
-                    BlockType.WALL -> Color(0.9f, 0.9f, 0.9f, 1f)
-                    BlockType.WOOD_WALL -> Color(0.6f, 0.4f, 0.2f, 1f)
-                    BlockType.WOODEN_FLOOR -> Color(0.7f, 0.5f, 0.3f, 1f)
-                }
-                val material = Material(ColorAttribute.createDiffuse(fallbackColor))
-                val blockHeight = blockSize * blockType.height
-                val model = modelBuilder.createBox(
-                    blockSize, blockHeight, blockSize,
-                    material,
-                    (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
-                )
-                blockModels[blockType] = model
+                println("Failed to load texture for ${blockType.displayName}, using fallback color. Error: ${e.message}")
+                Material(ColorAttribute.createDiffuse(getFallbackColor(blockType)))
             }
+
+            val modelsForBlock = mutableMapOf<BlockFace, Model>()
+            for (face in BlockFace.entries) {
+                modelsForBlock[face] = createFaceModel(modelBuilder, blockSize, blockType.height, material, face)
+            }
+            blockFaceModels[blockType] = modelsForBlock
+            println("Loaded models for block type: ${blockType.displayName}")
         }
+    }
+
+    private fun createFaceModel(
+        modelBuilder: ModelBuilder,
+        size: Float,
+        heightMultiplier: Float,
+        material: Material,
+        face: BlockFace
+    ): Model {
+        val halfSize = size / 2f
+        val halfHeight = (size * heightMultiplier) / 2f
+
+        val attributes = (VertexAttributes.Usage.Position or
+            VertexAttributes.Usage.Normal or
+            VertexAttributes.Usage.TextureCoordinates).toLong()
+
+        modelBuilder.begin()
+        val partBuilder = modelBuilder.part(face.name, GL20.GL_TRIANGLES, attributes, material)
+
+        when (face) {
+            // Looking from above (+Y), this is a CCW order
+            BlockFace.TOP -> partBuilder.rect(
+                Vector3(-halfSize, halfHeight, halfSize),
+                Vector3(halfSize, halfHeight, halfSize),
+                Vector3(halfSize, halfHeight, -halfSize),
+                Vector3(-halfSize, halfHeight, -halfSize),
+                Vector3(0f, 1f, 0f)
+            )
+            // Looking from below (-Y), this is a CCW order
+            BlockFace.BOTTOM -> partBuilder.rect(
+                Vector3(-halfSize, -halfHeight, -halfSize),
+                Vector3(halfSize, -halfHeight, -halfSize),
+                Vector3(halfSize, -halfHeight, halfSize),
+                Vector3(-halfSize, -halfHeight, halfSize),
+                Vector3(0f, -1f, 0f)
+            )
+            // Looking from the front (+Z), this is a CCW order
+            BlockFace.FRONT -> partBuilder.rect(
+                Vector3(-halfSize, -halfHeight, halfSize),
+                Vector3(halfSize, -halfHeight, halfSize),
+                Vector3(halfSize, halfHeight, halfSize),
+                Vector3(-halfSize, halfHeight, halfSize),
+                Vector3(0f, 0f, 1f)
+            )
+            // Looking from the back (-Z), this is a CCW order
+            BlockFace.BACK -> partBuilder.rect(
+                Vector3(halfSize, -halfHeight, -halfSize),
+                Vector3(-halfSize, -halfHeight, -halfSize),
+                Vector3(-halfSize, halfHeight, -halfSize),
+                Vector3(halfSize, halfHeight, -halfSize),
+                Vector3(0f, 0f, -1f)
+            )
+            // Looking from the right (+X), this is a CCW order
+            BlockFace.RIGHT -> partBuilder.rect(
+                Vector3(halfSize, -halfHeight, halfSize),
+                Vector3(halfSize, -halfHeight, -halfSize),
+                Vector3(halfSize, halfHeight, -halfSize),
+                Vector3(halfSize, halfHeight, halfSize),
+                Vector3(1f, 0f, 0f)
+            )
+            // Looking from the left (-X), this is a CCW order
+            BlockFace.LEFT -> partBuilder.rect(
+                Vector3(-halfSize, -halfHeight, -halfSize),
+                Vector3(-halfSize, -halfHeight, halfSize),
+                Vector3(-halfSize, halfHeight, halfSize),
+                Vector3(-halfSize, halfHeight, -halfSize),
+                Vector3(-1f, 0f, 0f)
+            )
+        }
+        return modelBuilder.end()
+    }
+
+    fun createFaceInstances(blockType: BlockType): Map<BlockFace, ModelInstance>? {
+        val models = blockFaceModels[blockType] ?: return null
+        return models.mapValues { ModelInstance(it.value) }
     }
 
     fun rotateCurrentBlock() {
@@ -160,11 +165,6 @@ class BlockSystem {
         println("Selected block: ${currentSelectedBlock.displayName}")
     }
 
-    fun createBlockInstance(blockType: BlockType): ModelInstance? {
-        val model = blockModels[blockType]
-        return model?.let { ModelInstance(it) }
-    }
-
     fun getCurrentBlockTexture(): Texture? {
         return blockTextures[currentSelectedBlock]
     }
@@ -178,7 +178,11 @@ class BlockSystem {
     }
 
     fun dispose() {
-        blockModels.values.forEach { it.dispose() }
+        blockFaceModels.values.forEach { map -> map.values.forEach { it.dispose() } }
         blockTextures.values.forEach { it.dispose() }
+    }
+
+    private fun getFallbackColor(blockType: BlockType): Color {
+        return Color.MAGENTA // Default fallback
     }
 }

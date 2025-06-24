@@ -198,7 +198,7 @@ data class GameInterior(
     var rotation: Float = 0f,
     val scale: Vector3 = Vector3(2f, 2f, 2f), // Increased default scale
     val id: String = UUID.randomUUID().toString()
-) {
+) : OcclusionSystem.Occludable {
     // For 3D collision detection (same as GameHouse)
     private val mesh = instance.model?.meshes?.firstOrNull()
     private val vertexFloats: FloatArray?
@@ -213,6 +213,14 @@ data class GameInterior(
     // 2D billboard matrix for rendering
     private val worldBoundingBox = BoundingBox()
     private val tempCenter = Vector3()
+
+    override val modelInstance: ModelInstance
+        get() = this.instance
+
+    override fun getBoundingBox(out: BoundingBox): BoundingBox {
+        // Calculate and return the world-space bounding box
+        return instance.calculateBoundingBox(out)
+    }
 
     init {
         // Pre-load mesh data for 3D objects

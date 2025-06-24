@@ -1,4 +1,3 @@
-// file: net/bagaja/mafiagame/CameraManager.kt
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx

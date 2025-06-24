@@ -2,6 +2,7 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
+import kotlin.math.floor
 
 enum class SceneType {
     WORLD,
@@ -27,6 +28,7 @@ class SceneManager(
     private val roomTemplateManager: RoomTemplateManager,
     private val cameraManager: CameraManager,
     private val transitionSystem: TransitionSystem,
+    private val faceCullingSystem: FaceCullingSystem,
     private val game: MafiaGame
 ) {
     // --- ACTIVE SCENE DATA ---
@@ -58,6 +60,9 @@ class SceneManager(
         activeCars.addAll(initialCars)
         activeHouses.addAll(initialHouses)
         activeItems.addAll(initialItems)
+
+        // Initial face culling for the entire world on startup
+        recalculateAllFacesInCollection(activeBlocks)
 
         currentScene = SceneType.WORLD
 
@@ -245,8 +250,9 @@ class SceneManager(
             when (element.elementType) {
                 RoomElementType.BLOCK -> {
                     element.blockType?.let { blockType ->
-                        blockSystem.createBlockInstance(blockType)?.let { instance ->
-                            val gameBlock = GameBlock(instance, blockType, element.position.cpy(), element.rotation)
+                        // Use createFaceInstances and the new GameBlock constructor
+                        blockSystem.createFaceInstances(blockType)?.let { faceInstances ->
+                            val gameBlock = GameBlock(faceInstances, blockType, element.position.cpy(), element.rotation)
                             gameBlock.updateTransform()
                             newBlocks.add(gameBlock)
                         }
@@ -282,6 +288,9 @@ class SceneManager(
             }
         }
 
+        // After all blocks are created, run face culling on the entire collection
+        recalculateAllFacesInCollection(newBlocks)
+
         var foundExitDoorId: String? = null
         // Check if the template has a valid saved door position.
         if (template.exitDoorPosition.len2() > 0) {
@@ -297,18 +306,7 @@ class SceneManager(
                 println("Template has an exit door position, but no door object was found in the template's elements.")
             }
         }
-
-        // Create the state object
-        val interiorState = InteriorState(
-            houseId = house.id,
-            blocks = newBlocks,
-            objects = newObjects,
-            items = newItems,
-            interiors = newInteriors,
-            playerPosition = template.entrancePosition.cpy()
-        )
-
-        // Return both the state AND the found door ID
+        val interiorState = InteriorState(house.id, newBlocks, newObjects, newItems, newInteriors, template.entrancePosition.cpy())
         return Pair(interiorState, foundExitDoorId)
     }
 
@@ -431,44 +429,55 @@ class SceneManager(
         template.elements.forEach { element ->
             when (element.elementType) {
                 RoomElementType.BLOCK -> {
-                    val instance = blockSystem.createBlockInstance(element.blockType!!)
-                    if (instance != null) {
-                        val gameBlock = GameBlock(instance, element.blockType!!, element.position.cpy(), element.rotation)
-                        gameBlock.updateTransform()
-                        activeBlocks.add(gameBlock)
+                    // REVISED: Use createFaceInstances and the new GameBlock constructor
+                    element.blockType?.let { blockType ->
+                        blockSystem.createFaceInstances(blockType)?.let { faceInstances ->
+                            val gameBlock = GameBlock(faceInstances, blockType, element.position.cpy(), element.rotation)
+                            gameBlock.updateTransform()
+                            activeBlocks.add(gameBlock)
+                        }
                     }
                 }
                 RoomElementType.OBJECT -> {
-                    val gameObject = objectSystem.createGameObjectWithLight(element.objectType!!, element.position.cpy())
-                    if (gameObject != null) {
-                        activeObjects.add(gameObject)
+                    element.objectType?.let { objectType ->
+                        objectSystem.createGameObjectWithLight(objectType, element.position.cpy(), lightingManager = null)?.let { gameObject ->
+                            activeObjects.add(gameObject)
+                        }
                     }
                 }
                 RoomElementType.ITEM -> {
-                    val gameItem = itemSystem.createItem(element.position.cpy(), element.itemType!!)
-                    if (gameItem != null) {
-                        activeItems.add(gameItem)
+                    element.itemType?.let { itemType ->
+                        itemSystem.createItem(element.position.cpy(), itemType)?.let { gameItem ->
+                            activeItems.add(gameItem)
+                        }
                     }
                 }
                 RoomElementType.INTERIOR -> {
-                    val gameInterior = interiorSystem.createInteriorInstance(element.interiorType!!)
-                    if (gameInterior != null) {
-                        gameInterior.position.set(element.position)
-                        gameInterior.rotation = element.rotation
-                        gameInterior.scale.set(element.scale)
-                        gameInterior.updateTransform()
-                        activeInteriors.add(gameInterior)
+                    element.interiorType?.let { interiorType ->
+                        interiorSystem.createInteriorInstance(interiorType)?.let { gameInterior ->
+                            gameInterior.position.set(element.position)
+                            gameInterior.rotation = element.rotation
+                            gameInterior.scale.set(element.scale)
+                            gameInterior.updateTransform()
+                            activeInteriors.add(gameInterior)
+                        }
                     }
                 }
             }
         }
 
-        // Update the item system with the new items
+        // After loading all blocks, run face culling on the entire active collection
+        recalculateAllFacesInCollection(activeBlocks)
+
         itemSystem.setActiveItems(activeItems)
 
         // Move player to the template's entrance
         playerSystem.setPosition(template.entrancePosition)
         cameraManager.resetAndSnapToPlayer(template.entrancePosition)
+    }
+
+    private fun recalculateAllFacesInCollection(blocks: Array<GameBlock>) {
+        faceCullingSystem.recalculateAllFaces(blocks)
     }
 
     private fun clearActiveScene() {
