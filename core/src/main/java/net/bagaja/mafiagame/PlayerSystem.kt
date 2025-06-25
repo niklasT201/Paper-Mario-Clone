@@ -35,6 +35,11 @@ class PlayerSystem {
     private val rotationSpeed = 360f
     private var lastMovementDirection = 0f
 
+    // Animation system
+    private lateinit var animationSystem: AnimationSystem
+    private var isMoving = false
+    private var lastIsMoving = false
+
     // Reference to block system for collision detection
     private var blockSize = 4f
 
@@ -44,6 +49,7 @@ class PlayerSystem {
 
     fun initialize(blockSize: Float) {
         this.blockSize = blockSize
+        setupAnimationSystem()
         setupBillboardShader()
         setupPlayerModel()
         updatePlayerBounds()
@@ -58,11 +64,33 @@ class PlayerSystem {
         billboardShaderProvider.setMinLightLevel(0.3f)
     }
 
+    private fun setupAnimationSystem() {
+        animationSystem = AnimationSystem()
+
+        // Create walking animation
+        val walkingFrames = arrayOf(
+            "textures/player/animations/walking/walking_left.png",
+            //"textures/player/animations/walking/walking_middle.png",
+            "textures/player/animations/walking/walking_right.png",
+            //"textures/player/animations/walking/walking_middle.png" // Return to middle for smooth loop
+        )
+
+        // Create walking animation with 0.15 seconds per frame (about 6.7 fps for smooth walking)
+        animationSystem.createAnimation("walking", walkingFrames, 0.4f, true)
+
+        // Create idle animation (single frame)
+        val idleFrames = arrayOf("textures/player/pig_character.png")
+        animationSystem.createAnimation("idle", idleFrames, 1.0f, true)
+
+        // Start with idle animation
+        animationSystem.playAnimation("idle")
+    }
+
     private fun setupPlayerModel() {
         val modelBuilder = ModelBuilder()
 
-        // Load player texture
-        playerTexture = Texture(Gdx.files.internal("textures/player/pig_character.png"))
+        // Get initial texture from animation system
+        playerTexture = animationSystem.getCurrentTexture() ?: Texture(Gdx.files.internal("textures/player/pig_character.png"))
 
         // Create player material with the texture
         playerMaterial = Material(
@@ -181,6 +209,9 @@ class PlayerSystem {
         var moved = false
         var currentMovementDirection = 0f
 
+        // Reset movement flag
+        isMoving = false
+
         // Store original position for rollback if needed
         val originalX = playerPosition.x
         val originalZ = playerPosition.z
@@ -194,6 +225,7 @@ class PlayerSystem {
                 playerPosition.x = newX
                 playerPosition.y = adjustedY
                 moved = true
+                isMoving = true
                 currentMovementDirection = -1f
             }
         }
@@ -204,6 +236,7 @@ class PlayerSystem {
                 playerPosition.x = newX
                 playerPosition.y = adjustedY
                 moved = true
+                isMoving = true
                 currentMovementDirection = 1f
             }
         }
@@ -214,6 +247,7 @@ class PlayerSystem {
                 playerPosition.z = newZ
                 playerPosition.y = adjustedY
                 moved = true
+                isMoving = true
             }
         }
         if (Gdx.input.isKeyPressed(Input.Keys.S)) {
@@ -223,8 +257,20 @@ class PlayerSystem {
                 playerPosition.z = newZ
                 playerPosition.y = adjustedY
                 moved = true
+                isMoving = true
             }
         }
+
+        // Handle animation state changes
+        if (isMoving && !lastIsMoving) {
+            // Started moving - play walking animation
+            animationSystem.playAnimation("walking")
+        } else if (!isMoving && lastIsMoving) {
+            // Stopped moving - play idle animation
+            animationSystem.playAnimation("idle")
+        }
+
+        lastIsMoving = isMoving
 
         // Update target rotation based on horizontal movement
         if (currentMovementDirection != 0f && currentMovementDirection != lastMovementDirection) {
@@ -472,73 +518,6 @@ class PlayerSystem {
         return false
     }
 
-    private fun canMoveTo(x: Float, y: Float, z: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {
-        // Create a temporary bounding box for the new position
-        val horizontalShrink = 0.2f // Reduced shrink for more accurate collision
-        val tempBounds = BoundingBox()
-        tempBounds.set(
-            Vector3(x - (playerSize.x / 2 - horizontalShrink), y - playerSize.y / 2, z - (playerSize.z / 2 - horizontalShrink)),
-            Vector3(x + (playerSize.x / 2 - horizontalShrink), y + playerSize.y / 2, z + (playerSize.z / 2 - horizontalShrink))
-        )
-
-        // Check block collisions
-        for (gameBlock in gameBlocks) {
-            // Calculate block bounds using ACTUAL block height
-            val blockHeight = blockSize * gameBlock.blockType.height
-            val blockBounds = BoundingBox()
-            blockBounds.set(
-                Vector3(gameBlock.position.x - blockSize / 2, gameBlock.position.y - blockHeight / 2, gameBlock.position.z - blockSize / 2),
-                Vector3(gameBlock.position.x + blockSize / 2, gameBlock.position.y + blockHeight / 2, gameBlock.position.z + blockSize / 2)
-            )
-
-            // Check if the temporary player bounds intersect with the block bounds
-            if (tempBounds.intersects(blockBounds)) {
-                // Check if player is standing on top of the block
-                val playerBottom = tempBounds.min.y
-                val blockTop = blockBounds.max.y
-                val tolerance = 0.1f // Small tolerance for floating point precision
-
-                // Player is on top if their bottom is at or very slightly above the block top
-                if (playerBottom >= blockTop - tolerance) {
-                    continue // Allow movement - player is standing on top
-                }
-                return false // Block collision detected
-            }
-        }
-
-        // Check house collisions
-        for (house in gameHouses) {
-            if (house.houseType == HouseType.STAIR) {
-                continue
-            } else {
-                // For non-stair houses, use normal mesh collision (blocks movement)
-                if (house.collidesWithMesh(tempBounds)) {
-                    return false // Collision with house detected
-                }
-            }
-        }
-
-        for (interior in gameInteriors) {
-            // Skip if this interior type has no collision
-            if (!interior.interiorType.hasCollision) continue
-
-            if (interior.interiorType.is3D) {
-                // Use the more accurate mesh collision for 3D objects
-                if (interior.collidesWithMesh(tempBounds)) {
-                    return false // Collision with 3D interior detected
-                }
-            } else {
-                // Use the simpler 2D circle-style collision for billboards
-                val playerRadius = playerSize.x / 2f
-                if (interior.collidesWithPlayer2D(Vector3(x, y, z), playerRadius)) {
-                    return false // Collision with 2D interior detected
-                }
-            }
-        }
-
-        return true // No collision with blocks, houses, or interiors
-    }
-
     private fun updatePlayerBounds() {
         playerBounds.set(
             Vector3(playerPosition.x - playerSize.x / 2, playerPosition.y - playerSize.y / 2, playerPosition.z - playerSize.z / 2),
@@ -565,6 +544,16 @@ class PlayerSystem {
     }
 
     fun update(deltaTime: Float) {
+        // Update animation system
+        animationSystem.update(deltaTime)
+
+        // Update player texture if it changed
+        val newTexture = animationSystem.getCurrentTexture()
+        if (newTexture != null && newTexture != playerTexture) {
+            updatePlayerTexture(newTexture)
+            println("Updated texture to: ${animationSystem.getCurrentAnimationName()}") // Debug print
+        }
+
         updatePlayerTransform()
     }
 
@@ -591,9 +580,37 @@ class PlayerSystem {
 
     fun getPosition(): Vector3 = Vector3(playerPosition)
 
+    private fun updatePlayerTexture(newTexture: Texture) {
+        // This line is fine, it just keeps track of the current texture reference.
+        playerTexture = newTexture
+
+        val instanceMaterial = playerInstance.materials.get(0)
+
+        // Update the attribute on the correct material
+        val textureAttribute = instanceMaterial.get(TextureAttribute.Diffuse) as TextureAttribute?
+        textureAttribute?.textureDescription?.texture = newTexture
+
+        // println("Updated texture for animation: ${animationSystem.getCurrentAnimationName()}")
+    }
+
+    // Add these utility methods for external animation control:
+    fun playAnimation(animationName: String, restart: Boolean = false) {
+        animationSystem.playAnimation(animationName, restart)
+    }
+
+    fun getCurrentAnimationName(): String? {
+        return animationSystem.getCurrentAnimationName()
+    }
+
+    fun isAnimationFinished(): Boolean {
+        return animationSystem.isAnimationFinished()
+    }
+
+    // Modify your dispose method:
     fun dispose() {
         playerModel.dispose()
-        playerTexture.dispose()
+        // Don't dispose playerTexture directly anymore - let animation system handle it
+        animationSystem.dispose()
         billboardModelBatch.dispose()
         billboardShaderProvider.dispose()
     }

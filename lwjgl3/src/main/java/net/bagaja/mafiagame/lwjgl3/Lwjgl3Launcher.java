@@ -37,6 +37,7 @@ public class Lwjgl3Launcher {
 
 // fire asset
 // industrial assets
+// more animations adding
 
 // room/open world transition effect being slower and smoother transition itself
 // adding random generation for room interior
@@ -52,7 +53,6 @@ public class Lwjgl3Launcher {
 // adding ammunition
 // adding health
 // adding multiple city areas
-// animations
 // add driving
 // add shadow option
 // spotlight effect
