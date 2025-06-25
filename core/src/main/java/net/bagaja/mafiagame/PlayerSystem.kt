@@ -43,6 +43,11 @@ class PlayerSystem {
     // Reference to block system for collision detection
     private var blockSize = 4f
 
+    var isDriving = false
+        private set
+    private var drivingCar: GameCar? = null
+    private val carSpeed = 20f // Speed is still relevant
+
     fun getPlayerBounds(): BoundingBox {
         return playerBounds
     }
@@ -205,7 +210,263 @@ class PlayerSystem {
         return true // No collision detected
     }
 
-    fun handleMovement(deltaTime: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {
+    fun getControlledEntityPosition(): Vector3 {
+        return if (isDriving && drivingCar != null) {
+            drivingCar!!.position
+        } else {
+            playerPosition
+        }
+    }
+
+    fun enterCar(car: GameCar) {
+        if (isDriving) return // Already driving, can't enter another car
+
+        // Check if the car is locked before entering
+        if (car.isLocked) {
+            println("This car is locked.")
+            // You could add a UI message or sound effect here
+            return
+        }
+
+        isDriving = true
+        drivingCar = car
+        // Hide the player by setting its position to the car's position
+        playerPosition.set(car.position)
+        println("Player entered car ${car.carType.displayName}")
+    }
+
+    fun exitCar(gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>) {
+        if (!isDriving || drivingCar == null) return
+
+        val car = drivingCar!!
+        // Calculate a safe exit spot
+        val exitOffset = Vector3(-5f, 0f, 0f) // Offset from car's local center
+        exitOffset.rotate(Vector3.Y, car.direction) // Rotate the offset to match the car's direction
+        val exitPosition = Vector3(car.position).add(exitOffset)
+
+        val safeY = calculateSafeYPositionForExit(exitPosition.x, exitPosition.z, car.position.y, gameBlocks, gameHouses, gameInteriors)
+        val finalExitPos = Vector3(exitPosition.x, safeY, exitPosition.z)
+
+        // Check if the exit spot is clear for the player to stand
+        if (canMoveToWithDoorCollision(finalExitPos.x, finalExitPos.y, finalExitPos.z, gameBlocks, gameHouses, gameInteriors)) {
+            setPosition(finalExitPos) // Use the existing setPosition method
+            println("Player exited car. Placed at $finalExitPos")
+            isDriving = false
+            drivingCar = null
+        } else {
+            println("Cannot exit car, path is blocked.")
+            // Optional: You could play a "thud" sound or show a UI message here
+        }
+    }
+
+    private fun calculateSafeYPositionForExit(x: Float, z: Float, carY: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Float {
+        // Find the highest block/surface that the player can stand on at position (x, z)
+        var highestSupportY = 0f // Ground level
+        var foundSupport = false
+
+        // Create a small area around the player position to check for support
+        val checkRadius = playerSize.x / 2f
+
+        // Check blocks - allow standing on any block at this position
+        for (gameBlock in gameBlocks) {
+            val blockCenterX = gameBlock.position.x
+            val blockCenterZ = gameBlock.position.z
+            val blockHalfSize = blockSize / 2f
+
+            // Check if the player's position overlaps with this block horizontally
+            val playerLeft = x - checkRadius
+            val playerRight = x + checkRadius
+            val playerFront = z - checkRadius
+            val playerBack = z + checkRadius
+
+            val blockLeft = blockCenterX - blockHalfSize
+            val blockRight = blockCenterX + blockHalfSize
+            val blockFront = blockCenterZ - blockHalfSize
+            val blockBack = blockCenterZ + blockHalfSize
+
+            // Check for horizontal overlap
+            val horizontalOverlap = !(playerRight < blockLeft || playerLeft > blockRight ||
+                playerBack < blockFront || playerFront > blockBack)
+
+            if (horizontalOverlap) {
+                val blockHeight = blockSize * gameBlock.blockType.height
+                val blockTop = gameBlock.position.y + blockHeight / 2f
+
+                // For car exit, consider ANY block that could support the player
+                // Check if this block is at or below the car's level (within reasonable range)
+                if (blockTop <= carY + 2f && blockTop > highestSupportY) {
+                    highestSupportY = blockTop
+                    foundSupport = true
+                }
+            }
+        }
+
+        // Handle stairs (similar to original logic but without the "already close" requirement)
+        for (house in gameHouses) {
+            if (house.houseType == HouseType.STAIR) {
+                val supportHeight = findStairSupportHeightForExit(house, x, z, carY)
+                if (supportHeight > highestSupportY && supportHeight <= carY + 2f) {
+                    highestSupportY = supportHeight
+                    foundSupport = true
+                }
+            }
+        }
+
+        // Check 3D interiors (similar to original logic but without the "already close" requirement)
+        for (interior in gameInteriors) {
+            if (!interior.interiorType.is3D || !interior.interiorType.hasCollision) continue
+
+            val objectBounds = interior.instance.calculateBoundingBox(BoundingBox())
+            if (x >= objectBounds.min.x && x <= objectBounds.max.x &&
+                z >= objectBounds.min.z && z <= objectBounds.max.z) {
+
+                val interiorTop = objectBounds.max.y
+                if (interiorTop <= carY + 2f && interiorTop > highestSupportY) {
+                    highestSupportY = interiorTop
+                    foundSupport = true
+                }
+            }
+        }
+
+        // Calculate where the player should be placed
+        val surfaceMargin = 0.05f
+        val targetY = highestSupportY + playerSize.y / 2f + surfaceMargin
+
+        return if (foundSupport) targetY else (0f + playerSize.y / 2f) // Ground level if no support
+    }
+
+    // Helper function for stair support during car exit
+    private fun findStairSupportHeightForExit(house: GameHouse, x: Float, z: Float, maxHeight: Float): Float {
+        val checkRadius = playerSize.x / 2f
+        val stepSize = 0.05f
+
+        // Check from maxHeight downward to find the stair surface
+        for (checkHeight in generateSequence(maxHeight) { it - stepSize }.takeWhile { it >= 0f }) {
+            val testBounds = BoundingBox()
+            testBounds.set(
+                Vector3(x - checkRadius, checkHeight - playerSize.y / 2f, z - checkRadius),
+                Vector3(x + checkRadius, checkHeight + playerSize.y / 2f, z + checkRadius)
+            )
+
+            if (!house.collidesWithMesh(testBounds)) {
+                // Found a height where we don't collide - this is where the player can stand
+                return checkHeight - playerSize.y / 2f + 0.05f
+            }
+        }
+
+        return 0f // Ground level if no suitable height found
+    }
+
+    fun handleMovement(deltaTime: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>, allCars: Array<GameCar>): Boolean {
+        return if (isDriving) {
+            handleCarMovement(deltaTime, gameBlocks, gameHouses, gameInteriors, allCars)
+        } else {
+            handlePlayerOnFootMovement(deltaTime, gameBlocks, gameHouses, gameInteriors)
+        }
+    }
+
+    private fun handleCarMovement(deltaTime: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>, allCars: Array<GameCar>): Boolean {
+        val car = drivingCar ?: return false
+        var moved = false
+        val originalDirection = car.direction
+
+        val moveAmount = carSpeed * deltaTime
+
+        // Temporary variables to calculate total movement for this frame
+        var deltaX = 0f
+        var deltaZ = 0f
+
+        // 1. Determine Desired Movement and Facing Direction
+        // 'A' and 'D' control X-axis movement
+        if (Gdx.input.isKeyPressed(Input.Keys.A)) {
+            deltaX -= moveAmount
+            car.direction = 0f // Face Left
+        }
+        if (Gdx.input.isKeyPressed(Input.Keys.D)) {
+            deltaX += moveAmount
+            car.direction = 180f   // Face Right
+        }
+        // 'W' and 'S' control Z-axis movement ONLY
+        if (Gdx.input.isKeyPressed(Input.Keys.W)) {
+            deltaZ -= moveAmount
+        }
+        if (Gdx.input.isKeyPressed(Input.Keys.S)) {
+            deltaZ += moveAmount
+        }
+
+        // 2. Check if a move was attempted
+        if (deltaX != 0f || deltaZ != 0f) {
+            // Calculate the potential new position
+            val newPos = Vector3(car.position).add(deltaX, 0f, deltaZ)
+            // Check for collisions before actually moving
+            if (canCarMoveTo(newPos, car, gameBlocks, gameHouses, gameInteriors, allCars)) {
+                car.position.set(newPos)
+                moved = true
+            }
+        }
+
+        // 3. Check if the direction changed
+        val directionChanged = car.direction != originalDirection
+
+        // 4. If the car moved OR turned, update its 3D model
+        if (moved || directionChanged) {
+            car.updateTransform()
+        }
+
+        return moved || directionChanged
+    }
+
+    private fun canCarMoveTo(newPosition: Vector3, thisCar: GameCar, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>, allCars: Array<GameCar>): Boolean {
+        // Create a temporary car with the new position to get accurate bounding box
+        val tempCar = thisCar.copy(position = Vector3(newPosition))
+        val carBounds = tempCar.getBoundingBox()
+
+        // Check collision with blocks - BUT allow driving ON TOP of blocks
+        for (block in gameBlocks) {
+            val blockBounds = block.getBoundingBox(blockSize)
+
+            if (carBounds.intersects(blockBounds)) {
+                // Check if the car is actually ON TOP of the block (not intersecting)
+                val carBottom = carBounds.min.y
+                val blockTop = blockBounds.max.y
+                val tolerance = 0.5f // Small tolerance for "on top" detection
+
+                // If car bottom is above block top (minus tolerance), it's driving on top - allow it
+                if (carBottom >= blockTop - tolerance) {
+                    continue // This is fine - car is on top of block
+                }
+
+                // Otherwise, it's a real collision
+                return false
+            }
+        }
+
+        // Check collision with houses
+        for (house in gameHouses) {
+            if (house.collidesWithMesh(carBounds)) {
+                return false
+            }
+        }
+
+        // Check collision with interiors that have collision
+        for (interior in gameInteriors) {
+            if (interior.interiorType.hasCollision && interior.collidesWithMesh(carBounds)) {
+                return false
+            }
+        }
+
+        // Check collision with other cars
+        for (otherCar in allCars) {
+            if (otherCar.id != thisCar.id && otherCar.getBoundingBox().intersects(carBounds)) {
+                return false
+            }
+        }
+
+        return true
+    }
+
+
+    private fun handlePlayerOnFootMovement(deltaTime: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {
         var moved = false
         var currentMovementDirection = 0f
 
@@ -569,6 +830,11 @@ class PlayerSystem {
     }
 
     fun render(camera: Camera, environment: Environment) {
+        // If the player is driving, do not render their 2D model.
+        if (isDriving) {
+            return
+        }
+
         // Set the environment for the billboard shader so it knows about the lights
         billboardShaderProvider.setEnvironment(environment)
 

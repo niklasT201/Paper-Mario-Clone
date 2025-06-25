@@ -245,11 +245,17 @@ class InputHandler(
                         return true
                     }
                     Input.Keys.L -> {
-                        // If holding H, toggle the lock state
+                        // If holding H, toggle the house lock state
                         if (isHouseSelectionMode) {
                             houseSystem.toggleLockState()
-                            uiManager.updateHouseSelection() // This will refresh the UI label
-                            return true // Consume the key event
+                            uiManager.updateHouseSelection()
+                            return true
+                        }
+                        // If holding M, toggle the car lock state
+                        if (isCarSelectionMode) {
+                            carSystem.toggleLockState()
+                            uiManager.updateCarSelection()
+                            return true
                         }
 
                         // Otherwise normal key actions

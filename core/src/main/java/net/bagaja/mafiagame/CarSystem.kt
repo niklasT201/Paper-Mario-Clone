@@ -22,6 +22,8 @@ class CarSystem: IFinePositionable {
         private set
     var currentSelectedCarIndex = 0
         private set
+    var isNextCarLocked = false
+        private set
 
     // Fine positioning mode
     override var finePosMode = false
@@ -87,6 +89,11 @@ class CarSystem: IFinePositionable {
         return modelBuilder.end()
     }
 
+    fun toggleLockState() {
+        isNextCarLocked = !isNextCarLocked
+        println("Next car lock state toggled to: $isNextCarLocked")
+    }
+
     fun nextCar() {
         currentSelectedCarIndex = (currentSelectedCarIndex + 1) % CarType.entries.size
         currentSelectedCar = CarType.entries.toTypedArray()[currentSelectedCarIndex]
@@ -119,17 +126,46 @@ data class GameCar(
     val modelInstance: ModelInstance,
     val carType: CarType,
     val position: Vector3,
-    var direction: Float = 0f // Direction in degrees (0 = facing forward/north)
+    var direction: Float = 0f, // Direction in degrees (0 = facing forward/north)
+    val isLocked: Boolean = false
 ) {
-    // Get bounding box for collision detection
+    val id: String = java.util.UUID.randomUUID().toString()
+
+    // Get bounding box for collision detection - FIXED VERSION
     fun getBoundingBox(): BoundingBox {
         val bounds = BoundingBox()
         val halfWidth = carType.width / 2f
+        val halfHeight = carType.height / 2f
 
-        bounds.set(
-            Vector3(position.x - halfWidth, position.y, position.z - 0.1f), // Very thin depth
-            Vector3(position.x + halfWidth, position.y + carType.height, position.z + 0.1f)
-        )
+        // Use a more reasonable thickness based on car type
+        val thickness = carType.width * 0.3f // Make thickness proportional to car width
+        val halfThickness = thickness / 2f
+
+        // Create collision box based on car's actual orientation
+        when (direction.toInt()) {
+            0, 180 -> {
+                // Car is facing north/south: wide on X, thin on Z
+                bounds.set(
+                    Vector3(position.x - halfWidth, position.y, position.z - halfThickness),
+                    Vector3(position.x + halfWidth, position.y + halfHeight, position.z + halfThickness)
+                )
+            }
+            90, 270 -> {
+                // Car is facing east/west: thin on X, wide on Z
+                bounds.set(
+                    Vector3(position.x - halfThickness, position.y, position.z - halfWidth),
+                    Vector3(position.x + halfThickness, position.y + halfHeight, position.z + halfWidth)
+                )
+            }
+            else -> {
+                // For other angles, use a square collision box (simpler but less precise)
+                val maxDimension = kotlin.math.max(halfWidth, halfThickness)
+                bounds.set(
+                    Vector3(position.x - maxDimension, position.y, position.z - maxDimension),
+                    Vector3(position.x + maxDimension, position.y + halfHeight, position.z + maxDimension)
+                )
+            }
+        }
         return bounds
     }
 
@@ -164,12 +200,12 @@ enum class CarType(
     val width: Float,
     val height: Float
 ) {
-    SEDAN("Sedan", "textures/objects/cars/car_driving.png", 12f, 7f),
-    SUV("SUV", "textures/cars/suv.png", 9f, 5f),
-    TRUCK("Truck", "textures/cars/truck.png", 12f, 6f),
-    SPORTS_CAR("Sports Car", "textures/cars/sports_car.png", 7f, 3.5f),
-    VAN("Van", "textures/cars/van.png", 8f, 5.5f),
-    POLICE_CAR("Police Car", "textures/cars/police_car.png", 8f, 4f),
-    TAXI("Taxi", "textures/cars/taxi.png", 8f, 4f),
-    MOTORCYCLE("Motorcycle", "textures/cars/motorcycle.png", 3f, 4f)
+    SEDAN("Sedan", "textures/objects/cars/car_driving.png", 10f, 7f),
+    SUV("SUV", "textures/cars/suv.png", 8f, 5f),
+    TRUCK("Truck", "textures/cars/truck.png", 11f, 6f), // was 12f
+    SPORTS_CAR("Sports Car", "textures/cars/sports_car.png", 6f, 3.5f),
+    VAN("Van", "textures/cars/van.png", 7f, 5.5f),
+    POLICE_CAR("Police Car", "textures/cars/police_car.png", 7f, 4f),
+    TAXI("Taxi", "textures/cars/taxi.png", 7f, 4f),
+    MOTORCYCLE("Motorcycle", "textures/cars/motorcycle.png", 2.5f, 4f)
 }

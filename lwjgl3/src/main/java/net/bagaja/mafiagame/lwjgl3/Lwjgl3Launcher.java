@@ -35,6 +35,9 @@ public class Lwjgl3Launcher {
     }
 }
 
+// Don being villian or helpful
+// player character/moral compass: Forced prostitution/sexual violence, Violence against immigrants, Rape
+
 // fire asset
 // industrial assets
 // more animations adding
@@ -44,7 +47,9 @@ public class Lwjgl3Launcher {
 
 // map saving
 // improve camera for interiors
-// cars can be locked
+// car rotation animation effect
+// cars have light on both sides
+// player visible optional in cars
 // maybe changing 30 min daycicle to 50
 // enemies have an inventory and collect items
 // footprints when moving through dead enemies
@@ -53,7 +58,6 @@ public class Lwjgl3Launcher {
 // adding ammunition
 // adding health
 // adding multiple city areas
-// add driving
 // add shadow option
 // spotlight effect
 // ui for sky color change

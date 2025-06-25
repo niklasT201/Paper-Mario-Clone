@@ -21,6 +21,7 @@ class CarSelectionUI(
     private lateinit var carSelectionTable: Table
     private lateinit var carItems: MutableList<CarSelectionItem>
     private val loadedTextures = mutableMapOf<String, Texture>() // Cache for loaded textures
+    private lateinit var lockStatusLabel: Label
 
     // Data class to hold car selection item components
     private data class CarSelectionItem(
@@ -80,11 +81,21 @@ class CarSelectionUI(
 
         mainContainer.add(carContainer).padBottom(10f).row()
 
+        // Lock Status Display
+        lockStatusLabel = Label("", skin).apply { setFontScale(1.1f) }
+        mainContainer.add(lockStatusLabel).padBottom(15f).row()
+
         // Instructions with modern styling
         val instructionLabel = Label("Hold [R] + Mouse Wheel to change cars", skin)
         instructionLabel.setFontScale(0.9f)
         instructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f) // Darker gray
         mainContainer.add(instructionLabel).padBottom(5f).row()
+
+        // Lock instruction
+        val lockInstructionLabel = Label("Hold [M] + [L] to toggle Lock", skin)
+        lockInstructionLabel.setFontScale(0.9f)
+        lockInstructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f)
+        mainContainer.add(lockInstructionLabel).padBottom(5f).row()
 
         // Additional instructions for fine positioning
         val fineInstructionLabel = Label("F - Fine positioning | Cars are 2D billboards", skin)
@@ -94,6 +105,7 @@ class CarSelectionUI(
 
         carSelectionTable.add(mainContainer)
         stage.addActor(carSelectionTable)
+        update()
     }
 
     private fun createCarItem(carType: CarType, isSelected: Boolean): CarSelectionItem {
@@ -274,6 +286,14 @@ class CarSelectionUI(
     }
 
     fun update() {
+        if (carSystem.isNextCarLocked) {
+            lockStatusLabel.setText("State: [LOCKED]")
+            lockStatusLabel.color = Color.FIREBRICK
+        } else {
+            lockStatusLabel.setText("State: [OPEN]")
+            lockStatusLabel.color = Color.FOREST
+        }
+
         val currentIndex = carSystem.currentSelectedCarIndex
 
         // Animate all car items

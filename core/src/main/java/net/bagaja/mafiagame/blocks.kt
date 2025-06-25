@@ -2,6 +2,7 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.collision.BoundingBox
 
 enum class BlockFace {
     TOP,
@@ -21,6 +22,19 @@ data class GameBlock(
 ) {
 
     val visibleFaces: MutableSet<BlockFace> = BlockFace.entries.toMutableSet()
+
+    fun getBoundingBox(blockSize: Float): BoundingBox {
+        val bounds = BoundingBox()
+        val blockHeight = blockSize * blockType.height
+        val halfWidth = blockSize / 2f
+        val halfHeight = blockHeight / 2f
+
+        bounds.set(
+            Vector3(position.x - halfWidth, position.y - halfHeight, position.z - halfWidth),
+            Vector3(position.x + halfWidth, position.y + halfHeight, position.z + halfWidth)
+        )
+        return bounds
+    }
 
     // Method to update the block's transform with current rotation
     fun updateTransform() {

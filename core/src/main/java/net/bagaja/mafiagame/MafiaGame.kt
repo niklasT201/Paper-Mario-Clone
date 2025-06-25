@@ -200,11 +200,17 @@ class MafiaGame : ApplicationAdapter() {
             cameraManager.handleInput(deltaTime)
         } else {
             // Handle player movement through PlayerSystem
-            val moved = playerSystem.handleMovement(deltaTime, sceneManager.activeBlocks, sceneManager.activeHouses, sceneManager.activeInteriors)
+            val moved = playerSystem.handleMovement(
+                deltaTime,
+                sceneManager.activeBlocks,
+                sceneManager.activeHouses,
+                sceneManager.activeInteriors,
+                sceneManager.activeCars
+            )
 
             if (moved) {
                 // Update camera manager with player position
-                cameraManager.setPlayerPosition(playerSystem.getPosition())
+                cameraManager.setPlayerPosition(playerSystem.getControlledEntityPosition())
 
                 // Auto-switch to player camera when moving
                 cameraManager.switchToPlayerCamera()
@@ -222,11 +228,25 @@ class MafiaGame : ApplicationAdapter() {
         }
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            // If the player is currently driving
+            if (playerSystem.isDriving) {
+                playerSystem.exitCar(sceneManager.activeBlocks, sceneManager.activeHouses, sceneManager.activeInteriors)
+                return
+            }
+
             when (sceneManager.currentScene) {
                 SceneType.WORLD -> {
+                    val playerPos = playerSystem.getPosition()
+                    val closestCar = sceneManager.activeCars.minByOrNull { it.position.dst(playerPos) }
+
+                    // Check if a car is found and is close enough
+                    if (closestCar != null && playerPos.dst(closestCar.position) < 8f) {
+                        playerSystem.enterCar(closestCar)
+                        return // Interaction handled, stop here.
+                    }
+
                     // Try to enter a house
                     val door_level_y = 4.5f
-                    val playerPos = playerSystem.getPosition()
                     val closestHouse = sceneManager.activeHouses.minByOrNull { it.position.dst(playerPos) }
 
                     if (closestHouse != null) {
@@ -931,9 +951,10 @@ class MafiaGame : ApplicationAdapter() {
         val carInstance = carSystem.createCarInstance(carType)
         if (carInstance != null) {
             val position = Vector3(x, y, z)
-            val gameCar = GameCar(carInstance, carType, position, 0f) // 0f = facing north
+            val gameCar = GameCar(carInstance, carType, position, 0f, carSystem.isNextCarLocked) // 0f = facing north
             sceneManager.activeCars.add(gameCar)
             lastPlacedInstance = gameCar
+            println("Placed ${carType.displayName}. Locked: ${gameCar.isLocked}")
         }
     }
 
