@@ -294,7 +294,7 @@ class BlockShader : BaseShader() {
 
         val numPointLights = pointLightsArray.size.coerceAtMost(16)
         set(u_numPointLights, numPointLights)
-        println("BlockShader: NumPointLights being sent to GLSL: $numPointLights")
+        //println("BlockShader: NumPointLights being sent to GLSL: $numPointLights")
 
         for (i in 0 until 16) {
             if (i < numPointLights) {

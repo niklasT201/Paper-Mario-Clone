@@ -54,19 +54,20 @@ enum class InteriorType(
     TABLE_3D("Table 3D", "Models/table.png", "Models/table.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
     RESTAURANT_TABLE("Dinner Table 3D", "Models/restaurant_table.png", "Models/restaurant_table.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
 
-    INTERIOR_RANDOMIZER("Interior Randomizer", "", null, 1f, 1f, 1f, false, InteriorCategory.MISC, isRandomizer = true);
+    // Randomizers
+    INTERIOR_RANDOMIZER("Small Item Randomizer", "", null, 1f, 1f, 1f, false, InteriorCategory.MISC, isRandomizer = true),
+    FURNITURE_RANDOMIZER_3D("3D Furniture Randomizer", "", null, 1f, 1f, 1f, false, InteriorCategory.FURNITURE, isRandomizer = true);
 
     val is3D: Boolean get() = modelPath != null
     val is2D: Boolean get() = modelPath == null
 
     // Companion object to hold the list of randomized Interiors
     companion object {
-        /** A list of interior types that can be selected by the randomizer. */
-        val randomizableTypes: List<InteriorType> by lazy {
+        /** A list of SMALL interior types that can be selected by the small item randomizer. */
+        val randomizableSmallItems: List<InteriorType> by lazy {
             listOf(
                 BARREL,
                 BOARD,
-                BROKEN_LAMP,
                 CHAIR,
                 DESK_LAMP,
                 HANDLANTERN,
@@ -76,6 +77,15 @@ enum class InteriorType(
                 TABLE,
                 TABLE_DISH,
                 TELEPHONE
+            )
+        }
+
+        /** A list of 3D FURNITURE types that can be selected by the furniture randomizer. */
+        val randomizableFurniture3D: List<InteriorType> by lazy {
+            listOf(
+                BOOKSHELF_3D,
+                TABLE_3D,
+                RESTAURANT_TABLE
             )
         }
     }
@@ -121,8 +131,8 @@ class InteriorSystem : IFinePositionable {
 
         for (interiorType in InteriorType.entries) {
             try {
-                // Special handling for the randomizer placeholder
-                if (interiorType == InteriorType.INTERIOR_RANDOMIZER) {
+                // Special handling for the randomizer placeholders
+                if (interiorType.isRandomizer) {
                     // Create a small, invisible model so it can be instantiated and highlighted.
                     val invisibleMaterial = Material()
                     invisibleMaterial.set(BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.0f))

@@ -276,13 +276,19 @@ class SceneManager(
                 }
                 RoomElementType.INTERIOR -> {
                     element.interiorType?.let { interiorType ->
-                        // Check for the randomizer type and replace it
-                        if (interiorType == InteriorType.INTERIOR_RANDOMIZER) {
-                            // It's a randomizer, so pick a real object to place instead.
-                            val randomType = InteriorType.randomizableTypes.randomOrNull()
+                        // Check if the placed element is a randomizer
+                        if (interiorType.isRandomizer) {
+                            // Determine which list of random items to use based on the randomizer type
+                            val randomizableList = when (interiorType) {
+                                InteriorType.INTERIOR_RANDOMIZER -> InteriorType.randomizableSmallItems
+                                InteriorType.FURNITURE_RANDOMIZER_3D -> InteriorType.randomizableFurniture3D
+                                else -> emptyList() // Fallback for other potential randomizers
+                            }
+
+                            val randomType = randomizableList.randomOrNull()
 
                             if (randomType != null) {
-                                println("InteriorRandomizer found at ${element.position}. Replacing with a random object: ${randomType.displayName}")
+                                println("${interiorType.displayName} found at ${element.position}. Replacing with a random object: ${randomType.displayName}")
                                 // Create an instance of the *newly chosen* type
                                 interiorSystem.createInteriorInstance(randomType)?.let { gameInterior ->
                                     // Use the position, rotation, and scale from the original randomizer placeholder
@@ -293,11 +299,11 @@ class SceneManager(
                                     newInteriors.add(gameInterior)
                                 }
                             } else {
-                                // This case happens if the randomizableTypes list is empty.
-                                println("Warning: InteriorRandomizer was placed, but the list of randomizable interiors is empty. Nothing was generated.")
+                                // This case happens if the randomizable list is empty.
+                                println("Warning: ${interiorType.displayName} was placed, but its list of randomizable interiors is empty. Nothing was generated.")
                             }
                         } else {
-                            // This is a normal interior object. Process it as before.
+                            // This is a normal, non-randomizer interior object. Process it as before.
                             interiorSystem.createInteriorInstance(interiorType)?.let { gameInterior ->
                                 gameInterior.position.set(element.position)
                                 gameInterior.rotation = element.rotation
