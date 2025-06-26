@@ -368,23 +368,23 @@ class PlayerSystem {
     private fun handleCarMovement(deltaTime: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>, allCars: Array<GameCar>): Boolean {
         val car = drivingCar ?: return false
         var moved = false
-        val originalDirection = car.direction
 
         val moveAmount = carSpeed * deltaTime
 
         // Temporary variables to calculate total movement for this frame
         var deltaX = 0f
         var deltaZ = 0f
+        var horizontalDirection = 0f // Track horizontal movement for flip animation
 
-        // 1. Determine Desired Movement and Facing Direction
+        // 1. Determine Desired Movement
         // 'A' and 'D' control X-axis movement
         if (Gdx.input.isKeyPressed(Input.Keys.A)) {
             deltaX -= moveAmount
-            car.direction = 0f // Face Left
+            horizontalDirection = 1f // Moving left
         }
         if (Gdx.input.isKeyPressed(Input.Keys.D)) {
             deltaX += moveAmount
-            car.direction = 180f   // Face Right
+            horizontalDirection = -1f // Moving right
         }
         // 'W' and 'S' control Z-axis movement ONLY
         if (Gdx.input.isKeyPressed(Input.Keys.W)) {
@@ -394,7 +394,10 @@ class PlayerSystem {
             deltaZ += moveAmount
         }
 
-        // 2. Check if a move was attempted
+        // 2. Update flip animation based on horizontal movement
+        car.updateFlipAnimation(horizontalDirection, deltaTime)
+
+        // 3. Check if a move was attempted
         if (deltaX != 0f || deltaZ != 0f) {
             // Calculate the potential new position
             val newPos = Vector3(car.position).add(deltaX, 0f, deltaZ)
@@ -405,15 +408,10 @@ class PlayerSystem {
             }
         }
 
-        // 3. Check if the direction changed
-        val directionChanged = car.direction != originalDirection
+        // 4. Update the car's 3D model transform (this now includes flip animation)
+        car.updateTransform()
 
-        // 4. If the car moved OR turned, update its 3D model
-        if (moved || directionChanged) {
-            car.updateTransform()
-        }
-
-        return moved || directionChanged
+        return moved
     }
 
     private fun canCarMoveTo(newPosition: Vector3, thisCar: GameCar, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>, allCars: Array<GameCar>): Boolean {

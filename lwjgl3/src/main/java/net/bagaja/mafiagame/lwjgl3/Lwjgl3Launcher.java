@@ -47,7 +47,8 @@ public class Lwjgl3Launcher {
 // maybe adding multiple texturing for interiors
 // map saving
 // improve camera for interiors
-// car rotation animation effect
+// blocks not fully visible when next to a street block
+// cars not on the street block
 // cars have light on both sides
 // player visible optional in cars
 // maybe changing 30 min daycicle to 50

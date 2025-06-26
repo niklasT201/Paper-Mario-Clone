@@ -131,6 +131,11 @@ data class GameCar(
 ) {
     val id: String = java.util.UUID.randomUUID().toString()
 
+    private var visualRotationY = 0f // Current visual rotation
+    private var targetRotationY = 0f // Target visual rotation
+    private val rotationSpeed = 360f // Degrees per second
+    private var lastHorizontalDirection = 0f
+
     // Get bounding box for collision detection - FIXED VERSION
     fun getBoundingBox(): BoundingBox {
         val bounds = BoundingBox()
@@ -169,13 +174,50 @@ data class GameCar(
         return bounds
     }
 
-    // Update the car's position with fixed direction (no more billboard effect)
-    fun updateTransform() {
-        // Update position
-        modelInstance.transform.setToTranslation(position)
+    fun updateFlipAnimation(horizontalDirection: Float, deltaTime: Float) {
+        // Only update target rotation if there's actual horizontal movement
+        if (horizontalDirection != 0f && horizontalDirection != lastHorizontalDirection) {
+            targetRotationY = if (horizontalDirection < 0f) 180f else 0f
+            lastHorizontalDirection = horizontalDirection
+        }
 
-        // Apply fixed rotation (cars maintain their direction)
-        modelInstance.transform.rotate(Vector3.Y, direction)
+        // Smoothly interpolate current rotation towards target rotation
+        updateVisualRotation(deltaTime)
+    }
+
+    private fun updateVisualRotation(deltaTime: Float) {
+        // Calculate the shortest rotation path
+        var rotationDifference = targetRotationY - visualRotationY
+        if (rotationDifference > 180f) rotationDifference -= 360f
+        else if (rotationDifference < -180f) rotationDifference += 360f
+
+        if (kotlin.math.abs(rotationDifference) > 1f) {
+            val rotationStep = rotationSpeed * deltaTime
+            if (rotationDifference > 0f) {
+                visualRotationY += kotlin.math.min(rotationStep, rotationDifference)
+            } else {
+                visualRotationY += kotlin.math.max(-rotationStep, rotationDifference)
+            }
+
+            // Keep rotation in 0-360 range
+            if (visualRotationY >= 360f) visualRotationY -= 360f
+            else if (visualRotationY < 0f) visualRotationY += 360f
+        } else {
+            // Snap to target if close enough
+            visualRotationY = targetRotationY
+        }
+    }
+
+    // Update the car's position and visual rotation
+    fun updateTransform() {
+        // Reset transform matrix
+        modelInstance.transform.idt()
+
+        // Update position
+        modelInstance.transform.setTranslation(position)
+
+        // Apply visual rotation for flip effect (this is separate from movement direction)
+        modelInstance.transform.rotate(Vector3.Y, visualRotationY)
     }
 
     // Method to move car in its current direction (for future driving)
