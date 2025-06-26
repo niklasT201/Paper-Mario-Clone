@@ -141,13 +141,20 @@ class InteriorSelectionUI(
         container.clear()
         interiorItems.clear()
 
-        val filteredTypes = if (currentCategory != null) {
-            InteriorType.entries.filter { it.category == currentCategory }
+        // Separate randomizers from regular interiors
+        val allTypes = InteriorType.entries.toList()
+        val randomizers = allTypes.filter { it.isRandomizer }
+        val regularInteriors = allTypes.filter { !it.isRandomizer }
+
+        // Filter regular interiors by category
+        val filteredRegularTypes = if (currentCategory != null) {
+            regularInteriors.filter { it.category == currentCategory }
         } else {
-            InteriorType.entries.toList()
+            regularInteriors
         }
 
-        filteredTypes.forEachIndexed { i, interiorType ->
+        // Add randomizers first (they'll appear at the beginning)
+        randomizers.forEachIndexed { i, interiorType ->
             val item = createInteriorItem(interiorType, interiorType == interiorSystem.currentSelectedInterior)
             interiorItems.add(item)
 
@@ -156,10 +163,42 @@ class InteriorSelectionUI(
             container.add(item.container).size(120f, 140f)
         }
 
+        // Add separator if we have both randomizers and regular interiors
+        if (randomizers.isNotEmpty() && filteredRegularTypes.isNotEmpty()) {
+            container.add().width(30f) // Larger spacing
+
+            // Add a visual separator
+            val separatorTable = Table()
+            separatorTable.background = createSeparatorBackground()
+            container.add(separatorTable).size(4f, 140f)
+            container.add().width(30f)
+        }
+
+        // Add regular interiors
+        filteredRegularTypes.forEachIndexed { i, interiorType ->
+            val item = createInteriorItem(interiorType, interiorType == interiorSystem.currentSelectedInterior)
+            interiorItems.add(item)
+
+            if (i > 0 || randomizers.isNotEmpty()) container.add().width(15f)
+            container.add(item.container).size(120f, 140f)
+        }
+
         // Scroll to selected item after rebuilding
         Gdx.app.postRunnable {
             scrollToSelectedItem()
         }
+    }
+
+    private fun createSeparatorBackground(): Drawable {
+        val pixmap = Pixmap(4, 140, Pixmap.Format.RGBA8888)
+        pixmap.setColor(Color(0.6f, 0.6f, 0.8f, 0.8f))
+        pixmap.fill()
+
+        val texture = Texture(pixmap)
+        generatedTextures.add(texture)
+        pixmap.dispose()
+
+        return TextureRegionDrawable(TextureRegion(texture))
     }
 
     private fun setupPlacementInfo(mainContainer: Table) {
@@ -282,6 +321,14 @@ class InteriorSelectionUI(
         sizeLabel.setFontScale(0.6f)
         sizeLabel.color = Color(0.7f, 0.7f, 0.7f, 1f)
         container.add(sizeLabel)
+
+        if (interiorType.isRandomizer) {
+            // Make randomizer items visually distinct
+            val randomBg = createItemBackground(Color(0.8f, 0.4f, 0.8f, 0.95f)) // Purple/magenta
+            val randomSelectedBg = createItemBackground(Color(1.0f, 0.5f, 1.0f, 0.95f)) // Bright purple
+            // Use these backgrounds instead of the category-based ones
+            container.background = if (isSelected) randomSelectedBg else randomBg
+        }
 
         // Add click listener for selection
         container.addListener(object : ClickListener() {

@@ -276,12 +276,35 @@ class SceneManager(
                 }
                 RoomElementType.INTERIOR -> {
                     element.interiorType?.let { interiorType ->
-                        interiorSystem.createInteriorInstance(interiorType)?.let { gameInterior ->
-                            gameInterior.position.set(element.position)
-                            gameInterior.rotation = element.rotation
-                            gameInterior.scale.set(element.scale)
-                            gameInterior.updateTransform()
-                            newInteriors.add(gameInterior)
+                        // Check for the randomizer type and replace it
+                        if (interiorType == InteriorType.INTERIOR_RANDOMIZER) {
+                            // It's a randomizer, so pick a real object to place instead.
+                            val randomType = InteriorType.randomizableTypes.randomOrNull()
+
+                            if (randomType != null) {
+                                println("InteriorRandomizer found at ${element.position}. Replacing with a random object: ${randomType.displayName}")
+                                // Create an instance of the *newly chosen* type
+                                interiorSystem.createInteriorInstance(randomType)?.let { gameInterior ->
+                                    // Use the position, rotation, and scale from the original randomizer placeholder
+                                    gameInterior.position.set(element.position)
+                                    gameInterior.rotation = element.rotation
+                                    gameInterior.scale.set(element.scale)
+                                    gameInterior.updateTransform()
+                                    newInteriors.add(gameInterior)
+                                }
+                            } else {
+                                // This case happens if the randomizableTypes list is empty.
+                                println("Warning: InteriorRandomizer was placed, but the list of randomizable interiors is empty. Nothing was generated.")
+                            }
+                        } else {
+                            // This is a normal interior object. Process it as before.
+                            interiorSystem.createInteriorInstance(interiorType)?.let { gameInterior ->
+                                gameInterior.position.set(element.position)
+                                gameInterior.rotation = element.rotation
+                                gameInterior.scale.set(element.scale)
+                                gameInterior.updateTransform()
+                                newInteriors.add(gameInterior)
+                            }
                         }
                     }
                 }
@@ -334,7 +357,7 @@ class SceneManager(
             return false
         }
 
-       // Find the house we are currently in to get its exit door ID
+        // Find the house we are currently in to get its exit door ID
         val currentHouse = getCurrentHouse()
         var doorPosition = Vector3() // Default to (0,0,0)
 

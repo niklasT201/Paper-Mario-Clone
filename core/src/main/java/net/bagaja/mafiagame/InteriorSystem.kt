@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.VertexAttributes
 import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
+import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.loader.G3dModelLoader
@@ -29,7 +30,8 @@ enum class InteriorType(
     val depth: Float = 1f,
     val hasCollision: Boolean = true,
     val category: InteriorCategory = InteriorCategory.FURNITURE,
-    val groundOffset: Float = 0f
+    val groundOffset: Float = 0f,
+    val isRandomizer: Boolean = false
 ) {
     // 2D Billboard objects
     BAR("Bar", "textures/interior/bar.png", null, 2f, 1.5f, 1f, true, InteriorCategory.FURNITURE, 1f),
@@ -50,10 +52,33 @@ enum class InteriorType(
     // 3D Model objects
     BOOKSHELF_3D("Bookshelf", "Models/shelf_model.png", "Models/bookshelf.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
     TABLE_3D("Table 3D", "Models/table.png", "Models/table.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
-    RESTAURANT_TABLE("Dinner Table 3D", "Models/restaurant_table.png", "Models/restaurant_table.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f);
+    RESTAURANT_TABLE("Dinner Table 3D", "Models/restaurant_table.png", "Models/restaurant_table.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
+
+    INTERIOR_RANDOMIZER("Interior Randomizer", "", null, 1f, 1f, 1f, false, InteriorCategory.MISC, isRandomizer = true);
 
     val is3D: Boolean get() = modelPath != null
     val is2D: Boolean get() = modelPath == null
+
+    // Companion object to hold the list of randomized Interiors
+    companion object {
+        /** A list of interior types that can be selected by the randomizer. */
+        val randomizableTypes: List<InteriorType> by lazy {
+            listOf(
+                BARREL,
+                BOARD,
+                BROKEN_LAMP,
+                CHAIR,
+                DESK_LAMP,
+                HANDLANTERN,
+                ITEM_FRAME,
+                MONEY_STACK,
+                OFFICE_CHAIR,
+                TABLE,
+                TABLE_DISH,
+                TELEPHONE
+            )
+        }
+    }
 }
 
 enum class InteriorCategory(val displayName: String) {
@@ -96,6 +121,20 @@ class InteriorSystem : IFinePositionable {
 
         for (interiorType in InteriorType.entries) {
             try {
+                // Special handling for the randomizer placeholder
+                if (interiorType == InteriorType.INTERIOR_RANDOMIZER) {
+                    // Create a small, invisible model so it can be instantiated and highlighted.
+                    val invisibleMaterial = Material()
+                    invisibleMaterial.set(BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.0f))
+                    invisibleMaterial.set(ColorAttribute.createDiffuse(0f, 0f, 0f, 0f)) // Fully transparent
+
+                    val model = modelBuilder.createBox(0.5f, 0.5f, 0.5f, invisibleMaterial, (VertexAttributes.Usage.Position).toLong())
+                    interiorModels[interiorType] = model
+                    println("Created placeholder model for: ${interiorType.displayName}")
+                    continue // Skip to the next enum entry, as it has no texture.
+                }
+
+
                 val texture = Texture(Gdx.files.internal(interiorType.texturePath), false)
                 texture.setFilter(Texture.TextureFilter.Nearest, Texture.TextureFilter.Nearest)
                 interiorTextures[interiorType] = texture
