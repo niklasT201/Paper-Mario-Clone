@@ -35,6 +35,10 @@ class FaceCullingSystem(private val blockSize: Float = 4f) {
     /**
      * Efficiently recalculates visible faces for a single block using a pre-built map for lookups.
      */
+    /**
+     * Efficiently recalculates visible faces for a single block using a pre-built map for lookups.
+     * This function now checks neighbor height to prevent incorrect culling.
+     */
     fun recalculateVisibleFaces(block: GameBlock, blockMap: Map<String, GameBlock>) {
         block.visibleFaces.clear()
 
@@ -56,7 +60,17 @@ class FaceCullingSystem(private val blockSize: Float = 4f) {
             val neighborPos = Vector3(block.position).add(rotatedOffset)
             val neighborKey = "${neighborPos.x.toInt()}_${neighborPos.y.toInt()}_${neighborPos.z.toInt()}"
 
-            if (!blockMap.containsKey(neighborKey)) {
+            // Get the actual neighbor block
+            val neighbor = blockMap[neighborKey]
+
+            // Determine if the face is a side face
+            val isSideFace = face == BlockFace.FRONT || face == BlockFace.BACK || face == BlockFace.LEFT || face == BlockFace.RIGHT
+
+            if (neighbor == null) {
+                // Condition 1: No neighbor. Face is visible
+                block.visibleFaces.add(face)
+            } else if (isSideFace && block.blockType.height > neighbor.blockType.height) {
+                // Condition 2: Neighbor exists but is shorter. The side face is visible
                 block.visibleFaces.add(face)
             }
         }
