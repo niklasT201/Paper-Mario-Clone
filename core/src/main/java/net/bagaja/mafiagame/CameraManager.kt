@@ -2,7 +2,7 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
-import com.badlogic.gdx.graphics.OrthographicCamera // NEW: Import OrthographicCamera
+import com.badlogic.gdx.graphics.OrthographicCamera
 import com.badlogic.gdx.graphics.PerspectiveCamera
 import com.badlogic.gdx.math.Vector3
 import kotlin.math.cos
@@ -19,7 +19,7 @@ class CameraManager {
     // Camera modes
     enum class CameraMode {
         ORBITING,    // Original orbiting camera (for building/placing blocks)
-        PLAYER,      // Paper Mario style camera that follows player
+        PLAYER,      // Paper Mario style camera that follows player/car
         FREE         // Free camera mode
     }
 
@@ -40,29 +40,30 @@ class CameraManager {
     private var cameraAngleY = 0f
 
     // Player camera mode variables (Paper Mario style)
-    private var playerCameraDistance = 12f // Distance behind/beside the player
-    private var playerCameraHeight = 6f // Height above the player
-    private var playerCameraAngle = 25f // Side view angle (0° = behind, 90° = side view)
+    private var playerPosition = Vector3(0f, 2f, 0f) // This will be updated from the game
     private val playerCameraSmoothing = 20f // How smoothly the camera follows
     private var currentPlayerCameraPosition = Vector3()
     private var targetPlayerCameraPosition = Vector3()
-    private var playerPosition = Vector3(0f, 2f, 0f) // This will be updated from the game
 
-    // Paper Mario style settings
-    private val paperMarioSideAngle = 90f // Slightly angled side view
-    private val paperMarioDistance = 15f
-    private val paperMarioHeight = 8f
+    // Player-specific settings (Paper Mario style)
+    private var playerCameraDistance = 15f // Distance behind/beside the player
+    private var playerCameraHeight = 8f // Height above the player
+    private var playerCameraAngle = 90f // Side view angle
+    private var playerLookAtHeightOffset = 1f // Look at player's chest area
+
+    // Car-specific camera settings
+    private var carCameraDistance = 22f // Further away to see more
+    private var carCameraHeight = 14f // Higher up for a better overview
+    private var carLookAtHeightOffset = 3f  // Look at the middle of the car, not its base
+
+    // State to track what we are following
+    private var isFollowingCar = false
 
     fun initialize() {
         // Setup 3D camera
         camera = PerspectiveCamera(67f, Gdx.graphics.width.toFloat(), Gdx.graphics.height.toFloat())
 
-        // Initialize player camera settings for Paper Mario style
-        playerCameraAngle = paperMarioSideAngle
-        playerCameraDistance = paperMarioDistance
-        playerCameraHeight = paperMarioHeight
-
-        // Start in orbiting mode
+        // Start in player mode
         currentCameraMode = CameraMode.PLAYER
         updateCameraPosition()
 
@@ -86,15 +87,16 @@ class CameraManager {
         camera.viewportHeight = height.toFloat()
         camera.update()
 
-        // NEW: Also update the 2D UI camera
+        // Also update the 2D UI camera
         uiCamera.viewportWidth = width.toFloat()
         uiCamera.viewportHeight = height.toFloat()
         uiCamera.position.set(uiCamera.viewportWidth / 2f, uiCamera.viewportHeight / 2f, 0f)
         uiCamera.update()
     }
 
-    fun setPlayerPosition(position: Vector3, forceSnap: Boolean = false) {
+    fun setPlayerPosition(position: Vector3, isDriving: Boolean, forceSnap: Boolean = false) {
         playerPosition.set(position)
+        this.isFollowingCar = isDriving // Store the current state
         calculatePlayerCameraTarget()
 
         // If a snap is forced, immediately move the camera to the target.
@@ -103,8 +105,8 @@ class CameraManager {
         }
     }
 
-    fun resetAndSnapToPlayer(position: Vector3) {
-        setPlayerPosition(position, true)
+    fun resetAndSnapToPlayer(position: Vector3, isDriving: Boolean) {
+        setPlayerPosition(position, isDriving, true)
         handlePlayerCameraInput(0f) // Call with 0f delta to immediately update camera matrix
     }
 
@@ -123,10 +125,10 @@ class CameraManager {
                 println("Free Camera Mode: ON")
             }
             CameraMode.FREE -> {
-                // Switch back to player camera (Paper Mario style)
+                // Switch back to player camera
                 currentCameraMode = CameraMode.PLAYER
                 updateCameraPosition()
-                println("Player Camera Mode: ON (Paper Mario style)")
+                println("Player Camera Mode: ON")
             }
         }
     }
@@ -185,9 +187,14 @@ class CameraManager {
                 updateCameraPosition()
             }
             CameraMode.PLAYER -> {
-                // Adjust distance from player
-                playerCameraDistance += amountY * 1f
-                playerCameraDistance = playerCameraDistance.coerceIn(8f, 25f)
+                // Adjust distance based on whether we are following a player or a car
+                if (isFollowingCar) {
+                    carCameraDistance += amountY * 1.5f
+                    carCameraDistance = carCameraDistance.coerceIn(15f, 40f)
+                } else {
+                    playerCameraDistance += amountY * 1f
+                    playerCameraDistance = playerCameraDistance.coerceIn(8f, 25f)
+                }
                 calculatePlayerCameraTarget()
             }
             CameraMode.FREE -> {
@@ -219,14 +226,18 @@ class CameraManager {
 
     private fun calculatePlayerCameraTarget() {
         // Calculate the target position for Paper Mario style camera
-        val angleRadians = Math.toRadians(playerCameraAngle.toDouble())
-        val offsetX = (cos(angleRadians) * playerCameraDistance).toFloat()
-        val offsetZ = (sin(angleRadians) * playerCameraDistance).toFloat()
+        val distance = if (isFollowingCar) carCameraDistance else playerCameraDistance
+        val height = if (isFollowingCar) carCameraHeight else playerCameraHeight
 
-        // Target camera position relative to player
+        // Calculate the target position for the camera
+        val angleRadians = Math.toRadians(playerCameraAngle.toDouble())
+        val offsetX = (cos(angleRadians) * distance).toFloat()
+        val offsetZ = (sin(angleRadians) * distance).toFloat()
+
+        // Target camera position relative to the followed entity
         targetPlayerCameraPosition.set(
             playerPosition.x + offsetX,
-            playerPosition.y + playerCameraHeight,
+            playerPosition.y + height,
             playerPosition.z + offsetZ
         )
 
@@ -240,11 +251,12 @@ class CameraManager {
         // Smoothly move camera towards target position
         currentPlayerCameraPosition.lerp(targetPlayerCameraPosition, playerCameraSmoothing * deltaTime)
 
-        // Set camera position and make it look at the player
+        // Set camera position
         camera.position.set(currentPlayerCameraPosition)
 
         // Look at the player, but slightly above them for better view
-        val lookAtTarget = Vector3(playerPosition.x, playerPosition.y + 1f, playerPosition.z)
+        val lookAtOffset = if (isFollowingCar) carLookAtHeightOffset else playerLookAtHeightOffset
+        val lookAtTarget = Vector3(playerPosition.x, playerPosition.y + lookAtOffset, playerPosition.z)
         camera.lookAt(lookAtTarget)
         camera.up.set(0f, 1f, 0f)
         camera.update()
@@ -270,13 +282,25 @@ class CameraManager {
 
         // Allow height adjustment with R and T keys
         if (Gdx.input.isKeyPressed(Input.Keys.R)) {
-            playerCameraHeight += adjustmentSpeed * 0.5f
-            playerCameraHeight = playerCameraHeight.coerceIn(3f, 15f)
+            // Adjust height for player or car
+            if (isFollowingCar) {
+                carCameraHeight += adjustmentSpeed * 0.5f
+                carCameraHeight = carCameraHeight.coerceIn(5f, 20f)
+            } else {
+                playerCameraHeight += adjustmentSpeed * 0.5f
+                playerCameraHeight = playerCameraHeight.coerceIn(3f, 15f)
+            }
             calculatePlayerCameraTarget()
         }
         if (Gdx.input.isKeyPressed(Input.Keys.T)) {
-            playerCameraHeight -= adjustmentSpeed * 0.5f
-            playerCameraHeight = playerCameraHeight.coerceIn(3f, 15f)
+            // NEW: Adjust height for player or car
+            if (isFollowingCar) {
+                carCameraHeight -= adjustmentSpeed * 0.5f
+                carCameraHeight = carCameraHeight.coerceIn(5f, 20f)
+            } else {
+                playerCameraHeight -= adjustmentSpeed * 0.5f
+                playerCameraHeight = playerCameraHeight.coerceIn(3f, 15f)
+            }
             calculatePlayerCameraTarget()
         }
     }

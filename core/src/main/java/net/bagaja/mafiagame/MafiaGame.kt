@@ -209,8 +209,9 @@ class MafiaGame : ApplicationAdapter() {
             )
 
             if (moved) {
+                val isDriving = playerSystem.isDriving
                 // Update camera manager with player position
-                cameraManager.setPlayerPosition(playerSystem.getControlledEntityPosition())
+                cameraManager.setPlayerPosition(playerSystem.getControlledEntityPosition(), isDriving)
 
                 // Auto-switch to player camera when moving
                 cameraManager.switchToPlayerCamera()

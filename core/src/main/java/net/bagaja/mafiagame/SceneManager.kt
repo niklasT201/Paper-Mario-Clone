@@ -150,7 +150,7 @@ class SceneManager(
         currentInteriorId = house.id
         currentScene = SceneType.HOUSE_INTERIOR
         playerSystem.setPosition(interior.playerPosition)
-        cameraManager.resetAndSnapToPlayer(interior.playerPosition)
+        cameraManager.resetAndSnapToPlayer(interior.playerPosition, false)
         pendingHouse = null
 
         if (house.exitDoorId == null) {
@@ -175,7 +175,7 @@ class SceneManager(
         // Position the player at the saved exit position
         worldState?.let {
             playerSystem.setPosition(it.playerPosition)
-            cameraManager.resetAndSnapToPlayer(it.playerPosition)
+            cameraManager.resetAndSnapToPlayer(it.playerPosition, false)
         }
     }
 
@@ -502,7 +502,7 @@ class SceneManager(
 
         // Move player to the template's entrance
         playerSystem.setPosition(template.entrancePosition)
-        cameraManager.resetAndSnapToPlayer(template.entrancePosition)
+        cameraManager.resetAndSnapToPlayer(template.entrancePosition, false)
     }
 
     private fun recalculateAllFacesInCollection(blocks: Array<GameBlock>) {

@@ -872,10 +872,8 @@ class PlayerSystem {
         return animationSystem.isAnimationFinished()
     }
 
-    // Modify your dispose method:
     fun dispose() {
         playerModel.dispose()
-        // Don't dispose playerTexture directly anymore - let animation system handle it
         animationSystem.dispose()
         billboardModelBatch.dispose()
         billboardShaderProvider.dispose()

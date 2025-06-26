@@ -44,10 +44,10 @@ public class Lwjgl3Launcher {
 
 // room/open world transition effect being slower and smoother transition itself
 
+// maybe adding multiple texturing for interiors
 // map saving
 // improve camera for interiors
 // car rotation animation effect
-// car camera being too close
 // cars have light on both sides
 // player visible optional in cars
 // maybe changing 30 min daycicle to 50
