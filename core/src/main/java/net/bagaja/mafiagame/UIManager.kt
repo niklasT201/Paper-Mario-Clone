@@ -28,7 +28,8 @@ class UIManager(
     private val backgroundSystem: BackgroundSystem,
     private val parallaxSystem: ParallaxBackgroundSystem,
     private val roomTemplateManager: RoomTemplateManager,
-    private val interiorSystem: InteriorSystem
+    private val interiorSystem: InteriorSystem,
+    private val lightingManager: LightingManager
 ) {
     private lateinit var stage: Stage
     private lateinit var skin: Skin
@@ -41,6 +42,7 @@ class UIManager(
     private lateinit var parallaxSelectionUI: ParallaxSelectionUI
     private lateinit var interiorSelectionUI: InteriorSelectionUI
     private lateinit var lightSourceUI: LightSourceUI
+    private lateinit var skyCustomizationUI: SkyCustomizationUI
     private lateinit var mainTable: Table
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
@@ -118,6 +120,9 @@ class UIManager(
         // Initialize interior selection UI
         interiorSelectionUI = InteriorSelectionUI(interiorSystem, skin, stage)
         interiorSelectionUI.initialize()
+
+        skyCustomizationUI = SkyCustomizationUI(skin, stage, lightingManager)
+        skyCustomizationUI.initialize()
 
         // Set initial visibility for the main UI panel
         mainTable.isVisible = isUIVisible
@@ -1074,6 +1079,10 @@ class UIManager(
         lightSourceUI.toggle()
     }
 
+    fun toggleSkyCustomizationUI() {
+        skyCustomizationUI.toggle()
+    }
+
     fun showParallaxSelection() {
         parallaxSelectionUI.show()
     }
@@ -1219,6 +1228,7 @@ class UIManager(
     fun getStage(): Stage = stage
 
     fun render() {
+        skyCustomizationUI.update()
         stage.act(Gdx.graphics.deltaTime)
         stage.draw()
     }
@@ -1237,6 +1247,7 @@ class UIManager(
         parallaxSelectionUI.dispose()
         interiorSelectionUI.dispose()
         lightSourceUI.dispose()
+        skyCustomizationUI.dispose()
         stage.dispose()
         skin.dispose()
     }

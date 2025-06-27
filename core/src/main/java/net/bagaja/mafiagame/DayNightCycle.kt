@@ -136,6 +136,10 @@ class DayNightCycle {
         return currentTime / totalCycleDuration
     }
 
+    fun setDayProgress(progress: Float) {
+        currentTime = progress.coerceIn(0f, 1f) * totalCycleDuration
+    }
+
     fun getTimeString(): String {
         val hours = ((currentTime / totalCycleDuration) * 24f).toInt()
         val minutes = (((currentTime / totalCycleDuration) * 24f * 60f) % 60f).toInt()

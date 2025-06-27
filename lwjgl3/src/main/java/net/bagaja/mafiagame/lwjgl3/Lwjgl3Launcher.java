@@ -58,7 +58,6 @@ public class Lwjgl3Launcher {
 // adding multiple city areas
 // add shadow option
 // spotlight effect
-// ui for sky color change
 // key for light source rotation testing
 // item pickups have a glow
 

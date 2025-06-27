@@ -96,7 +96,7 @@ class MafiaGame : ApplicationAdapter() {
         transitionSystem.create(cameraManager.findUiCamera())
 
         // Initialize UI Manager
-        uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem, houseSystem, backgroundSystem, parallaxBackgroundSystem, roomTemplateManager, interiorSystem)
+        uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem, houseSystem, backgroundSystem, parallaxBackgroundSystem, roomTemplateManager, interiorSystem, lightingManager)
         uiManager.initialize()
 
         // Initialize Input Handler

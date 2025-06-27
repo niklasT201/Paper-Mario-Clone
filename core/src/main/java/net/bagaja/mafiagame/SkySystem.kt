@@ -13,14 +13,18 @@ class SkySystem {
     private val modelBuilder = ModelBuilder()
 
     // Sky colors for different times of day
-    private data class SkyColors(
+    data class SkyColors(
         val topColor: Color,
         val horizonColor: Color,
         val bottomColor: Color
     )
 
+    enum class SkyColorType {
+        TOP, HORIZON, BOTTOM
+    }
+
     // Using a map makes it easy to look up colors by TimeOfDay
-    private val colorPalettes = mapOf(
+    private val colorPalettes = mutableMapOf(
         DayNightCycle.TimeOfDay.DAY to SkyColors(
             topColor = Color(0.4f, 0.7f, 1.0f, 1.0f),
             horizonColor = Color(0.7f, 0.9f, 1.0f, 1.0f),
@@ -87,6 +91,19 @@ class SkySystem {
 
         // Interpolate and apply the colors
         interpolateColors(fromColors, toColors, interpolationInfo.progress)
+    }
+
+    fun updatePaletteColor(timeOfDay: DayNightCycle.TimeOfDay, colorType: SkyColorType, newColor: Color) {
+        val palette = colorPalettes[timeOfDay] ?: return
+        when (colorType) {
+            SkyColorType.TOP -> palette.topColor.set(newColor)
+            SkyColorType.HORIZON -> palette.horizonColor.set(newColor)
+            SkyColorType.BOTTOM -> palette.bottomColor.set(newColor)
+        }
+    }
+
+    fun getPalettes(): Map<DayNightCycle.TimeOfDay, SkyColors> {
+        return colorPalettes.toMap()
     }
 
     private fun interpolateColors(from: SkyColors, to: SkyColors, progress: Float) {

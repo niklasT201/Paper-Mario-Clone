@@ -219,6 +219,14 @@ class LightingManager {
         }
     }
 
+    fun updateSkyPaletteColor(timeOfDay: DayNightCycle.TimeOfDay, colorType: SkySystem.SkyColorType, newColor: Color) {
+        skySystem.updatePaletteColor(timeOfDay, colorType, newColor)
+    }
+
+    fun getSkyPalettes(): Map<DayNightCycle.TimeOfDay, SkySystem.SkyColors> {
+        return skySystem.getPalettes()
+    }
+
     fun getEnvironment(): Environment = environment
 
     fun getLightSources(): Map<Int, LightSource> = lightSources.toMap()

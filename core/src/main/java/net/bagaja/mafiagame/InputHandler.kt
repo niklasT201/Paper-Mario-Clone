@@ -230,6 +230,10 @@ class InputHandler(
                         uiManager.toggleVisibility()
                         return true
                     }
+                    Input.Keys.K -> {
+                        uiManager.toggleSkyCustomizationUI()
+                        return true
+                    }
                     Input.Keys.H -> {
                         if (!isHouseSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isBackgroundSelectionMode) {
                             isHouseSelectionMode = true
