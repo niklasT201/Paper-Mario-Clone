@@ -47,14 +47,11 @@ public class Lwjgl3Launcher {
 // maybe adding multiple texturing for interiors
 // map saving
 // improve camera for interiors
-// blocks not fully visible when next to a street block
-// cars not on the street block
 // cars have light on both sides
 // player visible optional in cars
 // maybe changing 30 min daycicle to 50
 // enemies have an inventory and collect items
 // footprints when moving through dead enemies
-// physics
 // adding guns
 // adding ammunition
 // adding health

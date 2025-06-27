@@ -24,6 +24,8 @@ class PlayerSystem {
     private lateinit var billboardModelBatch: ModelBatch
 
     // Player position and movement
+    private val FALL_SPEED = 25f
+    private val MAX_STEP_HEIGHT = 4.0f
     private val playerPosition = Vector3(0f, 2f, 0f)
     private val playerSpeed = 8f
     private val playerBounds = BoundingBox()
@@ -357,51 +359,54 @@ class PlayerSystem {
         return 0f // Ground level if no suitable height found
     }
 
-    fun handleMovement(deltaTime: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>, allCars: Array<GameCar>): Boolean {
+    fun handleMovement(deltaTime: Float, sceneManager: SceneManager, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>, allCars: Array<GameCar>): Boolean {
         return if (isDriving) {
-            handleCarMovement(deltaTime, gameBlocks, gameHouses, gameInteriors, allCars)
+            handleCarMovement(deltaTime, sceneManager, gameBlocks, gameHouses, gameInteriors, allCars)
         } else {
-            handlePlayerOnFootMovement(deltaTime, gameBlocks, gameHouses, gameInteriors)
+            handlePlayerOnFootMovement(deltaTime, sceneManager, gameBlocks, gameHouses, gameInteriors)
         }
     }
 
-    private fun handleCarMovement(deltaTime: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>, allCars: Array<GameCar>): Boolean {
+    private fun handleCarMovement(deltaTime: Float, sceneManager: SceneManager, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>, allCars: Array<GameCar>): Boolean {
         val car = drivingCar ?: return false
         var moved = false
 
         val moveAmount = carSpeed * deltaTime
 
-        // Temporary variables to calculate total movement for this frame
+        // 1. Calculate desired horizontal movement
         var deltaX = 0f
         var deltaZ = 0f
-        var horizontalDirection = 0f // Track horizontal movement for flip animation
+        var horizontalDirection = 0f
+        if (Gdx.input.isKeyPressed(Input.Keys.A)) { deltaX -= moveAmount; horizontalDirection = 1f }
+        if (Gdx.input.isKeyPressed(Input.Keys.D)) { deltaX += moveAmount; horizontalDirection = -1f }
+        if (Gdx.input.isKeyPressed(Input.Keys.W)) { deltaZ -= moveAmount }
+        if (Gdx.input.isKeyPressed(Input.Keys.S)) { deltaZ += moveAmount }
 
-        // 1. Determine Desired Movement
-        // 'A' and 'D' control X-axis movement
-        if (Gdx.input.isKeyPressed(Input.Keys.A)) {
-            deltaX -= moveAmount
-            horizontalDirection = 1f // Moving left
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.D)) {
-            deltaX += moveAmount
-            horizontalDirection = -1f // Moving right
-        }
-        // 'W' and 'S' control Z-axis movement ONLY
-        if (Gdx.input.isKeyPressed(Input.Keys.W)) {
-            deltaZ -= moveAmount
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.S)) {
-            deltaZ += moveAmount
-        }
-
-        // 2. Update flip animation based on horizontal movement
         car.updateFlipAnimation(horizontalDirection, deltaTime)
 
-        // 3. Check if a move was attempted
-        if (deltaX != 0f || deltaZ != 0f) {
-            // Calculate the potential new position
-            val newPos = Vector3(car.position).add(deltaX, 0f, deltaZ)
-            // Check for collisions before actually moving
+        // 2. Determine potential next position and apply physics
+        val nextX = car.position.x + deltaX
+        val nextZ = car.position.z + deltaZ
+
+        // Find the ground at the potential next spot
+        val supportY = sceneManager.findHighestSupportY(nextX, nextZ, car.carType.width / 2f, blockSize)
+
+        val carBottomY = car.position.y
+        val effectiveSupportY = if (supportY - carBottomY <= MAX_STEP_HEIGHT) {
+            // The ground is within stepping range, so we can use it.
+            supportY
+        } else {
+            // The ground is too high (it's a wall), so we maintain our current Y-level for the check.
+            carBottomY
+        }
+
+        // Apply Gravity
+        val fallY = car.position.y - FALL_SPEED * deltaTime
+        val nextY = kotlin.math.max(effectiveSupportY, fallY) // Car is on ground, stepping up, or falling.
+
+        // 3. Check for collisions and finalize movement
+        if (deltaX != 0f || deltaZ != 0f || kotlin.math.abs(nextY - car.position.y) > 0.01f) {
+            val newPos = Vector3(nextX, nextY, nextZ)
             if (canCarMoveTo(newPos, car, gameBlocks, gameHouses, gameInteriors, allCars)) {
                 car.position.set(newPos)
                 moved = true
@@ -464,71 +469,52 @@ class PlayerSystem {
     }
 
 
-    private fun handlePlayerOnFootMovement(deltaTime: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {
+    private fun handlePlayerOnFootMovement(deltaTime: Float, sceneManager: SceneManager, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {
         var moved = false
-        var currentMovementDirection = 0f
 
         // Reset movement flag
         isMoving = false
+        var currentMovementDirection = 0f
 
-        // Store original position for rollback if needed
-        val originalX = playerPosition.x
-        val originalZ = playerPosition.z
-        val originalY = playerPosition.y
+        // 1. Calculate desired horizontal movement
+        var deltaX = 0f
+        var deltaZ = 0f
+        if (Gdx.input.isKeyPressed(Input.Keys.A)) { deltaX -= playerSpeed * deltaTime; currentMovementDirection = -1f }
+        if (Gdx.input.isKeyPressed(Input.Keys.D)) { deltaX += playerSpeed * deltaTime; currentMovementDirection = 1f }
+        if (Gdx.input.isKeyPressed(Input.Keys.W)) { deltaZ -= playerSpeed * deltaTime }
+        if (Gdx.input.isKeyPressed(Input.Keys.S)) { deltaZ += playerSpeed * deltaTime }
 
-        if (Gdx.input.isKeyPressed(Input.Keys.A)) {
-            val newX = playerPosition.x - playerSpeed * deltaTime
-            // Try to move horizontally first, then adjust Y if needed
-            val adjustedY = calculateSafeYPosition(newX, playerPosition.z, originalY, gameBlocks, gameHouses, gameInteriors)
-            if (canMoveToWithDoorCollision(newX, adjustedY, playerPosition.z, gameBlocks, gameHouses, gameInteriors)) {
-                playerPosition.x = newX
-                playerPosition.y = adjustedY
-                moved = true
-                isMoving = true
-                currentMovementDirection = -1f
-            }
+        val nextX = playerPosition.x + deltaX
+        val nextZ = playerPosition.z + deltaZ
+
+        // 2. Apply Gravity and Step-Up Logic
+        val supportY = sceneManager.findHighestSupportY(nextX, nextZ, playerSize.x / 2f, blockSize)
+
+        val playerFootY = playerPosition.y - (playerSize.y / 2f)
+        val effectiveSupportY = if (supportY - playerFootY <= MAX_STEP_HEIGHT) {
+            // Step is valid, use the new ground height.
+            supportY
+        } else {
+            // Step is too high (a wall), maintain current Y-level.
+            playerFootY
         }
-        if (Gdx.input.isKeyPressed(Input.Keys.D)) {
-            val newX = playerPosition.x + playerSpeed * deltaTime
-            val adjustedY = calculateSafeYPosition(newX, playerPosition.z, originalY, gameBlocks, gameHouses, gameInteriors)
-            if (canMoveToWithDoorCollision(newX, adjustedY, playerPosition.z, gameBlocks, gameHouses, gameInteriors)) {
-                playerPosition.x = newX
-                playerPosition.y = adjustedY
+
+        val targetY = effectiveSupportY + (playerSize.y / 2f) // Player's origin is in its center
+        val fallY = playerPosition.y - FALL_SPEED * deltaTime
+        val nextY = kotlin.math.max(targetY, fallY)
+
+        // 3. Check for collisions before moving
+        if (canMoveToWithDoorCollision(nextX, nextY, nextZ, gameBlocks, gameHouses, gameInteriors)) {
+            if (deltaX != 0f || deltaZ != 0f || kotlin.math.abs(nextY - playerPosition.y) > 0.01f) {
+                playerPosition.set(nextX, nextY, nextZ)
                 moved = true
-                isMoving = true
-                currentMovementDirection = 1f
-            }
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.W)) {
-            val newZ = playerPosition.z - playerSpeed * deltaTime
-            val adjustedY = calculateSafeYPosition(playerPosition.x, newZ, originalY, gameBlocks, gameHouses, gameInteriors)
-            if (canMoveToWithDoorCollision(playerPosition.x, adjustedY, newZ, gameBlocks, gameHouses, gameInteriors)) {
-                playerPosition.z = newZ
-                playerPosition.y = adjustedY
-                moved = true
-                isMoving = true
-            }
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.S)) {
-            val newZ = playerPosition.z + playerSpeed * deltaTime
-            val adjustedY = calculateSafeYPosition(playerPosition.x, newZ, originalY, gameBlocks, gameHouses, gameInteriors)
-            if (canMoveToWithDoorCollision(playerPosition.x, adjustedY, newZ, gameBlocks, gameHouses, gameInteriors)) {
-                playerPosition.z = newZ
-                playerPosition.y = adjustedY
-                moved = true
-                isMoving = true
+                isMoving = deltaX != 0f || deltaZ != 0f
             }
         }
 
-        // Handle animation state changes
-        if (isMoving && !lastIsMoving) {
-            // Started moving - play walking animation
-            animationSystem.playAnimation("walking")
-        } else if (!isMoving && lastIsMoving) {
-            // Stopped moving - play idle animation
-            animationSystem.playAnimation("idle")
-        }
-
+        // Handle animation and rotation
+        if (isMoving && !lastIsMoving) animationSystem.playAnimation("walking")
+        else if (!isMoving && lastIsMoving) animationSystem.playAnimation("idle")
         lastIsMoving = isMoving
 
         // Update target rotation based on horizontal movement
@@ -546,188 +532,6 @@ class PlayerSystem {
         }
 
         return moved
-    }
-
-    private fun calculateSafeYPosition(x: Float, z: Float, currentY: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Float {
-        // Find the highest block/surface that the player is standing on at position (x, z)
-        var highestSupportY = 0f // Ground level
-        var foundSupport = false
-
-        // Create a small area around the player position to check for support
-        val checkRadius = playerSize.x / 2f
-
-        // Check blocks - but DON'T allow stepping up onto them
-        for (gameBlock in gameBlocks) {
-            val blockCenterX = gameBlock.position.x
-            val blockCenterZ = gameBlock.position.z
-            val blockHalfSize = blockSize / 2f
-
-            // Check if the player's position overlaps with this block horizontally
-            val playerLeft = x - checkRadius
-            val playerRight = x + checkRadius
-            val playerFront = z - checkRadius
-            val playerBack = z + checkRadius
-
-            val blockLeft = blockCenterX - blockHalfSize
-            val blockRight = blockCenterX + blockHalfSize
-            val blockFront = blockCenterZ - blockHalfSize
-            val blockBack = blockCenterZ + blockHalfSize
-
-            // Check for horizontal overlap
-            val horizontalOverlap = !(playerRight < blockLeft || playerLeft > blockRight ||
-                playerBack < blockFront || playerFront > blockBack)
-
-            if (horizontalOverlap) {
-                val blockHeight = blockSize * gameBlock.blockType.height
-                val blockTop = gameBlock.position.y + blockHeight / 2f
-
-                // Only consider this block as support if player is already on or very close to its top
-                val tolerance = 0.5f // Small tolerance for being "on" the block
-                if (kotlin.math.abs(currentY - playerSize.y / 2f - blockTop) <= tolerance) {
-                    if (blockTop > highestSupportY) {
-                        highestSupportY = blockTop
-                        foundSupport = true
-                    }
-                }
-            }
-        }
-
-        // Handle stairs by finding the appropriate step height
-        for (house in gameHouses) {
-            if (house.houseType == HouseType.STAIR) {
-                // Create test bounds at current position
-                val testBounds = BoundingBox()
-                testBounds.set(
-                    Vector3(x - checkRadius, currentY - playerSize.y / 2f, z - checkRadius),
-                    Vector3(x + checkRadius, currentY + playerSize.y / 2f, z + checkRadius)
-                )
-
-                // Check if we're colliding with the stair at current height
-                if (house.collidesWithMesh(testBounds)) {
-                    // Calculate the appropriate step height based on stair geometry
-                    val stairStepHeight = findStairStepHeight(house, x, z, currentY)
-
-                    if (stairStepHeight > highestSupportY) {
-                        highestSupportY = stairStepHeight
-                        foundSupport = true
-                    }
-                } else {
-                    // Not colliding with stair - check if we're standing on top of it
-                    val supportHeight = findStairSupportHeight(house, x, z, currentY)
-                    if (supportHeight > highestSupportY) {
-                        highestSupportY = supportHeight
-                        foundSupport = true
-                    }
-                }
-            }
-        }
-
-        for (interior in gameInteriors) {
-            // Only solid 3D interiors can be stood on
-            if (!interior.interiorType.is3D || !interior.interiorType.hasCollision) continue
-
-            // A simplified check: is the player horizontally "over" the object?
-            val objectBounds = interior.instance.calculateBoundingBox(BoundingBox())
-            if (x >= objectBounds.min.x && x <= objectBounds.max.x &&
-                z >= objectBounds.min.z && z <= objectBounds.max.z) {
-
-                val interiorTop = objectBounds.max.y
-
-                // Only consider this interior as support if the player is on or very close to its top
-                val tolerance = 0.5f
-                if (kotlin.math.abs(currentY - playerSize.y / 2f - interiorTop) <= tolerance) {
-                    if (interiorTop > highestSupportY) {
-                        highestSupportY = interiorTop
-                        foundSupport = true
-                    }
-                }
-            }
-        }
-
-        // Calculate where the player should be
-        val surfaceMargin = 0.05f
-        val targetY = highestSupportY + playerSize.y / 2f + surfaceMargin
-
-        // If no supporting surface found and we're above ground, gradually fall to ground
-        if (!foundSupport && currentY > playerSize.y / 2f) {
-            val fallSpeed = 20f
-            val groundY = 0f + playerSize.y / 2f
-            val fallingY = currentY - fallSpeed * Gdx.graphics.deltaTime
-            return kotlin.math.max(fallingY, groundY)
-        }
-
-        // If we found support, smoothly move to the target position
-        if (foundSupport) {
-            // Smooth transition to prevent shaking
-            val heightDifference = kotlin.math.abs(targetY - currentY)
-            val smoothingThreshold = 0.05f
-
-            if (heightDifference < smoothingThreshold) {
-                return currentY // Stay at current position to prevent micro-adjustments
-            }
-
-            // Smooth interpolation for stepping on stairs
-            val lerpSpeed = 12f
-            return currentY + (targetY - currentY) * lerpSpeed * Gdx.graphics.deltaTime
-        }
-
-        // Default: stay at current Y position if no support changes
-        return currentY
-    }
-
-    private fun findStairStepHeight(house: GameHouse, x: Float, z: Float, currentY: Float): Float {
-        val checkRadius = playerSize.x / 2f
-        val stepSize = 0.1f // Even smaller step increments for more precision
-        val maxStepUp = 3f
-
-        var lastCollisionHeight = currentY - playerSize.y / 2f
-
-        // Try different heights to find where we stop colliding
-        for (stepHeight in generateSequence(0f) { it + stepSize }.takeWhile { it <= maxStepUp }) {
-            val testYPosition = currentY + stepHeight
-            val testBounds = BoundingBox()
-            testBounds.set(
-                Vector3(x - checkRadius, testYPosition - playerSize.y / 2f, z - checkRadius),
-                Vector3(x + checkRadius, testYPosition + playerSize.y / 2f, z + checkRadius)
-            )
-
-            if (house.collidesWithMesh(testBounds)) {
-                lastCollisionHeight = testYPosition - playerSize.y / 2f
-            } else {
-                // Found the first non-colliding height - this is just above the step surface
-                // Add a small margin to ensure we're clearly above the step but not floating
-                val surfaceHeight = lastCollisionHeight + 0.1f // Small margin above collision
-                return surfaceHeight
-            }
-        }
-
-        // If we still collide after max step up, return current position
-        return currentY - playerSize.y / 2f
-    }
-
-    private fun findStairSupportHeight(house: GameHouse, x: Float, z: Float, currentY: Float): Float {
-        val checkRadius = playerSize.x / 2f
-        val stepSize = 0.05f // Smaller steps for more precision
-
-        // Check downward from current position to find the stair surface
-        var lastNonCollisionHeight = 0f
-
-        for (checkHeight in generateSequence(currentY) { it - stepSize }.takeWhile { it >= 0f }) {
-            val testBounds = BoundingBox()
-            testBounds.set(
-                Vector3(x - checkRadius, checkHeight - playerSize.y / 2f, z - checkRadius),
-                Vector3(x + checkRadius, checkHeight + playerSize.y / 2f, z + checkRadius)
-            )
-
-            if (house.collidesWithMesh(testBounds)) {
-                // Found collision - the surface is just above this point
-                return lastNonCollisionHeight + 0.05f // Minimal margin above surface
-            } else {
-                lastNonCollisionHeight = checkHeight - playerSize.y / 2f
-            }
-        }
-
-        return 0f // Ground level if no collision found
     }
 
     fun placePlayer(ray: Ray, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {

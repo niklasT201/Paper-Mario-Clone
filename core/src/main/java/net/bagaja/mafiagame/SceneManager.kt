@@ -1,8 +1,8 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.utils.Array
-import kotlin.math.floor
 
 enum class SceneType {
     WORLD,
@@ -69,6 +69,58 @@ class SceneManager(
         // Synchronize the ItemSystem with the initial world items
         itemSystem.setActiveItems(activeItems)
         println("SceneManager initialized. World scene is active.")
+    }
+
+    fun findHighestSupportY(x: Float, z: Float, checkRadius: Float, blockSize: Float): Float {
+        var highestSupportY = 0f // Default to ground level
+
+        // Check against all active blocks
+        for (block in activeBlocks) {
+            val blockBounds = block.getBoundingBox(blockSize)
+
+            // Check for horizontal overlap
+            val horizontalOverlap = (x + checkRadius > blockBounds.min.x && x - checkRadius < blockBounds.max.x) &&
+                (z + checkRadius > blockBounds.min.z && z - checkRadius < blockBounds.max.z)
+
+            if (horizontalOverlap) {
+                val blockTop = blockBounds.max.y
+                if (blockTop > highestSupportY) {
+                    highestSupportY = blockTop
+                }
+            }
+        }
+
+        // Check against all active houses (which can include stairs)
+        for (house in activeHouses) {
+            val houseBounds = house.modelInstance.calculateBoundingBox(BoundingBox())
+            val horizontalOverlap = (x + checkRadius > houseBounds.min.x && x - checkRadius < houseBounds.max.x) &&
+                (z + checkRadius > houseBounds.min.z && z - checkRadius < houseBounds.max.z)
+            if(horizontalOverlap) {
+                val houseTop = houseBounds.max.y
+                if (houseTop > highestSupportY) {
+                    highestSupportY = houseTop
+                }
+            }
+        }
+
+        // Check against all solid 3D interiors
+        for (interior in activeInteriors) {
+            if (!interior.interiorType.is3D || !interior.interiorType.hasCollision) continue
+
+            val interiorBounds = interior.instance.calculateBoundingBox(BoundingBox())
+            val horizontalOverlap = (x + checkRadius > interiorBounds.min.x && x - checkRadius < interiorBounds.max.x) &&
+                (z + checkRadius > interiorBounds.min.z && z - checkRadius < interiorBounds.max.z)
+
+            if(horizontalOverlap) {
+                val interiorTop = interiorBounds.max.y
+                if (interiorTop > highestSupportY) {
+                    highestSupportY = interiorTop
+                }
+            }
+        }
+
+
+        return highestSupportY
     }
 
     fun update(deltaTime: Float) {

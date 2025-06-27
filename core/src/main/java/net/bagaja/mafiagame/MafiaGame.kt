@@ -202,6 +202,7 @@ class MafiaGame : ApplicationAdapter() {
             // Handle player movement through PlayerSystem
             val moved = playerSystem.handleMovement(
                 deltaTime,
+                sceneManager,
                 sceneManager.activeBlocks,
                 sceneManager.activeHouses,
                 sceneManager.activeInteriors,
