@@ -17,7 +17,9 @@ enum class ShaderEffect(val displayName: String) {
     BRIGHT_VIBRANT("Bright & Vibrant"),
     RETRO_PIXEL("Retro Pixel"),
     DREAMY_SOFT("Dreamy Soft"),
-    NEON_GLOW("Neon Glow")
+    NEON_GLOW("Neon Glow"),
+    OLD_MOVIE("1920s Cartoon"),
+    BLACK_WHITE("Schwarz-Weiß")
 }
 
 class ShaderEffectManager {
@@ -29,6 +31,8 @@ class ShaderEffectManager {
 
     // Shaders for different effects
     private val shaders = mutableMapOf<ShaderEffect, ShaderProgram>()
+    var isEffectsEnabled = true
+        private set
 
     // Shader source code
     private val vertexShader = """
@@ -219,9 +223,61 @@ class ShaderEffectManager {
         }
     """
 
+    private val blackWhiteShader = """
+    #ifdef GL_ES
+    precision mediump float;
+    #endif
+
+    uniform sampler2D u_texture;
+    uniform float u_time;
+    varying vec2 v_texCoord;
+
+    void main() {
+        vec4 color = texture2D(u_texture, v_texCoord);
+
+        // Convert to grayscale using luminance formula
+        float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+
+        // Apply high contrast for that classic cartoon look
+        gray = smoothstep(0.4, 0.6, gray);
+
+        // Add slight film grain effect
+        float noise = fract(sin(dot(v_texCoord, vec2(12.9898, 78.233))) * 43758.5453);
+        gray += (noise - 0.5) * 0.1;
+
+        // Optional: Add subtle vignette for old film look
+        vec2 center = v_texCoord - 0.5;
+        float vignette = 1.0 - dot(center, center) * 0.8;
+        gray *= vignette;
+
+        // Clamp to ensure we stay in valid range
+        gray = clamp(gray, 0.0, 1.0);
+
+        gl_FragColor = vec4(vec3(gray), color.a);
+    }
+"""
+
+    private val oldmovieShader = """
+    #ifdef GL_ES
+    precision mediump float;
+    #endif
+
+    uniform sampler2D u_texture;
+    varying vec2 v_texCoord;
+
+    void main() {
+        vec4 color = texture2D(u_texture, v_texCoord);
+
+        // Simple grayscale conversion using luminance formula
+        float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+
+        gl_FragColor = vec4(vec3(gray), color.a);
+    }
+"""
+
     fun initialize() {
         // Create frame buffer for post-processing
-        frameBuffer = FrameBuffer(Pixmap.Format.RGBA8888, Gdx.graphics.width, Gdx.graphics.height, false)
+        frameBuffer = FrameBuffer(Pixmap.Format.RGBA8888, Gdx.graphics.width, Gdx.graphics.height, true)
 
         // Create sprite batch for post-processing
         postProcessBatch = SpriteBatch()
@@ -265,6 +321,8 @@ class ShaderEffectManager {
         shaders[ShaderEffect.RETRO_PIXEL] = createShader(vertexShader, retroPixelShader)
         shaders[ShaderEffect.DREAMY_SOFT] = createShader(vertexShader, dreamySoftShader)
         shaders[ShaderEffect.NEON_GLOW] = createShader(vertexShader, neonGlowShader)
+        shaders[ShaderEffect.BLACK_WHITE] = createShader(vertexShader, blackWhiteShader)
+        shaders[ShaderEffect.OLD_MOVIE] = createShader(vertexShader, oldmovieShader)
     }
 
     private fun createShader(vertex: String, fragment: String): ShaderProgram {
@@ -290,7 +348,8 @@ class ShaderEffectManager {
     }
 
     private fun applyPostProcessing() {
-        val shader = shaders[currentEffect] ?: return
+        val activeEffect = if (isEffectsEnabled) currentEffect else ShaderEffect.NONE
+        val shader = shaders[activeEffect] ?: return
 
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glDisable(GL20.GL_CULL_FACE)
@@ -307,7 +366,12 @@ class ShaderEffectManager {
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
     }
 
-    fun setEffect(effect: ShaderEffect) {
+    fun toggleEffectsEnabled() {
+        isEffectsEnabled = !isEffectsEnabled
+        println("Shader effects are now ${if (isEffectsEnabled) "ENABLED" else "DISABLED"}")
+    }
+
+    private fun setEffect(effect: ShaderEffect) {
         currentEffect = effect
         println("Shader effect changed to: ${effect.displayName}")
     }
@@ -315,14 +379,14 @@ class ShaderEffectManager {
     fun getCurrentEffect(): ShaderEffect = currentEffect
 
     fun nextEffect() {
-        val effects = ShaderEffect.values()
+        val effects = ShaderEffect.entries.toTypedArray()
         val currentIndex = effects.indexOf(currentEffect)
         val nextIndex = (currentIndex + 1) % effects.size
         setEffect(effects[nextIndex])
     }
 
     fun previousEffect() {
-        val effects = ShaderEffect.values()
+        val effects = ShaderEffect.entries.toTypedArray()
         val currentIndex = effects.indexOf(currentEffect)
         val prevIndex = if (currentIndex == 0) effects.size - 1 else currentIndex - 1
         setEffect(effects[prevIndex])
@@ -330,7 +394,7 @@ class ShaderEffectManager {
 
     fun resize(width: Int, height: Int) {
         frameBuffer.dispose()
-        frameBuffer = FrameBuffer(Pixmap.Format.RGBA8888, width, height, false)
+        frameBuffer = FrameBuffer(Pixmap.Format.RGBA8888, width, height, true)
 
         postProcessCamera.setToOrtho(false, width.toFloat(), height.toFloat())
         postProcessCamera.update()

@@ -17,6 +17,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var shaderProvider: BillboardShaderProvider
     private lateinit var spriteBatch: SpriteBatch
     private lateinit var cameraManager: CameraManager
+    private lateinit var shaderEffectManager: ShaderEffectManager
 
     // UI and Input Managers
     private lateinit var uiManager: UIManager
@@ -80,6 +81,10 @@ class MafiaGame : ApplicationAdapter() {
         playerSystem = PlayerSystem()
         playerSystem.initialize(blockSize)
 
+        // Initialize Shader Effect Manager
+        shaderEffectManager = ShaderEffectManager()
+        shaderEffectManager.initialize()
+
         sceneManager = SceneManager(
             playerSystem,
             blockSystem,
@@ -96,7 +101,19 @@ class MafiaGame : ApplicationAdapter() {
         transitionSystem.create(cameraManager.findUiCamera())
 
         // Initialize UI Manager
-        uiManager = UIManager(blockSystem, objectSystem, itemSystem, carSystem, houseSystem, backgroundSystem, parallaxBackgroundSystem, roomTemplateManager, interiorSystem, lightingManager)
+        uiManager = UIManager(
+            blockSystem,
+            objectSystem,
+            itemSystem,
+            carSystem,
+            houseSystem,
+            backgroundSystem,
+            parallaxBackgroundSystem,
+            roomTemplateManager,
+            interiorSystem,
+            lightingManager,
+            shaderEffectManager
+        )
         uiManager.initialize()
 
         // Initialize Input Handler
@@ -113,6 +130,7 @@ class MafiaGame : ApplicationAdapter() {
             interiorSystem,
             sceneManager,
             roomTemplateManager,
+            shaderEffectManager,
             this::handleLeftClickAction,
             this::handleRightClickAndRemoveAction,
             this::handleFinePosMove
@@ -1126,6 +1144,9 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     override fun render() {
+        // Begin capturing the frame for post-processing
+        shaderEffectManager.beginCapture()
+
         // Clear screen
         Gdx.gl.glViewport(0, 0, Gdx.graphics.width, Gdx.graphics.height)
 
@@ -1268,12 +1289,22 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render the transition animation ON TOP of everything else.
         transitionSystem.render()
+
+        // End capture and apply post-processing effects
+        shaderEffectManager.endCaptureAndRender()
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDepthMask(true) // Allow writing to the depth buffer
+        Gdx.gl.glDisable(GL20.GL_BLEND)
+        Gdx.gl.glEnable(GL20.GL_CULL_FACE)
     }
 
     override fun resize(width: Int, height: Int) {
         // Resize UIManager's viewport
         uiManager.resize(width, height)
         cameraManager.resize(width, height)
+
+        // Resize shader effect manager
+        shaderEffectManager.resize(width, height)
     }
 
     override fun dispose() {
@@ -1291,6 +1322,9 @@ class MafiaGame : ApplicationAdapter() {
         parallaxBackgroundSystem.dispose()
         interiorSystem.dispose()
         transitionSystem.dispose()
+
+        // Dispose shader effect manager
+        shaderEffectManager.dispose()
 
         // Dispose UIManager
         uiManager.dispose()

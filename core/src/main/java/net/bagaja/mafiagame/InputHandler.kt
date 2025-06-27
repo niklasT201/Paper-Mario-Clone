@@ -20,6 +20,7 @@ class InputHandler(
     private val interiorSystem: InteriorSystem,
     private val sceneManager: SceneManager,
     private val roomTemplateManager: RoomTemplateManager,
+    private val shaderEffectManager: ShaderEffectManager,
     private val onLeftClick: (screenX: Int, screenY: Int) -> Unit,
     private val onRightClickAttemptBlockRemove: (screenX: Int, screenY: Int) -> Boolean,
     private val onFinePosMove: (deltaX: Float, deltaY: Float, deltaZ: Float) -> Unit
@@ -206,7 +207,7 @@ class InputHandler(
                 if (uiManager.getStage().keyboardFocus != null) {
                     return false
                 }
-
+                // Shader effect controls
                 if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) && keycode == Input.Keys.S) {
                     uiManager.showSaveRoomDialog(sceneManager)
                     return true // Consume the input
@@ -228,6 +229,20 @@ class InputHandler(
                 when (keycode) {
                     Input.Keys.F1 -> {
                         uiManager.toggleVisibility()
+                        return true
+                    }
+                    Input.Keys.F2 -> {
+                        shaderEffectManager.nextEffect()
+                        uiManager.updatePlacementInfo("Shader Effect: ${shaderEffectManager.getCurrentEffect().displayName}")
+                        return true
+                    }
+                    Input.Keys.F3 -> {
+                        shaderEffectManager.previousEffect()
+                        uiManager.updatePlacementInfo("Shader Effect: ${shaderEffectManager.getCurrentEffect().displayName}")
+                        return true
+                    }
+                    Input.Keys.F4 -> {
+                        uiManager.toggleShaderEffectUI()
                         return true
                     }
                     Input.Keys.K -> {

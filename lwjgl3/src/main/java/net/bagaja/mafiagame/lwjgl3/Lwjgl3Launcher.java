@@ -44,8 +44,6 @@ public class Lwjgl3Launcher {
 
 // room/open world transition effect being slower and smoother transition itself
 
-// driving images transparent
-
 // maybe adding multiple texturing for interiors
 // map saving
 // improve camera for interiors
@@ -56,9 +54,9 @@ public class Lwjgl3Launcher {
 // footprints when moving through dead enemies
 // adding guns
 // adding ammunition
+// items falling too
 // adding health
 // adding multiple city areas
-// add shadow option
 // spotlight effect
 // key for light source rotation testing
 // item pickups have a glow
