@@ -16,9 +16,8 @@ import com.badlogic.gdx.math.collision.BoundingBox
 
 class CarSystem: IFinePositionable {
     private val carModels = mutableMapOf<CarType, Model>()
-    private val carTextures = mutableMapOf<CarType, Texture>()
 
-    var currentSelectedCar = CarType.SEDAN
+    var currentSelectedCar = CarType.DEFAULT
         private set
     var currentSelectedCarIndex = 0
         private set
@@ -32,17 +31,16 @@ class CarSystem: IFinePositionable {
     fun initialize() {
         val modelBuilder = ModelBuilder()
 
-        // Load textures and create models for each car type
+        // Load models for each car type
         for (carType in CarType.entries) {
             try {
                 // Load texture for cars
-                val texture = Texture(Gdx.files.internal(carType.texturePath))
-                texture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
-                carTextures[carType] = texture
+                val initialTexture = Texture(Gdx.files.internal(carType.texturePath))
+                initialTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
 
                 // Create material with texture and transparency
                 val material = Material(
-                    TextureAttribute.createDiffuse(texture),
+                    TextureAttribute.createDiffuse(initialTexture),
                     BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
                     IntAttribute.createCullFace(GL20.GL_NONE) // Disable backface culling
                 )
@@ -117,7 +115,6 @@ class CarSystem: IFinePositionable {
 
     fun dispose() {
         carModels.values.forEach { it.dispose() }
-        carTextures.values.forEach { it.dispose() }
     }
 }
 
@@ -136,9 +133,56 @@ data class GameCar(
     private val rotationSpeed = 360f // Degrees per second
     private var lastHorizontalDirection = 0f
 
-    // Get bounding box for collision detection - FIXED VERSION
-    fun getBoundingBox(): BoundingBox {
+    // Animation System for the Car
+    private val animationSystem = AnimationSystem()
+    private val material: Material = modelInstance.materials.get(0)
+    private var lastTexture: Texture? = null
+
+    fun initializeAnimations() {
+        // Only the default car has animations for now.
+        if (carType != CarType.DEFAULT) return
+
+        // 1. Create Idle Animation (the single default texture)
+        animationSystem.createAnimation(
+            name = "car_idle",
+            texturePaths = arrayOf(carType.texturePath),
+            frameDuration = 1f, // Duration doesn't matter for a single frame
+            isLooping = true
+        )
+
+        // 2. Create Driving Animation
+        val drivingFrames = mutableListOf<String>()
+        // The sequence is: standard -> driving_1 -> ... -> driving_9
+        drivingFrames.add(carType.texturePath) // The standard "idle" frame
+        for (i in 1..9) {
+            drivingFrames.add("textures/objects/cars/Default/ainmations/driving_$i.png")
+        }
+        animationSystem.createAnimation(
+            name = "car_driving",
+            texturePaths = drivingFrames.toTypedArray(),
+            frameDuration = 0.05f, // Each frame lasts 0.06 seconds for a quick animation
+            isLooping = true
+        )
+
+        // 3. Start with the idle animation
+        animationSystem.playAnimation("car_idle")
+        lastTexture = animationSystem.getCurrentTexture()
+    }
+
+    fun setDrivingAnimationState(isDrivingHorizontally: Boolean) {
+        if (carType != CarType.DEFAULT) return
+
+        val targetAnimation = if (isDrivingHorizontally) "car_driving" else "car_idle"
+        if (animationSystem.getCurrentAnimationName() != targetAnimation) {
+            animationSystem.playAnimation(targetAnimation)
+        }
+    }
+
+    // Get bounding box for collision detection
+    fun getBoundingBox(positionOverride: Vector3? = null): BoundingBox {
         val bounds = BoundingBox()
+        val currentPos = positionOverride ?: this.position // Use the override if it exists, otherwise use the car's actual position
+
         val halfWidth = carType.width / 2f
         val halfHeight = carType.height / 2f
 
@@ -151,23 +195,23 @@ data class GameCar(
             0, 180 -> {
                 // Car is facing north/south: wide on X, thin on Z
                 bounds.set(
-                    Vector3(position.x - halfWidth, position.y, position.z - halfThickness),
-                    Vector3(position.x + halfWidth, position.y + halfHeight, position.z + halfThickness)
+                    Vector3(currentPos.x - halfWidth, currentPos.y, currentPos.z - halfThickness),
+                    Vector3(currentPos.x + halfWidth, currentPos.y + halfHeight, currentPos.z + halfThickness)
                 )
             }
             90, 270 -> {
                 // Car is facing east/west: thin on X, wide on Z
                 bounds.set(
-                    Vector3(position.x - halfThickness, position.y, position.z - halfWidth),
-                    Vector3(position.x + halfThickness, position.y + halfHeight, position.z + halfWidth)
+                    Vector3(currentPos.x - halfThickness, currentPos.y, currentPos.z - halfWidth),
+                    Vector3(currentPos.x + halfThickness, currentPos.y + halfHeight, currentPos.z + halfWidth)
                 )
             }
             else -> {
                 // For other angles, use a square collision box (simpler but less precise)
                 val maxDimension = kotlin.math.max(halfWidth, halfThickness)
                 bounds.set(
-                    Vector3(position.x - maxDimension, position.y, position.z - maxDimension),
-                    Vector3(position.x + maxDimension, position.y + halfHeight, position.z + maxDimension)
+                    Vector3(currentPos.x - maxDimension, currentPos.y, currentPos.z - maxDimension),
+                    Vector3(currentPos.x + maxDimension, currentPos.y + halfHeight, currentPos.z + maxDimension)
                 )
             }
         }
@@ -220,7 +264,24 @@ data class GameCar(
         modelInstance.transform.rotate(Vector3.Y, visualRotationY)
     }
 
-    // Method to move car in its current direction (for future driving)
+    fun update(deltaTime: Float) {
+        // 1. Update the animation timer
+        animationSystem.update(deltaTime)
+
+        // 2. Check if the texture needs to be changed
+        val newTexture = animationSystem.getCurrentTexture()
+        if (newTexture != null && newTexture != lastTexture) {
+            // 3. Apply the new texture to the car's material
+            val textureAttribute = material.get(TextureAttribute.Diffuse) as TextureAttribute?
+            textureAttribute?.textureDescription?.texture = newTexture
+            lastTexture = newTexture
+        }
+    }
+
+    fun dispose() {
+        animationSystem.dispose()
+    }
+
     fun moveForward(distance: Float) {
         val radians = Math.toRadians(direction.toDouble()).toFloat()
         position.x += kotlin.math.sin(radians) * distance
@@ -242,9 +303,9 @@ enum class CarType(
     val width: Float,
     val height: Float
 ) {
-    SEDAN("Sedan", "textures/objects/cars/car_driving.png", 10f, 7f),
+    DEFAULT("DEFAULT", "textures/objects/cars/car_driving.png", 10f, 7f),
     SUV("SUV", "textures/cars/suv.png", 8f, 5f),
-    TRUCK("Truck", "textures/cars/truck.png", 11f, 6f), // was 12f
+    TRUCK("Truck", "textures/cars/truck.png", 11f, 6f),
     SPORTS_CAR("Sports Car", "textures/cars/sports_car.png", 6f, 3.5f),
     VAN("Van", "textures/cars/van.png", 7f, 5.5f),
     POLICE_CAR("Police Car", "textures/cars/police_car.png", 7f, 4f),

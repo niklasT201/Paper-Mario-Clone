@@ -377,12 +377,19 @@ class PlayerSystem {
         var deltaX = 0f
         var deltaZ = 0f
         var horizontalDirection = 0f
+
+        // Check for A or D key presses
+        val isMovingHorizontally = Gdx.input.isKeyPressed(Input.Keys.A) || Gdx.input.isKeyPressed(Input.Keys.D)
+
         if (Gdx.input.isKeyPressed(Input.Keys.A)) { deltaX -= moveAmount; horizontalDirection = 1f }
         if (Gdx.input.isKeyPressed(Input.Keys.D)) { deltaX += moveAmount; horizontalDirection = -1f }
         if (Gdx.input.isKeyPressed(Input.Keys.W)) { deltaZ -= moveAmount }
         if (Gdx.input.isKeyPressed(Input.Keys.S)) { deltaZ += moveAmount }
 
         car.updateFlipAnimation(horizontalDirection, deltaTime)
+
+        // Tell the car to play the correct animation based on input
+        car.setDrivingAnimationState(isMovingHorizontally)
 
         // 2. Determine potential next position and apply physics
         val nextX = car.position.x + deltaX
@@ -421,11 +428,11 @@ class PlayerSystem {
 
     private fun canCarMoveTo(newPosition: Vector3, thisCar: GameCar, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>, allCars: Array<GameCar>): Boolean {
         // Create a temporary car with the new position to get accurate bounding box
-        val tempCar = thisCar.copy(position = Vector3(newPosition))
-        val carBounds = tempCar.getBoundingBox()
+        val carBounds = thisCar.getBoundingBox(newPosition)
 
         // Check collision with blocks - BUT allow driving ON TOP of blocks
         for (block in gameBlocks) {
+            // We need the block's standard bounding box, not a hypothetical one.
             val blockBounds = block.getBoundingBox(blockSize)
 
             if (carBounds.intersects(blockBounds)) {
@@ -460,6 +467,7 @@ class PlayerSystem {
 
         // Check collision with other cars
         for (otherCar in allCars) {
+            // Get the other car's bounding box at its actual position
             if (otherCar.id != thisCar.id && otherCar.getBoundingBox().intersects(carBounds)) {
                 return false
             }

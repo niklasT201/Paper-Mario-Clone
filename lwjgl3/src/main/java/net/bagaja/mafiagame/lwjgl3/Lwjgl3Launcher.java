@@ -44,6 +44,8 @@ public class Lwjgl3Launcher {
 
 // room/open world transition effect being slower and smoother transition itself
 
+// driving images transparent
+
 // maybe adding multiple texturing for interiors
 // map saving
 // improve camera for interiors

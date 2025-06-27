@@ -954,6 +954,7 @@ class MafiaGame : ApplicationAdapter() {
         if (carInstance != null) {
             val position = Vector3(x, y, z)
             val gameCar = GameCar(carInstance, carType, position, 0f, carSystem.isNextCarLocked) // 0f = facing north
+            //gameCar.initializeAnimations() ANIMATION
             sceneManager.activeCars.add(gameCar)
             lastPlacedInstance = gameCar
             println("Placed ${carType.displayName}. Locked: ${gameCar.isLocked}")
@@ -962,6 +963,7 @@ class MafiaGame : ApplicationAdapter() {
 
     private fun removeCar(carToRemove: GameCar) {
         sceneManager.activeCars.removeValue(carToRemove, true)
+        //carToRemove.dispose() // Dispose the car's animation resources ANIMATION
         println("${carToRemove.carType.displayName} removed at: ${carToRemove.position}")
     }
 
@@ -1220,6 +1222,7 @@ class MafiaGame : ApplicationAdapter() {
         lightingManager.renderLightInstances(modelBatch, environment, objectSystem.debugMode)
 
         for (car in sceneManager.activeCars) {
+            //car.update(deltaTime) ANIMATION
             car.updateTransform()
             modelBatch.render(car.modelInstance, environment)
         }

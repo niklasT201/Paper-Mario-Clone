@@ -203,7 +203,7 @@ class CarSelectionUI(
         val pixmap = Pixmap(50, 50, Pixmap.Format.RGBA8888)
 
         when (carType) {
-            CarType.SEDAN -> {
+            CarType.DEFAULT -> {
                 // Standard sedan shape
                 pixmap.setColor(Color(0.3f, 0.5f, 0.8f, 1f)) // Blue
                 pixmap.fillRectangle(10, 20, 30, 15) // Main body
