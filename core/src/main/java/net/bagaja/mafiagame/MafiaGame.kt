@@ -848,14 +848,7 @@ class MafiaGame : ApplicationAdapter() {
                 }
             }
 
-            // Check if there's already an item too close to this position
-            val existingItem = itemSystem.getItemAtPosition(itemPosition, 1.5f)
-
-            if (existingItem == null) {
-                addItemToScene(itemPosition)
-            } else {
-                println("Item already exists near this position")
-            }
+            addItemToScene(itemPosition)
         }
     }
 
@@ -871,14 +864,7 @@ class MafiaGame : ApplicationAdapter() {
 
             val itemPosition = Vector3(gridX, properY, gridZ)
 
-            // Check if there's already an item too close to this position
-            val existingItem = itemSystem.getItemAtPosition(itemPosition, 1.5f)
-
-            if (existingItem == null) {
-                addItemToScene(itemPosition)
-            } else {
-                println("Item already exists near this position")
-            }
+            addItemToScene(itemPosition)
         }
     }
 
