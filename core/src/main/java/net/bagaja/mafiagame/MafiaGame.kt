@@ -32,6 +32,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var itemSystem: ItemSystem
     private lateinit var carSystem: CarSystem
     private lateinit var sceneManager: SceneManager
+    private lateinit var enemySystem: EnemySystem
     private lateinit var roomTemplateManager: RoomTemplateManager
     private lateinit var houseSystem: HouseSystem
 
@@ -72,6 +73,9 @@ class MafiaGame : ApplicationAdapter() {
         setupParallaxSystem()
         setupInteriorSystem()
 
+        enemySystem = EnemySystem()
+        enemySystem.initialize()
+
         roomTemplateManager = RoomTemplateManager()
         roomTemplateManager.initialize()
 
@@ -91,6 +95,7 @@ class MafiaGame : ApplicationAdapter() {
             objectSystem,
             itemSystem,
             interiorSystem,
+            enemySystem,
             roomTemplateManager,
             cameraManager,
             transitionSystem,
@@ -112,7 +117,8 @@ class MafiaGame : ApplicationAdapter() {
             roomTemplateManager,
             interiorSystem,
             lightingManager,
-            shaderEffectManager
+            shaderEffectManager,
+            enemySystem,
         )
         uiManager.initialize()
 
@@ -128,6 +134,7 @@ class MafiaGame : ApplicationAdapter() {
             backgroundSystem,
             parallaxBackgroundSystem,
             interiorSystem,
+            enemySystem,
             sceneManager,
             roomTemplateManager,
             shaderEffectManager,
@@ -147,7 +154,8 @@ class MafiaGame : ApplicationAdapter() {
             Array<GameObject>(),
             Array<GameCar>(),
             Array<GameHouse>(),
-            Array<GameItem>()
+            Array<GameItem>(),
+            Array<GameEnemy>()
         )
     }
 
@@ -384,6 +392,7 @@ class MafiaGame : ApplicationAdapter() {
             }
             UIManager.Tool.PARALLAX -> placeParallaxImage(ray)
             UIManager.Tool.INTERIOR -> placeInterior(ray)
+            UIManager.Tool.ENEMY -> placeEnemy(ray)
         }
     }
 
@@ -469,6 +478,13 @@ class MafiaGame : ApplicationAdapter() {
                     return true
                 }
             }
+            UIManager.Tool.ENEMY -> {
+                val enemyToRemove = raycastSystem.getEnemyAtRay(ray, sceneManager.activeEnemies)
+                if (enemyToRemove != null) {
+                    removeEnemy(enemyToRemove)
+                    return true
+                }
+            }
         }
         return false
     }
@@ -535,6 +551,10 @@ class MafiaGame : ApplicationAdapter() {
                 instance.position.add(deltaX, deltaY, deltaZ)
                 instance.updateTransform()
                 println("Moved Interior to ${instance.position}")
+            }
+            is GameEnemy -> {
+                instance.position.add(deltaX, deltaY, deltaZ)
+                println("Moved Enemy to ${instance.position}")
             }
             else -> println("Fine positioning not supported for this object type.")
         }
@@ -1130,6 +1150,35 @@ class MafiaGame : ApplicationAdapter() {
         println("${interiorToRemove.interiorType.displayName} removed at: ${interiorToRemove.position}")
     }
 
+    private fun placeEnemy(ray: Ray) {
+        val intersection = Vector3()
+        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            val properY = calculateObjectYPosition(intersection.x, intersection.z, 0f)
+            // Position the enemy so its feet are on the ground
+            val enemyType = enemySystem.currentSelectedEnemyType
+            val enemyPosition = Vector3(intersection.x, properY + enemyType.height / 2f, intersection.z)
+
+            val newEnemy = enemySystem.createEnemy(
+                enemyPosition,
+                enemySystem.currentSelectedEnemyType,
+                enemySystem.currentSelectedBehavior
+            )
+
+            if (newEnemy != null) {
+                sceneManager.activeEnemies.add(newEnemy)
+                lastPlacedInstance = newEnemy // For fine positioning
+                println("Placed ${newEnemy.enemyType.displayName} with ${newEnemy.behaviorType.displayName} behavior.")
+            }
+        }
+    }
+
+    private fun removeEnemy(enemyToRemove: GameEnemy) {
+        sceneManager.activeEnemies.removeValue(enemyToRemove, true)
+        println("Removed ${enemyToRemove.enemyType.displayName} at: ${enemyToRemove.position}")
+    }
+
     override fun render() {
         // Begin capturing the frame for post-processing
         shaderEffectManager.beginCapture()
@@ -1166,6 +1215,7 @@ class MafiaGame : ApplicationAdapter() {
         // Handle player input
         handlePlayerInput()
         playerSystem.update(deltaTime)
+        enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
 
         // Update item system (animations, collisions, etc.)
         itemSystem.update(deltaTime, cameraManager.camera, playerSystem, sceneManager)
@@ -1185,6 +1235,7 @@ class MafiaGame : ApplicationAdapter() {
             raycastSystem,
             sceneManager.activeInteriors,
             interiorSystem,
+            sceneManager.activeEnemies
         )
 
         //shaderProvider.setEnvironment(environment)
@@ -1253,6 +1304,7 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render 3D player with custom billboard shader
         playerSystem.render(cameraManager.camera, environment)
+        enemySystem.renderEnemies(cameraManager.camera, environment, sceneManager.activeEnemies)
 
         // Render items
         itemSystem.render(cameraManager.camera, environment)
@@ -1309,6 +1361,7 @@ class MafiaGame : ApplicationAdapter() {
         parallaxBackgroundSystem.dispose()
         interiorSystem.dispose()
         transitionSystem.dispose()
+        enemySystem.dispose()
 
         // Dispose shader effect manager
         shaderEffectManager.dispose()

@@ -18,6 +18,7 @@ class InputHandler(
     private val backgroundSystem: BackgroundSystem,
     private val parallaxSystem: ParallaxBackgroundSystem,
     private val interiorSystem: InteriorSystem,
+    private val enemySystem: EnemySystem,
     private val sceneManager: SceneManager,
     private val roomTemplateManager: RoomTemplateManager,
     private val shaderEffectManager: ShaderEffectManager,
@@ -37,6 +38,7 @@ class InputHandler(
     private var isBackgroundSelectionMode = false
     private var isParallaxSelectionMode = false
     private var isInteriorSelectionMode = false
+    private var isEnemySelectionMode = false
     private var isTimeSpeedUpPressed = false
 
     // Variables for continuous block placement/removal
@@ -194,6 +196,17 @@ class InputHandler(
                 } else if (isInteriorSelectionMode) {
                     if (amountY > 0) interiorSystem.nextInterior() else interiorSystem.previousInterior()
                     uiManager.updateInteriorSelection()
+                    return true
+                } else if (isEnemySelectionMode) {
+                    // Check for a modifier key to switch between type and behavior
+                    if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) {
+                        // Scroll through behaviors
+                        if (amountY > 0) enemySystem.nextBehavior() else enemySystem.previousBehavior()
+                    } else {
+                        // Scroll through enemy types
+                        if (amountY > 0) enemySystem.nextEnemyType() else enemySystem.previousEnemyType()
+                    }
+                    uiManager.updateEnemySelection() // Update the UI to reflect the change
                     return true
                 } else {
                     // Normal camera zoom
@@ -367,6 +380,7 @@ class InputHandler(
                     Input.Keys.NUMPAD_7 -> uiManager.selectedTool = Tool.BACKGROUND
                     Input.Keys.NUMPAD_8 -> uiManager.selectedTool = Tool.PARALLAX
                     Input.Keys.NUMPAD_9 -> uiManager.selectedTool = Tool.INTERIOR
+                    Input.Keys.NUMPAD_0 -> uiManager.selectedTool = Tool.ENEMY
                     // Fine positioning controls
                     Input.Keys.LEFT -> {
                         if (getCurrentPositionableSystem()?.finePosMode == true) {
@@ -429,9 +443,16 @@ class InputHandler(
                             return true
                         }
                     }
+                    Input.Keys.Y -> {
+                        if (!isEnemySelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode && !isInteriorSelectionMode) {
+                            isEnemySelectionMode = true
+                            uiManager.showEnemySelection()
+                        }
+                        return true
+                    }
                 }
                 // Update UI after tool selection
-                if (keycode in Input.Keys.NUMPAD_1..Input.Keys.NUMPAD_9) {
+                if (keycode in Input.Keys.NUMPAD_0..Input.Keys.NUMPAD_9) {
                     uiManager.updateToolDisplay()
                     // Update preview in case we switched to/from the background tool
                     handleBackgroundPreviewUpdate(Gdx.input.x, Gdx.input.y)
@@ -455,6 +476,7 @@ class InputHandler(
                         }
                     }
                     Input.Keys.J -> { isInteriorSelectionMode = false; uiManager.hideInteriorSelection(); return true }
+                    Input.Keys.Y -> { isEnemySelectionMode = false; uiManager.hideEnemySelection(); return true }
                     // Release fine positioning keys
                     Input.Keys.LEFT -> { leftPressed = false; return true }
                     Input.Keys.RIGHT -> { rightPressed = false; return true }
@@ -546,6 +568,7 @@ class InputHandler(
             Tool.ITEM -> itemSystem
             Tool.BACKGROUND -> backgroundSystem
             Tool.INTERIOR -> interiorSystem
+            Tool.ENEMY -> enemySystem
             else -> null
         }
     }

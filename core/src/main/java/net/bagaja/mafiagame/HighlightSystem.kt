@@ -37,7 +37,8 @@ class HighlightSystem(private val blockSize: Float) {
         UIManager.Tool.HOUSE to Color(0f, 1f, 1f, 0.3f),      // Cyan
         UIManager.Tool.BACKGROUND to Color(1f, 0.5f, 0f, 0.3f), // Orange
         UIManager.Tool.PARALLAX to Color(0.4f, 0.8f, 0.7f, 0.3f),  // Teal
-        UIManager.Tool.INTERIOR to Color(0.8f, 0.5f, 0.2f, 0.3f) // Brown
+        UIManager.Tool.INTERIOR to Color(0.8f, 0.5f, 0.2f, 0.3f), // Brown
+        UIManager.Tool.ENEMY to Color(1f, 0f, 0f, 0.4f) // Red highlight for enemies
 
     )
 
@@ -92,6 +93,7 @@ class HighlightSystem(private val blockSize: Float) {
         raycastSystem: RaycastSystem,
         gameInteriors: Array<GameInterior>,
         interiorSystem: InteriorSystem,
+        gameEnemies: Array<GameEnemy>
     ) {
         val mouseX = Gdx.input.x.toFloat()
         val mouseY = Gdx.input.y.toFloat()
@@ -107,6 +109,7 @@ class HighlightSystem(private val blockSize: Float) {
             UIManager.Tool.BACKGROUND -> updateBackgroundHighlight(ray, backgroundSystem, raycastSystem, uiManager)
             UIManager.Tool.PARALLAX -> updateParallaxHighlight(ray, uiManager, parallaxSystem, raycastSystem)
             UIManager.Tool.INTERIOR -> updateInteriorHighlight(ray, gameInteriors, interiorSystem, raycastSystem)
+            UIManager.Tool.ENEMY -> updateEnemyHighlight(ray, gameEnemies, raycastSystem)
         }
     }
 
@@ -390,6 +393,28 @@ class HighlightSystem(private val blockSize: Float) {
             // Center the highlight box at the placement position, raised by half its height
             val placementPos = Vector3(intersection.x, intersection.y + highlightSize.y / 2f, intersection.z)
             showHighlight(placementPos, toolColors[UIManager.Tool.INTERIOR]!!)
+        } else {
+            hideHighlight()
+        }
+    }
+
+    private fun updateEnemyHighlight(ray: Ray, gameEnemies: Array<GameEnemy>, raycastSystem: RaycastSystem) {
+        // Check if hovering over an existing enemy to remove it
+        val enemyToRemove = raycastSystem.getEnemyAtRay(ray, gameEnemies)
+        if (enemyToRemove != null) {
+            updateHighlightSize(Vector3(enemyToRemove.enemyType.width, enemyToRemove.enemyType.height, enemyToRemove.enemyType.width))
+            showHighlight(enemyToRemove.position, removeColor)
+            return
+        }
+
+        // Show placement highlight on the ground
+        val intersection = Vector3()
+        val groundPlane = Plane(Vector3.Y, 0f)
+
+        if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            val placementPos = Vector3(intersection.x, intersection.y + 2f, intersection.z)
+            updateHighlightSize(Vector3(3f, 4f, 3f)) // Use a generic size for the placement preview
+            showHighlight(placementPos, toolColors[UIManager.Tool.ENEMY]!!)
         } else {
             hideHighlight()
         }

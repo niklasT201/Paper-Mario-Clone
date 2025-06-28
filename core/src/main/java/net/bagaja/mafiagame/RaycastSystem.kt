@@ -251,4 +251,22 @@ class RaycastSystem(private val blockSize: Float) {
         }
         return closestInterior
     }
+
+    fun getEnemyAtRay(ray: Ray, gameEnemies: Array<GameEnemy>): GameEnemy? {
+        var closestEnemy: GameEnemy? = null
+        var closestDistance = Float.MAX_VALUE
+
+        for (enemy in gameEnemies) {
+            val enemyBounds = enemy.getBoundingBox()
+            val intersection = Vector3()
+            if (Intersector.intersectRayBounds(ray, enemyBounds, intersection)) {
+                val distance = ray.origin.dst2(intersection)
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestEnemy = enemy
+                }
+            }
+        }
+        return closestEnemy
+    }
 }

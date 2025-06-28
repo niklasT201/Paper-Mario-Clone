@@ -30,7 +30,8 @@ class UIManager(
     private val roomTemplateManager: RoomTemplateManager,
     private val interiorSystem: InteriorSystem,
     private val lightingManager: LightingManager,
-    private val shaderEffectManager: ShaderEffectManager
+    private val shaderEffectManager: ShaderEffectManager,
+    private val enemySystem: EnemySystem
 ) {
     private lateinit var stage: Stage
     private lateinit var skin: Skin
@@ -42,6 +43,7 @@ class UIManager(
     private lateinit var backgroundSelectionUI: BackgroundSelectionUI
     private lateinit var parallaxSelectionUI: ParallaxSelectionUI
     private lateinit var interiorSelectionUI: InteriorSelectionUI
+    private lateinit var enemySelectionUI: EnemySelectionUI
     private lateinit var lightSourceUI: LightSourceUI
     private lateinit var skyCustomizationUI: SkyCustomizationUI
     private lateinit var shaderEffectUI: ShaderEffectUI
@@ -67,7 +69,7 @@ class UIManager(
     private val TEXT_MUTED = Color(0.6f, 0.6f, 0.7f, 1f)
 
     enum class Tool {
-        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR
+        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY
     }
 
     fun initialize() {
@@ -125,6 +127,9 @@ class UIManager(
 
         skyCustomizationUI = SkyCustomizationUI(skin, stage, lightingManager)
         skyCustomizationUI.initialize()
+
+        enemySelectionUI = EnemySelectionUI(enemySystem, skin, stage)
+        enemySelectionUI.initialize()
 
         shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager)
         shaderEffectUI.initialize()
@@ -201,7 +206,7 @@ class UIManager(
         toolContainer.pad(20f)
 
         toolButtons = mutableListOf()
-        val tools = Tool.entries.toTypedArray()
+        val tools = Tool.entries
 
         // Create tool grid with better spacing
         val toolGrid = Table()
@@ -333,6 +338,7 @@ class UIManager(
             "Backgrounds" to "0" to "🌄",
             "Parallax" to "0" to "🏞️",
             "Interiors" to "0" to "🛋️",
+            "Enemies" to "0" to "💀"
         )
 
         for ((data, icon) in statItems) {
@@ -575,6 +581,7 @@ class UIManager(
             Tool.BACKGROUND -> Color(0.2f, 0.7f, 1f, 1f)
             Tool.PARALLAX -> Color(0.4f, 0.8f, 0.7f, 1f)
             Tool.INTERIOR -> Color.BROWN
+            Tool.ENEMY -> Color.RED
         }
 
         // Create gradient background
@@ -750,6 +757,17 @@ class UIManager(
                 pixmap.fillRectangle(12, 27, 4, 6) // Front leg
                 pixmap.fillRectangle(20, 27, 4, 6) // Back leg
             }
+            Tool.ENEMY -> {
+                // Icon for enemy (e.g., a simple skull or angry face)
+                pixmap.setColor(shadowColor)
+                pixmap.fillCircle(19, 16, 12)
+                pixmap.setColor(highlightColor)
+                pixmap.fillCircle(18, 15, 12)
+                pixmap.setColor(Color.BLACK)
+                pixmap.fillCircle(14, 12, 3) // Left eye
+                pixmap.fillCircle(22, 12, 3) // Right eye
+                pixmap.fillRectangle(12, 22, 12, 3) // Mouth
+            }
         }
 
         val texture = Texture(pixmap)
@@ -768,6 +786,7 @@ class UIManager(
             Tool.BACKGROUND -> ACCENT_COLOR
             Tool.PARALLAX -> Color(0.4f, 0.8f, 0.7f, 1f)
             Tool.INTERIOR -> Color(0.8f, 0.5f, 0.2f, 1f)
+            Tool.ENEMY -> Color.RED
         }
     }
 
@@ -782,6 +801,7 @@ class UIManager(
             Tool.BACKGROUND -> "Background"
             Tool.PARALLAX -> "Parallax"
             Tool.INTERIOR -> "Interior"
+            Tool.ENEMY -> "Enemy"
         }
     }
 
@@ -1199,6 +1219,18 @@ class UIManager(
 
     fun updateBackgroundSelection() {
         backgroundSelectionUI.update()
+    }
+
+    fun showEnemySelection() {
+        enemySelectionUI.show()
+    }
+
+    fun hideEnemySelection() {
+        enemySelectionUI.hide()
+    }
+
+    fun updateEnemySelection() {
+        enemySelectionUI.update()
     }
 
     fun updateToolDisplay() {
