@@ -179,7 +179,8 @@ class MafiaGame : ApplicationAdapter() {
 
     private fun setupItemSystem() {
         itemSystem = ItemSystem()
-        itemSystem.initialize()
+        // MODIFIED: Pass the blockSize to the item system for physics calculations.
+        itemSystem.initialize(blockSize)
     }
 
     private fun setupCarSystem() {
@@ -1181,7 +1182,7 @@ class MafiaGame : ApplicationAdapter() {
         playerSystem.update(deltaTime)
 
         // Update item system (animations, collisions, etc.)
-        itemSystem.update(deltaTime, cameraManager.camera.position, playerSystem.getPosition(), 2f)
+        itemSystem.update(deltaTime, cameraManager.camera, playerSystem, sceneManager)
 
         // Update highlight system
         highlightSystem.update(

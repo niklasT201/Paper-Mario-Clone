@@ -22,6 +22,9 @@ class ItemSystem: IFinePositionable {
     private val gameItems = Array<GameItem>()
     private lateinit var itemModelBatch: ModelBatch
     private lateinit var billboardShaderProvider: BillboardShaderProvider
+    private val FALL_SPEED = 25f
+    private val MAX_STEP_HEIGHT = 0.5f // Items can step over small bumps
+    private var blockSize: Float = 4f // Will be set by initialize
 
     var currentSelectedItem = ItemType.MONEY_STACK
         private set
@@ -31,7 +34,8 @@ class ItemSystem: IFinePositionable {
     override var finePosMode = false
     override val fineStep = 0.25f
 
-    fun initialize() {
+    fun initialize(blockSize: Float) {
+        this.blockSize = blockSize
         val modelBuilder = ModelBuilder()
 
         // Initialize shader and batch for items
@@ -142,19 +146,45 @@ class ItemSystem: IFinePositionable {
         }
     }
 
-    fun update(deltaTime: Float, cameraPosition: Vector3, playerPosition: Vector3, playerRadius: Float = 1f) {
+    fun update(deltaTime: Float, camera: Camera, playerSystem: PlayerSystem, sceneManager: SceneManager) {
         val itemsToRemove = Array<GameItem>()
 
         for (item in gameItems) {
-            if (!item.isCollected) {
-                // Update item animation
-                item.update(deltaTime, cameraPosition)
+            if (item.isCollected) continue
 
-                // Check collision with player
-                if (item.checkCollision(playerPosition, playerRadius)) {
-                    item.collect()
-                    itemsToRemove.add(item)
-                }
+            // 1. Apply Gravity and Find Support for the item
+            val itemX = item.position.x
+            val itemZ = item.position.z
+            val itemRadius = item.itemType.width / 4f // Use a small radius for point-like check
+
+            val supportY = sceneManager.findHighestSupportY(itemX, itemZ, itemRadius, this.blockSize)
+
+            val itemBottomY = item.position.y // The item's origin is at its base
+            val effectiveSupportY = if (supportY - itemBottomY <= MAX_STEP_HEIGHT) {
+                // The ground is within stepping range, so we can use it.
+                supportY
+            } else {
+                // The ground is too high (it's a wall), so we maintain our current Y-level for this check.
+                itemBottomY
+            }
+
+            // Apply Gravity
+            val fallY = item.position.y - FALL_SPEED * deltaTime
+            val nextY = kotlin.math.max(effectiveSupportY, fallY) // Item is on ground, stepping up, or falling.
+
+            // 2. Update item position if it moved vertically
+            if (kotlin.math.abs(nextY - item.position.y) > 0.01f) {
+                // Since items don't move horizontally on their own, we can just set the Y.
+                item.position.y = nextY
+            }
+
+            // Update item animation (rotation and bobbing)
+            item.update(deltaTime, camera.position)
+
+            // Check collision with player
+            if (item.checkCollision(playerSystem.getPosition(), 2f)) {
+                item.collect()
+                itemsToRemove.add(item)
             }
         }
 

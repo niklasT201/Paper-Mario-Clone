@@ -54,7 +54,7 @@ public class Lwjgl3Launcher {
 // footprints when moving through dead enemies
 // adding guns
 // adding ammunition
-// items falling too
+// allowing multiple items on the same spot
 // adding health
 // adding multiple city areas
 // spotlight effect
