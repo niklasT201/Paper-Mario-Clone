@@ -126,7 +126,7 @@ class EnemySelectionUI(
         mainContainer.add(behaviorContainer).padBottom(10f).row()
 
         // Instructions with modern styling
-        val instructionLabel = Label("Hold [Y] + Mouse Wheel to change selection", skin)
+        val instructionLabel = Label("Hold [Y] | Mouse Wheel: Change Type | Shift+Wheel: Change Behavior", skin)
         instructionLabel.setFontScale(0.9f)
         instructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f) // Darker gray
         mainContainer.add(instructionLabel).padBottom(5f).row()

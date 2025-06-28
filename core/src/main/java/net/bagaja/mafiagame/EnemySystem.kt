@@ -47,7 +47,6 @@ enum class AIState {
 }
 
 // --- MAIN ENEMY DATA CLASS ---
-
 data class GameEnemy(
     val id: String = UUID.randomUUID().toString(),
     val modelInstance: ModelInstance,
@@ -60,19 +59,19 @@ data class GameEnemy(
     var currentState: AIState = AIState.IDLE
     var stateTimer: Float = 0f
     var targetPosition: Vector3? = null
+    var facingRotationY: Float = 0f
 
     // Collision properties
     private val boundsSize = Vector3(enemyType.width, enemyType.height, enemyType.width)
     private val boundingBox = BoundingBox()
 
-    fun updateVisuals(deltaTime: Float, cameraPosition: Vector3) {
-        // Billboard rotation to always face the camera
-        val direction = Vector3(cameraPosition).sub(position).nor()
-        direction.y = 0f // Keep rotation horizontal
-        val angle = Math.toDegrees(Math.atan2(direction.x.toDouble(), direction.z.toDouble())).toFloat()
-
-        modelInstance.transform.setToTranslation(position)
-        modelInstance.transform.rotate(Vector3.Y, angle)
+    fun updateVisuals() {
+        // Reset the transform
+        modelInstance.transform.idt()
+        // Set its position in the world
+        modelInstance.transform.setTranslation(position)
+        // Apply the left/right facing rotation. The billboard shader does the rest.
+        modelInstance.transform.rotate(Vector3.Y, facingRotationY)
     }
 
     fun getBoundingBox(): BoundingBox {
@@ -163,7 +162,17 @@ class EnemySystem : IFinePositionable {
         for (enemy in sceneManager.activeEnemies) {
             applyPhysics(enemy, deltaTime, sceneManager, blockSize)
             updateAI(enemy, playerPos, deltaTime, sceneManager)
-            enemy.updateVisuals(deltaTime, sceneManager.cameraManager.camera.position)
+
+            if (playerPos.x > enemy.position.x) {
+                // Player is to the right of the enemy, so enemy should face right.
+                enemy.facingRotationY = 0f
+            } else {
+                // Player is to the left of the enemy, so enemy should face left.
+                enemy.facingRotationY = 180f
+            }
+
+            // Update the enemy's visual transform.
+            enemy.updateVisuals()
         }
     }
 
