@@ -1280,12 +1280,6 @@ class MafiaGame : ApplicationAdapter() {
         // Render light sources
         lightingManager.renderLightInstances(modelBatch, environment, objectSystem.debugMode)
 
-        for (car in sceneManager.activeCars) {
-            //car.update(deltaTime) ANIMATION
-            car.updateTransform()
-            modelBatch.render(car.modelInstance, environment)
-        }
-
         for (house in sceneManager.activeHouses) {
             modelBatch.render(house.modelInstance, environment)
         }
@@ -1305,6 +1299,7 @@ class MafiaGame : ApplicationAdapter() {
         // Render 3D player with custom billboard shader
         playerSystem.render(cameraManager.camera, environment)
         enemySystem.renderEnemies(cameraManager.camera, environment, sceneManager.activeEnemies)
+        carSystem.render(cameraManager.camera, environment, sceneManager.activeCars)
 
         // Render items
         itemSystem.render(cameraManager.camera, environment)

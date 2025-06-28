@@ -294,6 +294,38 @@ class EnemySelectionUI(
                 pixmap.fillRectangle(32, 15, 6, 15)
                 pixmap.fillRectangle(26, 5, 8, 20) // Legs
             }
+            EnemyType.NUN -> {
+                pixmap.setColor(Color(0.6f, 0.2f, 0.3f, 1f))
+                pixmap.fillCircle(30, 45, 7) // Smaller head
+                pixmap.fillRectangle(26, 32, 8, 13) // Slimmer body
+                pixmap.fillRectangle(24, 17, 4, 13) // Slimmer arms
+                pixmap.fillRectangle(32, 17, 4, 13)
+                pixmap.fillRectangle(28, 5, 4, 18) // Slimmer legs
+            }
+            EnemyType.SINGER -> {
+                pixmap.setColor(Color(0.6f, 0.2f, 0.3f, 1f))
+                pixmap.fillCircle(30, 45, 7) // Smaller head
+                pixmap.fillRectangle(26, 32, 8, 13) // Slimmer body
+                pixmap.fillRectangle(24, 17, 4, 13) // Slimmer arms
+                pixmap.fillRectangle(32, 17, 4, 13)
+                pixmap.fillRectangle(28, 5, 4, 18) // Slimmer legs
+            }
+            EnemyType.FRED_THE_HERMIT -> {
+                pixmap.setColor(Color(0.6f, 0.2f, 0.3f, 1f))
+                pixmap.fillCircle(30, 45, 7) // Smaller head
+                pixmap.fillRectangle(26, 32, 8, 13) // Slimmer body
+                pixmap.fillRectangle(24, 17, 4, 13) // Slimmer arms
+                pixmap.fillRectangle(32, 17, 4, 13)
+                pixmap.fillRectangle(28, 5, 4, 18) // Slimmer legs
+            }
+            EnemyType.MR_QUESTMARK -> {
+                pixmap.setColor(Color(0.6f, 0.2f, 0.3f, 1f))
+                pixmap.fillCircle(30, 45, 7) // Smaller head
+                pixmap.fillRectangle(26, 32, 8, 13) // Slimmer body
+                pixmap.fillRectangle(24, 17, 4, 13) // Slimmer arms
+                pixmap.fillRectangle(32, 17, 4, 13)
+                pixmap.fillRectangle(28, 5, 4, 18) // Slimmer legs
+            }
         }
 
         val texture = Texture(pixmap)

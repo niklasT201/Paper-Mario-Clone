@@ -1,12 +1,11 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.VertexAttributes
-import com.badlogic.gdx.graphics.g3d.Material
-import com.badlogic.gdx.graphics.g3d.Model
-import com.badlogic.gdx.graphics.g3d.ModelInstance
+import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
@@ -16,6 +15,8 @@ import com.badlogic.gdx.math.collision.BoundingBox
 
 class CarSystem: IFinePositionable {
     private val carModels = mutableMapOf<CarType, Model>()
+    private lateinit var billboardShaderProvider: BillboardShaderProvider
+    private lateinit var billboardModelBatch: ModelBatch
 
     var currentSelectedCar = CarType.DEFAULT
         private set
@@ -29,6 +30,10 @@ class CarSystem: IFinePositionable {
     override val fineStep = 0.25f
 
     fun initialize() {
+        billboardShaderProvider = BillboardShaderProvider()
+        billboardModelBatch = ModelBatch(billboardShaderProvider)
+        billboardShaderProvider.setBillboardLightingStrength(0.9f)
+        billboardShaderProvider.setMinLightLevel(0.3f)
         val modelBuilder = ModelBuilder()
 
         // Load models for each car type
@@ -54,6 +59,20 @@ class CarSystem: IFinePositionable {
                 println("Failed to load car ${carType.displayName}: ${e.message}")
             }
         }
+    }
+
+    fun render(camera: Camera, environment: Environment, cars: com.badlogic.gdx.utils.Array<GameCar>) {
+        // This is the crucial step: feed the lighting info to the shader
+        billboardShaderProvider.setEnvironment(environment)
+
+        billboardModelBatch.begin(camera)
+        for (car in cars) {
+            // We update the transform and animation right before rendering
+            car.update(Gdx.graphics.deltaTime)
+            car.updateTransform()
+            billboardModelBatch.render(car.modelInstance, environment)
+        }
+        billboardModelBatch.end()
     }
 
     private fun createCarBillboard(modelBuilder: ModelBuilder, material: Material, carType: CarType): Model {
@@ -115,6 +134,8 @@ class CarSystem: IFinePositionable {
 
     fun dispose() {
         carModels.values.forEach { it.dispose() }
+        billboardModelBatch.dispose()
+        billboardShaderProvider.dispose()
     }
 }
 

@@ -24,11 +24,15 @@ enum class EnemyType(
     val speed: Float
 ) {
     NOUSE_THUG("Nouse Thug", "textures/characters/enemy_nouse.png", 3f, 4f, 100f, 6f),
-    GEORGE_MELES("George Meles", "textures/characters/george_meles.png", 3.2f, 4.2f, 120f, 5.5f),
-    GUNTHER("Gunther", "textures/characters/Gunther.png", 3.5f, 4.5f, 180f, 5f),
+    GEORGE_MELES("George Meles", "textures/characters/george_meles.png", 3.4f, 4.5f, 120f, 5.5f),
+    GUNTHER("Gunther", "textures/characters/Gunther.png", 7.0f, 8.0f, 180f, 5f),
     CORRUPT_DETECTIVE("Corrupt Detective", "textures/characters/detective.png", 3f, 4.2f, 150f, 6.5f),
-    LADY_FOX("Lady Fox", "textures/characters/lady_fox.png", 2.8f, 4f, 80f, 8f),
-    MAFIA_BOSS("Mafia Boss", "textures/characters/mafia_boss.png", 3.8f, 4.8f, 500f, 4f)
+    LADY_FOX("Lady Fox", "textures/characters/lady_fox.png", 5f, 6.5f, 80f, 8f),
+    MAFIA_BOSS("Mafia Boss", "textures/characters/mafia_boss.png", 3.8f, 4.8f, 500f, 4f),
+    FRED_THE_HERMIT("Fred the Hermit", "textures/characters/fred_hermit.png", 4f, 5f, 100f, 4.5f),
+    MR_QUESTMARK("Mr. Questmark", "textures/characters/Mr_Questmark.png", 4.0f, 5f, 100f, 5.0f),
+    NUN("Nun", "textures/characters/nun.png", 4f, 5f, 70f, 5.5f),
+    SINGER("Singer", "textures/characters/singer.png", 5f, 7f, 80f, 6.0f)
 }
 
 enum class EnemyBehavior(val displayName: String) {
@@ -146,6 +150,9 @@ class EnemySystem : IFinePositionable {
     fun createEnemy(position: Vector3, enemyType: EnemyType, behavior: EnemyBehavior): GameEnemy? {
         val model = enemyModels[enemyType] ?: return null
         val instance = ModelInstance(model)
+
+        instance.userData = "player"
+
         return GameEnemy(
             modelInstance = instance,
             enemyType = enemyType,
@@ -303,20 +310,9 @@ class EnemySystem : IFinePositionable {
         return true
     }
 
-    fun render(camera: Camera, environment: Environment) {
-        billboardShaderProvider.setEnvironment(environment)
-        billboardModelBatch.begin(camera)
-        // This assumes activeEnemies is now accessible from somewhere, like SceneManager
-        // You will need to adjust this based on your final architecture.
-        // For now, let's assume a parameter is passed.
-        // for (enemy in activeEnemies) {
-        //     billboardModelBatch.render(enemy.modelInstance, environment)
-        // }
-        billboardModelBatch.end()
-    }
-
     // This method needs to be called from the actual render loop with the active enemies.
     fun renderEnemies(camera: Camera, environment: Environment, enemies: Array<GameEnemy>) {
+        billboardShaderProvider.setEnvironment(environment)
         billboardModelBatch.begin(camera)
         for (enemy in enemies) {
             billboardModelBatch.render(enemy.modelInstance, environment)

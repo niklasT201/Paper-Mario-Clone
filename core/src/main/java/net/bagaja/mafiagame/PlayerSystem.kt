@@ -232,6 +232,8 @@ class PlayerSystem {
 
         isDriving = true
         drivingCar = car
+        car.modelInstance.userData = "player"
+
         // Hide the player by setting its position to the car's position
         playerPosition.set(car.position)
         println("Player entered car ${car.carType.displayName}")
@@ -241,6 +243,8 @@ class PlayerSystem {
         if (!isDriving || drivingCar == null) return
 
         val car = drivingCar!!
+        car.modelInstance.userData = null
+
         // Calculate a safe exit spot
         val exitOffset = Vector3(-5f, 0f, 0f) // Offset from car's local center
         exitOffset.rotate(Vector3.Y, car.direction) // Rotate the offset to match the car's direction
@@ -257,7 +261,7 @@ class PlayerSystem {
             drivingCar = null
         } else {
             println("Cannot exit car, path is blocked.")
-            // Optional: You could play a "thud" sound or show a UI message here
+            car.modelInstance.userData = "player"
         }
     }
 
