@@ -19,7 +19,8 @@ enum class ShaderEffect(val displayName: String) {
     DREAMY_SOFT("Dreamy Soft"),
     NEON_GLOW("Neon Glow"),
     OLD_MOVIE("1920s Cartoon"),
-    BLACK_WHITE("Schwarz-Weiß")
+    BLACK_WHITE("Schwarz-Weiß"),
+    FILM_NOIR("Film Noir")
 }
 
 class ShaderEffectManager {
@@ -275,6 +276,67 @@ class ShaderEffectManager {
     }
 """
 
+    private val filmNoirShader = """
+    #ifdef GL_ES
+    precision mediump float;
+    #endif
+
+    uniform sampler2D u_texture;
+    uniform float u_time;
+    uniform vec2 u_resolution;
+    varying vec2 v_texCoord;
+
+    void main() {
+        vec4 color = texture2D(u_texture, v_texCoord);
+
+        // Calculate the base luminance
+        float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+
+        // Detect colored lighting by finding color deviations from luminance
+        vec3 colorDeviation = color.rgb - vec3(luminance);
+
+        // Amplify the colored lighting effect
+        vec3 coloredLighting = colorDeviation * 3.0;
+
+        // Create high-contrast grayscale base
+        float contrastGray = smoothstep(0.25, 0.75, luminance);
+
+        // Add some additional contrast zones for that classic film noir look
+        if (contrastGray > 0.8) {
+            contrastGray = 1.0; // Pure whites
+        } else if (contrastGray < 0.2) {
+            contrastGray = 0.0; // Pure blacks
+        }
+
+        // Combine grayscale with colored lighting
+        vec3 finalColor = vec3(contrastGray) + coloredLighting;
+
+        // Add film grain with time-based variation
+        float grain = fract(sin(dot(v_texCoord + u_time * 0.001, vec2(12.9898, 78.233))) * 43758.5453);
+        finalColor += (grain - 0.5) * 0.15;
+
+        // Add scanlines for that old film feel
+        float scanline = sin(v_texCoord.y * u_resolution.y * 1.5) * 0.04;
+        finalColor -= scanline;
+
+        // Strong vignette for dramatic effect
+        vec2 center = v_texCoord - 0.5;
+        float vignette = 1.0 - dot(center, center) * 1.2;
+        vignette = smoothstep(0.0, 1.0, vignette);
+        finalColor *= vignette;
+
+        // Slight blue tint in shadows for that classic film noir look
+        if (contrastGray < 0.3) {
+            finalColor.b += 0.1;
+        }
+
+        // Clamp the final result
+        finalColor = clamp(finalColor, 0.0, 1.0);
+
+        gl_FragColor = vec4(finalColor, color.a);
+    }
+"""
+
     fun initialize() {
         // Create frame buffer for post-processing
         frameBuffer = FrameBuffer(Pixmap.Format.RGBA8888, Gdx.graphics.width, Gdx.graphics.height, true)
@@ -323,6 +385,7 @@ class ShaderEffectManager {
         shaders[ShaderEffect.NEON_GLOW] = createShader(vertexShader, neonGlowShader)
         shaders[ShaderEffect.BLACK_WHITE] = createShader(vertexShader, blackWhiteShader)
         shaders[ShaderEffect.OLD_MOVIE] = createShader(vertexShader, oldmovieShader)
+        shaders[ShaderEffect.FILM_NOIR] = createShader(vertexShader, filmNoirShader)
     }
 
     private fun createShader(vertex: String, fragment: String): ShaderProgram {

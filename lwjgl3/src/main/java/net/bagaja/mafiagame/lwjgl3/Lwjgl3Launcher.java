@@ -47,6 +47,7 @@ public class Lwjgl3Launcher {
 // maybe adding multiple texturing for interiors
 // map saving
 // improve camera for interiors
+// light in shader being optional
 // player visible optional in cars
 // maybe changing 30 min daycicle to 50
 // shaders can have colored light

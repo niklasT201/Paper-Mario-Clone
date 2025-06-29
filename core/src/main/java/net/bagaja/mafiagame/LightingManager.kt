@@ -241,6 +241,17 @@ class LightingManager {
     // Get day/night cycle for other systems
     fun getDayNightCycle(): DayNightCycle = dayNightCycle
 
+    fun disablePointLights() {
+        activeLights.forEach { environment.remove(it) }
+    }
+
+    /**
+     * Restores all active point lights to the environment.
+     */
+    fun enablePointLights() {
+        activeLights.forEach { environment.add(it) }
+    }
+
     fun dispose() {
         // Clean up resources if needed
         sunModel.model?.dispose()
