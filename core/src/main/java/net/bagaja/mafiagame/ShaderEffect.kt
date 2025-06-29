@@ -344,29 +344,31 @@ class ShaderEffectManager {
     void main() {
         vec4 originalColor = texture2D(u_texture, v_texCoord);
 
-        // --- Step 1: Calculate luminance and create a base grayscale version ---
-        // Everything, including the player and blocks, will start with this grayscale base.
+        // --- Step 1: Calculate luminance for the grayscale base ---
         float luminance = dot(originalColor.rgb, vec3(0.299, 0.587, 0.114));
-        vec3 finalColor = vec3(luminance); // Base is standard grayscale
+        vec3 grayColor = vec3(luminance);
 
-        // --- Step 2: Identify the pixels that should get their color back ---
-        // Measure how saturated the original pixel was.
-        float saturation = length(originalColor.rgb - vec3(luminance));
+        // --- Step 2: Determine how colorful the pixel is (saturation) ---
+        // A higher value means more color and less gray.
+        float saturation = length(originalColor.rgb - grayColor);
 
-        // Measure how bright the original pixel was.
-        float brightness = luminance;
+        // --- Step 3: Define a threshold for what counts as "colorful" ---
+        // This is the key value to tweak! Lower values let more color through.
+        // A good range to experiment with is 0.2 to 0.4.
+        float colorThreshold = 0.2;
 
-        // --- Step 3: Create a blend factor ---
-        // The magic is here: the factor is high only if BOTH saturation AND brightness are high.
-        // This correctly selects for colored lights and ignores colored textures in normal light.
-        float colorRestoreFactor = smoothstep(0.2, 0.5, saturation) * smoothstep(0.4, 0.8, brightness);
+        // --- Step 4: Create a blend factor based ONLY on saturation ---
+        // We use smoothstep for a nice transition from gray to color. This is the main fix.
+        float colorRestoreFactor = smoothstep(colorThreshold, colorThreshold + 0.25, saturation);
 
-        // --- Step 4: Blend the original color back ON TOP of the grayscale base ---
-        // If the factor is 0 (for player/blocks), the color remains gray.
-        // If the factor is 1 (for lights), the full original color is restored.
-        finalColor = mix(finalColor, originalColor.rgb, colorRestoreFactor);
+        // --- Step 5 (Recommended): Boost the restored color to make it "pop" ---
+        // Instead of just restoring the original color, we amplify it slightly.
+        vec3 boostedColor = originalColor.rgb * 1.4; // Boost brightness by 40%
 
-        // --- Step 5: Add classic film effects ---
+        // --- Step 6: Blend between the grayscale base and the boosted color ---
+        vec3 finalColor = mix(grayColor, boostedColor, colorRestoreFactor);
+
+        // --- Step 7: Add classic film effects ---
         // Film Grain
         float grain = fract(sin(dot(v_texCoord + u_time * 0.01, vec2(12.9898, 78.233))) * 43758.5453);
         finalColor += (grain - 0.5) * 0.1;

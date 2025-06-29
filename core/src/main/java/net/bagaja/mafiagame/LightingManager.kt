@@ -124,24 +124,12 @@ class LightingManager {
             val (r, g, b) = dayNightCycle.getSunColor()
             val sunDirection = dayNightCycle.getSunDirection()
 
-            if (isGrayscaleMode) {
-                // If grayscale mode is ON, convert sun color to grayscale
-                val gray = r * 0.299f + g * 0.587f + b * 0.114f
-                directionalLight.set(
-                    gray * sunIntensity,
-                    gray * sunIntensity,
-                    gray * sunIntensity,
-                    sunDirection
-                )
-            } else {
-                // Otherwise, use the normal sun color
-                directionalLight.set(
-                    r * sunIntensity,
-                    g * sunIntensity,
-                    b * sunIntensity,
-                    sunDirection
-                )
-            }
+            directionalLight.set(
+                r * sunIntensity,
+                g * sunIntensity,
+                b * sunIntensity,
+                sunDirection
+            )
             environment.add(directionalLight)
         }
     }
@@ -252,13 +240,8 @@ class LightingManager {
 
     // Get current sky color for other systems that might need it
     fun getCurrentSkyColor(): Color {
-        val originalColor = skySystem.getCurrentSkyColor()
-        if (isGrayscaleMode) {
-            // If grayscale mode is ON, return a grayscale version of the sky color
-            val l = originalColor.r * 0.299f + originalColor.g * 0.587f + originalColor.b * 0.114f
-            return Color(l, l, l, 1f)
-        }
-        return originalColor // Otherwise, return the normal sky color
+        // Always return the true, full-color value from the sky system.
+        return skySystem.getCurrentSkyColor()
     }
 
     // Get day/night cycle for other systems
