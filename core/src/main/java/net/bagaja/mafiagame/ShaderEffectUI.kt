@@ -1,10 +1,12 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
+import com.badlogic.gdx.utils.Align
 
 class ShaderEffectUI(
     private val skin: Skin,
@@ -12,31 +14,135 @@ class ShaderEffectUI(
     private val shaderEffectManager: ShaderEffectManager
 ) {
     private lateinit var window: Window
-    private lateinit var effectNameLabel: Label
+    private lateinit var currentEffectLabel: Label
     private lateinit var enabledCheckBox: CheckBox
+    private lateinit var effectsList: List<TextButton>
+    private lateinit var scrollPane: ScrollPane
+    private lateinit var statusLabel: Label
+
+    // Color scheme for better visual appeal
+    private val activeColor = Color(0.2f, 0.8f, 0.3f, 1f)
+    private val inactiveColor = Color(0.6f, 0.6f, 0.6f, 1f)
+    private val highlightColor = Color(0.3f, 0.5f, 0.8f, 1f)
 
     fun initialize() {
-        // Create the window using a style that has a title bar
-        window = Window("🎨 Visual Effects", skin, "dialog")
+        // Create main window
+        window = Window("🎨 Visual Effects Manager", skin, "dialog")
         window.isMovable = true
         window.isResizable = false
-        window.padTop(40f) // Adjust padding to fit the title
+        window.padTop(50f)
 
-        // Create the UI elements
-        effectNameLabel = Label("Effect: None", skin)
-        enabledCheckBox = CheckBox(" Effects Enabled", skin)
+        // Create header section
+        createHeaderSection()
+
+        // Create effects selection section
+        createEffectsSection()
+
+        // Create controls section
+        createControlsSection()
+
+        // Layout everything
+        layoutWindow()
+
+        // Position and add to stage
+        window.pack()
+        window.setPosition(Gdx.graphics.width - window.width - 20, 20f)
+        window.isVisible = false
+
+        stage.addActor(window)
+    }
+
+    private fun createHeaderSection() {
+        // Current effect display with visual indicator
+        currentEffectLabel = Label("Default", skin, "title")
+        currentEffectLabel.setAlignment(Align.center)
+
+        // Status indicator
+        statusLabel = Label("● ENABLED", skin)
+        statusLabel.color = activeColor
+
+        // Master toggle
+        enabledCheckBox = CheckBox(" Enable Visual Effects", skin)
         enabledCheckBox.isChecked = shaderEffectManager.isEffectsEnabled
 
         // Add a listener to the checkbox to toggle the feature
         enabledCheckBox.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 shaderEffectManager.toggleEffectsEnabled()
-                // The update() method will sync the state, but this ensures immediate feedback
-                enabledCheckBox.isChecked = shaderEffectManager.isEffectsEnabled
+                updateUI()
+            }
+        })
+    }
+
+    private fun createEffectsSection() {
+        val effectsTable = Table()
+        effectsTable.defaults().fillX().pad(2f)
+
+        // Create buttons for each effect
+        val buttons = mutableListOf<TextButton>()
+
+        ShaderEffect.entries.forEach { effect ->
+            val button = TextButton(effect.displayName, skin)
+            button.left()
+
+            // Add visual indicator for current effect
+            button.addListener(object : ClickListener() {
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                    selectEffect(effect)
+                }
+            })
+
+            buttons.add(button)
+            effectsTable.add(button).row()
+        }
+
+        effectsList = buttons
+
+        // Create scroll pane for effects list
+        scrollPane = ScrollPane(effectsTable, skin)
+        scrollPane.setScrollingDisabled(true, false)
+        scrollPane.setFadeScrollBars(false)
+    }
+
+    private fun createControlsSection() {
+        // Quick navigation buttons could be added here if needed
+        // For now, we'll keep it simple
+    }
+
+    private fun layoutWindow() {
+        // Header section
+        val headerTable = Table()
+        headerTable.add(Label("Current Effect:", skin)).padRight(5f)
+        headerTable.add(statusLabel).padRight(15f)
+        headerTable.row()
+        headerTable.add(currentEffectLabel).colspan(2).padTop(5f).padBottom(15f)
+
+        // Main layout with just spacing instead of separators
+        window.add(headerTable).fillX().row()
+        window.add(enabledCheckBox).fillX().padTop(10f).padBottom(15f).row()
+        window.add(Label("Select Effect:", skin)).fillX().left().padBottom(5f).row()
+        window.add(scrollPane).fillX().height(200f).padBottom(15f).row()
+
+        // Control buttons
+        val controlsTable = Table()
+        controlsTable.defaults().fillX().pad(2f)
+
+        val prevButton = TextButton("◀ Previous", skin)
+        prevButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                shaderEffectManager.previousEffect()
+                updateUI()
             }
         })
 
-        // Create a close button
+        val nextButton = TextButton("Next ▶", skin)
+        nextButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                shaderEffectManager.nextEffect()
+                updateUI()
+            }
+        })
+
         val closeButton = TextButton("Close", skin)
         closeButton.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
@@ -44,35 +150,82 @@ class ShaderEffectUI(
             }
         })
 
-        // --- Layout the elements inside the window ---
-        window.add(Label("Current Effect:", skin)).padRight(10f)
-        window.add(effectNameLabel).row()
-        window.add(enabledCheckBox).colspan(2).padTop(15f).left().row()
-        window.add(closeButton).colspan(2).padTop(10f).center()
+        controlsTable.add(prevButton).width(80f)
+        controlsTable.add(nextButton).width(80f)
+        controlsTable.row()
+        controlsTable.add(closeButton).colspan(2).padTop(5f)
 
-        // Set the window's size and initial position
-        window.pack()
-        window.setPosition(Gdx.graphics.width - window.width - 20, 20f)
-        window.isVisible = false // Initially hidden
+        window.add(controlsTable).fillX()
+    }
 
-        stage.addActor(window)
+    private fun selectEffect(effect: ShaderEffect) {
+        // Use reflection to set the effect since there's no direct setter
+        // This is a workaround - ideally you'd add a setEffect method to ShaderEffectManager
+        val currentEffect = shaderEffectManager.getCurrentEffect()
+        if (currentEffect != effect) {
+            // Navigate to the desired effect
+            val effects = ShaderEffect.entries.toTypedArray()
+            val currentIndex = effects.indexOf(currentEffect)
+            val targetIndex = effects.indexOf(effect)
+
+            if (targetIndex > currentIndex) {
+                repeat(targetIndex - currentIndex) {
+                    shaderEffectManager.nextEffect()
+                }
+            } else {
+                repeat(currentIndex - targetIndex) {
+                    shaderEffectManager.previousEffect()
+                }
+            }
+        }
+        updateUI()
     }
 
     // This method is called every frame to keep the UI in sync with the system state
     fun update() {
         if (!window.isVisible) return
+        updateUI()
+    }
 
-        // Update the label and checkbox to reflect the current state
-        effectNameLabel.setText(shaderEffectManager.getCurrentEffect().displayName)
-        enabledCheckBox.isChecked = shaderEffectManager.isEffectsEnabled
+    private fun updateUI() {
+        val currentEffect = shaderEffectManager.getCurrentEffect()
+        val isEnabled = shaderEffectManager.isEffectsEnabled
+
+        // Update current effect label
+        currentEffectLabel.setText(currentEffect.displayName)
+
+        // Update status
+        statusLabel.setText(if (isEnabled) "● ENABLED" else "● DISABLED")
+        statusLabel.color = if (isEnabled) activeColor else inactiveColor
+
+        // Update checkbox
+        enabledCheckBox.isChecked = isEnabled
+
+        // Update effect buttons
+        effectsList.forEachIndexed { index, button ->
+            val effect = ShaderEffect.entries[index]
+            if (effect == currentEffect) {
+                button.color = highlightColor
+                button.setText("▶ ${effect.displayName}")
+            } else {
+                button.color = Color.WHITE
+                button.setText("  ${effect.displayName}")
+            }
+        }
+
+        // Dim everything if effects are disabled
+        val alpha = if (isEnabled) 1f else 0.6f
+        effectsList.forEach { it.color.a = alpha }
+        scrollPane.color.a = alpha
     }
 
     // Toggles the visibility of the UI window
     fun toggle() {
         if (window.isVisible) {
-            close() // Use close() method to properly clear focus
+            close()
         } else {
             window.isVisible = true
+            updateUI()
         }
     }
 
@@ -91,6 +244,6 @@ class ShaderEffectUI(
 
     // In case this UI component creates its own disposable resources in the future
     fun dispose() {
-        // The skin and stage are managed by UIManager, so nothing to dispose here for now.
+        // Nothing to dispose currently
     }
 }
