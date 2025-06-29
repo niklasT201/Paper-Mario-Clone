@@ -1203,6 +1203,10 @@ class MafiaGame : ApplicationAdapter() {
         val deltaTime = Gdx.graphics.deltaTime
         val timeMultiplier = if (inputHandler.isTimeSpeedUpActive()) 200f else 1f
 
+        val isSinCityEffect = shaderEffectManager.isEffectsEnabled &&
+            shaderEffectManager.getCurrentEffect() == ShaderEffect.SIN_CITY
+        lightingManager.setGrayscaleMode(isSinCityEffect)
+
         sceneManager.update(deltaTime)
         transitionSystem.update(deltaTime)
 

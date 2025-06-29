@@ -20,7 +20,8 @@ enum class ShaderEffect(val displayName: String) {
     NEON_GLOW("Neon Glow"),
     OLD_MOVIE("1920s Cartoon"),
     BLACK_WHITE("Schwarz-Weiß"),
-    FILM_NOIR("Film Noir")
+    FILM_NOIR("Film Noir"),
+    SIN_CITY("Sin City"),
 }
 
 class ShaderEffectManager {
@@ -331,6 +332,54 @@ class ShaderEffectManager {
     }
 """
 
+    private val sinCityShader = """
+    #ifdef GL_ES
+    precision mediump float;
+    #endif
+
+    uniform sampler2D u_texture;
+    uniform float u_time;
+    varying vec2 v_texCoord;
+
+    void main() {
+        vec4 originalColor = texture2D(u_texture, v_texCoord);
+
+        // --- Step 1: Calculate luminance and create a base grayscale version ---
+        // Everything, including the player and blocks, will start with this grayscale base.
+        float luminance = dot(originalColor.rgb, vec3(0.299, 0.587, 0.114));
+        vec3 finalColor = vec3(luminance); // Base is standard grayscale
+
+        // --- Step 2: Identify the pixels that should get their color back ---
+        // Measure how saturated the original pixel was.
+        float saturation = length(originalColor.rgb - vec3(luminance));
+
+        // Measure how bright the original pixel was.
+        float brightness = luminance;
+
+        // --- Step 3: Create a blend factor ---
+        // The magic is here: the factor is high only if BOTH saturation AND brightness are high.
+        // This correctly selects for colored lights and ignores colored textures in normal light.
+        float colorRestoreFactor = smoothstep(0.2, 0.5, saturation) * smoothstep(0.4, 0.8, brightness);
+
+        // --- Step 4: Blend the original color back ON TOP of the grayscale base ---
+        // If the factor is 0 (for player/blocks), the color remains gray.
+        // If the factor is 1 (for lights), the full original color is restored.
+        finalColor = mix(finalColor, originalColor.rgb, colorRestoreFactor);
+
+        // --- Step 5: Add classic film effects ---
+        // Film Grain
+        float grain = fract(sin(dot(v_texCoord + u_time * 0.01, vec2(12.9898, 78.233))) * 43758.5453);
+        finalColor += (grain - 0.5) * 0.1;
+
+        // Vignette
+        vec2 center = v_texCoord - 0.5;
+        float vignette = 1.0 - dot(center, center) * 0.8;
+        finalColor *= vignette;
+
+        gl_FragColor = vec4(clamp(finalColor, 0.0, 1.0), originalColor.a);
+    }
+"""
+
     fun initialize() {
         // Create frame buffer for post-processing
         frameBuffer = FrameBuffer(Pixmap.Format.RGBA8888, Gdx.graphics.width, Gdx.graphics.height, true)
@@ -380,6 +429,7 @@ class ShaderEffectManager {
         shaders[ShaderEffect.BLACK_WHITE] = createShader(vertexShader, blackWhiteShader)
         shaders[ShaderEffect.OLD_MOVIE] = createShader(vertexShader, oldmovieShader)
         shaders[ShaderEffect.FILM_NOIR] = createShader(vertexShader, filmNoirShader)
+        shaders[ShaderEffect.SIN_CITY] = createShader(vertexShader, sinCityShader)
     }
 
     private fun createShader(vertex: String, fragment: String): ShaderProgram {

@@ -50,7 +50,6 @@ public class Lwjgl3Launcher {
 // light in shader being optional
 // player visible optional in cars
 // maybe changing 30 min daycicle to 50
-// shaders can have colored light
 // killed enemies drop items
 // enemies have an inventory and collect items
 // footprints when moving through dead enemies
