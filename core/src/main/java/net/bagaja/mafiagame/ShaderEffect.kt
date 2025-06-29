@@ -289,48 +289,42 @@ class ShaderEffectManager {
     void main() {
         vec4 color = texture2D(u_texture, v_texCoord);
 
-        // Calculate the base luminance
+        // Calculate the base luminance (how bright the pixel is in grayscale)
         float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
 
-        // Detect colored lighting by finding color deviations from luminance
+        // Detect colored lighting by finding the difference between the
+        // original color and its grayscale equivalent.
+        // A colorful pixel will have a large deviation. A gray pixel will have zero.
         vec3 colorDeviation = color.rgb - vec3(luminance);
 
-        // Amplify the colored lighting effect
+        // Amplify the colored lighting effect to make it pop.
+        // You can change '3.0' to make the color more or less intense.
         vec3 coloredLighting = colorDeviation * 3.0;
 
-        // Create high-contrast grayscale base
+        // Create a high-contrast grayscale base using smoothstep.
+        // This crushes the blacks and blows out the whites for a classic noir look.
         float contrastGray = smoothstep(0.25, 0.75, luminance);
 
-        // Add some additional contrast zones for that classic film noir look
-        if (contrastGray > 0.8) {
-            contrastGray = 1.0; // Pure whites
-        } else if (contrastGray < 0.2) {
-            contrastGray = 0.0; // Pure blacks
-        }
-
-        // Combine grayscale with colored lighting
+        // Combine the high-contrast grayscale base with the colored lighting.
         vec3 finalColor = vec3(contrastGray) + coloredLighting;
 
-        // Add film grain with time-based variation
-        float grain = fract(sin(dot(v_texCoord + u_time * 0.001, vec2(12.9898, 78.233))) * 43758.5453);
-        finalColor += (grain - 0.5) * 0.15;
+        // --- Optional but highly recommended "Old Film" effects ---
 
-        // Add scanlines for that old film feel
+        // Add film grain that jitters over time
+        float grain = fract(sin(dot(v_texCoord + u_time * 0.001, vec2(12.9898, 78.233))) * 43758.5453);
+        finalColor += (grain - 0.5) * 0.15; // Adjust 0.15 to change grain intensity
+
+        // Add faint scanlines
         float scanline = sin(v_texCoord.y * u_resolution.y * 1.5) * 0.04;
         finalColor -= scanline;
 
-        // Strong vignette for dramatic effect
+        // Add a strong vignette to darken the corners
         vec2 center = v_texCoord - 0.5;
         float vignette = 1.0 - dot(center, center) * 1.2;
         vignette = smoothstep(0.0, 1.0, vignette);
         finalColor *= vignette;
 
-        // Slight blue tint in shadows for that classic film noir look
-        if (contrastGray < 0.3) {
-            finalColor.b += 0.1;
-        }
-
-        // Clamp the final result
+        // Clamp the final result to keep it in the valid 0.0-1.0 range
         finalColor = clamp(finalColor, 0.0, 1.0);
 
         gl_FragColor = vec4(finalColor, color.a);
