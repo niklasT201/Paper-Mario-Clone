@@ -22,7 +22,6 @@ enum class ShaderEffect(val displayName: String) {
     FILM_NOIR("Film Noir"),
     SIN_CITY("Sin City"),
     GRINDHOUSE("Grindhouse Film"),
-    CYBERPUNK("Cyberpunk 2077"),
     VINTAGE_SEPIA("Vintage Sepia"),
     COMIC_BOOK("Comic Book"),
     UNDERWATER("Underwater"),
@@ -92,7 +91,6 @@ class ShaderEffectManager {
         shaders[ShaderEffect.FILM_NOIR] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.filmNoirShader)
         shaders[ShaderEffect.SIN_CITY] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.sinCityShader)
         shaders[ShaderEffect.GRINDHOUSE] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.grindhouseShader)
-        shaders[ShaderEffect.CYBERPUNK] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.cyberpunkShader)
         shaders[ShaderEffect.VINTAGE_SEPIA] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.vintageSepia)
         shaders[ShaderEffect.COMIC_BOOK] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.comicBookShader)
         shaders[ShaderEffect.UNDERWATER] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.underwaterShader)

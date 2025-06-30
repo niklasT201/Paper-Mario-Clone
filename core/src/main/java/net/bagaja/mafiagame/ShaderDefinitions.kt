@@ -452,57 +452,6 @@ object ShaderDefinitions {
         }
     """
 
-    const val cyberpunkShader = """
-        #ifdef GL_ES
-        precision mediump float;
-        #endif
-
-        uniform sampler2D u_texture;
-        uniform float u_time;
-        uniform vec2 u_resolution;
-        varying vec2 v_texCoord;
-
-        void main() {
-            vec2 uv = v_texCoord;
-
-            // Chromatic aberration
-            float aberration = 0.003;
-            vec4 color;
-            color.r = texture2D(u_texture, uv + vec2(aberration, 0.0)).r;
-            color.g = texture2D(u_texture, uv).g;
-            color.b = texture2D(u_texture, uv - vec2(aberration, 0.0)).b;
-            color.a = texture2D(u_texture, uv).a;
-
-            // Digital scan lines
-            float scanline = sin(uv.y * u_resolution.y * 0.7) * 0.04;
-            color.rgb -= scanline;
-
-            // Cyberpunk color grading - enhance blues and magentas
-            color.r *= 1.1;
-            color.g *= 0.9;
-            color.b *= 1.4;
-
-            // Add neon glow to bright areas
-            float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
-            if(luminance > 0.6) {
-                color.rgb += vec3(0.2, 0.1, 0.4) * (luminance - 0.6) * 2.0;
-            }
-
-            // Glitch effect
-            float glitch = step(0.98, sin(u_time * 15.0 + uv.y * 20.0));
-            if(glitch > 0.0) {
-                color.rgb = mix(color.rgb, vec3(1.0, 0.0, 1.0), 0.3);
-                uv.x += (fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.1;
-            }
-
-            // Digital noise
-            float noise = fract(sin(dot(uv + u_time * 0.001, vec2(12.9898, 78.233))) * 43758.5453);
-            color.rgb += (noise - 0.5) * 0.08;
-
-            gl_FragColor = color;
-        }
-    """
-
     const val vintageSepia = """
         #ifdef GL_ES
         precision mediump float;
