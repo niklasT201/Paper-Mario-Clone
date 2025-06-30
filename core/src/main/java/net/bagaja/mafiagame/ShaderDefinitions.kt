@@ -6,6 +6,7 @@ package net.bagaja.mafiagame
  */
 object ShaderDefinitions {
 
+    // Shader source code
     const val vertexShader = """
         attribute vec4 a_position;
         attribute vec2 a_texCoord0;
@@ -30,6 +31,7 @@ object ShaderDefinitions {
         }
     """
 
+    // Fragment shaders for different effects
     const val brightVibrantShader = """
         #ifdef GL_ES
         precision mediump float;
@@ -43,8 +45,20 @@ object ShaderDefinitions {
             vec4 color = texture2D(u_texture, v_texCoord);
 
             // Increase brightness and saturation
-            color.rgb = pow(color.rgb, vec3(0.8));
-            // ... rest of bright vibrant shader code
+            color.rgb = pow(color.rgb, vec3(0.8)); // Gamma correction for brightness
+
+            // Boost saturation
+            float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+            color.rgb = mix(vec3(luminance), color.rgb, 1.5);
+
+            // Add slight warm tint
+            color.r *= 1.1;
+            color.g *= 1.05;
+
+            // Subtle brightness oscillation
+            color.rgb *= 1.0 + 0.1 * sin(u_time * 2.0) * 0.5;
+
+            gl_FragColor = vec4(color.rgb, color.a);
         }
     """
 
@@ -61,7 +75,24 @@ object ShaderDefinitions {
         void main() {
             // Pixelation effect
             float pixelSize = 4.0;
-            // ... rest of retro pixel shader code
+            vec2 pixelCoord = floor(v_texCoord * u_resolution / pixelSize) * pixelSize / u_resolution;
+            vec4 color = texture2D(u_texture, pixelCoord);
+
+            // Retro color palette reduction
+            color.r = floor(color.r * 8.0) / 8.0;
+            color.g = floor(color.g * 8.0) / 8.0;
+            color.b = floor(color.b * 8.0) / 8.0;
+
+            // Add scanlines
+            float scanline = sin(v_texCoord.y * u_resolution.y * 2.0) * 0.1;
+            color.rgb -= scanline;
+
+            // Slight CRT curve effect (simplified)
+            vec2 center = v_texCoord - 0.5;
+            float vignette = 1.0 - dot(center, center) * 0.5;
+            color.rgb *= vignette;
+
+            gl_FragColor = color;
         }
     """
 
@@ -78,7 +109,35 @@ object ShaderDefinitions {
         void main() {
             vec4 color = vec4(0.0);
             vec2 offset = 1.0 / u_resolution;
-            // ... rest of dreamy soft shader code
+
+            // Gaussian blur approximation
+            for(int x = -2; x <= 2; x++) {
+                for(int y = -2; y <= 2; y++) {
+                    vec2 sampleCoord = v_texCoord + vec2(float(x), float(y)) * offset * 1.5;
+                    float weight = 1.0 / (1.0 + float(x*x + y*y));
+                    color += texture2D(u_texture, sampleCoord) * weight;
+                }
+            }
+            color /= 9.0;
+
+            // Soft, pastel color adjustment
+            color.rgb = pow(color.rgb, vec3(1.2)); // Softer contrast
+
+            // Add dreamy color tint
+            color.r *= 1.1;
+            color.b *= 1.2;
+            color.g *= 1.05;
+
+            // Gentle brightness pulsing
+            float pulse = 0.95 + 0.05 * sin(u_time * 1.5);
+            color.rgb *= pulse;
+
+            // Soft vignette
+            vec2 center = v_texCoord - 0.5;
+            float vignette = 1.0 - dot(center, center) * 0.3;
+            color.rgb *= vignette;
+
+            gl_FragColor = color;
         }
     """
 
@@ -95,7 +154,44 @@ object ShaderDefinitions {
         void main() {
             vec4 originalColor = texture2D(u_texture, v_texCoord);
             vec4 glowColor = vec4(0.0);
-            // ... rest of neon glow shader code
+            vec2 offset = 1.0 / u_resolution;
+
+            // Create glow effect by sampling around the pixel
+            for(int x = -3; x <= 3; x++) {
+                for(int y = -3; y <= 3; y++) {
+                    vec2 sampleCoord = v_texCoord + vec2(float(x), float(y)) * offset * 2.0;
+                    vec4 sampleColor = texture2D(u_texture, sampleCoord);
+                    float distance = length(vec2(float(x), float(y)));
+                    float weight = 1.0 / (1.0 + distance * 0.5);
+                    glowColor += sampleColor * weight;
+                }
+            }
+            glowColor /= 25.0;
+
+            // Edge detection for enhanced neon effect
+            vec4 edgeColor = vec4(0.0);
+            edgeColor += texture2D(u_texture, v_texCoord + vec2(-offset.x, 0.0));
+            edgeColor += texture2D(u_texture, v_texCoord + vec2(offset.x, 0.0));
+            edgeColor += texture2D(u_texture, v_texCoord + vec2(0.0, -offset.y));
+            edgeColor += texture2D(u_texture, v_texCoord + vec2(0.0, offset.y));
+            edgeColor = abs(edgeColor - originalColor * 4.0);
+
+            // Neon color enhancement
+            vec4 neonColor = originalColor;
+            neonColor.r *= 1.3 + 0.3 * sin(u_time * 3.0);
+            neonColor.g *= 1.2 + 0.2 * sin(u_time * 3.5 + 1.0);
+            neonColor.b *= 1.4 + 0.4 * sin(u_time * 2.5 + 2.0);
+
+            // Combine effects
+            vec4 finalColor = neonColor + glowColor * 0.5 + edgeColor * 2.0;
+
+            // Dark background enhancement for neon effect
+            float luminance = dot(originalColor.rgb, vec3(0.299, 0.587, 0.114));
+            if(luminance < 0.3) {
+                finalColor.rgb *= 0.3; // Darken dark areas
+            }
+
+            gl_FragColor = vec4(finalColor.rgb, originalColor.a);
         }
     """
 
@@ -110,12 +206,30 @@ object ShaderDefinitions {
 
         void main() {
             vec4 color = texture2D(u_texture, v_texCoord);
+
             // Convert to grayscale using luminance formula
-            // ... rest of black & white shader code
+            float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+
+            // Apply high contrast for that classic cartoon look
+            gray = smoothstep(0.4, 0.6, gray);
+
+            // Add slight film grain effect
+            float noise = fract(sin(dot(v_texCoord, vec2(12.9898, 78.233))) * 43758.5453);
+            gray += (noise - 0.5) * 0.1;
+
+            // Optional: Add subtle vignette for old film look
+            vec2 center = v_texCoord - 0.5;
+            float vignette = 1.0 - dot(center, center) * 0.8;
+            gray *= vignette;
+
+            // Clamp to ensure we stay in valid range
+            gray = clamp(gray, 0.0, 1.0);
+
+            gl_FragColor = vec4(vec3(gray), color.a);
         }
     """
 
-    const val oldMovieShader = """
+    const val oldmovieShader = """
         #ifdef GL_ES
         precision mediump float;
         #endif
@@ -125,8 +239,11 @@ object ShaderDefinitions {
 
         void main() {
             vec4 color = texture2D(u_texture, v_texCoord);
-            // Simple grayscale conversion
-            // ... rest of old movie shader code
+
+            // Simple grayscale conversion using luminance formula
+            float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+
+            gl_FragColor = vec4(vec3(gray), color.a);
         }
     """
 
@@ -142,8 +259,46 @@ object ShaderDefinitions {
 
         void main() {
             vec4 color = texture2D(u_texture, v_texCoord);
-            // Calculate base luminance and colored lighting
-            // ... rest of film noir shader code
+
+            // Calculate the base luminance (how bright the pixel is in grayscale)
+            float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+
+            // Detect colored lighting by finding the difference between the
+            // original color and its grayscale equivalent.
+            // A colorful pixel will have a large deviation. A gray pixel will have zero.
+            vec3 colorDeviation = color.rgb - vec3(luminance);
+
+            // Amplify the colored lighting effect to make it pop.
+            // You can change '3.0' to make the color more or less intense.
+            vec3 coloredLighting = colorDeviation * 3.0;
+
+            // Create a high-contrast grayscale base using smoothstep.
+            // This crushes the blacks and blows out the whites for a classic noir look.
+            float contrastGray = smoothstep(0.25, 0.75, luminance);
+
+            // Combine the high-contrast grayscale base with the colored lighting.
+            vec3 finalColor = vec3(contrastGray) + coloredLighting;
+
+            // --- Optional but highly recommended "Old Film" effects ---
+
+            // Add film grain that jitters over time
+            float grain = fract(sin(dot(v_texCoord + u_time * 0.001, vec2(12.9898, 78.233))) * 43758.5453);
+            finalColor += (grain - 0.5) * 0.15; // Adjust 0.15 to change grain intensity
+
+            // Add faint scanlines
+            float scanline = sin(v_texCoord.y * u_resolution.y * 1.5) * 0.04;
+            finalColor -= scanline;
+
+            // Add a strong vignette to darken the corners
+            vec2 center = v_texCoord - 0.5;
+            float vignette = 1.0 - dot(center, center) * 1.2;
+            vignette = smoothstep(0.0, 1.0, vignette);
+            finalColor *= vignette;
+
+            // Clamp the final result to keep it in the valid 0.0-1.0 range
+            finalColor = clamp(finalColor, 0.0, 1.0);
+
+            gl_FragColor = vec4(finalColor, color.a);
         }
     """
 
@@ -158,8 +313,42 @@ object ShaderDefinitions {
 
         void main() {
             vec4 originalColor = texture2D(u_texture, v_texCoord);
-            // Sin City selective color effect
-            // ... rest of sin city shader code
+
+            // --- Step 1: Calculate luminance for the grayscale base ---
+            float luminance = dot(originalColor.rgb, vec3(0.299, 0.587, 0.114));
+            vec3 grayColor = vec3(luminance);
+
+            // --- Step 2: Determine how colorful the pixel is (saturation) ---
+            // A higher value means more color and less gray.
+            float saturation = length(originalColor.rgb - grayColor);
+
+            // --- Step 3: Define a threshold for what counts as "colorful" ---
+            // This is the key value to tweak! Lower values let more color through.
+            // A good range to experiment with is 0.2 to 0.4.
+            float colorThreshold = 0.2;
+
+            // --- Step 4: Create a blend factor based ONLY on saturation ---
+            // We use smoothstep for a nice transition from gray to color. This is the main fix.
+            float colorRestoreFactor = smoothstep(colorThreshold, colorThreshold + 0.25, saturation);
+
+            // --- Step 5 (Recommended): Boost the restored color to make it "pop" ---
+            // Instead of just restoring the original color, we amplify it slightly.
+            vec3 boostedColor = originalColor.rgb * 1.4; // Boost brightness by 40%
+
+            // --- Step 6: Blend between the grayscale base and the boosted color ---
+            vec3 finalColor = mix(grayColor, boostedColor, colorRestoreFactor);
+
+            // --- Step 7: Add classic film effects ---
+            // Film Grain
+            float grain = fract(sin(dot(v_texCoord + u_time * 0.01, vec2(12.9898, 78.233))) * 43758.5453);
+            finalColor += (grain - 0.5) * 0.1;
+
+            // Vignette
+            vec2 center = v_texCoord - 0.5;
+            float vignette = 1.0 - dot(center, center) * 0.8;
+            finalColor *= vignette;
+
+            gl_FragColor = vec4(clamp(finalColor, 0.0, 1.0), originalColor.a);
         }
     """
 
@@ -177,7 +366,90 @@ object ShaderDefinitions {
         float rand(vec2 co) {
             return fract(sin(dot(co.xy, vec2(12.9898, 78.233))) * 43758.5453);
         }
-        // ... rest of grindhouse shader code
+
+        // Film scratches function
+        float filmScratches(vec2 uv, float time) {
+            float scratch = 0.0;
+
+            // Vertical scratches
+            for(int i = 0; i < 3; i++) {
+                float scratchX = 0.1 + 0.8 * rand(vec2(float(i), floor(time * 2.0)));
+                float scratchWidth = 0.001 + 0.003 * rand(vec2(float(i) + 1.0, floor(time * 2.0)));
+
+                if(abs(uv.x - scratchX) < scratchWidth) {
+                    scratch += 0.5 * (1.0 - abs(uv.x - scratchX) / scratchWidth);
+                }
+            }
+
+            return scratch;
+        }
+
+        void main() {
+            vec2 uv = v_texCoord;
+
+            // Film gate instability - slight jitter
+            vec2 jitter = vec2(
+                (rand(vec2(u_time * 0.1)) - 0.5) * 0.002,
+                (rand(vec2(u_time * 0.1 + 1.0)) - 0.5) * 0.001
+            );
+            uv += jitter;
+
+            vec4 color = texture2D(u_texture, uv);
+
+            // Desaturate heavily but keep some color
+            float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+            color.rgb = mix(color.rgb, vec3(luminance), 0.7);
+
+            // Grindhouse color grading - crush blacks, lift mids, desaturate
+            color.rgb = pow(color.rgb, vec3(1.3)); // Increase contrast
+            color.rgb = color.rgb * 0.9 + 0.1; // Lift blacks slightly
+
+            // Add sepia/brown tint typical of old film
+            color.r *= 1.2;
+            color.g *= 1.1;
+            color.b *= 0.8;
+
+            // Heavy film grain
+            float grain = rand(uv + u_time * 0.01) * 0.25;
+            color.rgb += (grain - 0.125);
+
+            // Film scratches
+            float scratches = filmScratches(uv, u_time);
+            color.rgb += scratches;
+
+            // Dust and dirt spots
+            float dirt = 0.0;
+            for(int i = 0; i < 5; i++) {
+                vec2 dirtPos = vec2(
+                    rand(vec2(float(i), floor(u_time * 0.5))),
+                    rand(vec2(float(i) + 10.0, floor(u_time * 0.5)))
+                );
+                float dirtDist = distance(uv, dirtPos);
+                if(dirtDist < 0.02) {
+                    dirt += (0.02 - dirtDist) * 2.0;
+                }
+            }
+            color.rgb -= dirt * 0.3;
+
+            // Film burn/exposure variations
+            float exposure = 0.9 + 0.2 * sin(u_time * 0.3 + uv.y * 10.0);
+            color.rgb *= exposure;
+
+            // Vignette - heavy corners
+            vec2 center = uv - 0.5;
+            float vignette = 1.0 - dot(center, center) * 1.5;
+            vignette = smoothstep(0.2, 0.8, vignette);
+            color.rgb *= vignette;
+
+            // Film gate - slight rounded corners
+            float gate = 1.0;
+            if(uv.x < 0.02 || uv.x > 0.98 || uv.y < 0.02 || uv.y > 0.98) {
+                gate *= 0.3;
+            }
+            color.rgb *= gate;
+
+            gl_FragColor = vec4(clamp(color.rgb, 0.0, 1.0), color.a);
+        }
     """
 
     const val cyberpunkShader = """
@@ -192,8 +464,42 @@ object ShaderDefinitions {
 
         void main() {
             vec2 uv = v_texCoord;
-            // Chromatic aberration and cyberpunk effects
-            // ... rest of cyberpunk shader code
+
+            // Chromatic aberration
+            float aberration = 0.003;
+            vec4 color;
+            color.r = texture2D(u_texture, uv + vec2(aberration, 0.0)).r;
+            color.g = texture2D(u_texture, uv).g;
+            color.b = texture2D(u_texture, uv - vec2(aberration, 0.0)).b;
+            color.a = texture2D(u_texture, uv).a;
+
+            // Digital scan lines
+            float scanline = sin(uv.y * u_resolution.y * 0.7) * 0.04;
+            color.rgb -= scanline;
+
+            // Cyberpunk color grading - enhance blues and magentas
+            color.r *= 1.1;
+            color.g *= 0.9;
+            color.b *= 1.4;
+
+            // Add neon glow to bright areas
+            float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+            if(luminance > 0.6) {
+                color.rgb += vec3(0.2, 0.1, 0.4) * (luminance - 0.6) * 2.0;
+            }
+
+            // Glitch effect
+            float glitch = step(0.98, sin(u_time * 15.0 + uv.y * 20.0));
+            if(glitch > 0.0) {
+                color.rgb = mix(color.rgb, vec3(1.0, 0.0, 1.0), 0.3);
+                uv.x += (fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) * 0.1;
+            }
+
+            // Digital noise
+            float noise = fract(sin(dot(uv + u_time * 0.001, vec2(12.9898, 78.233))) * 43758.5453);
+            color.rgb += (noise - 0.5) * 0.08;
+
+            gl_FragColor = color;
         }
     """
 
@@ -208,41 +514,37 @@ object ShaderDefinitions {
 
         void main() {
             vec4 color = texture2D(u_texture, v_texCoord);
+
+            // Convert to luminance
+            float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+
             // Sepia tone mapping
-            // ... rest of vintage sepia shader code
+            vec3 sepia = vec3(
+                luminance * 1.2,
+                luminance * 1.0,
+                luminance * 0.8
+            );
+
+            // Add warmth
+            sepia.r *= 1.1;
+            sepia.g *= 0.95;
+            sepia.b *= 0.82;
+
+            // Vintage fade effect
+            sepia = pow(sepia, vec3(1.2));
+            sepia *= 0.9;
+
+            // Add subtle paper texture
+            float paper = fract(sin(dot(v_texCoord * 50.0, vec2(12.9898, 78.233))) * 43758.5453);
+            sepia += (paper - 0.5) * 0.05;
+
+            // Vintage vignette
+            vec2 center = v_texCoord - 0.5;
+            float vignette = 1.0 - dot(center, center) * 0.8;
+            sepia *= smoothstep(0.0, 1.0, vignette);
+
+            gl_FragColor = vec4(sepia, color.a);
         }
-    """
-
-    const val thermalVisionShader = """
-        #ifdef GL_ES
-        precision mediump float;
-        #endif
-
-        uniform sampler2D u_texture;
-        uniform float u_time;
-        varying vec2 v_texCoord;
-
-        void main() {
-            vec4 color = texture2D(u_texture, v_texCoord);
-            // Calculate temperature based on luminance
-            // ... rest of thermal vision shader code
-        }
-    """
-
-    const val glitchMatrixShader = """
-        #ifdef GL_ES
-        precision mediump float;
-        #endif
-
-        uniform sampler2D u_texture;
-        uniform float u_time;
-        uniform vec2 u_resolution;
-        varying vec2 v_texCoord;
-
-        float random(vec2 st) {
-            return fract(sin(dot(st.xy, vec2(12.9898, 78.233))) * 43758.5453123);
-        }
-        // ... rest of glitch matrix shader code
     """
 
     const val comicBookShader = """
@@ -257,8 +559,40 @@ object ShaderDefinitions {
         void main() {
             vec2 offset = 1.0 / u_resolution;
             vec4 color = texture2D(u_texture, v_texCoord);
+
             // Edge detection using Sobel operator
-            // ... rest of comic book shader code
+            vec4 edgeX =
+                texture2D(u_texture, v_texCoord + vec2(-offset.x, -offset.y)) * -1.0 +
+                texture2D(u_texture, v_texCoord + vec2(-offset.x, 0.0)) * -2.0 +
+                texture2D(u_texture, v_texCoord + vec2(-offset.x, offset.y)) * -1.0 +
+                texture2D(u_texture, v_texCoord + vec2(offset.x, -offset.y)) * 1.0 +
+                texture2D(u_texture, v_texCoord + vec2(offset.x, 0.0)) * 2.0 +
+                texture2D(u_texture, v_texCoord + vec2(offset.x, offset.y)) * 1.0;
+
+            vec4 edgeY =
+                texture2D(u_texture, v_texCoord + vec2(-offset.x, -offset.y)) * -1.0 +
+                texture2D(u_texture, v_texCoord + vec2(0.0, -offset.y)) * -2.0 +
+                texture2D(u_texture, v_texCoord + vec2(offset.x, -offset.y)) * -1.0 +
+                texture2D(u_texture, v_texCoord + vec2(-offset.x, offset.y)) * 1.0 +
+                texture2D(u_texture, v_texCoord + vec2(0.0, offset.y)) * 2.0 +
+                texture2D(u_texture, v_texCoord + vec2(offset.x, offset.y)) * 1.0;
+
+            float edge = length(edgeX.rgb) + length(edgeY.rgb);
+            edge = smoothstep(0.1, 0.3, edge);
+
+            // Posterize colors
+            color.r = floor(color.r * 6.0) / 6.0;
+            color.g = floor(color.g * 6.0) / 6.0;
+            color.b = floor(color.b * 6.0) / 6.0;
+
+            // Increase saturation
+            float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+            color.rgb = mix(vec3(luminance), color.rgb, 1.5);
+
+            // Add black edges
+            color.rgb = mix(color.rgb, vec3(0.0), edge);
+
+            gl_FragColor = color;
         }
     """
 
@@ -274,8 +608,34 @@ object ShaderDefinitions {
 
         void main() {
             vec2 uv = v_texCoord;
-            // Water distortion effects
-            // ... rest of underwater shader code
+
+            // Water distortion
+            float wave1 = sin(uv.x * 10.0 + u_time * 2.0) * 0.01;
+            float wave2 = sin(uv.y * 8.0 + u_time * 1.5) * 0.01;
+            uv += vec2(wave1, wave2);
+
+            vec4 color = texture2D(u_texture, uv);
+
+            // Underwater color grading - blue tint and reduced visibility
+            color.r *= 0.6;
+            color.g *= 0.8;
+            color.b *= 1.2;
+
+            // Depth-based darkening
+            float depth = 1.0 - v_texCoord.y;
+            color.rgb *= mix(0.3, 1.0, depth);
+
+            // Caustics effect
+            float caustic1 = sin(uv.x * 20.0 + u_time * 3.0) * sin(uv.y * 15.0 + u_time * 2.0);
+            float caustic2 = sin(uv.x * 15.0 - u_time * 2.5) * sin(uv.y * 20.0 - u_time * 1.8);
+            float caustics = (caustic1 + caustic2) * 0.1;
+            color.rgb += caustics * vec3(0.2, 0.5, 0.8);
+
+            // Floating particles
+            float particle = step(0.98, sin(uv.x * 100.0 + u_time) * sin(uv.y * 80.0 + u_time * 0.8));
+            color.rgb += particle * vec3(0.8, 0.9, 1.0) * 0.3;
+
+            gl_FragColor = color;
         }
     """
 
@@ -291,8 +651,34 @@ object ShaderDefinitions {
 
         void main() {
             vec4 color = texture2D(u_texture, v_texCoord);
-            // Night vision green tint and amplification
-            // ... rest of night vision shader code
+
+            // Convert to luminance and amplify
+            float luminance = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+            luminance = pow(luminance, 0.4); // Brighten dark areas
+
+            // Night vision green tint
+            vec3 nightVision = vec3(luminance * 0.2, luminance * 1.0, luminance * 0.3);
+
+            // Add scan lines
+            float scanline = sin(v_texCoord.y * u_resolution.y * 0.5) * 0.1;
+            nightVision -= scanline;
+
+            // Add noise
+            float noise = fract(sin(dot(v_texCoord + u_time * 0.001, vec2(12.9898, 78.233))) * 43758.5453);
+            nightVision += (noise - 0.5) * 0.2;
+
+            // Circular vignette (night vision goggles effect)
+            vec2 center = v_texCoord - 0.5;
+            float dist = length(center);
+            float vignette = 1.0 - smoothstep(0.3, 0.5, dist);
+            nightVision *= vignette;
+
+            // Add green glow around bright areas
+            if(luminance > 0.7) {
+                nightVision += vec3(0.0, 0.3, 0.0) * (luminance - 0.7);
+            }
+
+            gl_FragColor = vec4(nightVision, color.a);
         }
     """
 }
