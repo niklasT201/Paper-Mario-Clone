@@ -31,7 +31,8 @@ class UIManager(
     private val interiorSystem: InteriorSystem,
     private val lightingManager: LightingManager,
     private val shaderEffectManager: ShaderEffectManager,
-    private val enemySystem: EnemySystem
+    private val enemySystem: EnemySystem,
+    private val npcSystem: NPCSystem
 ) {
     private lateinit var stage: Stage
     private lateinit var skin: Skin
@@ -44,6 +45,7 @@ class UIManager(
     private lateinit var parallaxSelectionUI: ParallaxSelectionUI
     private lateinit var interiorSelectionUI: InteriorSelectionUI
     private lateinit var enemySelectionUI: EnemySelectionUI
+    private lateinit var npcSelectionUI: NPCSelectionUI
     private lateinit var lightSourceUI: LightSourceUI
     private lateinit var skyCustomizationUI: SkyCustomizationUI
     private lateinit var shaderEffectUI: ShaderEffectUI
@@ -69,7 +71,7 @@ class UIManager(
     private val TEXT_MUTED = Color(0.6f, 0.6f, 0.7f, 1f)
 
     enum class Tool {
-        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY
+        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC
     }
 
     fun initialize() {
@@ -130,6 +132,9 @@ class UIManager(
 
         enemySelectionUI = EnemySelectionUI(enemySystem, skin, stage)
         enemySelectionUI.initialize()
+
+        npcSelectionUI = NPCSelectionUI(npcSystem, skin, stage)
+        npcSelectionUI.initialize()
 
         shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager)
         shaderEffectUI.initialize()
@@ -338,7 +343,8 @@ class UIManager(
             "Backgrounds" to "0" to "🌄",
             "Parallax" to "0" to "🏞️",
             "Interiors" to "0" to "🛋️",
-            "Enemies" to "0" to "💀"
+            "Enemies" to "0" to "💀",
+            "NPCs" to "0" to "💬"
         )
 
         for ((data, icon) in statItems) {
@@ -582,6 +588,7 @@ class UIManager(
             Tool.PARALLAX -> Color(0.4f, 0.8f, 0.7f, 1f)
             Tool.INTERIOR -> Color.BROWN
             Tool.ENEMY -> Color.RED
+            Tool.NPC -> Color(0.2f, 0.8f, 1f, 1f)
         }
 
         // Create gradient background
@@ -768,6 +775,22 @@ class UIManager(
                 pixmap.fillCircle(22, 12, 3) // Right eye
                 pixmap.fillRectangle(12, 22, 12, 3) // Mouth
             }
+            Tool.NPC -> {
+                // Speech bubble icon
+                pixmap.setColor(shadowColor)
+                pixmap.fillRectangle(8, 8, 22, 18)
+                pixmap.fillTriangle(12, 26, 12, 32, 20, 26)
+
+                pixmap.setColor(highlightColor)
+                pixmap.fillRectangle(7, 7, 22, 18)
+                pixmap.fillTriangle(11, 25, 11, 31, 19, 25)
+
+                // "..." text
+                pixmap.setColor(Color.DARK_GRAY)
+                pixmap.fillCircle(12, 16, 2)
+                pixmap.fillCircle(18, 16, 2)
+                pixmap.fillCircle(24, 16, 2)
+            }
         }
 
         val texture = Texture(pixmap)
@@ -787,6 +810,7 @@ class UIManager(
             Tool.PARALLAX -> Color(0.4f, 0.8f, 0.7f, 1f)
             Tool.INTERIOR -> Color(0.8f, 0.5f, 0.2f, 1f)
             Tool.ENEMY -> Color.RED
+            Tool.NPC -> Color(0.2f, 0.8f, 1f, 1f)
         }
     }
 
@@ -802,6 +826,7 @@ class UIManager(
             Tool.PARALLAX -> "Parallax"
             Tool.INTERIOR -> "Interior"
             Tool.ENEMY -> "Enemy"
+            Tool.NPC -> "NPC"
         }
     }
 
@@ -1139,6 +1164,10 @@ class UIManager(
     fun toggleShaderEffectUI() {
         shaderEffectUI.toggle()
     }
+
+    fun showNPCSelection() { npcSelectionUI.show() }
+    fun hideNPCSelection() { npcSelectionUI.hide() }
+    fun updateNPCSelection() { npcSelectionUI.update() }
 
     fun updatePlacementInfo(info: String) {
         if (::placementInfoLabel.isInitialized) {

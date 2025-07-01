@@ -269,4 +269,22 @@ class RaycastSystem(private val blockSize: Float) {
         }
         return closestEnemy
     }
+
+    fun getNPCAtRay(ray: Ray, gameNPCs: Array<GameNPC>): GameNPC? {
+        var closestNPC: GameNPC? = null
+        var closestDistance = Float.MAX_VALUE
+
+        for (npc in gameNPCs) {
+            val npcBounds = npc.getBoundingBox()
+            val intersection = Vector3()
+            if (Intersector.intersectRayBounds(ray, npcBounds, intersection)) {
+                val distance = ray.origin.dst2(intersection)
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestNPC = npc
+                }
+            }
+        }
+        return closestNPC
+    }
 }

@@ -241,17 +241,6 @@ class EnemySelectionUI(
                 pixmap.fillRectangle(32, 15, 5, 15) // Right arm
                 pixmap.fillRectangle(27, 5, 6, 20) // Legs
             }
-            EnemyType.GEORGE_MELES -> {
-                // Distinguished figure with hat
-                pixmap.setColor(Color(0.3f, 0.3f, 0.5f, 1f))
-                pixmap.fillCircle(30, 45, 8) // Head
-                pixmap.fillRectangle(22, 47, 16, 6) // Hat
-                pixmap.setColor(Color(0.2f, 0.2f, 0.4f, 1f))
-                pixmap.fillRectangle(25, 30, 10, 15) // Body
-                pixmap.fillRectangle(23, 15, 5, 15) // Arms
-                pixmap.fillRectangle(32, 15, 5, 15)
-                pixmap.fillRectangle(27, 5, 6, 20) // Legs
-            }
             EnemyType.GUNTHER -> {
                 // Large, imposing figure
                 pixmap.setColor(Color(0.5f, 0.3f, 0.2f, 1f))
@@ -273,15 +262,6 @@ class EnemySelectionUI(
                 pixmap.fillRectangle(32, 15, 5, 15)
                 pixmap.fillRectangle(27, 5, 6, 20) // Legs
             }
-            EnemyType.LADY_FOX -> {
-                // Sleek, feminine silhouette
-                pixmap.setColor(Color(0.6f, 0.2f, 0.3f, 1f))
-                pixmap.fillCircle(30, 45, 7) // Smaller head
-                pixmap.fillRectangle(26, 32, 8, 13) // Slimmer body
-                pixmap.fillRectangle(24, 17, 4, 13) // Slimmer arms
-                pixmap.fillRectangle(32, 17, 4, 13)
-                pixmap.fillRectangle(28, 5, 4, 18) // Slimmer legs
-            }
             EnemyType.MAFIA_BOSS -> {
                 // Distinguished boss with suit
                 pixmap.setColor(Color(0.1f, 0.1f, 0.1f, 1f))
@@ -293,38 +273,6 @@ class EnemySelectionUI(
                 pixmap.fillRectangle(22, 15, 6, 15) // Arms
                 pixmap.fillRectangle(32, 15, 6, 15)
                 pixmap.fillRectangle(26, 5, 8, 20) // Legs
-            }
-            EnemyType.NUN -> {
-                pixmap.setColor(Color(0.6f, 0.2f, 0.3f, 1f))
-                pixmap.fillCircle(30, 45, 7) // Smaller head
-                pixmap.fillRectangle(26, 32, 8, 13) // Slimmer body
-                pixmap.fillRectangle(24, 17, 4, 13) // Slimmer arms
-                pixmap.fillRectangle(32, 17, 4, 13)
-                pixmap.fillRectangle(28, 5, 4, 18) // Slimmer legs
-            }
-            EnemyType.SINGER -> {
-                pixmap.setColor(Color(0.6f, 0.2f, 0.3f, 1f))
-                pixmap.fillCircle(30, 45, 7) // Smaller head
-                pixmap.fillRectangle(26, 32, 8, 13) // Slimmer body
-                pixmap.fillRectangle(24, 17, 4, 13) // Slimmer arms
-                pixmap.fillRectangle(32, 17, 4, 13)
-                pixmap.fillRectangle(28, 5, 4, 18) // Slimmer legs
-            }
-            EnemyType.FRED_THE_HERMIT -> {
-                pixmap.setColor(Color(0.6f, 0.2f, 0.3f, 1f))
-                pixmap.fillCircle(30, 45, 7) // Smaller head
-                pixmap.fillRectangle(26, 32, 8, 13) // Slimmer body
-                pixmap.fillRectangle(24, 17, 4, 13) // Slimmer arms
-                pixmap.fillRectangle(32, 17, 4, 13)
-                pixmap.fillRectangle(28, 5, 4, 18) // Slimmer legs
-            }
-            EnemyType.MR_QUESTMARK -> {
-                pixmap.setColor(Color(0.6f, 0.2f, 0.3f, 1f))
-                pixmap.fillCircle(30, 45, 7) // Smaller head
-                pixmap.fillRectangle(26, 32, 8, 13) // Slimmer body
-                pixmap.fillRectangle(24, 17, 4, 13) // Slimmer arms
-                pixmap.fillRectangle(32, 17, 4, 13)
-                pixmap.fillRectangle(28, 5, 4, 18) // Slimmer legs
             }
         }
 

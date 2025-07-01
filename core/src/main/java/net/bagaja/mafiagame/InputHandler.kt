@@ -19,6 +19,7 @@ class InputHandler(
     private val parallaxSystem: ParallaxBackgroundSystem,
     private val interiorSystem: InteriorSystem,
     private val enemySystem: EnemySystem,
+    private val npcSystem: NPCSystem,
     private val sceneManager: SceneManager,
     private val roomTemplateManager: RoomTemplateManager,
     private val shaderEffectManager: ShaderEffectManager,
@@ -39,6 +40,7 @@ class InputHandler(
     private var isParallaxSelectionMode = false
     private var isInteriorSelectionMode = false
     private var isEnemySelectionMode = false
+    private var isNPCSelectionMode = false
     private var isTimeSpeedUpPressed = false
 
     // Variables for continuous block placement/removal
@@ -207,6 +209,14 @@ class InputHandler(
                         if (amountY > 0) enemySystem.nextEnemyType() else enemySystem.previousEnemyType()
                     }
                     uiManager.updateEnemySelection() // Update the UI to reflect the change
+                    return true
+                } else if (isNPCSelectionMode) {
+                    if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) {
+                        if (amountY > 0) npcSystem.nextBehavior() else npcSystem.previousBehavior()
+                    } else {
+                        if (amountY > 0) npcSystem.nextNPCType() else npcSystem.previousNPCType()
+                    }
+                    uiManager.updateNPCSelection()
                     return true
                 } else {
                     // Normal camera zoom
@@ -381,6 +391,7 @@ class InputHandler(
                     Input.Keys.NUMPAD_8 -> uiManager.selectedTool = Tool.PARALLAX
                     Input.Keys.NUMPAD_9 -> uiManager.selectedTool = Tool.INTERIOR
                     Input.Keys.NUMPAD_0 -> uiManager.selectedTool = Tool.ENEMY
+                    Input.Keys.NUM_7 -> uiManager.selectedTool = Tool.NPC
                     // Fine positioning controls
                     Input.Keys.LEFT -> {
                         if (getCurrentPositionableSystem()?.finePosMode == true) {
@@ -444,9 +455,16 @@ class InputHandler(
                         }
                     }
                     Input.Keys.Y -> {
-                        if (!isEnemySelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode && !isInteriorSelectionMode) {
+                        if (!isEnemySelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode && !isInteriorSelectionMode && !isNPCSelectionMode) {
                             isEnemySelectionMode = true
                             uiManager.showEnemySelection()
+                        }
+                        return true
+                    }
+                    Input.Keys.U -> {
+                        if (!isNPCSelectionMode && !isEnemySelectionMode && !isBlockSelectionMode&& !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode && !isInteriorSelectionMode) {
+                            isNPCSelectionMode = true
+                            uiManager.showNPCSelection()
                         }
                         return true
                     }
@@ -477,6 +495,7 @@ class InputHandler(
                     }
                     Input.Keys.J -> { isInteriorSelectionMode = false; uiManager.hideInteriorSelection(); return true }
                     Input.Keys.Y -> { isEnemySelectionMode = false; uiManager.hideEnemySelection(); return true }
+                    Input.Keys.U -> { isNPCSelectionMode = false; uiManager.hideNPCSelection(); return true }
                     // Release fine positioning keys
                     Input.Keys.LEFT -> { leftPressed = false; return true }
                     Input.Keys.RIGHT -> { rightPressed = false; return true }
@@ -569,6 +588,7 @@ class InputHandler(
             Tool.BACKGROUND -> backgroundSystem
             Tool.INTERIOR -> interiorSystem
             Tool.ENEMY -> enemySystem
+            Tool.NPC -> npcSystem
             else -> null
         }
     }

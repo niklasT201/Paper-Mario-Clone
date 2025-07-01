@@ -15,6 +15,8 @@ data class RoomElement(
     val interiorType: InteriorType? = null,
     val enemyType: EnemyType? = null,
     val enemyBehavior: EnemyBehavior? = null,
+    val npcType: NPCType? = null,
+    val npcBehavior: NPCBehavior? = null,
     val rotation: Float = 0f,
     val scale: Vector3 = Vector3(1f, 1f, 1f)
 )
@@ -24,7 +26,8 @@ enum class RoomElementType {
     OBJECT,
     ITEM,
     INTERIOR,
-    ENEMY
+    ENEMY,
+    NPC
 }
 
 data class RoomTemplate(

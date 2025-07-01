@@ -26,6 +26,7 @@ class SceneManager(
     private val itemSystem: ItemSystem,
     private val interiorSystem: InteriorSystem,
     private val enemySystem: EnemySystem,
+    private val npcSystem: NPCSystem,
     private val roomTemplateManager: RoomTemplateManager,
     val cameraManager: CameraManager,
     private val transitionSystem: TransitionSystem,
@@ -40,6 +41,7 @@ class SceneManager(
     val activeItems = Array<GameItem>()
     val activeInteriors = Array<GameInterior>()
     val activeEnemies = Array<GameEnemy>()
+    val activeNPCs = Array<GameNPC>()
 
     // --- STATE MANAGEMENT ---
     var currentScene: SceneType = SceneType.WORLD
@@ -57,6 +59,7 @@ class SceneManager(
         initialHouses: Array<GameHouse>,
         initialItems: Array<GameItem>,
         initialEnemies: Array<GameEnemy>,
+        initialNPCs: Array<GameNPC>,
     ) {
         activeBlocks.addAll(initialBlocks)
         activeObjects.addAll(initialObjects)
@@ -64,6 +67,7 @@ class SceneManager(
         activeHouses.addAll(initialHouses)
         activeItems.addAll(initialItems)
         activeEnemies.addAll(initialEnemies)
+        activeNPCs.addAll(initialNPCs)
 
         // Initial face culling for the entire world on startup
         recalculateAllFacesInCollection(activeBlocks)
@@ -247,6 +251,7 @@ class SceneManager(
             houses = Array(activeHouses),
             items = Array(activeItems),
             enemies = Array(activeEnemies),
+            npcs = Array(activeNPCs),
             playerPosition = playerSystem.getPosition(), // Save player pos just outside door
             cameraPosition = Vector3() // You would save camera state here too if needed
         )
@@ -265,6 +270,7 @@ class SceneManager(
         activeHouses.addAll(state.houses)
         activeItems.addAll(state.items)
         activeEnemies.addAll(state.enemies)
+        activeNPCs.addAll(state.npcs)
 
         // Synchronize the ItemSystem with the restored world items
         itemSystem.setActiveItems(activeItems)
@@ -281,7 +287,8 @@ class SceneManager(
         currentState.objects.clear(); currentState.objects.addAll(activeObjects)
         currentState.items.clear(); currentState.items.addAll(activeItems)
         currentState.interiors.clear(); currentState.interiors.addAll(activeInteriors)
-        currentState.enemies.clear(); currentState.enemies.addAll(activeEnemies) // Add this line
+        currentState.enemies.clear(); currentState.enemies.addAll(activeEnemies)
+        currentState.npcs.clear(); currentState.npcs.addAll(activeNPCs)
         currentState.playerPosition.set(playerSystem.getPosition())
     }
 
@@ -292,7 +299,8 @@ class SceneManager(
         activeObjects.addAll(state.objects)
         activeItems.addAll(state.items)
         activeInteriors.addAll(state.interiors)
-        activeEnemies.addAll(state.enemies) // Add this line
+        activeEnemies.addAll(state.enemies)
+        activeNPCs.addAll(state.npcs)
 
         // Synchronize the ItemSystem with the loaded interior items
         itemSystem.setActiveItems(activeItems)
@@ -304,6 +312,7 @@ class SceneManager(
         val newItems = Array<GameItem>()
         val newInteriors = Array<GameInterior>()
         val newEnemies = Array<GameEnemy>()
+        val newNPCs = Array<GameNPC>()
 
         println("Building interior from template: ${template.name}")
 
@@ -382,6 +391,13 @@ class SceneManager(
                         }
                     }
                 }
+                RoomElementType.NPC -> {
+                    if (element.npcType != null && element.npcBehavior != null) {
+                        npcSystem.createNPC(element.position.cpy(), element.npcType, element.npcBehavior)?.let { gameNPC ->
+                            newNPCs.add(gameNPC)
+                        }
+                    }
+                }
             }
         }
 
@@ -410,6 +426,7 @@ class SceneManager(
             items = newItems,
             interiors = newInteriors,
             enemies = newEnemies,
+            npcs = newNPCs,
             playerPosition = template.entrancePosition.cpy()
         )
         return Pair(interiorState, foundExitDoorId)
@@ -585,6 +602,13 @@ class SceneManager(
                         }
                     }
                 }
+                RoomElementType.NPC -> {
+                    if (element.npcType != null && element.npcBehavior != null) {
+                        npcSystem.createNPC(element.position.cpy(), element.npcType, element.npcBehavior)?.let { gameNPC ->
+                            activeNPCs.add(gameNPC)
+                        }
+                    }
+                }
             }
         }
         // After loading all blocks, run face culling on the entire active collection
@@ -609,6 +633,7 @@ class SceneManager(
         activeItems.clear()
         activeInteriors.clear()
         activeEnemies.clear()
+        activeNPCs.clear()
     }
 }
 
@@ -619,6 +644,7 @@ data class WorldState(
     val houses: Array<GameHouse>,
     val items: Array<GameItem>,
     val enemies: Array<GameEnemy>,
+    val npcs: Array<GameNPC>,
     val playerPosition: Vector3,
     val cameraPosition: Vector3
 )
@@ -631,6 +657,7 @@ data class InteriorState(
     val items: Array<GameItem> = Array(),
     val interiors: Array<GameInterior> = Array(),
     val enemies: Array<GameEnemy> = Array(),
+    val npcs: Array<GameNPC> = Array(),
     var playerPosition: Vector3
 )
 
