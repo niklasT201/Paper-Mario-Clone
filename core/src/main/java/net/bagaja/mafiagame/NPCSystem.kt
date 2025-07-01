@@ -140,6 +140,7 @@ class NPCSystem : IFinePositionable {
     private val provokedChaseDistance = 30f
     private val stopProvokedChaseDistance = 1.5f
     private val hostileCooldownTime = 10f
+    private val activationRange = 150f
 
     private val FALL_SPEED = 25f
     private val MAX_STEP_HEIGHT = 4.0f
@@ -196,6 +197,17 @@ class NPCSystem : IFinePositionable {
         val playerPos = playerSystem.getPosition()
 
         for (npc in sceneManager.activeNPCs) {
+            // --- ACTIVATION CHECK ---
+            val distanceToPlayer = npc.position.dst(playerPos)
+            if (distanceToPlayer > activationRange) {
+                // This NPC is too far away to matter
+                if (npc.currentState == NPCState.WANDERING || npc.currentState == NPCState.FOLLOWING) {
+                    npc.currentState = NPCState.IDLE
+                    npc.targetPosition = null
+                }
+                continue // <<< Skip to the next NPC in the loop
+            }
+
             applyPhysics(npc, deltaTime, sceneManager, blockSize)
             npc.decayProvocation(deltaTime)
             updateAI(npc, playerPos, deltaTime, sceneManager)

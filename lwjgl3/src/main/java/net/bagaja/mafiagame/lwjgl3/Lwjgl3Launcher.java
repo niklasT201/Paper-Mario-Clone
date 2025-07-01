@@ -47,6 +47,9 @@ public class Lwjgl3Launcher {
 // maybe adding multiple texturing for interiors
 // map saving
 // dialog system
+// adding slabs
+// bühne texture changing
+// fine pos for enemies and npcs
 // mission starting, saving and ending
 // particle system
 // blood system

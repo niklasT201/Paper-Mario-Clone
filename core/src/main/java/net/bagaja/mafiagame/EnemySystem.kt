@@ -102,6 +102,7 @@ class EnemySystem : IFinePositionable {
     private val hideSearchRadius = 40f
     private val hideDistance = 15f
     private val stopChasingDistance = 1.5f
+    private val activationRange = 150f
 
     // Physics constants
     private val FALL_SPEED = 25f
@@ -161,6 +162,22 @@ class EnemySystem : IFinePositionable {
         val playerPos = playerSystem.getPosition()
 
         for (enemy in sceneManager.activeEnemies) {
+
+            // --- ACTIVATION CHECK ---
+            // Calculate the distance from the player to this enemy.
+            val distanceToPlayer = enemy.position.dst(playerPos)
+
+            // If the enemy is outside our activation range, skip its update entirely.
+            if (distanceToPlayer > activationRange) {
+                // To prevent enemies getting "stuck" in a state, reset them to IDLE if they deactivate.
+                if (enemy.currentState != AIState.IDLE) {
+                    enemy.currentState = AIState.IDLE
+                    enemy.targetPosition = null // Clear any old target
+                }
+                continue // <<< Skip to the next enemy in the loop
+            }
+
+            // The rest of this logic only runs for nearby, active enemies
             applyPhysics(enemy, deltaTime, sceneManager, blockSize)
             updateAI(enemy, playerPos, deltaTime, sceneManager)
 

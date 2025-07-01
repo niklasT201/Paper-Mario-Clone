@@ -20,7 +20,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var shaderEffectManager: ShaderEffectManager
 
     // UI and Input Managers
-    private lateinit var uiManager: UIManager
+    lateinit var uiManager: UIManager
     private lateinit var inputHandler: InputHandler
 
     // Raycast System

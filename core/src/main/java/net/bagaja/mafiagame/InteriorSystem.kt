@@ -31,7 +31,8 @@ enum class InteriorType(
     val hasCollision: Boolean = true,
     val category: InteriorCategory = InteriorCategory.FURNITURE,
     val groundOffset: Float = 0f,
-    val isRandomizer: Boolean = false
+    val isRandomizer: Boolean = false,
+    val defaultScale: Vector3 = Vector3(2f, 2f, 2f)
 ) {
     // 2D Billboard objects
     BAR("Bar", "textures/interior/bar.png", null, 2f, 1.5f, 1f, true, InteriorCategory.FURNITURE, 1f),
@@ -53,6 +54,7 @@ enum class InteriorType(
     BOOKSHELF_3D("Bookshelf", "Models/shelf_model.png", "Models/bookshelf.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
     TABLE_3D("Table 3D", "Models/table.png", "Models/table.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
     RESTAURANT_TABLE("Dinner Table 3D", "Models/restaurant_table.png", "Models/restaurant_table.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
+    SHOWCASE("Showcase 3D", "Models/buehne.png", "Models/buehne.g3dj", 10f, 4f, 2f, true, InteriorCategory.FURNITURE, -3f, defaultScale = Vector3(8f, 8f, 8f)),
 
     // Randomizers
     INTERIOR_RANDOMIZER("Small Item Randomizer", "", null, 1f, 1f, 1f, false, InteriorCategory.MISC, isRandomizer = true),
@@ -211,7 +213,11 @@ class InteriorSystem : IFinePositionable {
         // Both 2D and 3D types now have a model in `interiorModels`
         val model = interiorModels[interiorType]
         return model?.let {
-            GameInterior(interiorType, instance = ModelInstance(it))
+            GameInterior(
+                interiorType = interiorType,
+                instance = ModelInstance(it),
+                scale = Vector3(interiorType.defaultScale)
+            )
         }
     }
 
@@ -245,7 +251,7 @@ data class GameInterior(
     val instance: ModelInstance,
     val position: Vector3 = Vector3(),
     var rotation: Float = 0f,
-    val scale: Vector3 = Vector3(2f, 2f, 2f), // Increased default scale
+    val scale: Vector3,
     val id: String = UUID.randomUUID().toString()
 ) : OcclusionSystem.Occludable {
     // For 3D collision detection (same as GameHouse)

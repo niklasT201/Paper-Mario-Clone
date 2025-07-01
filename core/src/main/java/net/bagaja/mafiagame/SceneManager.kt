@@ -503,6 +503,7 @@ class SceneManager(
             ))
         }
 
+        // Convert active interiors to RoomElements
         activeInteriors.forEach { interior ->
             elements.add(RoomElement(
                 position = interior.position.cpy(),
@@ -513,12 +514,23 @@ class SceneManager(
             ))
         }
 
+        // Convert active enemies to RoomElements
         activeEnemies.forEach { enemy ->
             elements.add(RoomElement(
                 position = enemy.position.cpy(),
                 elementType = RoomElementType.ENEMY,
                 enemyType = enemy.enemyType,
                 enemyBehavior = enemy.behaviorType
+            ))
+        }
+
+        // Convert active NPCs to RoomElements
+        activeNPCs.forEach { npc ->
+            elements.add(RoomElement(
+                position = npc.position.cpy(),
+                elementType = RoomElementType.NPC,
+                npcType = npc.npcType,
+                npcBehavior = npc.behaviorType
             ))
         }
 
@@ -536,6 +548,7 @@ class SceneManager(
 
         roomTemplateManager.addTemplate(newTemplate)
         println("Successfully saved room as template '$id'!")
+        game.uiManager.refreshHouseRoomList()
         return true
     }
 
