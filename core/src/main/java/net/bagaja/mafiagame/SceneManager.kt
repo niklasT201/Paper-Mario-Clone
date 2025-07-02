@@ -2,6 +2,7 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
+import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
 
 enum class SceneType {
@@ -50,6 +51,8 @@ class SceneManager(
     private val interiorStates = mutableMapOf<String, InteriorState>()
     private var currentInteriorId: String? = null
     private var pendingHouse: GameHouse? = null
+    private val supportRay = Ray()
+    private val supportIntersection = Vector3()
 
     // --- INITIALIZATION ---
     fun initializeWorld(
@@ -103,6 +106,7 @@ class SceneManager(
             val houseBounds = house.modelInstance.calculateBoundingBox(BoundingBox())
             val horizontalOverlap = (x + checkRadius > houseBounds.min.x && x - checkRadius < houseBounds.max.x) &&
                 (z + checkRadius > houseBounds.min.z && z - checkRadius < houseBounds.max.z)
+
             if(horizontalOverlap) {
                 val houseTop = houseBounds.max.y
                 if (houseTop > highestSupportY) {
@@ -115,14 +119,15 @@ class SceneManager(
         for (interior in activeInteriors) {
             if (!interior.interiorType.is3D || !interior.interiorType.hasCollision) continue
 
-            val interiorBounds = interior.instance.calculateBoundingBox(BoundingBox())
-            val horizontalOverlap = (x + checkRadius > interiorBounds.min.x && x - checkRadius < interiorBounds.max.x) &&
-                (z + checkRadius > interiorBounds.min.z && z - checkRadius < interiorBounds.max.z)
+            // Set up a ray pointing straight down from high above the character's position
+            supportRay.set(Vector3(x, 1000f, z), Vector3.Y.cpy().scl(-1f))
 
-            if(horizontalOverlap) {
-                val interiorTop = interiorBounds.max.y
-                if (interiorTop > highestSupportY) {
-                    highestSupportY = interiorTop
+            // Use the precise triangle-intersection method
+            if (interior.intersectsRay(supportRay, supportIntersection)) {
+                // If we hit the model, the intersection point's Y is our support height
+                val interiorSurfaceY = supportIntersection.y
+                if (interiorSurfaceY > highestSupportY) {
+                    highestSupportY = interiorSurfaceY
                 }
             }
         }

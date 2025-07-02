@@ -177,8 +177,10 @@ class EnemySystem : IFinePositionable {
                 continue // <<< Skip to the next enemy in the loop
             }
 
-            // The rest of this logic only runs for nearby, active enemies
-            applyPhysics(enemy, deltaTime, sceneManager, blockSize)
+            // Only apply physics if we are NOT in fine positioning mode.
+            if (!finePosMode) {
+                applyPhysics(enemy, deltaTime, sceneManager, blockSize)
+            }
             updateAI(enemy, playerPos, deltaTime, sceneManager)
 
             if (playerPos.x > enemy.position.x) {
@@ -200,7 +202,14 @@ class EnemySystem : IFinePositionable {
         val effectiveSupportY = if (supportY - enemyFootY <= MAX_STEP_HEIGHT) supportY else enemyFootY
         val targetY = effectiveSupportY + (enemy.enemyType.height / 2f)
         val fallY = enemy.position.y - FALL_SPEED * deltaTime
-        enemy.position.y = max(targetY, fallY)
+
+        val newY = max(targetY, fallY)
+        val tolerance = 0.01f // A small dead zone
+
+        // Only apply the change if it's significant enough to avoid jitter
+        if (kotlin.math.abs(enemy.position.y - newY) > tolerance) {
+            enemy.position.y = newY
+        }
     }
 
     private fun updateAI(enemy: GameEnemy, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {

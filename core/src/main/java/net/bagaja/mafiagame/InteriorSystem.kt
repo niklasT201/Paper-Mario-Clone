@@ -335,6 +335,9 @@ data class GameInterior(
             return false
         }
 
+        var closestIntersectionDistance = Float.MAX_VALUE
+        var hit = false
+
         for (i in indexShorts.indices step 3) {
             val idx1 = indexShorts[i].toInt()
             val idx2 = indexShorts[i + 1].toInt()
@@ -348,11 +351,18 @@ data class GameInterior(
             v2.mul(instance.transform)
             v3.mul(instance.transform)
 
-            if (Intersector.intersectRayTriangle(ray, v1, v2, v3, outIntersection)) {
-                return true
+            // Use the Intersector.intersectRayTriangle overload that does NOT check face culling (backface culling = false)
+            if (Intersector.intersectRayTriangle(ray, v1, v2, v3, null)) {
+                val dist2 = ray.origin.dst2(v1) // A rough distance check
+                if (dist2 < closestIntersectionDistance) {
+                    if (Intersector.intersectRayTriangle(ray, v1, v2, v3, outIntersection)) {
+                        closestIntersectionDistance = ray.origin.dst2(outIntersection)
+                        hit = true
+                    }
+                }
             }
         }
-        return false
+        return hit
     }
 
     fun collidesWithMesh(playerBounds: BoundingBox): Boolean {

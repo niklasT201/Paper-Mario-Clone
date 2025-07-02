@@ -35,6 +35,7 @@ enum class NPCType(
 
 enum class NPCBehavior(val displayName: String) {
     STATIONARY("Stationary"),   // Stands still
+    WATCHER("Watcher"),          // Stands still, looks at player
     WANDER("Wanderer"),         // Wanders in a radius
     FOLLOW("Follower"),           // Follows the player
     GUARD("Guard")              // Hostile on sight (for story villains)
@@ -208,11 +209,13 @@ class NPCSystem : IFinePositionable {
                 continue // <<< Skip to the next NPC in the loop
             }
 
-            applyPhysics(npc, deltaTime, sceneManager, blockSize)
+            if (!finePosMode) {
+                applyPhysics(npc, deltaTime, sceneManager, blockSize)
+            }
             npc.decayProvocation(deltaTime)
             updateAI(npc, playerPos, deltaTime, sceneManager)
 
-            val targetForFacing = if (npc.currentState == NPCState.PROVOKED || npc.currentState == NPCState.FOLLOWING || npc.behaviorType == NPCBehavior.GUARD) {
+            val targetForFacing = if (npc.currentState == NPCState.PROVOKED || npc.currentState == NPCState.FOLLOWING || npc.behaviorType == NPCBehavior.GUARD || npc.behaviorType == NPCBehavior.WATCHER) {
                 playerPos
             } else {
                 npc.targetPosition
@@ -257,6 +260,7 @@ class NPCSystem : IFinePositionable {
         // --- Standard Behaviors ---
         when (npc.behaviorType) {
             NPCBehavior.STATIONARY -> npc.currentState = NPCState.IDLE
+            NPCBehavior.WATCHER -> npc.currentState = NPCState.IDLE
             NPCBehavior.WANDER -> updateWanderAI(npc, deltaTime, sceneManager)
             NPCBehavior.FOLLOW -> {
                 val distanceToPlayer = npc.position.dst(playerPos)
@@ -315,7 +319,14 @@ class NPCSystem : IFinePositionable {
         val effectiveSupportY = if (supportY - npcFootY <= MAX_STEP_HEIGHT) supportY else npcFootY
         val targetY = effectiveSupportY + (npc.npcType.height / 2f)
         val fallY = npc.position.y - FALL_SPEED * deltaTime
-        npc.position.y = max(targetY, fallY)
+
+        val newY = max(targetY, fallY)
+        val tolerance = 0.01f // A small dead zone
+
+        // Only apply the change if it's significant enough to avoid jitter
+        if (kotlin.math.abs(npc.position.y - newY) > tolerance) {
+            npc.position.y = newY
+        }
     }
 
     private fun moveTowards(npc: GameNPC, target: Vector3, deltaTime: Float, sceneManager: SceneManager) {

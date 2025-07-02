@@ -570,10 +570,12 @@ class MafiaGame : ApplicationAdapter() {
             }
             is GameEnemy -> {
                 instance.position.add(deltaX, deltaY, deltaZ)
+                instance.updateVisuals()
                 println("Moved Enemy to ${instance.position}")
             }
             is GameNPC -> {
                 instance.position.add(deltaX, deltaY, deltaZ)
+                instance.updateVisuals()
                 println("Moved NPC to ${instance.position}")
             }
             else -> println("Fine positioning not supported for this object type.")

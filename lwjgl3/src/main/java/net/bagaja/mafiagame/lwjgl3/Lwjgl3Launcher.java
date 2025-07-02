@@ -49,7 +49,6 @@ public class Lwjgl3Launcher {
 // dialog system
 // adding slabs
 // bühne texture changing
-// fine pos for enemies and npcs
 // mission starting, saving and ending
 // particle system
 // blood system
