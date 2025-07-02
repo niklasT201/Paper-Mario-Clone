@@ -140,25 +140,28 @@ class BlockSystem {
                 part.box(size, size / 2f, size)
             }
             BlockShape.WEDGE -> {
-                val v0 = Vector3(-half, -half, +half) // Bottom-front-left
-                val v1 = Vector3(+half, -half, +half) // Bottom-front-right
-                val v2 = Vector3(-half, +half, +half) // Top-front-left
-                val v3 = Vector3(+half, +half, +half) // Top-front-right
-                val v4 = Vector3(-half, -half, -half) // Bottom-back-left
-                val v5 = Vector3(+half, -half, -half) // Bottom-back-right
+                val v0 = Vector3(-half, -half, +half) // Bottom-front-left (high side)
+                val v1 = Vector3(+half, -half, +half) // Bottom-front-right (high side)
+                val v2 = Vector3(-half, +half, +half) // Top-front-left (high side)
+                val v3 = Vector3(+half, +half, +half) // Top-front-right (high side)
+                val v4 = Vector3(-half, -half, -half) // Bottom-back-left (low side)
+                val v5 = Vector3(+half, -half, -half) // Bottom-back-right (low side)
 
+                // 1. Bottom face (a flat rectangle)
                 part.rect(v4, v5, v1, v0, Vector3(0f, -1f, 0f))
-                part.rect(v0, v1, v3, v2, Vector3(0f, 0f, 1f))
-                part.triangle(v5, v4, Vector3(-half, +half, -half))
-                part.triangle(v5, Vector3(-half, +half, -half), Vector3(+half, +half, -half))
 
-                // Left side face (a triangle)
+                // 2. Front face (the tall rectangle at the high end)
+                part.rect(v0, v1, v3, v2, Vector3(0f, 0f, 1f))
+
+                // 3. Left side face (a triangle)
                 part.triangle(v4, v0, v2)
-                // Right side face (a triangle)
+
+                // 4. Right side face (a triangle)
                 part.triangle(v1, v5, v3)
-                // Sloped top face (the main ramp)
-                val slopeNormal = Vector3(v2).sub(v4).crs(Vector3(v3).sub(v4)).nor()
-                part.rect(v4, v2, v3, v5, slopeNormal)
+
+                // 5. Sloped top face (built with two separate triangles)
+                part.triangle(v2, v3, v5)
+                part.triangle(v2, v5, v4)
             }
         }
         return modelBuilder.end()

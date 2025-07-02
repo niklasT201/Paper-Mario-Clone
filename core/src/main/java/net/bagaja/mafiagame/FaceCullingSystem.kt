@@ -14,6 +14,10 @@ class FaceCullingSystem(private val blockSize: Float = 4f) {
 
         for (i in 0 until allBlocks.size) {
             val block = allBlocks[i]
+
+            // Only consider full blocks for neighbor lookups to avoid issues with custom shapes
+            if (block.shape != BlockShape.FULL_BLOCK) continue
+
             val halfHeight = (block.blockType.height * blockSize) / 2f
 
             val minX = block.position.x - halfBlock
@@ -40,6 +44,11 @@ class FaceCullingSystem(private val blockSize: Float = 4f) {
      * This function now checks neighbor height to prevent incorrect culling.
      */
     fun recalculateVisibleFaces(block: GameBlock, blockMap: Map<String, GameBlock>) {
+        // If the block is not a full block, DO NOTHING
+        if (block.shape != BlockShape.FULL_BLOCK) {
+            return
+        }
+
         block.visibleFaces.clear()
 
         val neighborOffsets = mapOf(
@@ -63,22 +72,14 @@ class FaceCullingSystem(private val blockSize: Float = 4f) {
             // Get the actual neighbor block
             val neighbor = blockMap[neighborKey]
 
-            // Determine if the face is a side face
-            val isSideFace = face == BlockFace.FRONT || face == BlockFace.BACK || face == BlockFace.LEFT || face == BlockFace.RIGHT
-
-            if (neighbor == null) {
-                // Condition 1: No neighbor. Face is visible
-                block.visibleFaces.add(face)
-            } else if (isSideFace && block.blockType.height > neighbor.blockType.height) {
-                // Condition 2: Neighbor exists but is shorter. The side face is visible
+            // Only hide a face if there is an adjacent FULL_BLOCK neighbor
+            if (neighbor == null || neighbor.shape != BlockShape.FULL_BLOCK) {
                 block.visibleFaces.add(face)
             }
         }
     }
 
     fun updateFacesAround(position: Vector3, allBlocks: Array<GameBlock>) {
-        // Create the lookup map from the full list of blocks.
-        // This is necessary because recalculateVisibleFaces now requires it.
         val blockMap = allBlocks.associateBy {
             "${it.position.x.toInt()}_${it.position.y.toInt()}_${it.position.z.toInt()}"
         }
@@ -95,11 +96,11 @@ class FaceCullingSystem(private val blockSize: Float = 4f) {
 
         for (offset in offsets) {
             val checkPos = Vector3(position).add(offset)
-            // Use the fast getBlockAt to find the block to update.
-            // This is still needed to find which blocks *need* updating.
             getBlockAt(checkPos, allBlocks)?.let { blockToUpdate ->
-                // Pass the pre-built map to the updated function. This resolves the type mismatch.
-                recalculateVisibleFaces(blockToUpdate, blockMap)
+                // Ensure we only ever try to recalculate faces for full blocks
+                if (blockToUpdate.shape == BlockShape.FULL_BLOCK) {
+                    recalculateVisibleFaces(blockToUpdate, blockMap)
+                }
             }
         }
     }
@@ -118,7 +119,9 @@ class FaceCullingSystem(private val blockSize: Float = 4f) {
 
         // 2. Iterate through all blocks and use the map for neighbor checks.
         for (block in blocks) {
-            recalculateVisibleFaces(block, blockMap)
+            if (block.shape == BlockShape.FULL_BLOCK) {
+                recalculateVisibleFaces(block, blockMap)
+            }
         }
 
         println("Batch culling complete.")
