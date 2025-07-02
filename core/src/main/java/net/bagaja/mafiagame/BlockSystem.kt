@@ -140,6 +140,7 @@ class BlockSystem {
                 part.box(size, size / 2f, size)
             }
             BlockShape.WEDGE -> {
+                // Defines a ramp that is high at the +Z side and low at the -Z side.
                 val v0 = Vector3(-half, -half, +half) // Bottom-front-left (high side)
                 val v1 = Vector3(+half, -half, +half) // Bottom-front-right (high side)
                 val v2 = Vector3(-half, +half, +half) // Top-front-left (high side)
@@ -148,20 +149,31 @@ class BlockSystem {
                 val v5 = Vector3(+half, -half, -half) // Bottom-back-right (low side)
 
                 // 1. Bottom face (a flat rectangle)
-                part.rect(v4, v5, v1, v0, Vector3(0f, -1f, 0f))
+                part.rect(v4, v5, v1, v0, Vector3(0f, -1f, 0f)) // Bottom face
+                part.rect(v0, v1, v3, v2, Vector3(0f, 0f, 1f))  // Front face
 
-                // 2. Front face (the tall rectangle at the high end)
-                part.rect(v0, v1, v3, v2, Vector3(0f, 0f, 1f))
+                // Left side face (a triangle)
+                val leftNormal = Vector3(-1f, 0f, 0f)
+                val l1 = part.vertex(v4, leftNormal, null, com.badlogic.gdx.math.Vector2(0f, 0f))
+                val l2 = part.vertex(v0, leftNormal, null, com.badlogic.gdx.math.Vector2(1f, 0f))
+                val l3 = part.vertex(v2, leftNormal, null, com.badlogic.gdx.math.Vector2(1f, 1f))
+                part.triangle(l1, l2, l3)
 
-                // 3. Left side face (a triangle)
-                part.triangle(v4, v0, v2)
+                // Right side face (a triangle)
+                val rightNormal = Vector3(1f, 0f, 0f)
+                val r1 = part.vertex(v1, rightNormal, null, com.badlogic.gdx.math.Vector2(0f, 0f))
+                val r2 = part.vertex(v5, rightNormal, null, com.badlogic.gdx.math.Vector2(1f, 0f))
+                val r3 = part.vertex(v3, rightNormal, null, com.badlogic.gdx.math.Vector2(0f, 1f))
+                part.triangle(r1, r2, r3)
 
-                // 4. Right side face (a triangle)
-                part.triangle(v1, v5, v3)
-
-                // 5. Sloped top face (built with two separate triangles)
-                part.triangle(v2, v3, v5)
-                part.triangle(v2, v5, v4)
+                // Sloped top face (built with two textured triangles)
+                val slopeNormal = Vector3(v2).sub(v4).crs(Vector3(v5).sub(v4)).nor()
+                val s_v2 = part.vertex(v2, slopeNormal, null, com.badlogic.gdx.math.Vector2(0f, 1f))
+                val s_v3 = part.vertex(v3, slopeNormal, null, com.badlogic.gdx.math.Vector2(1f, 1f))
+                val s_v4 = part.vertex(v4, slopeNormal, null, com.badlogic.gdx.math.Vector2(0f, 0f))
+                val s_v5 = part.vertex(v5, slopeNormal, null, com.badlogic.gdx.math.Vector2(1f, 0f))
+                part.triangle(s_v2, s_v3, s_v5)
+                part.triangle(s_v2, s_v5, s_v4)
             }
         }
         return modelBuilder.end()
