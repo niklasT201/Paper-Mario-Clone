@@ -268,6 +268,7 @@ data class GameInterior(
     // 2D billboard matrix for rendering
     private val worldBoundingBox = BoundingBox()
     private val tempCenter = Vector3()
+    private val tempIntersection = Vector3()
 
     override val modelInstance: ModelInstance
         get() = this.instance
@@ -335,30 +336,32 @@ data class GameInterior(
             return false
         }
 
-        var closestIntersectionDistance = Float.MAX_VALUE
+        var closestDistance2 = -1f
         var hit = false
 
+        // We must check every triangle to find the one closest to the ray's origin.
         for (i in indexShorts.indices step 3) {
-            val idx1 = indexShorts[i].toInt()
-            val idx2 = indexShorts[i + 1].toInt()
-            val idx3 = indexShorts[i + 2].toInt()
+            val idx1 = indexShorts[i].toInt() * vertexSize
+            val idx2 = indexShorts[i + 1].toInt() * vertexSize
+            val idx3 = indexShorts[i + 2].toInt() * vertexSize
 
-            v1.set(vertexFloats[idx1 * vertexSize], vertexFloats[idx1 * vertexSize + 1], vertexFloats[idx1 * vertexSize + 2])
-            v2.set(vertexFloats[idx2 * vertexSize], vertexFloats[idx2 * vertexSize + 1], vertexFloats[idx2 * vertexSize + 2])
-            v3.set(vertexFloats[idx3 * vertexSize], vertexFloats[idx3 * vertexSize + 1], vertexFloats[idx3 * vertexSize + 2])
+            v1.set(vertexFloats[idx1], vertexFloats[idx1 + 1], vertexFloats[idx1 + 2])
+            v2.set(vertexFloats[idx2], vertexFloats[idx2 + 1], vertexFloats[idx2 + 2])
+            v3.set(vertexFloats[idx3], vertexFloats[idx3 + 1], vertexFloats[idx3 + 2])
 
             v1.mul(instance.transform)
             v2.mul(instance.transform)
             v3.mul(instance.transform)
 
             // Use the Intersector.intersectRayTriangle overload that does NOT check face culling (backface culling = false)
-            if (Intersector.intersectRayTriangle(ray, v1, v2, v3, null)) {
-                val dist2 = ray.origin.dst2(v1) // A rough distance check
-                if (dist2 < closestIntersectionDistance) {
-                    if (Intersector.intersectRayTriangle(ray, v1, v2, v3, outIntersection)) {
-                        closestIntersectionDistance = ray.origin.dst2(outIntersection)
-                        hit = true
-                    }
+            if (Intersector.intersectRayTriangle(ray, v1, v2, v3, tempIntersection)) {
+                val dist2 = ray.origin.dst2(tempIntersection)
+
+                // If this is the first hit, or if this hit is closer than the last one, we record it.
+                if (!hit || dist2 < closestDistance2) {
+                    closestDistance2 = dist2
+                    outIntersection.set(tempIntersection) // This is our new best candidate
+                    hit = true
                 }
             }
         }

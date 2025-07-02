@@ -51,6 +51,7 @@ public class Lwjgl3Launcher {
 // bühne texture changing
 // mission starting, saving and ending
 // particle system
+// showing 3dmodel collisions
 // blood system
 // black bars top/bottom or left/right
 // flickering light source
