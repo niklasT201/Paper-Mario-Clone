@@ -44,6 +44,7 @@ public class Lwjgl3Launcher {
 
 // room/open world transition effect being slower and smoother transition itself
 
+// space/shift are switched in overworld bug
 // map saving
 // dialog system
 // adding slabs

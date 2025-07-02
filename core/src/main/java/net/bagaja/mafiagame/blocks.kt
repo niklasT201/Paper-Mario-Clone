@@ -140,7 +140,10 @@ data class GameBlock(
 
         return when (this.shape) {
             BlockShape.FULL_BLOCK -> true // All faces are solid
-            BlockShape.WEDGE, BlockShape.CORNER_WEDGE -> {
+            BlockShape.WEDGE -> {
+                localFace == BlockFace.BOTTOM || localFace == BlockFace.FRONT
+            }
+            BlockShape.CORNER_WEDGE -> {
                 localFace == BlockFace.BOTTOM || localFace == BlockFace.LEFT || localFace == BlockFace.BACK
             }
             BlockShape.SLAB_BOTTOM -> localFace != BlockFace.TOP

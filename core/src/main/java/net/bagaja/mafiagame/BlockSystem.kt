@@ -210,7 +210,7 @@ class BlockSystem {
 
                 // 5. Sloped face (the diagonal "cut" of the cake)
                 val slopedNormal = Vector3(v_bottom_z).sub(v_bottom_x).crs(Vector3(v_top_x).sub(v_bottom_x)).nor()
-                part.rect(v_bottom_x, v_bottom_z, v_top_z, v_top_x, slopedNormal)
+                part.rect(v_bottom_z, v_bottom_x, v_top_x, v_top_z, slopedNormal)
 
                 modelBuilder.end()
             }

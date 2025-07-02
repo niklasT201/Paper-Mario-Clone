@@ -38,9 +38,6 @@ class FaceCullingSystem(private val blockSize: Float = 4f) {
 
     /**
      * Efficiently recalculates visible faces for a single block using a pre-built map for lookups.
-     */
-    /**
-     * Efficiently recalculates visible faces for a single block using a pre-built map for lookups.
      * This function now checks neighbor height to prevent incorrect culling.
      */
     fun recalculateVisibleFaces(block: GameBlock, blockMap: Map<String, GameBlock>) {
