@@ -120,26 +120,22 @@ class BlockSystem {
     }
 
     private fun createCustomModel(shape: BlockShape, material: Material): Model? {
-        val size = internalBlockSize
-        val half = size / 2f
         val attributes = (VertexAttributes.Usage.Position or
             VertexAttributes.Usage.Normal or
             VertexAttributes.Usage.TextureCoordinates).toLong()
 
-        modelBuilder.begin()
-        val part = modelBuilder.part("model", GL20.GL_TRIANGLES, attributes, material)
-
-        when (shape) {
+        return when (shape) {
             BlockShape.FULL_BLOCK -> {
-                part.box(size, size, size)
+                modelBuilder.createBox(internalBlockSize, internalBlockSize, internalBlockSize, material, attributes)
             }
-            BlockShape.SLAB_BOTTOM -> {
-                part.box(size, size / 2f, size)
-            }
-            BlockShape.SLAB_TOP -> {
-                part.box(size, size / 2f, size)
+            BlockShape.SLAB_BOTTOM, BlockShape.SLAB_TOP -> {
+                modelBuilder.createBox(internalBlockSize, internalBlockSize / 2f, internalBlockSize, material, attributes)
             }
             BlockShape.WEDGE -> {
+                modelBuilder.begin()
+                val part = modelBuilder.part("model", GL20.GL_TRIANGLES, attributes, material)
+
+                val half = internalBlockSize / 2f
                 // Defines a ramp that is high at the +Z side and low at the -Z side.
                 val v0 = Vector3(-half, -half, +half) // Bottom-front-left (high side)
                 val v1 = Vector3(+half, -half, +half) // Bottom-front-right (high side)
@@ -174,9 +170,10 @@ class BlockSystem {
                 val s_v5 = part.vertex(v5, slopeNormal, null, com.badlogic.gdx.math.Vector2(1f, 0f))
                 part.triangle(s_v2, s_v3, s_v5)
                 part.triangle(s_v2, s_v5, s_v4)
+
+                modelBuilder.end() // This returns the model built manually
             }
         }
-        return modelBuilder.end()
     }
 
     fun rotateCurrentBlock() { currentBlockRotation = (currentBlockRotation + 90f) % 360f }
