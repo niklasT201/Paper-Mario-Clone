@@ -44,11 +44,11 @@ public class Lwjgl3Launcher {
 
 // room/open world transition effect being slower and smoother transition itself
 
-// space/shift are switched in overworld bug
+// game closes when using background turner button (minus icon)
+// working collisions for ramp and corner
 // map saving
 // dialog system
 // adding slabs
-// bühne texture changing
 // mission starting, saving and ending
 // particle system
 // fix car and player falling bug

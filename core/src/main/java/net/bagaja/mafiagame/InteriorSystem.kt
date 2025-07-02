@@ -54,7 +54,6 @@ enum class InteriorType(
     BOOKSHELF_3D("Bookshelf", "Models/shelf_model.png", "Models/bookshelf.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
     TABLE_3D("Table 3D", "Models/table.png", "Models/table.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
     RESTAURANT_TABLE("Dinner Table 3D", "Models/restaurant_table.png", "Models/restaurant_table.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
-    SHOWCASE("Showcase 3D", "Models/buehne.png", "Models/buehne.g3dj", 10f, 4f, 2f, true, InteriorCategory.FURNITURE, -3f, defaultScale = Vector3(8f, 8f, 8f)),
 
     // Randomizers
     INTERIOR_RANDOMIZER("Small Item Randomizer", "", null, 1f, 1f, 1f, false, InteriorCategory.MISC, isRandomizer = true),

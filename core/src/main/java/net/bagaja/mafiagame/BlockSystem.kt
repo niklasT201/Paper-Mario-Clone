@@ -174,6 +174,7 @@ class BlockSystem {
                 modelBuilder.end()
             }
 
+            // In BlockSystem.kt -> createCustomModel() -> when(shape)
             BlockShape.CORNER_WEDGE -> {
                 modelBuilder.begin()
                 val part = modelBuilder.part("model", GL20.GL_TRIANGLES, attributes, material)
@@ -191,15 +192,17 @@ class BlockSystem {
                 val v_top_z = Vector3(-half, topY, half)
 
                 // 1. Bottom face (triangle)
-                val b1 = part.vertex(v_bottom_corner, Vector3.Y.scl(-1f), null, com.badlogic.gdx.math.Vector2(0f, 0f))
-                val b2 = part.vertex(v_bottom_x, Vector3.Y.scl(-1f), null, com.badlogic.gdx.math.Vector2(1f, 0f))
-                val b3 = part.vertex(v_bottom_z, Vector3.Y.scl(-1f), null, com.badlogic.gdx.math.Vector2(0f, 1f))
+                val downNormal = Vector3.Y.cpy().scl(-1f)
+                val b1 = part.vertex(v_bottom_corner, downNormal, null, com.badlogic.gdx.math.Vector2(0f, 0f))
+                val b2 = part.vertex(v_bottom_x, downNormal, null, com.badlogic.gdx.math.Vector2(1f, 0f))
+                val b3 = part.vertex(v_bottom_z, downNormal, null, com.badlogic.gdx.math.Vector2(0f, 1f))
                 part.triangle(b1, b2, b3)
 
                 // 2. Top face (triangle)
-                val t1 = part.vertex(v_top_corner, Vector3.Y, null, com.badlogic.gdx.math.Vector2(0f, 0f))
-                val t2 = part.vertex(v_top_z, Vector3.Y, null, com.badlogic.gdx.math.Vector2(0f, 1f))
-                val t3 = part.vertex(v_top_x, Vector3.Y, null, com.badlogic.gdx.math.Vector2(1f, 0f))
+                val upNormal = Vector3.Y
+                val t1 = part.vertex(v_top_corner, upNormal, null, com.badlogic.gdx.math.Vector2(0f, 0f))
+                val t2 = part.vertex(v_top_z, upNormal, null, com.badlogic.gdx.math.Vector2(0f, 1f))
+                val t3 = part.vertex(v_top_x, upNormal, null, com.badlogic.gdx.math.Vector2(1f, 0f))
                 part.triangle(t1, t2, t3)
 
                 // 3. Back face (rectangle, along XZ plane at Z=-half)

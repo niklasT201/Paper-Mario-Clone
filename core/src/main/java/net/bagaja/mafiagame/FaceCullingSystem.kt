@@ -2,6 +2,7 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
+import kotlin.math.abs
 
 class FaceCullingSystem(private val blockSize: Float = 4f) {
 
@@ -40,7 +41,7 @@ class FaceCullingSystem(private val blockSize: Float = 4f) {
      * Efficiently recalculates visible faces for a single block using a pre-built map for lookups.
      * This function now checks neighbor height to prevent incorrect culling.
      */
-    fun recalculateVisibleFaces(block: GameBlock, blockMap: Map<String, GameBlock>) {
+    private fun recalculateVisibleFaces(block: GameBlock, blockMap: Map<String, GameBlock>) {
         // If the block is not a full block, DO NOTHING
         if (block.shape != BlockShape.FULL_BLOCK) {
             return
@@ -48,31 +49,55 @@ class FaceCullingSystem(private val blockSize: Float = 4f) {
 
         block.visibleFaces.clear()
 
-        val neighborOffsets = mapOf(
-            BlockFace.TOP to Vector3(0f, blockSize, 0f),
-            BlockFace.BOTTOM to Vector3(0f, -blockSize, 0f),
-            BlockFace.FRONT to Vector3(0f, 0f, blockSize),
-            BlockFace.BACK to Vector3(0f, 0f, -blockSize),
-            BlockFace.RIGHT to Vector3(blockSize, 0f, 0f),
-            BlockFace.LEFT to Vector3(-blockSize, 0f, 0f)
+        // This map represents the block's LOCAL faces and their UN-ROTATED direction vectors.
+        val localFaces = mapOf(
+            BlockFace.TOP    to Vector3(0f, 1f, 0f),
+            BlockFace.BOTTOM to Vector3(0f, -1f, 0f),
+            BlockFace.FRONT  to Vector3(0f, 0f, 1f),
+            BlockFace.BACK   to Vector3(0f, 0f, -1f),
+            BlockFace.RIGHT  to Vector3(1f, 0f, 0f),
+            BlockFace.LEFT   to Vector3(-1f, 0f, 0f)
         )
 
-        for ((face, offset) in neighborOffsets) {
-            val rotatedOffset = offset.cpy()
-            // Rotate offset by the block's rotation around Y axis
-            rotatedOffset.rotate(Vector3.Y, block.rotationY)
+        for ((localFace, direction) in localFaces) {
+            // 1. Determine the WORLD direction this local face is currently pointing.
+            val worldDirection = direction.cpy().rotate(Vector3.Y, block.rotationY)
 
-            // Use the NEW rotated offset to find the neighbor's position
-            val neighborPos = Vector3(block.position).add(rotatedOffset)
+            // 2. Find the position of the neighbor in that world direction.
+            val neighborOffset = worldDirection.scl(blockSize)
+            val neighborPos = block.position.cpy().add(neighborOffset)
             val neighborKey = "${neighborPos.x.toInt()}_${neighborPos.y.toInt()}_${neighborPos.z.toInt()}"
 
             // Get the actual neighbor block
             val neighbor = blockMap[neighborKey]
 
-            // A face is visible if there is NO neighbor,
-            if (neighbor == null || !neighbor.isFaceSolid(face.getOpposite())) {
-                block.visibleFaces.add(face)
+            if (neighbor == null) {
+                // If there's no neighbor, this local face is visible.
+                block.visibleFaces.add(localFace)
+            } else {
+                // 3. A neighbor exists. We need to check if its touching face is solid.
+                val oppositeWorldDirection = worldDirection.nor().scl(-1f)
+                val neighborWorldFace = getFaceFromVector(oppositeWorldDirection)
+
+                // 4. Ask the neighbor if its face at that world orientation is solid.
+                if (!neighbor.isFaceSolid(neighborWorldFace)) {
+                    block.visibleFaces.add(localFace)
+                }
             }
+        }
+    }
+
+    private fun getFaceFromVector(direction: Vector3): BlockFace {
+        // Normalize to be safe, though it should be already.
+        val dir = direction.cpy().nor()
+
+        // Check dominant axis to determine the face
+        if (abs(dir.x) > abs(dir.y) && abs(dir.x) > abs(dir.z)) {
+            return if (dir.x > 0) BlockFace.RIGHT else BlockFace.LEFT
+        } else if (abs(dir.y) > abs(dir.z)) {
+            return if (dir.y > 0) BlockFace.TOP else BlockFace.BOTTOM
+        } else {
+            return if (dir.z > 0) BlockFace.FRONT else BlockFace.BACK
         }
     }
 
