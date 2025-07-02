@@ -6,19 +6,26 @@ import com.badlogic.gdx.math.collision.BoundingBox
 import java.util.*
 
 enum class BlockFace {
-    TOP,
-    BOTTOM,
-    FRONT, // +Z direction
-    BACK,  // -Z direction
-    RIGHT, // +X direction
-    LEFT   // -X direction
+    TOP, BOTTOM, FRONT, BACK, RIGHT, LEFT;
+
+    fun getOpposite(): BlockFace {
+        return when (this) {
+            TOP -> BOTTOM
+            BOTTOM -> TOP
+            FRONT -> BACK
+            BACK -> FRONT
+            RIGHT -> LEFT
+            LEFT -> RIGHT
+        }
+    }
 }
 
 enum class BlockShape {
     FULL_BLOCK,
     SLAB_BOTTOM,
     SLAB_TOP,
-    WEDGE;
+    WEDGE,
+    CORNER_WEDGE;
 
     fun getDisplayName(): String {
         return this.name.replace('_', ' ').lowercase(Locale.getDefault())
@@ -126,6 +133,44 @@ data class GameBlock(
         return box.max.x >= minX && box.min.x <= maxX &&
             box.max.y >= minY && box.min.y <= maxY &&
             box.max.z >= minZ && box.min.z <= maxZ
+    }
+
+    fun isFaceSolid(worldFace: BlockFace): Boolean {
+        val localFace = getLocalFace(worldFace, this.rotationY)
+
+        return when (this.shape) {
+            BlockShape.FULL_BLOCK -> true // All faces are solid
+            BlockShape.WEDGE, BlockShape.CORNER_WEDGE -> {
+                localFace == BlockFace.BOTTOM || localFace == BlockFace.LEFT || localFace == BlockFace.BACK
+            }
+            BlockShape.SLAB_BOTTOM -> localFace != BlockFace.TOP
+            BlockShape.SLAB_TOP -> localFace != BlockFace.BOTTOM
+        }
+    }
+
+    private fun getLocalFace(worldFace: BlockFace, rotationY: Float): BlockFace {
+        val angle = (rotationY % 360).toInt()
+        if (angle == 0) return worldFace
+
+        // Map world face to local face based on rotation
+        return when (angle) {
+            90, -270 -> when (worldFace) {
+                BlockFace.FRONT -> BlockFace.LEFT
+                BlockFace.BACK -> BlockFace.RIGHT
+                BlockFace.RIGHT -> BlockFace.FRONT
+                BlockFace.LEFT -> BlockFace.BACK
+                else -> worldFace // Top and Bottom are unaffected by Y rotation
+            }
+            180, -180 -> worldFace.getOpposite() // 180-degree rotation just flips everything
+            270, -90 -> when (worldFace) {
+                BlockFace.FRONT -> BlockFace.RIGHT
+                BlockFace.BACK -> BlockFace.LEFT
+                BlockFace.RIGHT -> BlockFace.BACK
+                BlockFace.LEFT -> BlockFace.FRONT
+                else -> worldFace
+            }
+            else -> worldFace
+        }
     }
 }
 

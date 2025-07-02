@@ -134,8 +134,8 @@ class BlockSystem {
             BlockShape.WEDGE -> {
                 modelBuilder.begin()
                 val part = modelBuilder.part("model", GL20.GL_TRIANGLES, attributes, material)
-
                 val half = internalBlockSize / 2f
+
                 // Defines a ramp that is high at the +Z side and low at the -Z side.
                 val v0 = Vector3(-half, -half, +half) // Bottom-front-left (high side)
                 val v1 = Vector3(+half, -half, +half) // Bottom-front-right (high side)
@@ -171,7 +171,48 @@ class BlockSystem {
                 part.triangle(s_v2, s_v3, s_v5)
                 part.triangle(s_v2, s_v5, s_v4)
 
-                modelBuilder.end() // This returns the model built manually
+                modelBuilder.end()
+            }
+
+            BlockShape.CORNER_WEDGE -> {
+                modelBuilder.begin()
+                val part = modelBuilder.part("model", GL20.GL_TRIANGLES, attributes, material)
+                val half = internalBlockSize / 2f
+                val slabHeight = internalBlockSize
+
+                // Define the 6 corners of the "cake slice"
+                val v_bottom_corner = Vector3(-half, -half, -half) // The pointy corner
+                val v_bottom_x = Vector3(half, -half, -half)      // The corner along the X axis
+                val v_bottom_z = Vector3(-half, -half, half)      // The corner along the Z axis
+
+                val topY = -half + slabHeight
+                val v_top_corner = Vector3(-half, topY, -half)
+                val v_top_x = Vector3(half, topY, -half)
+                val v_top_z = Vector3(-half, topY, half)
+
+                // 1. Bottom face (triangle)
+                val b1 = part.vertex(v_bottom_corner, Vector3.Y.scl(-1f), null, com.badlogic.gdx.math.Vector2(0f, 0f))
+                val b2 = part.vertex(v_bottom_x, Vector3.Y.scl(-1f), null, com.badlogic.gdx.math.Vector2(1f, 0f))
+                val b3 = part.vertex(v_bottom_z, Vector3.Y.scl(-1f), null, com.badlogic.gdx.math.Vector2(0f, 1f))
+                part.triangle(b1, b2, b3)
+
+                // 2. Top face (triangle)
+                val t1 = part.vertex(v_top_corner, Vector3.Y, null, com.badlogic.gdx.math.Vector2(0f, 0f))
+                val t2 = part.vertex(v_top_z, Vector3.Y, null, com.badlogic.gdx.math.Vector2(0f, 1f))
+                val t3 = part.vertex(v_top_x, Vector3.Y, null, com.badlogic.gdx.math.Vector2(1f, 0f))
+                part.triangle(t1, t2, t3)
+
+                // 3. Back face (rectangle, along XZ plane at Z=-half)
+                part.rect(v_bottom_x, v_bottom_corner, v_top_corner, v_top_x, Vector3(0f, 0f, -1f))
+
+                // 4. Left face (rectangle, along YZ plane at X=-half)
+                part.rect(v_bottom_corner, v_bottom_z, v_top_z, v_top_corner, Vector3(-1f, 0f, 0f))
+
+                // 5. Sloped face (the diagonal "cut" of the cake)
+                val slopedNormal = Vector3(v_bottom_z).sub(v_bottom_x).crs(Vector3(v_top_x).sub(v_bottom_x)).nor()
+                part.rect(v_bottom_x, v_bottom_z, v_top_z, v_top_x, slopedNormal)
+
+                modelBuilder.end()
             }
         }
     }

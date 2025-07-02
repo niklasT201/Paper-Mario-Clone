@@ -72,8 +72,8 @@ class FaceCullingSystem(private val blockSize: Float = 4f) {
             // Get the actual neighbor block
             val neighbor = blockMap[neighborKey]
 
-            // Only hide a face if there is an adjacent FULL_BLOCK neighbor
-            if (neighbor == null || neighbor.shape != BlockShape.FULL_BLOCK) {
+            // A face is visible if there is NO neighbor,
+            if (neighbor == null || !neighbor.isFaceSolid(face.getOpposite())) {
                 block.visibleFaces.add(face)
             }
         }
