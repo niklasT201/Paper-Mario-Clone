@@ -676,14 +676,13 @@ class MafiaGame : ApplicationAdapter() {
 
             // Check if block already exists at this position
             val existingBlock = sceneManager.activeBlocks.find { gameBlock ->
-                kotlin.math.abs(gameBlock.position.x - (gridX + blockSize / 2)) < 0.1f &&
-                    kotlin.math.abs(gameBlock.position.y - (gridY + blockSize / 2)) < 0.1f &&
-                    kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize / 2)) < 0.1f
+                // This check might need to be more robust for different shapes and sizes
+                gameBlock.position.dst(gridX + blockSize / 2, gridY + blockSize / 2, gridZ + blockSize / 2) < 0.1f
             }
 
             if (existingBlock == null) {
                 addBlock(gridX, gridY, gridZ, blockSystem.currentSelectedBlock)
-                println("${blockSystem.currentSelectedBlock.displayName} block placed adjacent at: $gridX, $gridY, $gridZ")
+                println("${blockSystem.currentSelectedBlock.displayName} (${blockSystem.currentSelectedShape.getDisplayName()}) placed adjacent at: $gridX, $gridY, $gridZ")
             } else {
                 println("Block already exists at this position")
             }
@@ -935,17 +934,29 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun addBlockToCollection(x: Float, y: Float, z: Float, blockType: BlockType, collection: Array<GameBlock>) {
-        val faceInstances = blockSystem.createFaceInstances(blockType) ?: return
-
+        val shape = blockSystem.currentSelectedShape
         val blockHeight = blockSize * blockType.height
-        val position = Vector3(x + blockSize / 2, y + blockHeight / 2, z + blockSize / 2)
-        val gameBlock = GameBlock(faceInstances, blockType, position, blockSystem.currentBlockRotation)
 
-        gameBlock.updateTransform()
+        // Calculate position, adjusting Y for certain shapes so they place correctly on the grid.
+        val position = when(shape) {
+            BlockShape.SLAB_BOTTOM -> Vector3(x + blockSize / 2, y + blockHeight / 4, z + blockSize / 2)
+            BlockShape.SLAB_TOP -> Vector3(x + blockSize / 2, y + (blockHeight * 0.75f), z + blockSize / 2)
+            else -> Vector3(x + blockSize / 2, y + blockHeight / 2, z + blockSize / 2)
+        }
+
+        // Create the block using the new factory method
+        val gameBlock = blockSystem.createGameBlock(
+            type = blockType,
+            shape = shape,
+            position = position,
+            rotation = blockSystem.currentBlockRotation
+        )
         collection.add(gameBlock)
 
         // Use the centralized system
-        faceCullingSystem.updateFacesAround(gameBlock.position, collection)
+        if (gameBlock.shape == BlockShape.FULL_BLOCK) {
+            faceCullingSystem.updateFacesAround(gameBlock.position, collection)
+        }
     }
 
     private fun addHouseToCollection(x: Float, y: Float, z: Float, houseType: HouseType, collection: Array<GameHouse>) {
@@ -1318,9 +1329,18 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render all blocks
         for (gameBlock in sceneManager.activeBlocks) {
-            // Only render the faces that are in the visibleFaces set
-            for (face in gameBlock.visibleFaces) {
-                gameBlock.faceInstances[face]?.let { instance ->
+            if (gameBlock.shape == BlockShape.FULL_BLOCK) {
+                // Render a standard block using face culling
+                gameBlock.faceInstances?.let { faces ->
+                    for (face in gameBlock.visibleFaces) {
+                        faces[face]?.let { instance ->
+                            modelBatch.render(instance, environment)
+                        }
+                    }
+                }
+            } else {
+                // Render a custom shape block
+                gameBlock.modelInstance?.let { instance ->
                     modelBatch.render(instance, environment)
                 }
             }

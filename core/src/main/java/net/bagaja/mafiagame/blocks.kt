@@ -3,6 +3,7 @@ package net.bagaja.mafiagame
 import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
+import java.util.*
 
 enum class BlockFace {
     TOP,
@@ -13,52 +14,118 @@ enum class BlockFace {
     LEFT   // -X direction
 }
 
+enum class BlockShape {
+    FULL_BLOCK,
+    SLAB_BOTTOM,
+    SLAB_TOP,
+    WEDGE;
+
+    fun getDisplayName(): String {
+        return this.name.replace('_', ' ').lowercase(Locale.getDefault())
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+    }
+}
+
 // Game block class to store block data
 data class GameBlock(
-    val faceInstances: Map<BlockFace, ModelInstance>,
     val blockType: BlockType,
+    val shape: BlockShape,
     val position: Vector3,
-    var rotationY: Float = 0f
+    var rotationY: Float = 0f,
+    val faceInstances: Map<BlockFace, ModelInstance>? = null, // For FULL_BLOCK
+    val modelInstance: ModelInstance? = null,                // For all other shapes
 ) {
+    val visibleFaces: MutableSet<BlockFace> = if (shape == BlockShape.FULL_BLOCK) BlockFace.entries.toMutableSet() else mutableSetOf()
 
-    val visibleFaces: MutableSet<BlockFace> = BlockFace.entries.toMutableSet()
+    private val mesh = modelInstance?.model?.meshes?.firstOrNull()
+    private val vertexFloats: FloatArray?
+    private val indexShorts: ShortArray?
+    private val vertexSize: Int
 
-    fun getBoundingBox(blockSize: Float): BoundingBox {
-        val bounds = BoundingBox()
-        val blockHeight = blockSize * blockType.height
-        val halfWidth = blockSize / 2f
-        val halfHeight = blockHeight / 2f
+    // Helper vectors to avoid re-allocation
+    private val v0 = Vector3()
+    private val v1 = Vector3()
+    private val v2 = Vector3()
 
-        bounds.set(
-            Vector3(position.x - halfWidth, position.y - halfHeight, position.z - halfWidth),
-            Vector3(position.x + halfWidth, position.y + halfHeight, position.z + halfWidth)
-        )
-        return bounds
+    init {
+        if (shape != BlockShape.FULL_BLOCK && mesh != null) {
+            vertexSize = mesh.vertexAttributes.vertexSize / 4
+            vertexFloats = FloatArray(mesh.numVertices * vertexSize)
+            indexShorts = ShortArray(mesh.numIndices)
+            mesh.getVertices(vertexFloats)
+            mesh.getIndices(indexShorts)
+        } else {
+            vertexFloats = null
+            indexShorts = null
+            vertexSize = 0
+        }
+        updateTransform()
     }
 
-    // Method to update the block's transform with current rotation
-    fun updateTransform() {
-        for (instance in faceInstances.values) {
-            // Reset transform first to avoid accumulating rotations
-            instance.transform.idt()
-            // Apply translation
-            instance.transform.setTranslation(position)
-            // Apply rotation around Y axis
-            if (rotationY != 0f) {
-                instance.transform.rotate(Vector3.Y, rotationY)
+    fun getBoundingBox(blockSize: Float, out: BoundingBox): BoundingBox {
+        val instance = modelInstance ?: faceInstances?.values?.firstOrNull()
+        if (instance == null) {
+            return out.set(Vector3.Zero, Vector3.Zero)
+        }
+        // Apply the instance's transform to the bounding box
+        return instance.calculateBoundingBox(out).mul(instance.transform)
+    }
+
+    private fun updateTransform() {
+        if (shape == BlockShape.FULL_BLOCK) {
+            faceInstances?.values?.forEach {
+                it.transform.setToTranslation(position).rotate(Vector3.Y, rotationY)
+            }
+        } else {
+            modelInstance?.transform?.setToTranslation(position)?.rotate(Vector3.Y, rotationY)
+        }
+    }
+
+    fun collidesWith(otherBounds: BoundingBox): Boolean {
+        if (shape == BlockShape.FULL_BLOCK) {
+            // Fsimple AABB check
+            val thisBounds = getBoundingBox(4f, BoundingBox()) // Assuming 4f is blockSize
+            return thisBounds.intersects(otherBounds)
+        }
+
+        // For custom shapes, perform per-triangle collision.
+        if (vertexFloats == null || indexShorts == null || modelInstance == null) {
+            return false // No mesh data
+        }
+
+        val thisBounds = modelInstance.calculateBoundingBox(BoundingBox()).mul(modelInstance.transform)
+        if (!thisBounds.intersects(otherBounds)) {
+            return false // Broad-phase check failed
+        }
+
+        for (i in indexShorts.indices step 3) {
+            val i1 = indexShorts[i] * vertexSize
+            val i2 = indexShorts[i + 1] * vertexSize
+            val i3 = indexShorts[i + 2] * vertexSize
+
+            v0.set(vertexFloats[i1], vertexFloats[i1 + 1], vertexFloats[i1 + 2]).mul(modelInstance.transform)
+            v1.set(vertexFloats[i2], vertexFloats[i2 + 1], vertexFloats[i2 + 2]).mul(modelInstance.transform)
+            v2.set(vertexFloats[i3], vertexFloats[i3 + 1], vertexFloats[i3 + 2]).mul(modelInstance.transform)
+
+            if (intersectTriangleBounds(otherBounds, v0, v1, v2)) {
+                return true
             }
         }
+        return false
     }
 
-    // Helper method to get direction name
-    private fun getDirectionName(): String {
-        return when (rotationY.toInt()) {
-            0 -> "North"
-            90 -> "East"
-            180 -> "South"
-            270 -> "West"
-            else -> "Custom (${rotationY}°)"
-        }
+    private fun intersectTriangleBounds(box: BoundingBox, v0: Vector3, v1: Vector3, v2: Vector3): Boolean {
+        // fast triangle-AABB intersection test
+        val minX = v0.x.coerceAtMost(v1.x.coerceAtMost(v2.x))
+        val minY = v0.y.coerceAtMost(v1.y.coerceAtMost(v2.y))
+        val minZ = v0.z.coerceAtMost(v1.z.coerceAtMost(v2.z))
+        val maxX = v0.x.coerceAtLeast(v1.x.coerceAtLeast(v2.x))
+        val maxY = v0.y.coerceAtLeast(v1.y.coerceAtLeast(v2.y))
+        val maxZ = v0.z.coerceAtLeast(v1.z.coerceAtLeast(v2.z))
+
+        return box.max.x >= minX && box.min.x <= maxX &&
+            box.max.y >= minY && box.min.y <= maxY &&
+            box.max.z >= minZ && box.min.z <= maxZ
     }
 }
 

@@ -44,18 +44,18 @@ public class Lwjgl3Launcher {
 
 // room/open world transition effect being slower and smoother transition itself
 
-// maybe adding multiple texturing for interiors
 // map saving
 // dialog system
 // adding slabs
 // bühne texture changing
 // mission starting, saving and ending
 // particle system
+// fix car and player falling bug
 // showing 3dmodel collisions
 // blood system
 // black bars top/bottom or left/right
 // flickering light source
-// when shooting flickering light gets spawned
+// when shooting flickering light gets spawneda
 // new activation range for npcs and enemies
 // improve camera for interiors
 // player visible optional in cars

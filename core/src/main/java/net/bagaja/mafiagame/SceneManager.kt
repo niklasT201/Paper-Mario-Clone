@@ -53,6 +53,7 @@ class SceneManager(
     private var pendingHouse: GameHouse? = null
     private val supportRay = Ray()
     private val supportIntersection = Vector3()
+    private val tempBlockBounds = BoundingBox()
 
     // --- INITIALIZATION ---
     fun initializeWorld(
@@ -90,8 +91,7 @@ class SceneManager(
 
         // Check against all active blocks
         for (block in activeBlocks) {
-            val blockBounds = block.getBoundingBox(blockSize)
-
+            val blockBounds = block.getBoundingBox(blockSize, tempBlockBounds)
             // Check for horizontal overlap
             val horizontalOverlap = (x + checkRadius > blockBounds.min.x && x - checkRadius < blockBounds.max.x) &&
                 (z + checkRadius > blockBounds.min.z && z - checkRadius < blockBounds.max.z)
@@ -99,10 +99,8 @@ class SceneManager(
             if (horizontalOverlap) {
                 val blockTop = blockBounds.max.y
                 // Only consider this block as support if it's at or below the player's feet.
-                if (blockTop <= currentY + underfootTolerance) {
-                    if (blockTop > highestSupportY) {
-                        highestSupportY = blockTop
-                    }
+                if (blockTop <= currentY + underfootTolerance && blockTop > highestSupportY) {
+                    highestSupportY = blockTop
                 }
             }
         }
@@ -164,16 +162,11 @@ class SceneManager(
 
         // Check against all active blocks
         for (block in activeBlocks) {
-            val blockBounds = block.getBoundingBox(blockSize)
+            val blockBounds = block.getBoundingBox(blockSize, tempBlockBounds)
             val horizontalOverlap = (x + checkRadius > blockBounds.min.x && x - checkRadius < blockBounds.max.x) &&
                 (z + checkRadius > blockBounds.min.z && z - checkRadius < blockBounds.max.z)
-
-            if (horizontalOverlap) {
-                val blockTop = blockBounds.max.y
-                // No Y-check here, so we can find blocks above the car
-                if (blockTop > highestSupportY) {
-                    highestSupportY = blockTop
-                }
+            if (horizontalOverlap && blockBounds.max.y > highestSupportY) {
+                highestSupportY = blockBounds.max.y
             }
         }
 
@@ -385,11 +378,13 @@ class SceneManager(
                 RoomElementType.BLOCK -> {
                     element.blockType?.let { blockType ->
                         // Use createFaceInstances and the new GameBlock constructor
-                        blockSystem.createFaceInstances(blockType)?.let { faceInstances ->
-                            val gameBlock = GameBlock(faceInstances, blockType, element.position.cpy(), element.rotation)
-                            gameBlock.updateTransform()
-                            newBlocks.add(gameBlock)
-                        }
+                        val gameBlock = blockSystem.createGameBlock(
+                            type = blockType,
+                            shape = element.shape ?: BlockShape.FULL_BLOCK, // Use saved shape or default to full block
+                            position = element.position.cpy(),
+                            rotation = element.rotation
+                        )
+                        newBlocks.add(gameBlock)
                     }
                 }
                 RoomElementType.OBJECT -> {
@@ -544,6 +539,7 @@ class SceneManager(
                 position = block.position.cpy(),
                 elementType = RoomElementType.BLOCK,
                 blockType = block.blockType,
+                shape = block.shape,
                 rotation = block.rotationY
             ))
         }
@@ -640,11 +636,13 @@ class SceneManager(
                 RoomElementType.BLOCK -> {
                     // REVISED: Use createFaceInstances and the new GameBlock constructor
                     element.blockType?.let { blockType ->
-                        blockSystem.createFaceInstances(blockType)?.let { faceInstances ->
-                            val gameBlock = GameBlock(faceInstances, blockType, element.position.cpy(), element.rotation)
-                            gameBlock.updateTransform()
-                            activeBlocks.add(gameBlock)
-                        }
+                        val gameBlock = blockSystem.createGameBlock(
+                            type = blockType,
+                            shape = element.shape ?: BlockShape.FULL_BLOCK,
+                            position = element.position.cpy(),
+                            rotation = element.rotation
+                        )
+                        activeBlocks.add(gameBlock)
                     }
                 }
                 RoomElementType.OBJECT -> {

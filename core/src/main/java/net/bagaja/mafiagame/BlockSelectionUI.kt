@@ -31,7 +31,10 @@ class BlockSelectionUI(
     private var currentCategory = BlockCategory.NATURAL
     private var filteredBlockTypes = listOf<BlockType>()
 
-    // Data class to hold block selection item components
+    // NEW: Labels to display current block modifiers
+    private lateinit var rotationLabel: Label
+    private lateinit var shapeLabel: Label
+
     private data class BlockSelectionItem(
         val container: Table,
         val iconImage: Image,
@@ -48,42 +51,33 @@ class BlockSelectionUI(
     }
 
     private fun setupBlockSelectionUI() {
-        // Create block selection table at the top center
         blockSelectionTable = Table()
         blockSelectionTable.setFillParent(true)
         blockSelectionTable.top()
         blockSelectionTable.pad(40f)
 
-        // Create main container with modern styling
         val mainContainer = Table()
-
-        // Create a more modern background with rounded corners and shadow effect
-        val backgroundStyle = createModernBackground()
-        mainContainer.background = backgroundStyle
+        mainContainer.background = createModernBackground()
         mainContainer.pad(20f, 30f, 20f, 30f)
 
-        // Title with modern styling
         val titleLabel = Label("Block Selection", skin)
         titleLabel.setFontScale(1.4f)
         titleLabel.color = Color(0.9f, 0.9f, 0.9f, 1f)
         mainContainer.add(titleLabel).padBottom(15f).row()
 
-        // Create category tabs
         setupCategoryTabs(mainContainer)
 
-        // Create scrollable container for block items
         blockItemsTable = Table()
         blockItemsTable.pad(10f)
 
-        // Create scroll pane to handle many blocks
         blockContainer = ScrollPane(blockItemsTable, skin)
         blockContainer.setScrollingDisabled(false, true)
         blockContainer.setFadeScrollBars(false)
-
-        // Set max size to prevent UI from becoming too large
         mainContainer.add(blockContainer).size(800f, 120f).padBottom(10f).row()
 
-        // Instructions
+        // NEW: Add a section for modifiers (rotation and shape)
+        setupModifiersSection(mainContainer)
+
         val instructionLabel = Label("Hold [B] + Mouse Wheel to change blocks | Click category tabs to filter", skin)
         instructionLabel.setFontScale(0.8f)
         instructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f)
@@ -94,47 +88,58 @@ class BlockSelectionUI(
         blockSelectionTable.add(mainContainer)
         stage.addActor(blockSelectionTable)
 
-        // Initialize with first category
         updateCurrentCategory()
         refreshBlockItems()
+    }
+
+    // NEW: Function to create the Modifiers UI section
+    private fun setupModifiersSection(mainContainer: Table) {
+        val modifiersTable = Table()
+        modifiersTable.pad(5f)
+
+        // Create the labels for rotation and shape
+        rotationLabel = Label("", skin)
+        rotationLabel.setFontScale(0.9f)
+        rotationLabel.color = Color(0.8f, 0.9f, 1f, 1f) // Light blue
+
+        shapeLabel = Label("", skin)
+        shapeLabel.setFontScale(0.9f)
+        shapeLabel.color = Color(0.8f, 1f, 0.9f, 1f) // Light green
+
+        // Add them to the table with some spacing
+        modifiersTable.add(rotationLabel).padRight(40f)
+        modifiersTable.add(shapeLabel)
+
+        // Add the modifiers table to the main UI container
+        mainContainer.add(modifiersTable).padBottom(15f).row()
     }
 
     private fun setupCategoryTabs(mainContainer: Table) {
         categoryTabsTable = Table()
         categoryButtons = mutableListOf()
-
         val categories = BlockCategory.entries.toTypedArray()
-
         for (category in categories) {
             val categoryButton = TextButton(category.displayName, skin)
             categoryButton.label.setFontScale(0.8f)
-
-            // Create custom button style based on category color
             val buttonStyle = createCategoryButtonStyle(category)
             categoryButton.style = buttonStyle
-
             categoryButton.addListener(object : ClickListener() {
                 override fun clicked(event: InputEvent?, x: Float, y: Float) {
                     selectCategory(category)
                 }
             })
-
             categoryButtons.add(categoryButton)
             categoryTabsTable.add(categoryButton).size(120f, 35f).pad(2f)
         }
-
         mainContainer.add(categoryTabsTable).padBottom(15f).row()
         updateCategoryButtonStates()
     }
 
     private fun createCategoryButtonStyle(category: BlockCategory): TextButton.TextButtonStyle {
         val style = TextButton.TextButtonStyle()
-
-        // Create normal and active backgrounds
         val normalColor = Color(0.3f, 0.3f, 0.35f, 0.9f)
-        val activeColor = Color.valueOf(category.color.toString(16).padStart(6, '0'))
+        val activeColor = Color().set(category.color) // Use the color from the enum
         activeColor.a = 0.8f
-
         style.up = createButtonBackground(normalColor)
         style.down = createButtonBackground(activeColor)
         style.checked = createButtonBackground(activeColor)
@@ -142,7 +147,6 @@ class BlockSelectionUI(
         style.fontColor = Color.WHITE
         style.downFontColor = Color.WHITE
         style.checkedFontColor = Color.WHITE
-
         return style
     }
 
@@ -150,14 +154,10 @@ class BlockSelectionUI(
         val pixmap = Pixmap(120, 35, Pixmap.Format.RGBA8888)
         pixmap.setColor(color)
         pixmap.fill()
-
-        // Add border
         pixmap.setColor(color.r + 0.1f, color.g + 0.1f, color.b + 0.1f, color.a)
         pixmap.drawRectangle(0, 0, 120, 35)
-
         val texture = Texture(pixmap)
         pixmap.dispose()
-
         return TextureRegionDrawable(TextureRegion(texture))
     }
 
@@ -184,30 +184,21 @@ class BlockSelectionUI(
     }
 
     private fun refreshBlockItems() {
-        // Clear existing items
         blockItemsTable.clear()
         blockItems = mutableListOf()
-
         val currentSelectedIndex = blockSystem.currentSelectedBlockIndex
         val allBlockTypes = BlockType.entries.toTypedArray()
-
-        // Create block items for filtered blocks
         for (i in filteredBlockTypes.indices) {
             val blockType = filteredBlockTypes[i]
             val globalIndex = allBlockTypes.indexOf(blockType)
             val isSelected = globalIndex == currentSelectedIndex
-
             val item = createBlockItem(blockType, isSelected, globalIndex)
             blockItems.add(item)
-
-            // Add spacing between items
             if (i > 0) {
-                blockItemsTable.add().width(15f) // Spacer
+                blockItemsTable.add().width(15f)
             }
             blockItemsTable.add(item.container).size(80f, 100f)
         }
-
-        // Update scroll position to keep selected item visible
         scrollToSelectedItem()
     }
 
@@ -215,10 +206,7 @@ class BlockSelectionUI(
         val currentSelectedIndex = blockSystem.currentSelectedBlockIndex
         val allBlockTypes = BlockType.entries.toTypedArray()
         val selectedBlockType = allBlockTypes[currentSelectedIndex]
-
-        // Find the index of the selected block in the current filtered list
         val filteredIndex = filteredBlockTypes.indexOf(selectedBlockType)
-
         if (filteredIndex != -1 && filteredBlockTypes.isNotEmpty()) {
             val scrollPercentage = filteredIndex.toFloat() / (filteredBlockTypes.size - 1).toFloat()
             blockContainer.addAction(
@@ -232,45 +220,31 @@ class BlockSelectionUI(
     private fun createBlockItem(blockType: BlockType, isSelected: Boolean, globalIndex: Int): BlockSelectionItem {
         val container = Table()
         container.pad(8f)
-
-        // Create backgrounds
         val normalBg = createItemBackground(Color(0.3f, 0.3f, 0.35f, 0.9f))
         val selectedBg = createItemBackground(Color(0.4f, 0.6f, 0.8f, 0.95f))
-
         container.background = if (isSelected) selectedBg else normalBg
-
-        // Block icon
         val iconTexture = loadBlockTexture(blockType)
         val iconImage = Image(iconTexture)
         container.add(iconImage).size(40f, 40f).padBottom(8f).row()
-
-        // Block name
         val nameLabel = Label(blockType.displayName, skin)
         nameLabel.setFontScale(0.7f)
         nameLabel.setWrap(true)
         nameLabel.setAlignment(Align.center)
         nameLabel.color = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
         container.add(nameLabel).width(70f).center()
-
-        // Add click listener to select this block
         container.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 blockSystem.setSelectedBlock(globalIndex)
             }
         })
-
         return BlockSelectionItem(container, iconImage, nameLabel, normalBg, selectedBg, blockType, globalIndex)
     }
 
     private fun loadBlockTexture(blockType: BlockType): TextureRegion {
         val texturePath = blockType.texturePath
-
-        // Check if we already have this texture cached
         if (loadedTextures.containsKey(texturePath)) {
             return TextureRegion(loadedTextures[texturePath]!!)
         }
-
-        // Try to load the actual texture file
         return try {
             val fileHandle = Gdx.files.internal(texturePath)
             if (fileHandle.exists()) {
@@ -278,29 +252,22 @@ class BlockSelectionUI(
                 loadedTextures[texturePath] = texture
                 TextureRegion(texture)
             } else {
-                println("Texture not found: $texturePath, using fallback")
                 createBlockIcon(blockType)
             }
         } catch (e: Exception) {
-            println("Failed to load texture: $texturePath, error: ${e.message}, using fallback")
             createBlockIcon(blockType)
         }
     }
 
     private fun createModernBackground(): Drawable {
-        // Create a modern dark background with subtle transparency
         val pixmap = Pixmap(100, 60, Pixmap.Format.RGBA8888)
-
-        // Gradient effect
         for (y in 0 until 60) {
             val alpha = 0.85f + (y / 60f) * 0.1f
             pixmap.setColor(0.1f, 0.1f, 0.15f, alpha)
             pixmap.drawLine(0, y, 99, y)
         }
-
         val texture = Texture(pixmap)
         pixmap.dispose()
-
         return TextureRegionDrawable(TextureRegion(texture))
     }
 
@@ -308,58 +275,46 @@ class BlockSelectionUI(
         val pixmap = Pixmap(80, 100, Pixmap.Format.RGBA8888)
         pixmap.setColor(color)
         pixmap.fill()
-
-        // Add subtle border
         pixmap.setColor(color.r + 0.1f, color.g + 0.1f, color.b + 0.1f, color.a)
         pixmap.drawRectangle(0, 0, 80, 100)
-
         val texture = Texture(pixmap)
         pixmap.dispose()
-
         return TextureRegionDrawable(TextureRegion(texture))
     }
 
     private fun createBlockIcon(blockType: BlockType): TextureRegion {
-        // Create colored squares representing different block types (fallback)
         val pixmap = Pixmap(32, 32, Pixmap.Format.RGBA8888)
-
         val color = when (blockType) {
             BlockType.GRASS -> Color(0.4f, 0.8f, 0.2f, 1f)
             BlockType.COBBLESTONE -> Color(0.6f, 0.6f, 0.6f, 1f)
-            BlockType.ROOM_FLOOR -> Color(0.8f, 0.7f, 0.5f, 1f)
-            BlockType.STONE -> Color(0.5f, 0.5f, 0.5f, 1f)
-            BlockType.WINDOW_OPENED -> Color(0.7f, 0.9f, 1f, 1f)
-            BlockType.WINDOW_CLOSE -> Color(0.5f, 0.7f, 0.9f, 1f)
-            BlockType.RESTAURANT_FLOOR -> Color(0.9f, 0.8f, 0.6f, 1f)
-            BlockType.CARGO_FLOOR -> Color(0.7f, 0.6f, 0.4f, 1f)
-            BlockType.BRICK_WALL -> Color(0.8f, 0.4f, 0.3f, 1f)
-            BlockType.STREET_LOW -> Color.BLUE
-            else -> Color.GRAY // Default for any new blocks
+            else -> Color(blockType.category.color).apply { a = 1f }
         }
-
-        // Fill with base color
         pixmap.setColor(color)
         pixmap.fill()
-
-        // Add texture pattern
         pixmap.setColor(color.r * 0.8f, color.g * 0.8f, color.b * 0.8f, 1f)
         for (i in 0 until 32 step 4) {
             pixmap.drawLine(i, 0, i, 31)
             pixmap.drawLine(0, i, 31, i)
         }
-
         val texture = Texture(pixmap)
         pixmap.dispose()
-
         return TextureRegion(texture)
     }
 
+    // MODIFIED: This is the primary change. We now update the modifier labels here.
     fun update() {
+        // Update modifier labels every time, so they are always current
+        val rotation = blockSystem.currentBlockRotation.toInt()
+        rotationLabel.setText("[YELLOW]Rotation:[] $rotation° ([ORANGE]Q/E[])")
+
+        val shapeName = blockSystem.currentSelectedShape.getDisplayName()
+        shapeLabel.setText("[YELLOW]Shape:[] $shapeName ([ORANGE]T[])")
+
+        // The rest of the logic handles the scrolling and item selection
         val currentIndex = blockSystem.currentSelectedBlockIndex
         val allBlockTypes = BlockType.entries.toTypedArray()
         val selectedBlockType = allBlockTypes[currentIndex]
 
-        // Check if we need to switch category to show the selected block
         if (selectedBlockType.category != currentCategory) {
             selectCategory(selectedBlockType.category)
             return
@@ -371,14 +326,11 @@ class BlockSelectionUI(
             return
         }
 
-        // Animate block items
         for (item in blockItems) {
             val isSelected = item.globalIndex == currentIndex
             val targetScale = if (isSelected) 1.1f else 1.0f
             val targetColor = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
             val targetBackground = if (isSelected) item.selectedBackground else item.background
-
-            // Apply animations using LibGDX actions
             item.container.clearActions()
             item.container.addAction(
                 Actions.parallel(
@@ -389,8 +341,6 @@ class BlockSelectionUI(
                     }
                 )
             )
-
-            // Add a subtle bounce effect for the selected item
             if (isSelected) {
                 item.iconImage.clearActions()
                 item.iconImage.addAction(
@@ -414,7 +364,6 @@ class BlockSelectionUI(
     }
 
     fun dispose() {
-        // Dispose cached textures
         for (texture in loadedTextures.values) {
             texture.dispose()
         }

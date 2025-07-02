@@ -134,12 +134,32 @@ class PlayerSystem {
         val horizontalShrink = 0.2f // Normal shrink for most objects
         val doorHorizontalShrink = 0.8f // Much smaller collision box for doors
 
-        // Create normal collision bounds for blocks and houses
-        val normalBounds = BoundingBox()
-        normalBounds.set(
+        // Create player bounds for this check
+        val tempPlayerBounds = BoundingBox()
+        tempPlayerBounds.set(
             Vector3(x - (playerSize.x / 2 - horizontalShrink), y - playerSize.y / 2, z - (playerSize.z / 2 - horizontalShrink)),
             Vector3(x + (playerSize.x / 2 - horizontalShrink), y + playerSize.y / 2, z + (playerSize.z / 2 - horizontalShrink))
         )
+
+        for (gameBlock in gameBlocks) {
+            // We pass the *potential* future player bounds to the block's collision method.
+            if (gameBlock.collidesWith(tempPlayerBounds)) {
+                // Check if player is just standing on top. This is a simple check that can be improved.
+                val playerBottom = tempPlayerBounds.min.y
+                val blockAABB = gameBlock.getBoundingBox(blockSize, BoundingBox())
+                val blockTop = blockAABB.max.y
+                val tolerance = 0.1f
+
+                if (playerBottom >= blockTop - tolerance) {
+                    // Player is standing on the block, not colliding with its side.
+                    continue
+                }
+
+                // If it's not a "standing on top" situation, it's a real collision.
+                println("Player collided with block of shape: ${gameBlock.shape.name}")
+                return false // Collision detected
+            }
+        }
 
         // Create smaller collision bounds specifically for doors
         val doorBounds = BoundingBox()
@@ -148,33 +168,12 @@ class PlayerSystem {
             Vector3(x + (playerSize.x / 2 - doorHorizontalShrink), y + playerSize.y / 2, z + (playerSize.z / 2 - doorHorizontalShrink))
         )
 
-        // Check block collisions with normal bounds
-        for (gameBlock in gameBlocks) {
-            val blockHeight = blockSize * gameBlock.blockType.height
-            val blockBounds = BoundingBox()
-            blockBounds.set(
-                Vector3(gameBlock.position.x - blockSize / 2, gameBlock.position.y - blockHeight / 2, gameBlock.position.z - blockSize / 2),
-                Vector3(gameBlock.position.x + blockSize / 2, gameBlock.position.y + blockHeight / 2, gameBlock.position.z + blockSize / 2)
-            )
-
-            if (normalBounds.intersects(blockBounds)) {
-                val playerBottom = normalBounds.min.y
-                val blockTop = blockBounds.max.y
-                val tolerance = 0.1f
-
-                if (playerBottom >= blockTop - tolerance) {
-                    continue // Player is standing on top
-                }
-                return false // Block collision detected
-            }
-        }
-
-        // Check house collisions with normal bounds
+        // Check house collisions
         for (house in gameHouses) {
             if (house.houseType == HouseType.STAIR) {
                 continue
             } else {
-                if (house.collidesWithMesh(normalBounds)) {
+                if (house.collidesWithMesh(tempPlayerBounds)) {
                     return false // Collision with house detected
                 }
             }
@@ -186,25 +185,14 @@ class PlayerSystem {
 
             if (interior.interiorType.is3D) {
                 // For 3D objects, check if it's a door and use appropriate bounds
-                val boundsToUse = if (interior.interiorType == InteriorType.DOOR_INTERIOR) doorBounds else normalBounds
-
+                val boundsToUse = if (interior.interiorType == InteriorType.DOOR_INTERIOR) doorBounds else tempPlayerBounds
                 if (interior.collidesWithMesh(boundsToUse)) {
                     return false
                 }
             } else {
-                // For 2D objects, use custom collision detection
-                if (interior.interiorType == InteriorType.DOOR_INTERIOR) {
-                    // Use smaller player radius for door collision
-                    val doorPlayerRadius = (playerSize.x / 2f) - doorHorizontalShrink
-                    if (interior.collidesWithPlayer2D(Vector3(x, y, z), doorPlayerRadius)) {
-                        return false
-                    }
-                } else {
-                    // Use normal player radius for other 2D objects
-                    val normalPlayerRadius = (playerSize.x / 2f) - horizontalShrink
-                    if (interior.collidesWithPlayer2D(Vector3(x, y, z), normalPlayerRadius)) {
-                        return false
-                    }
+                val playerRadius = (playerSize.x / 2f) - (if (interior.interiorType == InteriorType.DOOR_INTERIOR) doorHorizontalShrink else horizontalShrink)
+                if (interior.collidesWithPlayer2D(Vector3(x, y, z), playerRadius)) {
+                    return false
                 }
             }
         }
@@ -434,11 +422,12 @@ class PlayerSystem {
     private fun canCarMoveTo(newPosition: Vector3, thisCar: GameCar, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>, allCars: Array<GameCar>): Boolean {
         // Create a temporary car with the new position to get accurate bounding box
         val carBounds = thisCar.getBoundingBox(newPosition)
+        val tempBlockBounds = BoundingBox() // Create a temporary box to reuse
 
         // Check collision with blocks - BUT allow driving ON TOP of blocks
         for (block in gameBlocks) {
             // We need the block's standard bounding box, not a hypothetical one.
-            val blockBounds = block.getBoundingBox(blockSize)
+            val blockBounds = block.getBoundingBox(blockSize, tempBlockBounds)
 
             if (carBounds.intersects(blockBounds)) {
                 // Check if the car is actually ON TOP of the block (not intersecting)

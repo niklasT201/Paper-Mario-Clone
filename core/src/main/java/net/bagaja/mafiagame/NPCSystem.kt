@@ -147,6 +147,7 @@ class NPCSystem : IFinePositionable {
     private val MAX_STEP_HEIGHT = 4.0f
     override var finePosMode: Boolean = false
     override val fineStep: Float = 0.25f
+    private val tempBlockBounds = BoundingBox()
 
     fun initialize() {
         billboardShaderProvider = BillboardShaderProvider()
@@ -344,8 +345,13 @@ class NPCSystem : IFinePositionable {
             npcBounds.min.set(newPosition.x - npc.npcType.width / 2f, newPosition.y - npc.npcType.height / 2f, newPosition.z - npc.npcType.width / 2f),
             npcBounds.max.set(newPosition.x + npc.npcType.width / 2f, newPosition.y + npc.npcType.height / 2f, newPosition.z + npc.npcType.width / 2f)
         )
-        sceneManager.activeBlocks.forEach { if (it.getBoundingBox(4f).intersects(npcBounds)) return false }
-        sceneManager.activeHouses.forEach { if (it.collidesWithMesh(npcBounds)) return false }
+        sceneManager.activeBlocks.forEach { block ->
+            // Use the block's accurate collision check
+            if (block.collidesWith(npcBounds)) return false
+        }
+        sceneManager.activeHouses.forEach {
+            if (it.collidesWithMesh(npcBounds)) return false
+        }
         return true
     }
 

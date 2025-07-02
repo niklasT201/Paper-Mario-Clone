@@ -10,6 +10,7 @@ data class RoomElement(
     val position: Vector3 = Vector3(),
     val elementType: RoomElementType = RoomElementType.BLOCK,
     val blockType: BlockType? = null,
+    val shape: BlockShape? = null,
     val objectType: ObjectType? = null,
     val itemType: ItemType? = null,
     val interiorType: InteriorType? = null,

@@ -109,6 +109,7 @@ class EnemySystem : IFinePositionable {
     private val MAX_STEP_HEIGHT = 4.0f
     override var finePosMode: Boolean = false
     override val fineStep: Float = 0.25f
+    private val tempBlockBounds = BoundingBox()
 
     fun initialize() {
         billboardShaderProvider = BillboardShaderProvider()
@@ -321,8 +322,9 @@ class EnemySystem : IFinePositionable {
             enemyBounds.max.set(newPosition.x + enemy.enemyType.width / 2f, newPosition.y + enemy.enemyType.height / 2f, newPosition.z + enemy.enemyType.width / 2f)
         )
 
-        sceneManager.activeBlocks.forEach {
-            if (it.getBoundingBox(4f).intersects(enemyBounds)) return false
+        sceneManager.activeBlocks.forEach { block ->
+            // Use the block's accurate collision check
+            if (block.collidesWith(enemyBounds)) return false
         }
         sceneManager.activeHouses.forEach {
             if (it.collidesWithMesh(enemyBounds)) return false

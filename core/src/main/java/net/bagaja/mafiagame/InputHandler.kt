@@ -272,6 +272,18 @@ class InputHandler(
                         uiManager.toggleSkyCustomizationUI()
                         return true
                     }
+                    Input.Keys.T -> { // Let's use 'T' for 'T'ransform or 'T'ype
+                        if (isBlockSelectionMode) { // Only cycle shapes when in block mode
+                            if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)) {
+                                blockSystem.previousShape()
+                            } else {
+                                blockSystem.nextShape()
+                            }
+                            uiManager.updateBlockSelection() // Update UI to show the new shape
+                            return true
+                        }
+                        return false
+                    }
                     Input.Keys.H -> {
                         if (!isHouseSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isBackgroundSelectionMode) {
                             isHouseSelectionMode = true
