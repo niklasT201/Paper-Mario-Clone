@@ -159,6 +159,42 @@ class SceneManager(
         return highestSupportY
     }
 
+    fun findHighestSupportYForCar(x: Float, z: Float, checkRadius: Float, blockSize: Float): Float {
+        var highestSupportY = 0f // Default to ground level
+
+        // Check against all active blocks
+        for (block in activeBlocks) {
+            val blockBounds = block.getBoundingBox(blockSize)
+            val horizontalOverlap = (x + checkRadius > blockBounds.min.x && x - checkRadius < blockBounds.max.x) &&
+                (z + checkRadius > blockBounds.min.z && z - checkRadius < blockBounds.max.z)
+
+            if (horizontalOverlap) {
+                val blockTop = blockBounds.max.y
+                // No Y-check here, so we can find blocks above the car
+                if (blockTop > highestSupportY) {
+                    highestSupportY = blockTop
+                }
+            }
+        }
+
+        // Check against all active houses (which can include stairs)
+        for (house in activeHouses) {
+            val houseBounds = house.modelInstance.calculateBoundingBox(BoundingBox())
+            val horizontalOverlap = (x + checkRadius > houseBounds.min.x && x - checkRadius < houseBounds.max.x) &&
+                (z + checkRadius > houseBounds.min.z && z - checkRadius < houseBounds.max.z)
+
+            if(horizontalOverlap) {
+                val houseTop = houseBounds.max.y
+                // No Y-check here, so we can find stairs above the car
+                if (houseTop > highestSupportY) {
+                    highestSupportY = houseTop
+                }
+            }
+        }
+
+        return highestSupportY
+    }
+
     fun update(deltaTime: Float) {
         // Checks if an animation has finished
         if (transitionSystem.isFinished()) {

@@ -401,7 +401,7 @@ class PlayerSystem {
 
         // Find the ground at the potential next spot
         val playerFootY = playerPosition.y - (playerSize.y / 2f)
-        val supportY = sceneManager.findHighestSupportY(nextX, nextZ, playerFootY, playerSize.x / 2f, blockSize)
+        val supportY = sceneManager.findHighestSupportYForCar(nextX, nextZ, car.carType.width / 2f, blockSize)
 
         val carBottomY = car.position.y
         val effectiveSupportY = if (supportY - carBottomY <= MAX_STEP_HEIGHT) {
