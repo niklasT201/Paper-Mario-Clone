@@ -156,10 +156,10 @@ class ItemSystem: IFinePositionable {
             val itemX = item.position.x
             val itemZ = item.position.z
             val itemRadius = item.itemType.width / 4f // Use a small radius for point-like check
-
-            val supportY = sceneManager.findHighestSupportY(itemX, itemZ, itemRadius, this.blockSize)
-
             val itemBottomY = item.position.y // The item's origin is at its base
+
+            val supportY = sceneManager.findHighestSupportY(itemX, itemZ, itemBottomY, itemRadius, this.blockSize)
+
             val effectiveSupportY = if (supportY - itemBottomY <= MAX_STEP_HEIGHT) {
                 // The ground is within stepping range, so we can use it.
                 supportY

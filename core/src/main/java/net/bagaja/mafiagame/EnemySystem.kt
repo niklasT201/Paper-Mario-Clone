@@ -197,8 +197,8 @@ class EnemySystem : IFinePositionable {
     }
 
     private fun applyPhysics(enemy: GameEnemy, deltaTime: Float, sceneManager: SceneManager, blockSize: Float) {
-        val supportY = sceneManager.findHighestSupportY(enemy.position.x, enemy.position.z, enemy.enemyType.width / 2f, blockSize)
         val enemyFootY = enemy.position.y - (enemy.enemyType.height / 2f)
+        val supportY = sceneManager.findHighestSupportY(enemy.position.x, enemy.position.z, enemyFootY, enemy.enemyType.width / 2f, blockSize)
         val effectiveSupportY = if (supportY - enemyFootY <= MAX_STEP_HEIGHT) supportY else enemyFootY
         val targetY = effectiveSupportY + (enemy.enemyType.height / 2f)
         val fallY = enemy.position.y - FALL_SPEED * deltaTime

@@ -82,8 +82,11 @@ class SceneManager(
         println("SceneManager initialized. World scene is active.")
     }
 
-    fun findHighestSupportY(x: Float, z: Float, checkRadius: Float, blockSize: Float): Float {
+    fun findHighestSupportY(x: Float, z: Float, currentY: Float, checkRadius: Float, blockSize: Float): Float {
         var highestSupportY = 0f // Default to ground level
+
+        // This tolerance means the system will check for ground at the player's feet
+        val underfootTolerance = 1.0f
 
         // Check against all active blocks
         for (block in activeBlocks) {
@@ -95,8 +98,11 @@ class SceneManager(
 
             if (horizontalOverlap) {
                 val blockTop = blockBounds.max.y
-                if (blockTop > highestSupportY) {
-                    highestSupportY = blockTop
+                // Only consider this block as support if it's at or below the player's feet.
+                if (blockTop <= currentY + underfootTolerance) {
+                    if (blockTop > highestSupportY) {
+                        highestSupportY = blockTop
+                    }
                 }
             }
         }
@@ -109,8 +115,11 @@ class SceneManager(
 
             if(horizontalOverlap) {
                 val houseTop = houseBounds.max.y
-                if (houseTop > highestSupportY) {
-                    highestSupportY = houseTop
+                // Only consider this house as support if it's at or below the player's feet.
+                if (houseTop <= currentY + underfootTolerance) {
+                    if (houseTop > highestSupportY) {
+                        highestSupportY = houseTop
+                    }
                 }
             }
         }
@@ -119,19 +128,33 @@ class SceneManager(
         for (interior in activeInteriors) {
             if (!interior.interiorType.is3D || !interior.interiorType.hasCollision) continue
 
-            // Set up a ray pointing straight down from high above the character's position
-            supportRay.set(Vector3(x, 1000f, z), Vector3.Y.cpy().scl(-1f))
+            val rayDirection = Vector3.Y.cpy().scl(-1f)
+            val checkPoints = arrayOf(
+                Vector3(x, 1000f, z), Vector3(x - checkRadius * 0.9f, 1000f, z - checkRadius * 0.9f),
+                Vector3(x + checkRadius * 0.9f, 1000f, z - checkRadius * 0.9f), Vector3(x - checkRadius * 0.9f, 1000f, z + checkRadius * 0.9f),
+                Vector3(x + checkRadius * 0.9f, 1000f, z + checkRadius * 0.9f)
+            )
+            var wasHit = false
+            var maxHitY = -Float.MAX_VALUE
+            for (point in checkPoints) {
+                supportRay.set(point, rayDirection)
+                if (interior.intersectsRay(supportRay, supportIntersection)) {
+                    wasHit = true
+                    if (supportIntersection.y > maxHitY) {
+                        maxHitY = supportIntersection.y
+                    }
+                }
+            }
 
-            // Use the precise triangle-intersection method
-            if (interior.intersectsRay(supportRay, supportIntersection)) {
-                // If we hit the model, the intersection point's Y is our support height
-                val interiorSurfaceY = supportIntersection.y
-                if (interiorSurfaceY > highestSupportY) {
-                    highestSupportY = interiorSurfaceY
+            if (wasHit) {
+                // Only consider this interior as support if it's at or below the player's feet.
+                if (maxHitY <= currentY + underfootTolerance) {
+                    if (maxHitY > highestSupportY) {
+                        highestSupportY = maxHitY
+                    }
                 }
             }
         }
-
 
         return highestSupportY
     }

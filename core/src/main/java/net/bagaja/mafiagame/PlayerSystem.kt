@@ -400,7 +400,8 @@ class PlayerSystem {
         val nextZ = car.position.z + deltaZ
 
         // Find the ground at the potential next spot
-        val supportY = sceneManager.findHighestSupportY(nextX, nextZ, car.carType.width / 2f, blockSize)
+        val playerFootY = playerPosition.y - (playerSize.y / 2f)
+        val supportY = sceneManager.findHighestSupportY(nextX, nextZ, playerFootY, playerSize.x / 2f, blockSize)
 
         val carBottomY = car.position.y
         val effectiveSupportY = if (supportY - carBottomY <= MAX_STEP_HEIGHT) {
@@ -500,9 +501,9 @@ class PlayerSystem {
         val nextZ = playerPosition.z + deltaZ
 
         // 2. Apply Gravity and Step-Up Logic
-        val supportY = sceneManager.findHighestSupportY(nextX, nextZ, playerSize.x / 2f, blockSize)
-
         val playerFootY = playerPosition.y - (playerSize.y / 2f)
+        val supportY = sceneManager.findHighestSupportY(nextX, nextZ, playerFootY, playerSize.x / 2f, blockSize)
+
         val effectiveSupportY = if (supportY - playerFootY <= MAX_STEP_HEIGHT) {
             // Step is valid, use the new ground height.
             supportY

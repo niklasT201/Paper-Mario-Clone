@@ -314,8 +314,8 @@ class NPCSystem : IFinePositionable {
 
     // The following methods are adapted from your EnemySystem
     private fun applyPhysics(npc: GameNPC, deltaTime: Float, sceneManager: SceneManager, blockSize: Float) {
-        val supportY = sceneManager.findHighestSupportY(npc.position.x, npc.position.z, npc.npcType.width / 2f, blockSize)
         val npcFootY = npc.position.y - (npc.npcType.height / 2f)
+        val supportY = sceneManager.findHighestSupportY(npc.position.x, npc.position.z, npcFootY, npc.npcType.width / 2f, blockSize)
         val effectiveSupportY = if (supportY - npcFootY <= MAX_STEP_HEIGHT) supportY else npcFootY
         val targetY = effectiveSupportY + (npc.npcType.height / 2f)
         val fallY = npc.position.y - FALL_SPEED * deltaTime
