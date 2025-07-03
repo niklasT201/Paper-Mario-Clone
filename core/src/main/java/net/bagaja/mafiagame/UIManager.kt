@@ -1295,6 +1295,14 @@ class UIManager(
         }
     }
 
+    fun navigateHouseRooms(direction: Int) {
+        houseSelectionUI.navigateRooms(direction)
+    }
+
+    fun selectHouseRoom() {
+        houseSelectionUI.selectCurrentRoom()
+    }
+
     fun getStage(): Stage = stage
 
     fun render() {

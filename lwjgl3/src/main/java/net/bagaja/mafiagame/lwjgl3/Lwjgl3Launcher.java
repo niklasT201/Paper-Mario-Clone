@@ -45,7 +45,6 @@ public class Lwjgl3Launcher {
 // room/open world transition effect being slower and smoother transition itself
 
 // working collisions for ramp and corner
-// once pressing something in the ui, scrolling is not working anymore
 // improving npc and enemy placing
 // map saving
 // dialog system

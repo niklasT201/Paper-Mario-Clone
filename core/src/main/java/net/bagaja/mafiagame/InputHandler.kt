@@ -249,6 +249,23 @@ class InputHandler(
                     return true // Consume the input
                 }
 
+                if (isHouseSelectionMode) {
+                    when (keycode) {
+                        Input.Keys.UP -> {
+                            uiManager.navigateHouseRooms(-1)
+                            return true
+                        }
+                        Input.Keys.DOWN -> {
+                            uiManager.navigateHouseRooms(1)
+                            return true
+                        }
+                        Input.Keys.ENTER -> {
+                            uiManager.selectHouseRoom()
+                            return true
+                        }
+                    }
+                }
+
                 when (keycode) {
                     Input.Keys.F1 -> {
                         uiManager.toggleVisibility()

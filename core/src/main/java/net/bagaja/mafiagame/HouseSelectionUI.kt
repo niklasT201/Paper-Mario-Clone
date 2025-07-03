@@ -217,14 +217,14 @@ class HouseSelectionUI(
         return TextureRegionDrawable(TextureRegion(texture))
     }
 
-    private fun navigateRooms(direction: Int) {
+    fun navigateRooms(direction: Int) {
         if (currentRoomTemplates.isEmpty()) return
 
         selectedRoomIndex = (selectedRoomIndex + direction).coerceIn(0, currentRoomTemplates.size - 1)
         updateRoomSelection()
     }
 
-    private fun selectCurrentRoom() {
+    fun selectCurrentRoom() {
         if (currentRoomTemplates.isNotEmpty() && selectedRoomIndex < currentRoomTemplates.size) {
             val selectedTemplate = currentRoomTemplates[selectedRoomIndex]
             houseSystem.selectedRoomTemplateId = selectedTemplate.id
@@ -487,6 +487,7 @@ class HouseSelectionUI(
                     selectedRoomIndex = index
                     selectCurrentRoom()
                     updateRoomSelection()
+                    stage.setScrollFocus(null)
                 }
             })
 
