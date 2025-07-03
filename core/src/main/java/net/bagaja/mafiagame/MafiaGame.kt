@@ -1410,6 +1410,10 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     override fun resize(width: Int, height: Int) {
+        if (width == 0 || height == 0) {
+            return
+        }
+
         // Resize UIManager's viewport
         uiManager.resize(width, height)
         cameraManager.resize(width, height)

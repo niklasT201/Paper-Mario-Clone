@@ -164,7 +164,16 @@ class ShaderEffectManager {
     }
 
     fun resize(width: Int, height: Int) {
-        frameBuffer.dispose()
+        if (width == 0 || height == 0) {
+            println("ShaderEffectManager: Ignoring resize to 0x0")
+            return
+        }
+
+        // Dispose the old one before creating a new one
+        if (::frameBuffer.isInitialized) {
+            frameBuffer.dispose()
+        }
+
         frameBuffer = FrameBuffer(Pixmap.Format.RGBA8888, width, height, true)
 
         postProcessCamera.setToOrtho(false, width.toFloat(), height.toFloat())
