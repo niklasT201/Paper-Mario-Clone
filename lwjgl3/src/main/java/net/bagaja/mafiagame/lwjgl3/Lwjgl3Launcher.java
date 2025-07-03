@@ -47,18 +47,26 @@ public class Lwjgl3Launcher {
 // working collisions for ramp and corner
 // improving npc and enemy placing
 // save or save as new
+// fixed time option
 // map saving
 // dialog system
-// adding slabs
+// image rotation
 // mission starting, saving and ending
 // particle system
+// vibrant shader being default
+// add pillars
+// separate lady and microphone
+// rotate her
+// vertical slab
+// add invisible block
+// umhang no coliisions
+// option for choosing door enter
 // fix car and player falling bug
 // showing 3dmodel collisions
 // blood system
 // black bars top/bottom or left/right
 // flickering light source
 // when shooting flickering light gets spawneda
-// new activation range for npcs and enemies
 // improve camera for interiors
 // player visible optional in cars
 // maybe changing 30 min daycicle to 50

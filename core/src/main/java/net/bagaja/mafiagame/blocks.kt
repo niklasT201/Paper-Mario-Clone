@@ -235,6 +235,10 @@ enum class BlockType(
     WALL_EGG_BOTTOM("Beige Wall Bottom", "textures/objects/wall_bottom.png", 1.0f, BlockCategory.WALLS),
     WALL_EGG("Beige Wall", "textures/objects/wall_eggyellow.png", 1.0f, BlockCategory.WALLS),
     STONE_WALL("Stone Wall", "textures/objects/wall_stone.png", 1.0f, BlockCategory.WALLS),
+    HANGING("Umhang", "textures/objects/hanging.png", 1.0f, BlockCategory.WALLS),
+    HANGING_MIDDLE("Umhang Mitte", "textures/objects/hanging_middle.png", 1.0f, BlockCategory.WALLS),
+    HANGING_BOTTOM("Umhang Boden", "textures/objects/hanging_bottom.png", 1.0f, BlockCategory.WALLS),
+    HANGING_BOTTOM_MIDDLE("Umhang Boden Mitte", "textures/objects/hanging_bottom_middle.png", 1.0f, BlockCategory.WALLS),
 
     // CEILINGS
     CEILING("Ceiling", "textures/objects/celiling.png", 1.0f, BlockCategory.CEILINGS),
