@@ -144,7 +144,7 @@ data class GameBlock(
                 localFace == BlockFace.BOTTOM || localFace == BlockFace.FRONT
             }
             BlockShape.CORNER_WEDGE -> {
-                localFace == BlockFace.BOTTOM || localFace == BlockFace.LEFT || localFace == BlockFace.BACK
+                localFace == BlockFace.LEFT || localFace == BlockFace.BACK
             }
             BlockShape.SLAB_BOTTOM -> localFace != BlockFace.TOP
             BlockShape.SLAB_TOP -> localFace != BlockFace.BOTTOM
