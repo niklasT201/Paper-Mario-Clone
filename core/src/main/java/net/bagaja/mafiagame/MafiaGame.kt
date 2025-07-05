@@ -60,7 +60,7 @@ class MafiaGame : ApplicationAdapter() {
     // Block size
     private val blockSize = 4f
 
-    private lateinit var lightingManager: LightingManager
+    lateinit var lightingManager: LightingManager
 
     override fun create() {
         setupGraphics()

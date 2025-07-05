@@ -42,7 +42,9 @@ data class RoomTemplate(
     val exitTriggerPosition: Vector3 = Vector3(),
     val exitTriggerSize: Vector3 = Vector3(4f, 4f, 2f),
     val category: String = "default",
-    val exitDoorPosition: Vector3 = Vector3()
+    val exitDoorPosition: Vector3 = Vector3(),
+    val isTimeFixed: Boolean = false,
+    val fixedTimeProgress: Float = 0.5f // A value from 0.0 (midnight) to 1.0 (end of day). 0.5 is midday.
 )
 
 // The Builder to make creating templates easy

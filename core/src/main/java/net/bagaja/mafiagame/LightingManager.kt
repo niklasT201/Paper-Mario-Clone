@@ -35,6 +35,7 @@ class LightingManager {
     var isSunVisible: Boolean = false
     private val sunDistance = 2500f // How far away the sun sphere is placed
     private var isGrayscaleMode = false
+    private var timeOverrideProgress: Float? = null
 
     fun setGrayscaleMode(enabled: Boolean) {
         isGrayscaleMode = enabled
@@ -81,6 +82,14 @@ class LightingManager {
         }
     }
 
+    fun overrideTime(progress: Float) {
+        timeOverrideProgress = progress
+    }
+
+    fun clearTimeOverride() {
+        timeOverrideProgress = null
+    }
+
     fun renderSky(modelBatch: ModelBatch, camera: Camera) {
         // Render sky first (before everything else)
         skySystem.render(modelBatch, camera, environment)
@@ -109,20 +118,23 @@ class LightingManager {
 
     private fun updateLighting() {
         // 1. Update Ambient Light
-        val ambientIntensity = dayNightCycle.getAmbientIntensity()
-        environment.set(ColorAttribute(ColorAttribute.AmbientLight,
-            ambientIntensity, ambientIntensity, ambientIntensity, 1f))
+        val visualProgress = timeOverrideProgress ?: dayNightCycle.getDayProgress()
+
+        val tempCycleForVisuals = DayNightCycle()
+        tempCycleForVisuals.setDayProgress(visualProgress)
 
         // Remove the old directional light before adding the new one
+        val ambientIntensity = tempCycleForVisuals.getAmbientIntensity()
+        environment.set(ColorAttribute(ColorAttribute.AmbientLight, ambientIntensity, ambientIntensity, ambientIntensity, 1f))
         environment.remove(directionalLight)
 
         // 2. Update Directional Light (The Sun)
-        val sunIntensity = dayNightCycle.getSunIntensity()
+        val sunIntensity = tempCycleForVisuals.getSunIntensity()
 
         // The sun only shines if its intensity is greater than 0
         if (sunIntensity > 0f) {
-            val (r, g, b) = dayNightCycle.getSunColor()
-            val sunDirection = dayNightCycle.getSunDirection()
+            val (r, g, b) = tempCycleForVisuals.getSunColor()
+            val sunDirection = tempCycleForVisuals.getSunDirection()
 
             directionalLight.set(
                 r * sunIntensity,

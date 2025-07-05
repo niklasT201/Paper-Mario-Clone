@@ -252,8 +252,18 @@ class SceneManager(
                 interior = createNewEmptyInteriorFor(house)
                 interiorStates[house.id] = interior
             }
+        }
+
+        val loadedInterior = interiorStates[house.id]!!
+
+        if (loadedInterior.isTimeFixed) {
+            println("Room has fixed time. Overriding visual time.")
+            // Tell the lighting manager to USE the fixed time for visuals.
+            game.lightingManager.overrideTime(loadedInterior.fixedTimeProgress)
         } else {
-            println("Found saved state for this house instance. Loading it.")
+            println("Room has dynamic time. Clearing any visual time override.")
+            // Make sure the lighting manager is using the LIVE clock.
+            game.lightingManager.clearTimeOverride()
         }
 
         // If we generated a new interior from a template and found an exit door
@@ -262,7 +272,7 @@ class SceneManager(
             println("Assigned exit door ID '${house.exitDoorId}' to house '${house.id}' from template.")
         }
 
-        loadInteriorState(interior)
+        loadInteriorState(loadedInterior)
 
         currentInteriorId = house.id
         currentScene = SceneType.HOUSE_INTERIOR
@@ -284,8 +294,11 @@ class SceneManager(
 
     private fun completeTransitionToWorld() {
         println("Transition finished. Restoring world.")
+        // Always resume time progression when returning to the outside world.
+        game.lightingManager.clearTimeOverride()
         restoreWorldState()
 
+        restoreWorldState()
         currentScene = SceneType.WORLD
         currentInteriorId = null
 
@@ -487,7 +500,9 @@ class SceneManager(
             interiors = newInteriors,
             enemies = newEnemies,
             npcs = newNPCs,
-            playerPosition = template.entrancePosition.cpy()
+            playerPosition = template.entrancePosition.cpy(),
+            isTimeFixed = template.isTimeFixed,
+            fixedTimeProgress = template.fixedTimeProgress
         )
         return Pair(interiorState, foundExitDoorId)
     }
@@ -511,7 +526,7 @@ class SceneManager(
         return newState
     }
 
-    fun saveCurrentInteriorAsTemplate(id: String, name: String, category: String): Boolean {
+    fun saveCurrentInteriorAsTemplate(id: String, name: String, category: String, isTimeFixed: Boolean, fixedTimeProgress: Float): Boolean {
         if (currentScene != SceneType.HOUSE_INTERIOR) {
             println("Error: Must be in an interior to save it as a template.")
             return false
@@ -605,7 +620,9 @@ class SceneManager(
             entrancePosition = playerSystem.getPosition(),
             exitTriggerPosition = playerSystem.getPosition().add(0f, 0f, 1f),
             category = category,
-            exitDoorPosition = doorPosition
+            exitDoorPosition = doorPosition,
+            isTimeFixed = isTimeFixed,
+            fixedTimeProgress = fixedTimeProgress
         )
 
         roomTemplateManager.addTemplate(newTemplate)
@@ -736,7 +753,9 @@ data class InteriorState(
     val interiors: Array<GameInterior> = Array(),
     val enemies: Array<GameEnemy> = Array(),
     val npcs: Array<GameNPC> = Array(),
-    var playerPosition: Vector3
+    var playerPosition: Vector3,
+    var isTimeFixed: Boolean = false,
+    var fixedTimeProgress: Float = 0.5f
 )
 
 data class InteriorLayout(

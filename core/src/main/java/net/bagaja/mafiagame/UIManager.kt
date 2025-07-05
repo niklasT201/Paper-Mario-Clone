@@ -7,10 +7,12 @@ import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
+import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
@@ -1192,14 +1194,55 @@ class UIManager(
         }
 
         val dialog = Dialog("Save Room As Template", skin, "dialog")
-        dialog.text("Enter a name for the new room.\nLeave blank for a default name.")
+        dialog.text("Enter a name and configure room options.")
 
-        // Add a text field for the user to type in
+        // --- Room Name ---
         val nameField = TextField("", skin)
+        nameField.messageText = "Optional: Room Name"
         dialog.contentTable.row()
-        dialog.contentTable.add(nameField).width(250f).pad(10f)
+        dialog.contentTable.add(nameField).width(300f).pad(10f)
 
-        // "Save" button logic
+        // UI Elements for Time Settings ---
+        val contentTable = dialog.contentTable
+
+        val fixTimeCheckbox = CheckBox(" Fix time in this room", skin)
+        contentTable.row()
+        contentTable.add(fixTimeCheckbox).left().padTop(10f).padLeft(10f)
+
+        val timeSliderTable = Table()
+        timeSliderTable.isVisible = false // Hidden by default
+
+        val timeLabel = Label("Time: 12:00", skin)
+        val timeSlider = Slider(0f, 1f, 0.01f, false, skin)
+        timeSlider.value = 0.5f
+
+        val tempCycle = DayNightCycle()
+        fun updateTimeLabel() {
+            tempCycle.setDayProgress(timeSlider.value)
+            timeLabel.setText("Time: ${tempCycle.getTimeString()}")
+        }
+        updateTimeLabel()
+
+        timeSlider.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                updateTimeLabel()
+            }
+        })
+
+        timeSliderTable.add(timeLabel).width(100f)
+        timeSliderTable.add(timeSlider).growX()
+
+        contentTable.row()
+        contentTable.add(timeSliderTable).fillX().padTop(5f).padLeft(10f).padRight(10f)
+
+        fixTimeCheckbox.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                timeSliderTable.isVisible = fixTimeCheckbox.isChecked
+                dialog.pack()
+            }
+        })
+
+        // --- Button Logic ---
         val saveButton = TextButton("Save", skin)
         saveButton.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
@@ -1210,8 +1253,17 @@ class UIManager(
                 // Use the input name if provided, otherwise create a default one
                 val templateName = if (inputName.isNotBlank()) inputName else "Room - ${templateId.takeLast(6)}"
 
-                // Use the SceneManager to save the template
-                val success = sceneManager.saveCurrentInteriorAsTemplate(templateId, templateName, "user_created")
+                // Get values from the new UI elements
+                val isTimeFixed = fixTimeCheckbox.isChecked
+                val fixedTimeProgress = timeSlider.value
+
+                // Use the SceneManager to save the template with the new parameters
+                val success = sceneManager.saveCurrentInteriorAsTemplate(
+                    templateId, templateName, "user_created",
+                    isTimeFixed,      // new param
+                    fixedTimeProgress // new param
+                )
+
                 if (success) {
                     updatePlacementInfo("Room saved as '$templateName'")
                     // This is crucial: Refresh the house UI to show the new room in the list
@@ -1223,18 +1275,8 @@ class UIManager(
             }
         })
 
-        // "Cancel" button logic
-        val cancelButton = TextButton("Cancel", skin)
-        cancelButton.addListener(object : ClickListener() {
-            override fun clicked(event: InputEvent?, x: Float, y: Float) {
-                dialog.hide()
-            }
-        })
-
-        dialog.buttonTable.padTop(10f)
-        dialog.buttonTable.add(saveButton).width(100f).padRight(10f)
-        dialog.buttonTable.add(cancelButton).width(100f)
-
+        dialog.buttonTable.padTop(10f).add(saveButton).width(100f).padRight(10f)
+        dialog.button("Cancel", false)
         dialog.show(stage)
     }
 

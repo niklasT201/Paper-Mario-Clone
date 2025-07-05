@@ -37,6 +37,11 @@ public class Lwjgl3Launcher {
 
 // Don being villian or helpful
 // player character/moral compass: Forced prostitution/sexual violence, Violence against immigrants, Rape
+// Graffiti like: “Moths go back to the lamp store!” or “Too many wings in this district!”
+// “It’s not racist if it’s true. Moths do love lamps.”
+// “Diversity is great… but only in the zoo.”
+// “They call us pests, but they’re the ones living off crumbs of power.”
+// “This city forgets who built it — and who’s still sweeping its alleys.”
 
 // fire asset
 // industrial assets
@@ -52,7 +57,9 @@ public class Lwjgl3Launcher {
 // dialog system
 // mission starting, saving and ending
 // particle system
-// vibrant shader being default
+// vibrant shader being default in rooms
+// different shaders for rooms and openworld
+// light culling up higher
 // add pillars
 // separate lady and microphone
 // rotate her
