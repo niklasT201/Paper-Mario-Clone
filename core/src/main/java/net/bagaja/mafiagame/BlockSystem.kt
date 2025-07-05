@@ -11,12 +11,13 @@ import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Vector3
 
 // Block system class to manage different block types
 class BlockSystem {
     // Caches for the two different model types
-    private val blockFaceModels = mutableMapOf<BlockType, Map<BlockFace, Model>>()
+    private val blockFaceModels = mutableMapOf<BlockType, Map<BlockFace, Map<Float, Model>>>()
     private val customShapeModels = mutableMapOf<Pair<BlockType, BlockShape>, Model>()
 
     private val blockTextures = mutableMapOf<BlockType, Texture>()
@@ -27,6 +28,7 @@ class BlockSystem {
     var currentSelectedShape = BlockShape.FULL_BLOCK
         private set
     var currentBlockRotation = 0f
+    var rotationMode = BlockRotationMode.GEOMETRY
         private set
 
     private lateinit var modelBuilder: ModelBuilder
@@ -49,16 +51,41 @@ class BlockSystem {
         }
     }
 
+    fun toggleRotationMode() {
+        rotationMode = if (rotationMode == BlockRotationMode.GEOMETRY) {
+            BlockRotationMode.TEXTURE_SIDES
+        } else {
+            BlockRotationMode.GEOMETRY
+        }
+        println("Block rotation mode set to: ${rotationMode.getDisplayName()}")
+    }
+
     /**
      * Creates a GameBlock, deciding whether to use face-culling or a custom model.
      */
-    fun createGameBlock(type: BlockType, shape: BlockShape, position: Vector3, rotation: Float): GameBlock {
+    fun createGameBlock(type: BlockType, shape: BlockShape, position: Vector3, geometryRotation: Float, textureRotation: Float): GameBlock {
         return if (shape == BlockShape.FULL_BLOCK) {
-            val faceInstances = createFaceInstances(type)!!
-            GameBlock(type, shape, position, rotation, faceInstances = faceInstances)
+            // Always use the textureRotation parameter to create the faces.
+            val faceInstances = createFaceInstances(type, textureRotation)!!
+            // Create the GameBlock, storing both rotations.
+            GameBlock(
+                type,
+                shape,
+                position,
+                rotationY = geometryRotation,
+                textureRotationY = textureRotation, // Store the texture rotation
+                faceInstances = faceInstances
+            )
         } else {
             val modelInstance = createCustomShapeInstance(type, shape)!!
-            GameBlock(type, shape, position, rotation, modelInstance = modelInstance)
+            GameBlock(
+                type,
+                shape,
+                position,
+                rotationY = geometryRotation,
+                textureRotationY = 0f, // <-- Explicitly 0
+                modelInstance = modelInstance
+            )
         }
     }
 
@@ -67,36 +94,117 @@ class BlockSystem {
             Material(TextureAttribute.createDiffuse(it))
         } ?: Material(ColorAttribute.createDiffuse(Color.MAGENTA))
 
-        val modelsForBlock = mutableMapOf<BlockFace, Model>()
+        val modelsForBlock = mutableMapOf<BlockFace, Map<Float, Model>>()
+        val rotations = listOf(0f, 90f, 180f, 270f)
+
         for (face in BlockFace.entries) {
-            modelsForBlock[face] = createFaceModel(blockSize, blockType.height, material, face)
+            val modelsForFace = mutableMapOf<Float, Model>()
+            if (face == BlockFace.TOP || face == BlockFace.BOTTOM) {
+                // Top and bottom faces are not affected by side texture rotation.
+                modelsForFace[0f] = createFaceModel(blockSize, blockType.height, material, face, 0f)
+            } else {
+                // Side faces need a model for each rotation angle.
+                for (rotation in rotations) {
+                    modelsForFace[rotation] = createFaceModel(blockSize, blockType.height, material, face, rotation)
+                }
+            }
+            modelsForBlock[face] = modelsForFace
         }
         blockFaceModels[blockType] = modelsForBlock
         println("Loaded models for block type: ${blockType.displayName}")
     }
 
-    private fun createFaceModel(size: Float, heightMultiplier: Float, material: Material, face: BlockFace): Model {
+    private fun createFaceModel(size: Float, heightMultiplier: Float, material: Material, face: BlockFace, textureRotation: Float): Model {
         val halfSize = size / 2f
         val halfHeight = (size * heightMultiplier) / 2f
         val attributes = (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
 
         modelBuilder.begin()
-        val partBuilder = modelBuilder.part(face.name, GL20.GL_TRIANGLES, attributes, material)
+        val partBuilder = modelBuilder.part("${face.name}_${textureRotation.toInt()}", GL20.GL_TRIANGLES, attributes, material)
+
+        // Standard UV coordinates for a quad.
+        val uv00 = Vector2(0f, 1f) // Bottom-left
+        val uv10 = Vector2(1f, 1f) // Bottom-right
+        val uv11 = Vector2(1f, 0f) // Top-right
+        val uv01 = Vector2(0f, 0f) // Top-left
+
+        // Create an array of the UVs in the correct order for rotation
+        val uvs = arrayOf(uv00, uv10, uv11, uv01)
+        val rotationSteps = (textureRotation / 90f).toInt().let { if (it < 0) it + 4 else it } % 4
+
+        // Apply rotation by shifting the UV array
+        val r_uv00 = uvs[(0 + rotationSteps) % 4]
+        val r_uv10 = uvs[(1 + rotationSteps) % 4]
+        val r_uv11 = uvs[(2 + rotationSteps) % 4]
+        val r_uv01 = uvs[(3 + rotationSteps) % 4]
+
+        val tmpV1 = Vector3()
+        val tmpV2 = Vector3()
+
+        fun buildRect(corner00: Vector3, corner10: Vector3, corner11: Vector3, corner01: Vector3, normal: Vector3) {
+            tmpV1.set(corner00).lerp(corner11, 0.5f)
+            tmpV2.set(corner10).lerp(corner01, 0.5f)
+            val numV = tmpV2.sub(tmpV1).len() / (tmpV1.set(corner00).sub(corner10).len() + tmpV1.set(corner10).sub(corner11).len())
+
+            val p1 = partBuilder.vertex(corner00, normal, null, r_uv00)
+            val p2 = partBuilder.vertex(corner10, normal, null, r_uv10)
+            val p3 = partBuilder.vertex(corner11, normal, null, r_uv11)
+            val p4 = partBuilder.vertex(corner01, normal, null, r_uv01)
+            partBuilder.triangle(p1, p2, p3)
+            partBuilder.triangle(p3, p4, p1)
+        }
 
         when (face) {
-            BlockFace.TOP -> partBuilder.rect(Vector3(-halfSize, halfHeight, halfSize), Vector3(halfSize, halfHeight, halfSize), Vector3(halfSize, halfHeight, -halfSize), Vector3(-halfSize, halfHeight, -halfSize), Vector3(0f, 1f, 0f))
-            BlockFace.BOTTOM -> partBuilder.rect(Vector3(-halfSize, -halfHeight, -halfSize), Vector3(halfSize, -halfHeight, -halfSize), Vector3(halfSize, -halfHeight, halfSize), Vector3(-halfSize, -halfHeight, halfSize), Vector3(0f, -1f, 0f))
-            BlockFace.FRONT -> partBuilder.rect(Vector3(-halfSize, -halfHeight, halfSize), Vector3(halfSize, -halfHeight, halfSize), Vector3(halfSize, halfHeight, halfSize), Vector3(-halfSize, halfHeight, halfSize), Vector3(0f, 0f, 1f))
-            BlockFace.BACK -> partBuilder.rect(Vector3(halfSize, -halfHeight, -halfSize), Vector3(-halfSize, -halfHeight, -halfSize), Vector3(-halfSize, halfHeight, -halfSize), Vector3(halfSize, halfHeight, -halfSize), Vector3(0f, 0f, -1f))
-            BlockFace.RIGHT -> partBuilder.rect(Vector3(halfSize, -halfHeight, halfSize), Vector3(halfSize, -halfHeight, -halfSize), Vector3(halfSize, halfHeight, -halfSize), Vector3(halfSize, halfHeight, halfSize), Vector3(1f, 0f, 0f))
-            BlockFace.LEFT -> partBuilder.rect(Vector3(-halfSize, -halfHeight, -halfSize), Vector3(-halfSize, -halfHeight, halfSize), Vector3(-halfSize, halfHeight, halfSize), Vector3(-halfSize, halfHeight, -halfSize), Vector3(-1f, 0f, 0f))
+            BlockFace.TOP -> buildRect(
+                Vector3(-halfSize, halfHeight, halfSize), Vector3(halfSize, halfHeight, halfSize),
+                Vector3(halfSize, halfHeight, -halfSize), Vector3(-halfSize, halfHeight, -halfSize),
+                Vector3(0f, 1f, 0f)
+            )
+            BlockFace.BOTTOM -> buildRect(
+                Vector3(-halfSize, -halfHeight, -halfSize), Vector3(halfSize, -halfHeight, -halfSize),
+                Vector3(halfSize, -halfHeight, halfSize), Vector3(-halfSize, -halfHeight, halfSize),
+                Vector3(0f, -1f, 0f)
+            )
+            BlockFace.FRONT -> buildRect(
+                Vector3(-halfSize, -halfHeight, halfSize), Vector3(halfSize, -halfHeight, halfSize),
+                Vector3(halfSize, halfHeight, halfSize), Vector3(-halfSize, halfHeight, halfSize),
+                Vector3(0f, 0f, 1f)
+            )
+            BlockFace.BACK -> buildRect(
+                Vector3(halfSize, -halfHeight, -halfSize), Vector3(-halfSize, -halfHeight, -halfSize),
+                Vector3(-halfSize, halfHeight, -halfSize), Vector3(halfSize, halfHeight, -halfSize),
+                Vector3(0f, 0f, -1f)
+            )
+            BlockFace.RIGHT -> buildRect(
+                Vector3(halfSize, -halfHeight, halfSize), Vector3(halfSize, -halfHeight, -halfSize),
+                Vector3(halfSize, halfHeight, -halfSize), Vector3(halfSize, halfHeight, halfSize),
+                Vector3(1f, 0f, 0f)
+            )
+            BlockFace.LEFT -> buildRect(
+                Vector3(-halfSize, -halfHeight, -halfSize), Vector3(-halfSize, -halfHeight, halfSize),
+                Vector3(-halfSize, halfHeight, halfSize), Vector3(-halfSize, halfHeight, -halfSize),
+                Vector3(-1f, 0f, 0f)
+            )
         }
         return modelBuilder.end()
     }
 
-    fun createFaceInstances(blockType: BlockType): Map<BlockFace, ModelInstance>? {
-        val models = blockFaceModels[blockType] ?: return null
-        return models.mapValues { ModelInstance(it.value) }
+    private fun createFaceInstances(blockType: BlockType, textureRotation: Float): Map<BlockFace, ModelInstance>? {
+        val typeModels = blockFaceModels[blockType] ?: return null
+        val instances = mutableMapOf<BlockFace, ModelInstance>()
+
+        for (face in BlockFace.entries) {
+            val faceModels = typeModels[face] ?: continue
+            val model = if (face == BlockFace.TOP || face == BlockFace.BOTTOM) {
+                faceModels[0f] // Top/Bottom faces are never rotated
+            } else {
+                faceModels[textureRotation] // Side faces use the specified rotation
+            }
+            if (model != null) {
+                instances[face] = ModelInstance(model)
+            }
+        }
+        return instances
     }
 
     private fun createCustomShapeInstance(blockType: BlockType, shape: BlockShape): ModelInstance? {
@@ -251,7 +359,11 @@ class BlockSystem {
     }
 
     fun dispose() {
-        blockFaceModels.values.forEach { map -> map.values.forEach { it.dispose() } }
+        blockFaceModels.values.forEach { faceMap ->
+            faceMap.values.forEach { rotationMap ->
+                rotationMap.values.forEach { it.dispose() }
+            }
+        }
         customShapeModels.values.forEach { it.dispose() }
         blockTextures.values.forEach { it.dispose() }
     }

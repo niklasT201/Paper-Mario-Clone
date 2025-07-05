@@ -50,7 +50,6 @@ public class Lwjgl3Launcher {
 // fixed time option
 // map saving
 // dialog system
-// image rotation
 // mission starting, saving and ending
 // particle system
 // vibrant shader being default
@@ -66,7 +65,7 @@ public class Lwjgl3Launcher {
 // blood system
 // black bars top/bottom or left/right
 // flickering light source
-// when shooting flickering light gets spawneda
+// when shooting flickering light gets spawned
 // improve camera for interiors
 // player visible optional in cars
 // maybe changing 30 min daycicle to 50

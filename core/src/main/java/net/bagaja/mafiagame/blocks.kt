@@ -20,6 +20,18 @@ enum class BlockFace {
     }
 }
 
+enum class BlockRotationMode {
+    GEOMETRY, // The entire block model rotates (original behavior).
+    TEXTURE_SIDES; // Only the textures on the side faces rotate.
+
+    fun getDisplayName(): String {
+        return when (this) {
+            GEOMETRY -> "Geometry"
+            TEXTURE_SIDES -> "Texture (Sides)"
+        }
+    }
+}
+
 enum class BlockShape {
     FULL_BLOCK,
     SLAB_BOTTOM,
@@ -39,6 +51,7 @@ data class GameBlock(
     val shape: BlockShape,
     val position: Vector3,
     var rotationY: Float = 0f,
+    var textureRotationY: Float = 0f,
     val faceInstances: Map<BlockFace, ModelInstance>? = null, // For FULL_BLOCK
     val modelInstance: ModelInstance? = null,                // For all other shapes
 ) {

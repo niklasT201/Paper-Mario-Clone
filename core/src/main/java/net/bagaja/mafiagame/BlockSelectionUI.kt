@@ -31,8 +31,9 @@ class BlockSelectionUI(
     private var currentCategory = BlockCategory.NATURAL
     private var filteredBlockTypes = listOf<BlockType>()
 
-    // NEW: Labels to display current block modifiers
+    // Labels to display current block modifiers
     private lateinit var rotationLabel: Label
+    private lateinit var rotationModeLabel: Label
     private lateinit var shapeLabel: Label
 
     private data class BlockSelectionItem(
@@ -78,7 +79,10 @@ class BlockSelectionUI(
         // NEW: Add a section for modifiers (rotation and shape)
         setupModifiersSection(mainContainer)
 
-        val instructionLabel = Label("Hold [B] + Mouse Wheel to change blocks | Click category tabs to filter", skin)
+        val instructionLabel = Label(
+            "Hold [B] + Mouse Wheel to change blocks | [Q/E] Rotate | [T] Change Shape | [R] Toggle Rotation Mode",
+            skin
+        )
         instructionLabel.setFontScale(0.8f)
         instructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f)
         instructionLabel.setWrap(true)
@@ -102,12 +106,18 @@ class BlockSelectionUI(
         rotationLabel.setFontScale(0.9f)
         rotationLabel.color = Color(0.8f, 0.9f, 1f, 1f) // Light blue
 
+        // Create the label for rotation mode
+        rotationModeLabel = Label("", skin)
+        rotationModeLabel.setFontScale(0.9f)
+        rotationModeLabel.color = Color(1f, 0.8f, 1f, 1f) // Light magenta
+
         shapeLabel = Label("", skin)
         shapeLabel.setFontScale(0.9f)
         shapeLabel.color = Color(0.8f, 1f, 0.9f, 1f) // Light green
 
         // Add them to the table with some spacing
-        modifiersTable.add(rotationLabel).padRight(40f)
+        modifiersTable.add(rotationLabel).padRight(25f)
+        modifiersTable.add(rotationModeLabel).padRight(25f) // NEW
         modifiersTable.add(shapeLabel)
 
         // Add the modifiers table to the main UI container
@@ -301,11 +311,14 @@ class BlockSelectionUI(
         return TextureRegion(texture)
     }
 
-    // MODIFIED: This is the primary change. We now update the modifier labels here.
     fun update() {
         // Update modifier labels every time, so they are always current
         val rotation = blockSystem.currentBlockRotation.toInt()
         rotationLabel.setText("[YELLOW]Rotation:[] $rotation° ([ORANGE]Q/E[])")
+
+        // Update the rotation mode label
+        val rotationModeName = blockSystem.rotationMode.getDisplayName()
+        rotationModeLabel.setText("[YELLOW]Mode:[] $rotationModeName ([ORANGE]R[])")
 
         val shapeName = blockSystem.currentSelectedShape.getDisplayName()
         shapeLabel.setText("[YELLOW]Shape:[] $shapeName ([ORANGE]T[])")

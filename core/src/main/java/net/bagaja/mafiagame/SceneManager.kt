@@ -382,7 +382,8 @@ class SceneManager(
                             type = blockType,
                             shape = element.shape ?: BlockShape.FULL_BLOCK, // Use saved shape or default to full block
                             position = element.position.cpy(),
-                            rotation = element.rotation
+                            geometryRotation = element.rotation,
+                            textureRotation = element.textureRotation
                         )
                         newBlocks.add(gameBlock)
                     }
@@ -540,7 +541,8 @@ class SceneManager(
                 elementType = RoomElementType.BLOCK,
                 blockType = block.blockType,
                 shape = block.shape,
-                rotation = block.rotationY
+                rotation = block.rotationY,
+                textureRotation = block.textureRotationY
             ))
         }
 
@@ -640,7 +642,8 @@ class SceneManager(
                             type = blockType,
                             shape = element.shape ?: BlockShape.FULL_BLOCK,
                             position = element.position.cpy(),
-                            rotation = element.rotation
+                            geometryRotation = element.rotation,
+                            textureRotation = element.textureRotation
                         )
                         activeBlocks.add(gameBlock)
                     }

@@ -477,6 +477,11 @@ class InputHandler(
                         return true
                     }
                     Input.Keys.R -> {
+                        if (isBlockSelectionMode) {
+                            blockSystem.toggleRotationMode()
+                            uiManager.updateBlockSelection() // Refresh the UI to show the new mode
+                            return true
+                        }
                         if (isInteriorSelectionMode) {
                             interiorSystem.rotateSelection()
                             uiManager.updateInteriorSelection()

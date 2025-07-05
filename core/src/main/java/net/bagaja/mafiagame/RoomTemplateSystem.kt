@@ -19,6 +19,7 @@ data class RoomElement(
     val npcType: NPCType? = null,
     val npcBehavior: NPCBehavior? = null,
     val rotation: Float = 0f,
+    val textureRotation: Float = 0f,
     val scale: Vector3 = Vector3(1f, 1f, 1f)
 )
 
