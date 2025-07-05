@@ -162,7 +162,7 @@ class LightingManager {
             if (activeLights.size >= maxLights) break
 
             // Optional: A performance check to not add lights that are very far away
-            if (distance > lightSource.range * 2.5f) continue
+            if (distance > lightSource.range * 3.5) continue
 
             lightSource.pointLight?.let {
                 activeLights.add(it)

@@ -52,17 +52,14 @@ public class Lwjgl3Launcher {
 // working collisions for ramp and corner
 // improving npc and enemy placing
 // save or save as new
-// fixed time option
 // map saving
 // dialog system
 // mission starting, saving and ending
 // particle system
 // vibrant shader being default in rooms
 // different shaders for rooms and openworld
-// light culling up higher
 // add pillars
 // separate lady and microphone
-// rotate her
 // vertical slab
 // add invisible block
 // umhang no coliisions

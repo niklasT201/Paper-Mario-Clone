@@ -1,6 +1,7 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Json
 import com.badlogic.gdx.utils.JsonWriter
@@ -20,7 +21,10 @@ data class RoomElement(
     val npcBehavior: NPCBehavior? = null,
     val rotation: Float = 0f,
     val textureRotation: Float = 0f,
-    val scale: Vector3 = Vector3(1f, 1f, 1f)
+    val scale: Vector3 = Vector3(1f, 1f, 1f),
+    val lightColor: Color? = null,
+    val lightIntensity: Float? = null,
+    val lightRange: Float? = null
 )
 
 enum class RoomElementType {

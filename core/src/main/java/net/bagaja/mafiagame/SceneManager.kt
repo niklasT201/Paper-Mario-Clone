@@ -1,5 +1,6 @@
 package net.bagaja.mafiagame
 
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
@@ -309,6 +310,18 @@ class SceneManager(
         }
     }
 
+    private fun setSceneLights(lights: Map<Int, LightSource>) {
+        // 1. Clear all existing lights from the manager
+        val currentLightIds = game.lightingManager.getLightSources().keys.toList()
+        currentLightIds.forEach { game.lightingManager.removeLightSource(it) }
+
+        // 2. Add the lights for the new scene
+        lights.values.forEach { light ->
+            val instances = objectSystem.createLightSourceInstances(light)
+            game.lightingManager.addLightSource(light, instances)
+        }
+    }
+
     // --- PRIVATE HELPER METHODS ---
 
     private fun saveWorldState() {
@@ -323,7 +336,8 @@ class SceneManager(
             enemies = Array(activeEnemies),
             npcs = Array(activeNPCs),
             playerPosition = playerSystem.getPosition(), // Save player pos just outside door
-            cameraPosition = Vector3() // You would save camera state here too if needed
+            cameraPosition = Vector3(), // You would save camera state here too if needed
+            lights = game.lightingManager.getLightSources()
         )
         println("World state saved. Player at ${worldState!!.playerPosition}")
     }
@@ -344,6 +358,8 @@ class SceneManager(
 
         // Synchronize the ItemSystem with the restored world items
         itemSystem.setActiveItems(activeItems)
+
+        setSceneLights(state.lights)
     }
 
 
@@ -360,6 +376,9 @@ class SceneManager(
         currentState.enemies.clear(); currentState.enemies.addAll(activeEnemies)
         currentState.npcs.clear(); currentState.npcs.addAll(activeNPCs)
         currentState.playerPosition.set(playerSystem.getPosition())
+
+        currentState.lights.clear()
+        currentState.lights.putAll(game.lightingManager.getLightSources())
     }
 
     private fun loadInteriorState(state: InteriorState) {
@@ -374,6 +393,8 @@ class SceneManager(
 
         // Synchronize the ItemSystem with the loaded interior items
         itemSystem.setActiveItems(activeItems)
+
+        setSceneLights(state.lights)
     }
 
     private fun createInteriorFromTemplate(house: GameHouse, template: RoomTemplate): Pair<InteriorState, String?> {
@@ -383,6 +404,7 @@ class SceneManager(
         val newInteriors = Array<GameInterior>()
         val newEnemies = Array<GameEnemy>()
         val newNPCs = Array<GameNPC>()
+        val newLights = mutableMapOf<Int, LightSource>()
 
         println("Building interior from template: ${template.name}")
 
@@ -403,10 +425,20 @@ class SceneManager(
                 }
                 RoomElementType.OBJECT -> {
                     element.objectType?.let { objectType ->
-                        // Note: If your objects require a LightingManager during creation, you'll need
-                        // to pass the LightingManager instance into the SceneManager.
-                        objectSystem.createGameObjectWithLight(objectType, element.position.cpy())?.let { gameObject ->
-                            newObjects.add(gameObject)
+                        // MODIFIED: Handle light sources as a special case
+                        if (objectType == ObjectType.LIGHT_SOURCE) {
+                            val light = objectSystem.createLightSource(
+                                position = element.position.cpy(),
+                                intensity = element.lightIntensity ?: LightSource.DEFAULT_INTENSITY,
+                                range = element.lightRange ?: LightSource.DEFAULT_RANGE,
+                                color = element.lightColor ?: Color(LightSource.DEFAULT_COLOR_R, LightSource.DEFAULT_COLOR_G, LightSource.DEFAULT_COLOR_B, 1f)
+                            )
+                            newLights[light.id] = light
+                        } else {
+                            // This is for regular, non-light-source objects
+                            objectSystem.createGameObjectWithLight(objectType, element.position.cpy(), game.lightingManager)?.let { gameObject ->
+                                newObjects.add(gameObject)
+                            }
                         }
                     }
                 }
@@ -502,7 +534,8 @@ class SceneManager(
             npcs = newNPCs,
             playerPosition = template.entrancePosition.cpy(),
             isTimeFixed = template.isTimeFixed,
-            fixedTimeProgress = template.fixedTimeProgress
+            fixedTimeProgress = template.fixedTimeProgress,
+            lights = newLights
         )
         return Pair(interiorState, foundExitDoorId)
     }
@@ -608,6 +641,17 @@ class SceneManager(
                 elementType = RoomElementType.NPC,
                 npcType = npc.npcType,
                 npcBehavior = npc.behaviorType
+            ))
+        }
+
+        game.lightingManager.getLightSources().values.forEach { light ->
+            elements.add(RoomElement(
+                position = light.position.cpy(),
+                elementType = RoomElementType.OBJECT,
+                objectType = ObjectType.LIGHT_SOURCE,
+                lightColor = light.color.cpy(),
+                lightIntensity = light.intensity,
+                lightRange = light.range
             ))
         }
 
@@ -741,7 +785,8 @@ data class WorldState(
     val enemies: Array<GameEnemy>,
     val npcs: Array<GameNPC>,
     val playerPosition: Vector3,
-    val cameraPosition: Vector3
+    val cameraPosition: Vector3,
+    val lights: Map<Int, LightSource>
 )
 
 // The state for a single house interior.
@@ -755,7 +800,8 @@ data class InteriorState(
     val npcs: Array<GameNPC> = Array(),
     var playerPosition: Vector3,
     var isTimeFixed: Boolean = false,
-    var fixedTimeProgress: Float = 0.5f
+    var fixedTimeProgress: Float = 0.5f,
+    val lights: MutableMap<Int, LightSource> = mutableMapOf()
 )
 
 data class InteriorLayout(
