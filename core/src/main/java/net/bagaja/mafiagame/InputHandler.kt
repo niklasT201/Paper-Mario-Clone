@@ -8,6 +8,7 @@ import com.badlogic.gdx.math.Vector3
 import net.bagaja.mafiagame.UIManager.Tool
 
 class InputHandler(
+    private val game: MafiaGame,
     private val uiManager: UIManager,
     private val cameraManager: CameraManager,
     private val blockSystem: BlockSystem,
@@ -394,6 +395,7 @@ class InputHandler(
                     Input.Keys.G -> {
                         // Toggle debug mode for objects (to see invisible ones)
                         objectSystem.toggleDebugMode()
+                        game.toggleInvisibleBlockOutlines()
                         return true
                     }
                     Input.Keys.C -> {

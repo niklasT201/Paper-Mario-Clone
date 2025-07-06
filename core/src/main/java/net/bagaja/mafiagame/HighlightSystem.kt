@@ -1,13 +1,11 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.VertexAttributes
-import com.badlogic.gdx.graphics.g3d.Material
-import com.badlogic.gdx.graphics.g3d.Model
-import com.badlogic.gdx.graphics.g3d.ModelBatch
-import com.badlogic.gdx.graphics.g3d.ModelInstance
+import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
@@ -28,6 +26,7 @@ class HighlightSystem(private val blockSize: Float) {
     // Colors for different states
     private val placeColor = Color(0f, 1f, 0f, 0.3f) // Green for placement
     private val removeColor = Color(1f, 0f, 0f, 0.3f) // Red for removal
+    private val invisibleOutlineColor = Color(0.8f, 0.8f, 1f, 0.25f)
     private val toolColors = mapOf(
         UIManager.Tool.BLOCK to Color(0f, 1f, 0f, 0.3f),      // Green
         UIManager.Tool.OBJECT to Color(0f, 0f, 1f, 0.3f),     // Blue
@@ -114,6 +113,38 @@ class HighlightSystem(private val blockSize: Float) {
             UIManager.Tool.ENEMY -> updateEnemyHighlight(ray, gameEnemies, raycastSystem)
             UIManager.Tool.NPC -> updateNPCHighlight(ray, gameNPCs, raycastSystem)
         }
+    }
+
+    fun renderInvisibleBlockOutlines(
+        modelBatch: ModelBatch,
+        environment: Environment,
+        camera: Camera,
+        blocks: Array<GameBlock>
+    ) {
+        if (highlightInstance == null) return
+
+        // Ensure the highlight box is the correct size for a standard block
+        updateHighlightSize(Vector3(blockSize, blockSize, blockSize))
+        setHighlightColor(invisibleOutlineColor)
+
+        // Set up rendering for transparency
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+        Gdx.gl.glDepthMask(false)
+
+        modelBatch.begin(camera)
+        for (block in blocks) {
+            if (block.blockType == BlockType.INVISIBLE) {
+                // Move the single highlight instance to the block's position and render it
+                highlightInstance!!.transform.setTranslation(block.position)
+                modelBatch.render(highlightInstance!!, environment)
+            }
+        }
+        modelBatch.end()
+
+        // Restore normal rendering state
+        Gdx.gl.glDepthMask(true)
+        Gdx.gl.glDisable(GL20.GL_BLEND)
     }
 
     private fun updateBlockHighlight(ray: Ray, gameBlocks: Array<GameBlock>, raycastSystem: RaycastSystem) {

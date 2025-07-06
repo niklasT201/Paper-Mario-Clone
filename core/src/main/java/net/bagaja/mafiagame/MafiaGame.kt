@@ -57,6 +57,8 @@ class MafiaGame : ApplicationAdapter() {
     private var isPlacingExitDoorMode = false
     private var houseRequiringDoor: GameHouse? = null
 
+    private var showInvisibleBlockOutlines = false
+
     // Block size
     private val blockSize = 4f
 
@@ -130,6 +132,7 @@ class MafiaGame : ApplicationAdapter() {
 
         // Initialize Input Handler
         inputHandler = InputHandler(
+            this,
             uiManager,
             cameraManager,
             blockSystem,
@@ -1128,6 +1131,12 @@ class MafiaGame : ApplicationAdapter() {
         println("${backgroundToRemove.backgroundType.displayName} removed at: ${backgroundToRemove.position}")
     }
 
+    fun toggleInvisibleBlockOutlines() {
+        showInvisibleBlockOutlines = !showInvisibleBlockOutlines
+        val status = if (showInvisibleBlockOutlines) "ON" else "OFF"
+        uiManager.updatePlacementInfo("Invisible Block Outlines: $status")
+    }
+
     fun enterExitDoorPlacementMode(house: GameHouse) {
         println("Entering EXIT DOOR PLACEMENT mode for house ${house.id}")
         isPlacingExitDoorMode = true
@@ -1405,8 +1414,17 @@ class MafiaGame : ApplicationAdapter() {
 
         interiorSystem.renderBillboards(cameraManager.camera, environment, sceneManager.activeInteriors)
 
-        // NEW: Render highlight using HighlightSystem
+        // Render highlight using HighlightSystem
         highlightSystem.render(modelBatch, cameraManager.camera, environment)
+
+        if (showInvisibleBlockOutlines) {
+            highlightSystem.renderInvisibleBlockOutlines(
+                modelBatch,
+                environment,
+                cameraManager.camera,
+                sceneManager.activeBlocks
+            )
+        }
 
         // Transition to 2D UI Rendering
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)

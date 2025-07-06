@@ -547,6 +547,8 @@ class SceneManager(
             lights = newLights,
             savedShaderEffect = template.savedShaderEffect
         )
+        interiorState.sourceTemplateId = template.id
+
         return Pair(interiorState, foundExitDoorId)
     }
 
@@ -775,6 +777,11 @@ class SceneManager(
         faceCullingSystem.recalculateAllFaces(blocks)
     }
 
+    fun getCurrentInteriorState(): InteriorState? {
+        val id = currentInteriorId ?: return null
+        return interiorStates[id]
+    }
+
     private fun clearActiveScene() {
         activeBlocks.clear()
         activeObjects.clear()
@@ -813,7 +820,8 @@ data class InteriorState(
     var isTimeFixed: Boolean = false,
     var fixedTimeProgress: Float = 0.5f,
     val lights: MutableMap<Int, LightSource> = mutableMapOf(),
-    var savedShaderEffect: ShaderEffect = ShaderEffect.NONE
+    var savedShaderEffect: ShaderEffect = ShaderEffect.NONE,
+    var sourceTemplateId: String? = null
 )
 
 data class InteriorLayout(

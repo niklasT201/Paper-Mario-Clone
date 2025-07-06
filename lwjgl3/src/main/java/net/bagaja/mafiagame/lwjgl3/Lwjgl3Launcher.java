@@ -51,7 +51,7 @@ public class Lwjgl3Launcher {
 
 // working collisions for ramp, pillar and corner
 // improving npc and enemy placing
-// save or save as new
+// improve performance for rooms
 // map saving
 // dialog system
 // mission starting, saving and ending

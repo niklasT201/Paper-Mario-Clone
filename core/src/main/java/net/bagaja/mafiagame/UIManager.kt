@@ -1193,17 +1193,27 @@ class UIManager(
             return
         }
 
-        val dialog = Dialog("Save Room As Template", skin, "dialog")
-        dialog.text("Enter a name and configure room options.")
+        // Get the current interior state to see if it was loaded from a template
+        val currentInteriorState = sceneManager.getCurrentInteriorState()
+        val sourceTemplateId = currentInteriorState?.sourceTemplateId
+        val sourceTemplate = sourceTemplateId?.let { roomTemplateManager.getTemplate(it) }
 
-        // --- Room Name ---
-        val nameField = TextField("", skin)
-        nameField.messageText = "Optional: Room Name"
-        dialog.contentTable.row()
-        dialog.contentTable.add(nameField).width(300f).pad(10f)
+        val dialogTitle = if (sourceTemplate != null) "Save Room" else "Save Room As Template"
+        val dialog = Dialog(dialogTitle, skin, "dialog")
+        dialog.text("Configure room options and choose a save method.").padBottom(10f)
 
         // UI Elements for Time Settings ---
         val contentTable = dialog.contentTable
+        contentTable.row()
+
+        // --- Common UI Elements ---
+        val nameField = TextField("", skin).apply {
+            messageText = "Template Name"
+            // Pre-fill name field with the original name for convenience when using "Save As New"
+            text = sourceTemplate?.name ?: ""
+        }
+        contentTable.add(Label("Name:", skin)).padRight(10f)
+        contentTable.add(nameField).width(300f).row()
 
         val shaderLabel = Label("Room Shader:", skin)
         val shaderOptions = ShaderEffect.entries.toTypedArray()
@@ -1213,39 +1223,28 @@ class UIManager(
         val shaderTable = Table()
         shaderTable.add(shaderLabel).padRight(10f)
         shaderTable.add(shaderSelectBox).growX()
-
-        contentTable.row()
-        contentTable.add(shaderTable).fillX().padTop(10f).padLeft(10f).padRight(10f)
+        contentTable.add(shaderTable).fillX().colspan(2).padTop(10f).row()
 
         val fixTimeCheckbox = CheckBox(" Fix time in this room", skin)
-        contentTable.row()
-        contentTable.add(fixTimeCheckbox).left().padTop(10f).padLeft(10f)
+        contentTable.add(fixTimeCheckbox).left().padTop(10f).colspan(2).row()
 
         val timeSliderTable = Table()
-        timeSliderTable.isVisible = false // Hidden by default
-
         val timeLabel = Label("Time: 12:00", skin)
         val timeSlider = Slider(0f, 1f, 0.01f, false, skin)
-        timeSlider.value = 0.5f
 
-        val tempCycle = DayNightCycle()
+        val tempCycle = DayNightCycle() // Assuming you have access to this or a similar class
         fun updateTimeLabel() {
             tempCycle.setDayProgress(timeSlider.value)
             timeLabel.setText("Time: ${tempCycle.getTimeString()}")
         }
-        updateTimeLabel()
-
         timeSlider.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 updateTimeLabel()
             }
         })
-
         timeSliderTable.add(timeLabel).width(100f)
         timeSliderTable.add(timeSlider).growX()
-
-        contentTable.row()
-        contentTable.add(timeSliderTable).fillX().padTop(5f).padLeft(10f).padRight(10f)
+        contentTable.add(timeSliderTable).fillX().padTop(5f).colspan(2).row()
 
         fixTimeCheckbox.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
@@ -1254,45 +1253,84 @@ class UIManager(
             }
         })
 
+        // Pre-fill dialog with values from the source template if it exists
+        if (sourceTemplate != null) {
+            fixTimeCheckbox.isChecked = sourceTemplate.isTimeFixed
+            timeSlider.value = sourceTemplate.fixedTimeProgress
+            shaderSelectBox.selected = sourceTemplate.savedShaderEffect.displayName
+        } else if (currentInteriorState != null) { // Or from the live interior state if it's a new room
+            fixTimeCheckbox.isChecked = currentInteriorState.isTimeFixed
+            timeSlider.value = currentInteriorState.fixedTimeProgress
+            shaderSelectBox.selected = currentInteriorState.savedShaderEffect.displayName
+        }
+        timeSliderTable.isVisible = fixTimeCheckbox.isChecked
+        updateTimeLabel()
+
+
         // --- Button Logic ---
-        val saveButton = TextButton("Save", skin)
-        saveButton.addListener(object : ClickListener() {
-            override fun clicked(event: InputEvent?, x: Float, y: Float) {
-                val inputName = nameField.text.trim()
-                val timestamp = System.currentTimeMillis()
-                val templateId = "user_room_$timestamp"
+        // This is the common save logic used by all save buttons
+        fun performSave(id: String, name: String) {
+            val isTimeFixed = fixTimeCheckbox.isChecked
+            val fixedTimeProgress = timeSlider.value
+            val selectedShaderName = shaderSelectBox.selected
+            val selectedShader = ShaderEffect.entries.find { it.displayName == selectedShaderName } ?: ShaderEffect.NONE
 
-                // Use the input name if provided, otherwise create a default one
-                val templateName = if (inputName.isNotBlank()) inputName else "Room - ${templateId.takeLast(6)}"
+            val success = sceneManager.saveCurrentInteriorAsTemplate(
+                id, name, "user_created", isTimeFixed, fixedTimeProgress, selectedShader
+            )
 
-                // Get values from the new UI elements
-                val isTimeFixed = fixTimeCheckbox.isChecked
-                val fixedTimeProgress = timeSlider.value
-
-                val selectedShaderName = shaderSelectBox.selected
-                val selectedShader = ShaderEffect.entries.find { it.displayName == selectedShaderName } ?: ShaderEffect.NONE
-
-                // Use the SceneManager to save the template with the new parameters
-                val success = sceneManager.saveCurrentInteriorAsTemplate(
-                    templateId, templateName, "user_created",
-                    isTimeFixed,
-                    fixedTimeProgress,
-                    selectedShader
-                )
-
-                if (success) {
-                    updatePlacementInfo("Room saved as '$templateName'")
-                    // This is crucial: Refresh the house UI to show the new room in the list
-                    houseSelectionUI.refreshRoomList()
-                } else {
-                    updatePlacementInfo("Failed to save room template.")
-                }
-                dialog.hide()
+            if (success) {
+                updatePlacementInfo("Room saved as '$name'")
+                houseSelectionUI.refreshRoomList() // Crucial to see the new/updated room
+            } else {
+                updatePlacementInfo("Failed to save room template.")
             }
-        })
+            dialog.hide()
+        }
 
-        dialog.buttonTable.padTop(10f).add(saveButton).width(100f).padRight(10f)
-        dialog.button("Cancel", false)
+        // --- Conditional Button Setup ---
+        if (sourceTemplate != null) {
+            // This room was loaded from a template. Offer "Overwrite" and "Save As New".
+            val overwriteButton = TextButton("Overwrite", skin)
+            overwriteButton.addListener(object : ClickListener() {
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                    // For overwrite, we use the original template's ID and name.
+                    performSave(sourceTemplate.id, sourceTemplate.name)
+                }
+            })
+            dialog.button(overwriteButton)
+
+            val saveAsNewButton = TextButton("Save As New", skin)
+            saveAsNewButton.addListener(object : ClickListener() {
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                    val newName = nameField.text.trim()
+                    if (newName.isBlank() || newName.equals(sourceTemplate.name, ignoreCase = true)) {
+                        updatePlacementInfo("To save a new copy, please enter a different name.")
+                        nameField.color = Color.RED
+                        return
+                    }
+                    nameField.color = Color.WHITE
+                    val newId = "user_room_${System.currentTimeMillis()}"
+                    performSave(newId, newName)
+                }
+            })
+            dialog.button(saveAsNewButton)
+
+        } else {
+            // This is a new room. Only "Save" (as new) is possible.
+            val saveButton = TextButton("Save", skin)
+            saveButton.addListener(object : ClickListener() {
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                    val name = nameField.text.trim().ifBlank { "Room - ${System.currentTimeMillis().toString().takeLast(6)}" }
+                    val newId = "user_room_${System.currentTimeMillis()}"
+                    performSave(newId, name)
+                }
+            })
+            dialog.button(saveButton)
+        }
+
+        dialog.button("Cancel", false) // LibGDX built-in cancel button
+        dialog.key(com.badlogic.gdx.Input.Keys.ESCAPE, false) // Close on escape
         dialog.show(stage)
     }
 
