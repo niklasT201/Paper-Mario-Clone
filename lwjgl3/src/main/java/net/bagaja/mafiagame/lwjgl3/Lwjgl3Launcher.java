@@ -59,7 +59,6 @@ public class Lwjgl3Launcher {
 // add pillars
 // separate lady and microphone
 // vertical slab
-// add invisible block
 // umhang no coliisions
 // option for choosing door enter
 // fix car and player falling bug

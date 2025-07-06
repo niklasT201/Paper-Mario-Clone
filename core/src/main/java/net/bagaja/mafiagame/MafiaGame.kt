@@ -587,6 +587,9 @@ class MafiaGame : ApplicationAdapter() {
         var highestBlockY = 0f // Ground level
 
         for (gameBlock in sceneManager.activeBlocks) {
+            // Ignore blocks that don't have collision for height calculation
+            if (!gameBlock.blockType.hasCollision) continue
+
             val blockCenterX = gameBlock.position.x
             val blockCenterZ = gameBlock.position.z
 
@@ -1342,6 +1345,9 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render all blocks
         for (gameBlock in sceneManager.activeBlocks) {
+            if (!gameBlock.blockType.isVisible) {
+                continue
+            }
             if (gameBlock.shape == BlockShape.FULL_BLOCK) {
                 // Render a standard block using face culling
                 gameBlock.faceInstances?.let { faces ->

@@ -149,6 +149,8 @@ data class GameBlock(
     }
 
     fun isFaceSolid(worldFace: BlockFace): Boolean {
+        if (!this.blockType.isVisible) return false
+
         val localFace = getLocalFace(worldFace, this.rotationY)
 
         return when (this.shape) {
@@ -205,8 +207,12 @@ enum class BlockType(
     val displayName: String,
     val texturePath: String,
     val height: Float = 1.0f,
-    val category: BlockCategory
+    val category: BlockCategory,
+    val hasCollision: Boolean = true,
+    val isVisible: Boolean = true
 ) {
+    INVISIBLE("Invisible", "textures/objects/debug_invisible.png", 1.0f, BlockCategory.WALLS, hasCollision = true, isVisible = false),
+
     // NATURAL
     GRASS("Grass", "textures/objects/grass.png", 1.0f, BlockCategory.NATURAL),
     DIRTY_GROUND("Dirty Ground", "textures/objects/dirty_ground.png", 1.0f, BlockCategory.NATURAL),

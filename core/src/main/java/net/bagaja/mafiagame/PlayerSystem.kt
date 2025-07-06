@@ -142,6 +142,9 @@ class PlayerSystem {
         )
 
         for (gameBlock in gameBlocks) {
+            if (!gameBlock.blockType.hasCollision) {
+                continue
+            }
             // We pass the *potential* future player bounds to the block's collision method.
             if (gameBlock.collidesWith(tempPlayerBounds)) {
                 // Check if player is just standing on top. This is a simple check that can be improved.
@@ -263,6 +266,9 @@ class PlayerSystem {
 
         // Check blocks - allow standing on any block at this position
         for (gameBlock in gameBlocks) {
+            if (!gameBlock.blockType.hasCollision) {
+                continue
+            }
             val blockCenterX = gameBlock.position.x
             val blockCenterZ = gameBlock.position.z
             val blockHalfSize = blockSize / 2f
@@ -426,6 +432,9 @@ class PlayerSystem {
 
         // Check collision with blocks - BUT allow driving ON TOP of blocks
         for (block in gameBlocks) {
+            if (!block.blockType.hasCollision) {
+                continue
+            }
             // We need the block's standard bounding box, not a hypothetical one.
             val blockBounds = block.getBoundingBox(blockSize, tempBlockBounds)
 
@@ -549,6 +558,9 @@ class PlayerSystem {
             var highestBlockY = 0f // Ground level
 
             for (gameBlock in gameBlocks) {
+                if (!gameBlock.blockType.hasCollision) {
+                    continue
+                }
                 val blockCenterX = gameBlock.position.x
                 val blockCenterZ = gameBlock.position.z
 

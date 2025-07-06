@@ -92,6 +92,9 @@ class SceneManager(
 
         // Check against all active blocks
         for (block in activeBlocks) {
+            if (!block.blockType.hasCollision) {
+                continue
+            }
             val blockBounds = block.getBoundingBox(blockSize, tempBlockBounds)
             // Check for horizontal overlap
             val horizontalOverlap = (x + checkRadius > blockBounds.min.x && x - checkRadius < blockBounds.max.x) &&
@@ -163,6 +166,9 @@ class SceneManager(
 
         // Check against all active blocks
         for (block in activeBlocks) {
+            if (!block.blockType.hasCollision) {
+                continue
+            }
             val blockBounds = block.getBoundingBox(blockSize, tempBlockBounds)
             val horizontalOverlap = (x + checkRadius > blockBounds.min.x && x - checkRadius < blockBounds.max.x) &&
                 (z + checkRadius > blockBounds.min.z && z - checkRadius < blockBounds.max.z)
