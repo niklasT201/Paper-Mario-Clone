@@ -614,6 +614,30 @@ class MafiaGame : ApplicationAdapter() {
         return highestBlockY + objectHeight
     }
 
+    private fun findHighestSurfaceYAt(x: Float, z: Float): Float {
+        var highestY = 0f // Default to ground level
+        val tempBounds = BoundingBox() // Re-use this to avoid creating new objects in the loop
+
+        for (gameBlock in sceneManager.activeBlocks) {
+            // Skip blocks that don't have collision
+            if (!gameBlock.blockType.hasCollision) continue
+
+            // Get the world-space bounding box for the block
+            val blockBounds = gameBlock.getBoundingBox(blockSize, tempBounds)
+
+            // Check if the given (x, z) point is within the block's footprint
+            if (x >= blockBounds.min.x && x <= blockBounds.max.x &&
+                z >= blockBounds.min.z && z <= blockBounds.max.z) {
+
+                // If it is, check if this block's top surface is the highest we've found so far
+                if (blockBounds.max.y > highestY) {
+                    highestY = blockBounds.max.y
+                }
+            }
+        }
+        return highestY
+    }
+
     private fun placeBlock(ray: Ray) {
         val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeBlocks)
 
@@ -1214,10 +1238,11 @@ class MafiaGame : ApplicationAdapter() {
         val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            val properY = calculateObjectYPosition(intersection.x, intersection.z, 0f)
-            // Position the enemy so its feet are on the ground
+            val surfaceY = findHighestSurfaceYAt(intersection.x, intersection.z)
+
+            // Position the enemy so its feet are on the surface
             val enemyType = enemySystem.currentSelectedEnemyType
-            val enemyPosition = Vector3(intersection.x, properY + enemyType.height / 2f, intersection.z)
+            val enemyPosition = Vector3(intersection.x, surfaceY + enemyType.height / 2f, intersection.z)
 
             val newEnemy = enemySystem.createEnemy(
                 enemyPosition,
@@ -1228,7 +1253,7 @@ class MafiaGame : ApplicationAdapter() {
             if (newEnemy != null) {
                 sceneManager.activeEnemies.add(newEnemy)
                 lastPlacedInstance = newEnemy // For fine positioning
-                println("Placed ${newEnemy.enemyType.displayName} with ${newEnemy.behaviorType.displayName} behavior.")
+                println("Placed ${newEnemy.enemyType.displayName} with ${newEnemy.behaviorType.displayName} behavior at $enemyPosition")
             }
         }
     }
@@ -1243,9 +1268,11 @@ class MafiaGame : ApplicationAdapter() {
         val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            val properY = calculateObjectYPosition(intersection.x, intersection.z, 0f)
+            val surfaceY = findHighestSurfaceYAt(intersection.x, intersection.z)
+
+            // Position the NPC so its feet are on the surface.
             val npcType = npcSystem.currentSelectedNPCType
-            val npcPosition = Vector3(intersection.x, properY + npcType.height / 2f, intersection.z)
+            val npcPosition = Vector3(intersection.x, surfaceY + npcType.height / 2f, intersection.z)
 
             val newNPC = npcSystem.createNPC(
                 npcPosition,
@@ -1256,7 +1283,7 @@ class MafiaGame : ApplicationAdapter() {
             if (newNPC != null) {
                 sceneManager.activeNPCs.add(newNPC)
                 lastPlacedInstance = newNPC
-                println("Placed ${newNPC.npcType.displayName} with ${newNPC.behaviorType.displayName} behavior.")
+                println("Placed ${newNPC.npcType.displayName} with ${newNPC.behaviorType.displayName} behavior at $npcPosition")
             }
         }
     }
