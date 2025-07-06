@@ -313,7 +313,11 @@ class BlockSelectionUI(
 
     fun update() {
         // Update modifier labels every time, so they are always current
-        val rotation = blockSystem.currentBlockRotation.toInt()
+        val rotation = if (blockSystem.rotationMode == BlockRotationMode.GEOMETRY) {
+            blockSystem.currentGeometryRotation.toInt()
+        } else {
+            blockSystem.currentTextureRotation.toInt()
+        }
         rotationLabel.setText("[YELLOW]Rotation:[] $rotation° ([ORANGE]Q/E[])")
 
         // Update the rotation mode label

@@ -28,7 +28,10 @@ class BlockSystem {
         private set
     var currentSelectedShape = BlockShape.FULL_BLOCK
         private set
-    var currentBlockRotation = 0f
+    var currentGeometryRotation = 0f
+        private set
+    var currentTextureRotation = 0f
+        private set
     var rotationMode = BlockRotationMode.GEOMETRY
         private set
 
@@ -397,8 +400,26 @@ class BlockSystem {
         }
     }
 
-    fun rotateCurrentBlock() { currentBlockRotation = (currentBlockRotation + 90f) % 360f }
-    fun rotateCurrentBlockReverse() { currentBlockRotation = (currentBlockRotation - 90f + 360f) % 360f }
+    fun rotateCurrentBlock() {
+        if (rotationMode == BlockRotationMode.GEOMETRY) {
+            currentGeometryRotation = (currentGeometryRotation + 90f) % 360f
+        } else {
+            val supportedShapes = listOf(BlockShape.FULL_BLOCK, BlockShape.VERTICAL_SLAB, BlockShape.CORNER_WEDGE)
+            if (currentSelectedShape in supportedShapes) {
+                currentTextureRotation = (currentTextureRotation + 90f) % 360f
+            }
+        }
+    }
+    fun rotateCurrentBlockReverse() {
+        if (rotationMode == BlockRotationMode.GEOMETRY) {
+            currentGeometryRotation = (currentGeometryRotation - 90f + 360f) % 360f
+        } else {
+            val supportedShapes = listOf(BlockShape.FULL_BLOCK, BlockShape.VERTICAL_SLAB, BlockShape.CORNER_WEDGE)
+            if (currentSelectedShape in supportedShapes) {
+                currentTextureRotation = (currentTextureRotation - 90f + 360f) % 360f
+            }
+        }
+    }
     fun nextShape() {
         val shapes = BlockShape.entries
         currentSelectedShape = shapes[(shapes.indexOf(currentSelectedShape) + 1) % shapes.size]
