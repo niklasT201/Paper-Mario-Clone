@@ -49,7 +49,7 @@ public class Lwjgl3Launcher {
 
 // room/open world transition effect being slower and smoother transition itself
 
-// working collisions for ramp and corner
+// working collisions for ramp, pillar and corner
 // improving npc and enemy placing
 // save or save as new
 // map saving

@@ -300,18 +300,23 @@ class BlockSystem {
                 val bottomVerts = topVerts.map { it.cpy().set(it.x, bottomY, it.z) }.toTypedArray()
                 val topNormal = Vector3.Y
                 val bottomNormal = Vector3.Y.cpy().scl(-1f)
-                part.triangle(part.vertex(topVerts[0], topNormal, null, Vector2(0.293f, 0f)), part.vertex(topVerts[1], topNormal, null, Vector2(0.707f, 0f)), part.vertex(topVerts[2], topNormal, null, Vector2(1f, 0.293f)))
-                part.triangle(part.vertex(topVerts[0], topNormal, null, Vector2(0.293f, 0f)), part.vertex(topVerts[2], topNormal, null, Vector2(1f, 0.293f)), part.vertex(topVerts[7], topNormal, null, Vector2(0f, 0.293f)))
-                part.triangle(part.vertex(topVerts[7], topNormal, null, Vector2(0f, 0.293f)), part.vertex(topVerts[2], topNormal, null, Vector2(1f, 0.293f)), part.vertex(topVerts[6], topNormal, null, Vector2(0f, 0.707f)))
-                part.triangle(part.vertex(topVerts[6], topNormal, null, Vector2(0f, 0.707f)), part.vertex(topVerts[2], topNormal, null, Vector2(1f, 0.293f)), part.vertex(topVerts[3], topNormal, null, Vector2(1f, 0.707f)))
-                part.triangle(part.vertex(topVerts[6], topNormal, null, Vector2(0f, 0.707f)), part.vertex(topVerts[3], topNormal, null, Vector2(1f, 0.707f)), part.vertex(topVerts[5], topNormal, null, Vector2(0.293f, 1f)))
-                part.triangle(part.vertex(topVerts[5], topNormal, null, Vector2(0.293f, 1f)), part.vertex(topVerts[3], topNormal, null, Vector2(1f, 0.707f)), part.vertex(topVerts[4], topNormal, null, Vector2(0.707f, 1f)))
+
+                // TOP FACE
+                part.triangle(part.vertex(topVerts[0], topNormal, null, Vector2(0.293f, 0f)), part.vertex(topVerts[2], topNormal, null, Vector2(1f, 0.293f)), part.vertex(topVerts[1], topNormal, null, Vector2(0.707f, 0f)))
+                part.triangle(part.vertex(topVerts[0], topNormal, null, Vector2(0.293f, 0f)), part.vertex(topVerts[7], topNormal, null, Vector2(0f, 0.293f)), part.vertex(topVerts[2], topNormal, null, Vector2(1f, 0.293f)))
+                part.triangle(part.vertex(topVerts[7], topNormal, null, Vector2(0f, 0.293f)), part.vertex(topVerts[6], topNormal, null, Vector2(0f, 0.707f)), part.vertex(topVerts[2], topNormal, null, Vector2(1f, 0.293f)))
+                part.triangle(part.vertex(topVerts[6], topNormal, null, Vector2(0f, 0.707f)), part.vertex(topVerts[3], topNormal, null, Vector2(1f, 0.707f)), part.vertex(topVerts[2], topNormal, null, Vector2(1f, 0.293f)))
+                part.triangle(part.vertex(topVerts[6], topNormal, null, Vector2(0f, 0.707f)), part.vertex(topVerts[5], topNormal, null, Vector2(0.293f, 1f)), part.vertex(topVerts[3], topNormal, null, Vector2(1f, 0.707f)))
+                part.triangle(part.vertex(topVerts[5], topNormal, null, Vector2(0.293f, 1f)), part.vertex(topVerts[4], topNormal, null, Vector2(0.707f, 1f)), part.vertex(topVerts[3], topNormal, null, Vector2(1f, 0.707f)))
+
+                // BOTTOM FACE
                 part.triangle(part.vertex(bottomVerts[0], bottomNormal, null, Vector2(0.293f, 0f)), part.vertex(bottomVerts[2], bottomNormal, null, Vector2(1f, 0.293f)), part.vertex(bottomVerts[1], bottomNormal, null, Vector2(0.707f, 0f)))
                 part.triangle(part.vertex(bottomVerts[0], bottomNormal, null, Vector2(0.293f, 0f)), part.vertex(bottomVerts[7], bottomNormal, null, Vector2(0f, 0.293f)), part.vertex(bottomVerts[2], bottomNormal, null, Vector2(1f, 0.293f)))
                 part.triangle(part.vertex(bottomVerts[7], bottomNormal, null, Vector2(0f, 0.293f)), part.vertex(bottomVerts[6], bottomNormal, null, Vector2(0f, 0.707f)), part.vertex(bottomVerts[2], bottomNormal, null, Vector2(1f, 0.293f)))
                 part.triangle(part.vertex(bottomVerts[6], bottomNormal, null, Vector2(0f, 0.707f)), part.vertex(bottomVerts[3], bottomNormal, null, Vector2(1f, 0.707f)), part.vertex(bottomVerts[2], bottomNormal, null, Vector2(1f, 0.293f)))
                 part.triangle(part.vertex(bottomVerts[6], bottomNormal, null, Vector2(0f, 0.707f)), part.vertex(bottomVerts[5], bottomNormal, null, Vector2(0.293f, 1f)), part.vertex(bottomVerts[3], bottomNormal, null, Vector2(1f, 0.707f)))
                 part.triangle(part.vertex(bottomVerts[5], bottomNormal, null, Vector2(0.293f, 1f)), part.vertex(bottomVerts[4], bottomNormal, null, Vector2(0.707f, 1f)), part.vertex(bottomVerts[3], bottomNormal, null, Vector2(1f, 0.707f)))
+
                 for (i in 0 until 8) {
                     val p1 = bottomVerts[i]
                     val p2 = bottomVerts[(i + 1) % 8]
