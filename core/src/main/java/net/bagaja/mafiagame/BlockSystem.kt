@@ -313,10 +313,16 @@ class BlockSystem {
                 part.triangle(part.vertex(bottomVerts[6], bottomNormal, null, Vector2(0f, 0.707f)), part.vertex(bottomVerts[5], bottomNormal, null, Vector2(0.293f, 1f)), part.vertex(bottomVerts[3], bottomNormal, null, Vector2(1f, 0.707f)))
                 part.triangle(part.vertex(bottomVerts[5], bottomNormal, null, Vector2(0.293f, 1f)), part.vertex(bottomVerts[4], bottomNormal, null, Vector2(0.707f, 1f)), part.vertex(bottomVerts[3], bottomNormal, null, Vector2(1f, 0.707f)))
                 for (i in 0 until 8) {
-                    val p1 = bottomVerts[i]; val p2 = bottomVerts[(i + 1) % 8]
-                    val p3 = topVerts[(i + 1) % 8]; val p4 = topVerts[i]
-                    val normal = Vector3(p3).sub(p1).crs(Vector3(p2).sub(p1)).nor()
-                    part.rect(p1, p2, p3, p4, normal)
+                    val p1 = bottomVerts[i]
+                    val p2 = bottomVerts[(i + 1) % 8]
+                    val p3 = topVerts[(i + 1) % 8]
+                    val p4 = topVerts[i]
+
+                    // Calculate the outward-facing normal properly
+                    val edge1 = Vector3(p2).sub(p1)  // Bottom edge
+                    val edge2 = Vector3(p4).sub(p1)  // Vertical edge
+                    val normal = edge1.crs(edge2).nor()
+                    part.rect(p1, p4, p3, p2, normal)
                 }
                 modelBuilder.end()
             }
