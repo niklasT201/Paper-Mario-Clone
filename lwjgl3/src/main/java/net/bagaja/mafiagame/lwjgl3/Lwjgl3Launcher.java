@@ -56,8 +56,6 @@ public class Lwjgl3Launcher {
 // dialog system
 // mission starting, saving and ending
 // particle system
-// vibrant shader being default in rooms
-// different shaders for rooms and openworld
 // add pillars
 // separate lady and microphone
 // vertical slab

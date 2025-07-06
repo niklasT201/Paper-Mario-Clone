@@ -1205,6 +1205,18 @@ class UIManager(
         // UI Elements for Time Settings ---
         val contentTable = dialog.contentTable
 
+        val shaderLabel = Label("Room Shader:", skin)
+        val shaderOptions = ShaderEffect.entries.toTypedArray()
+        val shaderSelectBox = SelectBox<String>(skin)
+        shaderSelectBox.items = com.badlogic.gdx.utils.Array(shaderOptions.map { it.displayName }.toTypedArray())
+
+        val shaderTable = Table()
+        shaderTable.add(shaderLabel).padRight(10f)
+        shaderTable.add(shaderSelectBox).growX()
+
+        contentTable.row()
+        contentTable.add(shaderTable).fillX().padTop(10f).padLeft(10f).padRight(10f)
+
         val fixTimeCheckbox = CheckBox(" Fix time in this room", skin)
         contentTable.row()
         contentTable.add(fixTimeCheckbox).left().padTop(10f).padLeft(10f)
@@ -1257,11 +1269,15 @@ class UIManager(
                 val isTimeFixed = fixTimeCheckbox.isChecked
                 val fixedTimeProgress = timeSlider.value
 
+                val selectedShaderName = shaderSelectBox.selected
+                val selectedShader = ShaderEffect.entries.find { it.displayName == selectedShaderName } ?: ShaderEffect.NONE
+
                 // Use the SceneManager to save the template with the new parameters
                 val success = sceneManager.saveCurrentInteriorAsTemplate(
                     templateId, templateName, "user_created",
-                    isTimeFixed,      // new param
-                    fixedTimeProgress // new param
+                    isTimeFixed,
+                    fixedTimeProgress,
+                    selectedShader
                 )
 
                 if (success) {

@@ -30,6 +30,7 @@ enum class ShaderEffect(val displayName: String) {
 
 class ShaderEffectManager {
     private var currentEffect = ShaderEffect.NONE
+    private var roomShaderOverride: ShaderEffect? = null
     private lateinit var frameBuffer: FrameBuffer
     private lateinit var postProcessBatch: SpriteBatch
     private lateinit var postProcessCamera: OrthographicCamera
@@ -119,7 +120,13 @@ class ShaderEffectManager {
     }
 
     private fun applyPostProcessing() {
-        val activeEffect = if (isEffectsEnabled) currentEffect else ShaderEffect.NONE
+        val activeEffect = if (currentEffect != ShaderEffect.NONE) {
+            // If the user has made a choice, it ALWAYS wins.
+            currentEffect
+        } else {
+            // Otherwise, use the room's override, or default to NONE if no override is set.
+            roomShaderOverride ?: ShaderEffect.NONE
+        }
         val shader = shaders[activeEffect] ?: return
 
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
@@ -135,6 +142,17 @@ class ShaderEffectManager {
         fullScreenQuad.render(shader, GL20.GL_TRIANGLES)
 
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
+    }
+
+    fun setRoomOverride(effect: ShaderEffect) {
+        // Only set an override if the room actually has a special shader.
+        if (effect != ShaderEffect.NONE) {
+            roomShaderOverride = effect
+        }
+    }
+
+    fun clearRoomOverride() {
+        roomShaderOverride = null
     }
 
     fun toggleEffectsEnabled() {

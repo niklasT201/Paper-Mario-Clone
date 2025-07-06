@@ -267,6 +267,8 @@ class SceneManager(
             game.lightingManager.clearTimeOverride()
         }
 
+        game.shaderEffectManager.setRoomOverride(loadedInterior.savedShaderEffect)
+
         // If we generated a new interior from a template and found an exit door
         if (foundExitDoorId != null) {
             house.exitDoorId = foundExitDoorId
@@ -297,6 +299,7 @@ class SceneManager(
         println("Transition finished. Restoring world.")
         // Always resume time progression when returning to the outside world.
         game.lightingManager.clearTimeOverride()
+        game.shaderEffectManager.clearRoomOverride()
         restoreWorldState()
 
         restoreWorldState()
@@ -535,7 +538,8 @@ class SceneManager(
             playerPosition = template.entrancePosition.cpy(),
             isTimeFixed = template.isTimeFixed,
             fixedTimeProgress = template.fixedTimeProgress,
-            lights = newLights
+            lights = newLights,
+            savedShaderEffect = template.savedShaderEffect
         )
         return Pair(interiorState, foundExitDoorId)
     }
@@ -559,7 +563,7 @@ class SceneManager(
         return newState
     }
 
-    fun saveCurrentInteriorAsTemplate(id: String, name: String, category: String, isTimeFixed: Boolean, fixedTimeProgress: Float): Boolean {
+    fun saveCurrentInteriorAsTemplate(id: String, name: String, category: String, isTimeFixed: Boolean, fixedTimeProgress: Float, shaderEffect: ShaderEffect): Boolean {
         if (currentScene != SceneType.HOUSE_INTERIOR) {
             println("Error: Must be in an interior to save it as a template.")
             return false
@@ -666,7 +670,8 @@ class SceneManager(
             category = category,
             exitDoorPosition = doorPosition,
             isTimeFixed = isTimeFixed,
-            fixedTimeProgress = fixedTimeProgress
+            fixedTimeProgress = fixedTimeProgress,
+            savedShaderEffect = shaderEffect
         )
 
         roomTemplateManager.addTemplate(newTemplate)
@@ -801,7 +806,8 @@ data class InteriorState(
     var playerPosition: Vector3,
     var isTimeFixed: Boolean = false,
     var fixedTimeProgress: Float = 0.5f,
-    val lights: MutableMap<Int, LightSource> = mutableMapOf()
+    val lights: MutableMap<Int, LightSource> = mutableMapOf(),
+    var savedShaderEffect: ShaderEffect = ShaderEffect.NONE
 )
 
 data class InteriorLayout(
