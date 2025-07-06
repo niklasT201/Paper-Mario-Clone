@@ -37,7 +37,9 @@ enum class BlockShape {
     SLAB_BOTTOM,
     SLAB_TOP,
     WEDGE,
-    CORNER_WEDGE;
+    CORNER_WEDGE,
+    VERTICAL_SLAB,
+    PILLAR;
 
     fun getDisplayName(): String {
         return this.name.replace('_', ' ').lowercase(Locale.getDefault())
@@ -155,6 +157,8 @@ data class GameBlock(
 
         return when (this.shape) {
             BlockShape.FULL_BLOCK -> true // All faces are solid
+            BlockShape.VERTICAL_SLAB -> true
+            BlockShape.PILLAR -> localFace == BlockFace.TOP || localFace == BlockFace.BOTTOM
             BlockShape.WEDGE -> {
                 localFace == BlockFace.BOTTOM || localFace == BlockFace.FRONT
             }
@@ -254,10 +258,10 @@ enum class BlockType(
     WALL_EGG_BOTTOM("Beige Wall Bottom", "textures/objects/wall_bottom.png", 1.0f, BlockCategory.WALLS),
     WALL_EGG("Beige Wall", "textures/objects/wall_eggyellow.png", 1.0f, BlockCategory.WALLS),
     STONE_WALL("Stone Wall", "textures/objects/wall_stone.png", 1.0f, BlockCategory.WALLS),
-    HANGING("Umhang", "textures/objects/hanging.png", 1.0f, BlockCategory.WALLS),
-    HANGING_MIDDLE("Umhang Mitte", "textures/objects/hanging_middle.png", 1.0f, BlockCategory.WALLS),
-    HANGING_BOTTOM("Umhang Boden", "textures/objects/hanging_bottom.png", 1.0f, BlockCategory.WALLS),
-    HANGING_BOTTOM_MIDDLE("Umhang Boden Mitte", "textures/objects/hanging_bottom_middle.png", 1.0f, BlockCategory.WALLS),
+    HANGING("Umhang", "textures/objects/hanging.png", 1.0f, BlockCategory.WALLS, hasCollision = false, isVisible = true),
+    HANGING_MIDDLE("Umhang Mitte", "textures/objects/hanging_middle.png", 1.0f, BlockCategory.WALLS, hasCollision = false, isVisible = true),
+    HANGING_BOTTOM("Umhang Boden", "textures/objects/hanging_bottom.png", 1.0f, BlockCategory.WALLS, hasCollision = false, isVisible = true),
+    HANGING_BOTTOM_MIDDLE("Umhang Boden Mitte", "textures/objects/hanging_bottom_middle.png", 1.0f, BlockCategory.WALLS, hasCollision = false, isVisible = true),
 
     // CEILINGS
     CEILING("Ceiling", "textures/objects/celiling.png", 1.0f, BlockCategory.CEILINGS),

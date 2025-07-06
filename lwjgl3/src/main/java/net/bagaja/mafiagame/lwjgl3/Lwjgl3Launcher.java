@@ -56,10 +56,7 @@ public class Lwjgl3Launcher {
 // dialog system
 // mission starting, saving and ending
 // particle system
-// add pillars
 // separate lady and microphone
-// vertical slab
-// umhang no coliisions
 // option for choosing door enter
 // fix car and player falling bug
 // showing 3dmodel collisions

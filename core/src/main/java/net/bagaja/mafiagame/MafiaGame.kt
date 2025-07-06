@@ -948,15 +948,16 @@ class MafiaGame : ApplicationAdapter() {
         }
 
         // Create the block using the new factory method
+        val textureRotationShapes = listOf(BlockShape.FULL_BLOCK, BlockShape.VERTICAL_SLAB, BlockShape.CORNER_WEDGE)
         val geometryRotation: Float
         val textureRotation: Float
 
-        if (shape == BlockShape.FULL_BLOCK && blockSystem.rotationMode == BlockRotationMode.TEXTURE_SIDES) {
+        if (shape in textureRotationShapes && blockSystem.rotationMode == BlockRotationMode.TEXTURE_SIDES) {
             geometryRotation = 0f
             textureRotation = blockSystem.currentBlockRotation
         } else {
             geometryRotation = blockSystem.currentBlockRotation
-            textureRotation = 0f // No texture rotation for geometry mode or non-full blocks
+            textureRotation = 0f // No texture rotation for geometry mode or non-supported shapes
         }
 
         // Create the block using the new, explicit factory method
