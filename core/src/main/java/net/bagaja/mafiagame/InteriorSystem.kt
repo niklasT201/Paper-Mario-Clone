@@ -54,6 +54,15 @@ enum class InteriorType(
     BOOKSHELF_3D("Bookshelf", "Models/shelf_model.png", "Models/bookshelf.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
     TABLE_3D("Table 3D", "Models/table.png", "Models/table.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
     RESTAURANT_TABLE("Dinner Table 3D", "Models/restaurant_table.png", "Models/restaurant_table.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
+    PLAYER_SPAWNPOINT(
+        "Player Spawnpoint",
+        "textures/player/pig_character.png",
+        null,
+        2f, 2f, 1f,
+        hasCollision = false,
+        category = InteriorCategory.MISC,
+        groundOffset = 0.1f
+    ),
 
     // Randomizers
     INTERIOR_RANDOMIZER("Small Item Randomizer", "", null, 1f, 1f, 1f, false, InteriorCategory.MISC, isRandomizer = true),
@@ -252,7 +261,7 @@ data class GameInterior(
     var rotation: Float = 0f,
     val scale: Vector3,
     val id: String = UUID.randomUUID().toString()
-) : OcclusionSystem.Occludable {
+) {
     // For 3D collision detection (same as GameHouse)
     private val mesh = instance.model?.meshes?.firstOrNull()
     private val vertexFloats: FloatArray?
@@ -269,10 +278,10 @@ data class GameInterior(
     private val tempCenter = Vector3()
     private val tempIntersection = Vector3()
 
-    override val modelInstance: ModelInstance
+    val modelInstance: ModelInstance
         get() = this.instance
 
-    override fun getBoundingBox(out: BoundingBox): BoundingBox {
+    fun getBoundingBox(out: BoundingBox): BoundingBox {
         // Calculate and return the world-space bounding box
         return instance.calculateBoundingBox(out)
     }

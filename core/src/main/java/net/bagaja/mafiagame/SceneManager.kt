@@ -576,8 +576,22 @@ class SceneManager(
             println("Error: Must be in an interior to save it as a template.")
             return false
         }
+        // 1. Determine the Entrance Position
+        val spawnPointObject = activeInteriors.find { it.interiorType == InteriorType.PLAYER_SPAWNPOINT }
 
-        // Find the house we are currently in to get its exit door ID
+        val entrancePosition: Vector3
+
+        if (spawnPointObject != null) {
+            // A spawn point was found! Use its position.
+            entrancePosition = spawnPointObject.position.cpy()
+            println("Found Player Spawnpoint. Using its position for template entrance: $entrancePosition")
+        } else {
+            // No spawn point found. Fall back to the player's current position.
+            entrancePosition = playerSystem.getPosition()
+            println("No Player Spawnpoint found. Using player's current position as fallback: $entrancePosition")
+        }
+
+        // 2. Determine the Exit Door Position (this logic remains the same)
         val currentHouse = getCurrentHouse()
         var doorPosition = Vector3() // Default to (0,0,0)
 
@@ -674,7 +688,7 @@ class SceneManager(
             description = "A user-created room.",
             size = Vector3(20f, 8f, 20f),
             elements = elements,
-            entrancePosition = playerSystem.getPosition(),
+            entrancePosition = entrancePosition,
             exitTriggerPosition = playerSystem.getPosition().add(0f, 0f, 1f),
             category = category,
             exitDoorPosition = doorPosition,
