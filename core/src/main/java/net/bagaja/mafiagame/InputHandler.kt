@@ -456,6 +456,12 @@ class InputHandler(
                     }
                     Input.Keys.COMMA -> { isTimeSpeedUpPressed = true; return true }
                     Input.Keys.Q -> {
+                        if (uiManager.selectedTool == Tool.NPC) {
+                            npcSystem.toggleRotation()
+                            val direction = if (npcSystem.currentRotation == 0f) "Right" else "Left"
+                            uiManager.updatePlacementInfo("NPC will face: $direction")
+                            return true
+                        }
                         // Only rotate if we're in block mode/selection
                         if (uiManager.selectedTool == Tool.BLOCK || isBlockSelectionMode) {
                             blockSystem.rotateCurrentBlock()
@@ -465,6 +471,12 @@ class InputHandler(
                         }
                     }
                     Input.Keys.E -> {
+                        if (uiManager.selectedTool == Tool.NPC) {
+                            npcSystem.toggleRotation()
+                            val direction = if (npcSystem.currentRotation == 0f) "Right" else "Left"
+                            uiManager.updatePlacementInfo("NPC will face: $direction")
+                            return true
+                        }
                         if (uiManager.selectedTool == Tool.BLOCK || isBlockSelectionMode) {
                             blockSystem.rotateCurrentBlockReverse()
                             uiManager.updateBlockSelection()

@@ -22,6 +22,7 @@ class NPCSelectionUI(
     private lateinit var selectionTable: Table
     private lateinit var npcTypeItems: MutableList<NPCSelectionItem>
     private lateinit var behaviorItems: MutableList<BehaviorSelectionItem>
+    private lateinit var rotationLabel: Label
     private val loadedTextures = mutableMapOf<String, Texture>()
 
     // Use specific data classes like in EnemySelectionUI
@@ -85,7 +86,12 @@ class NPCSelectionUI(
             behaviorContainer.add(item.container).size(90f, 60f)
         }
         mainContainer.add(behaviorContainer).padBottom(10f).row()
-        mainContainer.add(Label("Hold [U] | Mouse Wheel: Change Type | Shift+Wheel: Change Behavior", skin, "small")).row()
+
+        rotationLabel = Label("", skin, "default")
+        rotationLabel.setAlignment(Align.center)
+        mainContainer.add(rotationLabel).padTop(10f).padBottom(10f).row()
+
+        mainContainer.add(Label("Hold [U] | Mouse Wheel: Change Type | Shift+Wheel: Change Behavior | Q/E: Rotate", skin, "small")).row()
 
         selectionTable.add(mainContainer)
         stage.addActor(selectionTable)
@@ -145,6 +151,10 @@ class NPCSelectionUI(
             val isSelected = i == npcSystem.currentBehaviorIndex
             updateItemVisuals(item.container, item.nameLabel, isSelected, item.background, item.selectedBackground)
         }
+
+        // Update rotation label text
+        val direction = if (npcSystem.currentRotation == 0f) "Right" else "Left"
+        rotationLabel.setText("Initial Facing: [YELLOW]$direction[]")
     }
 
     private fun updateItemVisuals(container: Table, label: Label, isSelected: Boolean, normalBg: Drawable, selectedBg: Drawable) {

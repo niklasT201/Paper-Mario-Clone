@@ -131,6 +131,8 @@ class NPCSystem : IFinePositionable {
         private set
     var currentSelectedBehavior = NPCBehavior.STATIONARY
         private set
+    var currentRotation: Float = 0f
+        private set
     var currentNPCTypeIndex = 0
     var currentBehaviorIndex = 0
 
@@ -185,12 +187,16 @@ class NPCSystem : IFinePositionable {
         val model = npcModels[npcType] ?: return null
         val instance = ModelInstance(model)
         instance.userData = "npc"
-        return GameNPC(
+
+        val newNpc = GameNPC(
             modelInstance = instance,
             npcType = npcType,
             behaviorType = behavior,
             position = position.cpy()
         )
+        // Set the initial facing direction from our system's state
+        newNpc.facingRotationY = currentRotation
+        return newNpc
     }
 
     fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float) {
@@ -199,7 +205,7 @@ class NPCSystem : IFinePositionable {
         val playerPos = playerSystem.getPosition()
 
         for (npc in sceneManager.activeNPCs) {
-            // --- ACTIVATION CHECK ---
+            // ACTIVATION CHECK
             val distanceToPlayer = npc.position.dst(playerPos)
             if (distanceToPlayer > activationRange) {
                 // This NPC is too far away to matter
@@ -207,7 +213,7 @@ class NPCSystem : IFinePositionable {
                     npc.currentState = NPCState.IDLE
                     npc.targetPosition = null
                 }
-                continue // <<< Skip to the next NPC in the loop
+                continue
             }
 
             if (!finePosMode) {
@@ -216,24 +222,34 @@ class NPCSystem : IFinePositionable {
             npc.decayProvocation(deltaTime)
             updateAI(npc, playerPos, deltaTime, sceneManager)
 
-            val targetForFacing = if (npc.currentState == NPCState.PROVOKED || npc.currentState == NPCState.FOLLOWING || npc.behaviorType == NPCBehavior.GUARD || npc.behaviorType == NPCBehavior.WATCHER) {
-                playerPos
-            } else {
-                npc.targetPosition
-            }
+            val shouldAutoRotate = npc.behaviorType != NPCBehavior.STATIONARY || npc.currentState == NPCState.PROVOKED
 
-            if (targetForFacing != null) {
-                if (targetForFacing.x > npc.position.x) npc.facingRotationY = 0f
-                else npc.facingRotationY = 180f
+            if (shouldAutoRotate) {
+                val targetForFacing = when {
+                    npc.currentState == NPCState.PROVOKED -> playerPos
+                    npc.behaviorType == NPCBehavior.GUARD -> playerPos
+                    npc.behaviorType == NPCBehavior.WATCHER -> playerPos
+                    npc.currentState == NPCState.FOLLOWING -> playerPos
+                    else -> npc.targetPosition
+                }
+
+                if (targetForFacing != null) {
+                    // This logic now only applies to non-stationary NPCs
+                    if (targetForFacing.x > npc.position.x) npc.facingRotationY = 0f // Face right
+                    else npc.facingRotationY = 180f // Face left
+                }
             }
 
             npc.updateVisuals()
         }
     }
 
+    fun toggleRotation() {
+        currentRotation = if (currentRotation == 0f) 180f else 0f
+    }
+
     private fun updateAI(npc: GameNPC, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {
-        // --- Hostility Overrides ---
-        // This state is the highest priority. If the NPC is angry, it will chase the player.
+        // Hostility Overrides
         if (npc.currentState == NPCState.PROVOKED) {
             npc.stateTimer += deltaTime
             if (npc.stateTimer > hostileCooldownTime || npc.position.dst(playerPos) > provokedChaseDistance) {
@@ -258,7 +274,7 @@ class NPCSystem : IFinePositionable {
             return // Skip normal behaviors
         }
 
-        // --- Standard Behaviors ---
+        // Standard Behaviors
         when (npc.behaviorType) {
             NPCBehavior.STATIONARY -> npc.currentState = NPCState.IDLE
             NPCBehavior.WATCHER -> npc.currentState = NPCState.IDLE

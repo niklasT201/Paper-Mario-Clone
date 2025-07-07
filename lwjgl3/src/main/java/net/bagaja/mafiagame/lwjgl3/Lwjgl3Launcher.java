@@ -56,6 +56,7 @@ public class Lwjgl3Launcher {
 // mission starting, saving and ending
 // particle system
 // separate lady and microphone
+// player spawn be also placeable
 // option for choosing door enter
 // fix car and player falling bug
 // showing 3dmodel collisions
