@@ -54,6 +54,8 @@ public class Lwjgl3Launcher {
 // map saving
 // dialog system
 // mission starting, saving and ending
+// enemies work in rooms
+// player facing north side, then block gets transparent
 // particle system
 // separate lady and microphone
 // player spawn be also placeable

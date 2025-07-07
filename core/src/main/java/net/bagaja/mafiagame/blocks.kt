@@ -214,8 +214,6 @@ enum class BlockType(
     val hasCollision: Boolean = true,
     val isVisible: Boolean = true
 ) {
-    INVISIBLE("Invisible", "textures/objects/debug_invisible.png", 1.0f, BlockCategory.WALLS, hasCollision = true, isVisible = false),
-
     // NATURAL
     GRASS("Grass", "textures/objects/grass.png", 1.0f, BlockCategory.NATURAL),
     DIRTY_GROUND("Dirty Ground", "textures/objects/dirty_ground.png", 1.0f, BlockCategory.NATURAL),
@@ -238,6 +236,7 @@ enum class BlockType(
     FLIESSEN("Fliessen", "textures/objects/fliessen.png", 1.0f, BlockCategory.FLOORS),
 
     // WALLS
+    INVISIBLE("Invisible", "textures/objects/debug_invisible.png", 1.0f, BlockCategory.WALLS, hasCollision = true, isVisible = false),
     BRICK_WALL("Brick Wall", "textures/objects/wall_brick.png", 1.0f, BlockCategory.WALLS),
     BRICK_WALL_PNG("Brick Wall Alt", "textures/objects/brick_wall.png", 1.0f, BlockCategory.WALLS),
     BROWN_BRICK_WALL("Brown Brick Wall", "textures/objects/brown_brick_wall.png", 1.0f, BlockCategory.WALLS),

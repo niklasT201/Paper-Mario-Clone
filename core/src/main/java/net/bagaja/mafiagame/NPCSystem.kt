@@ -186,7 +186,7 @@ class NPCSystem : IFinePositionable {
     fun createNPC(position: Vector3, npcType: NPCType, behavior: NPCBehavior): GameNPC? {
         val model = npcModels[npcType] ?: return null
         val instance = ModelInstance(model)
-        instance.userData = "npc"
+        instance.userData = "player"
 
         val newNpc = GameNPC(
             modelInstance = instance,
@@ -373,6 +373,7 @@ class NPCSystem : IFinePositionable {
 
     fun renderNPCs(camera: Camera, environment: Environment, npcs: Array<GameNPC>) {
         billboardShaderProvider.setEnvironment(environment)
+
         billboardModelBatch.begin(camera)
         for (npc in npcs) {
             billboardModelBatch.render(npc.modelInstance, environment)
