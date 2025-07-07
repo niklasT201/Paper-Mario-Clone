@@ -421,13 +421,13 @@ class SceneManager(
             when (element.elementType) {
                 RoomElementType.BLOCK -> {
                     element.blockType?.let { blockType ->
-                        // Use createFaceInstances and the new GameBlock constructor
                         val gameBlock = blockSystem.createGameBlock(
                             type = blockType,
                             shape = element.shape ?: BlockShape.FULL_BLOCK, // Use saved shape or default to full block
                             position = element.position.cpy(),
                             geometryRotation = element.rotation,
-                            textureRotation = element.textureRotation
+                            textureRotation = element.textureRotation,
+                            topTextureRotation = element.topTextureRotation
                         )
                         newBlocks.add(gameBlock)
                     }
@@ -602,7 +602,8 @@ class SceneManager(
                 blockType = block.blockType,
                 shape = block.shape,
                 rotation = block.rotationY,
-                textureRotation = block.textureRotationY
+                textureRotation = block.textureRotationY,
+                topTextureRotation = block.topTextureRotationY
             ))
         }
 
@@ -710,14 +711,14 @@ class SceneManager(
         template.elements.forEach { element ->
             when (element.elementType) {
                 RoomElementType.BLOCK -> {
-                    // REVISED: Use createFaceInstances and the new GameBlock constructor
                     element.blockType?.let { blockType ->
                         val gameBlock = blockSystem.createGameBlock(
                             type = blockType,
                             shape = element.shape ?: BlockShape.FULL_BLOCK,
                             position = element.position.cpy(),
                             geometryRotation = element.rotation,
-                            textureRotation = element.textureRotation
+                            textureRotation = element.textureRotation,
+                            topTextureRotation = element.topTextureRotation
                         )
                         activeBlocks.add(gameBlock)
                     }

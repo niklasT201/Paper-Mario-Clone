@@ -313,10 +313,10 @@ class BlockSelectionUI(
 
     fun update() {
         // Update modifier labels every time, so they are always current
-        val rotation = if (blockSystem.rotationMode == BlockRotationMode.GEOMETRY) {
-            blockSystem.currentGeometryRotation.toInt()
-        } else {
-            blockSystem.currentTextureRotation.toInt()
+        val rotation = when (blockSystem.rotationMode) {
+            BlockRotationMode.GEOMETRY -> blockSystem.currentGeometryRotation.toInt()
+            BlockRotationMode.TEXTURE_SIDES -> blockSystem.currentTextureRotation.toInt()
+            BlockRotationMode.TEXTURE_TOP -> blockSystem.currentTopTextureRotation.toInt()
         }
         rotationLabel.setText("[YELLOW]Rotation:[] $rotation° ([ORANGE]Q/E[])")
 
@@ -327,7 +327,7 @@ class BlockSelectionUI(
         val shapeName = blockSystem.currentSelectedShape.getDisplayName()
         shapeLabel.setText("[YELLOW]Shape:[] $shapeName ([ORANGE]T[])")
 
-        // The rest of the logic handles the scrolling and item selection
+        // Scrolling and item selection
         val currentIndex = blockSystem.currentSelectedBlockIndex
         val allBlockTypes = BlockType.entries.toTypedArray()
         val selectedBlockType = allBlockTypes[currentIndex]

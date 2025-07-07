@@ -977,6 +977,7 @@ class MafiaGame : ApplicationAdapter() {
         // Create the block using the new factory method
         val geometryRotation = blockSystem.currentGeometryRotation
         val textureRotation = blockSystem.currentTextureRotation
+        val topTextureRotation = blockSystem.currentTopTextureRotation
 
         // Create the block using the new, explicit factory method
         val gameBlock = blockSystem.createGameBlock(
@@ -984,7 +985,8 @@ class MafiaGame : ApplicationAdapter() {
             shape = shape,
             position = position,
             geometryRotation = geometryRotation,
-            textureRotation = textureRotation
+            textureRotation = textureRotation,
+            topTextureRotation = topTextureRotation
         )
         collection.add(gameBlock)
 
