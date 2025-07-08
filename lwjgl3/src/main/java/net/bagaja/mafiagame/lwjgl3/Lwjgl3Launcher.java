@@ -82,3 +82,5 @@ public class Lwjgl3Launcher {
 
 // fbx-conv house.obj house.g3dj
 // fbx-conv -f house.obj house.g3dj
+
+//  as you see hopefully, when i place a house, the game calculates where the door entry should be. that is fine for most houses, but it can also be that it doesnt fit and so the door entry is not right. so i would like to know if its possible to like for the player point, also having the option to place a door point, so not a visible door, only a point, that i have to place if i want after placing the house with its room. if i dont want, i can simply press esc and then the house will calculate the door entry like currently, otherwise it waits unly i placed the door entry and then connects this point with the room, so when i press e at this position, i get into this house, and when im in the room, and leave it, i get spawned back at this door point. is it possible to add this?
