@@ -19,6 +19,7 @@ data class RoomElement(
     val enemyBehavior: EnemyBehavior? = null,
     val npcType: NPCType? = null,
     val npcBehavior: NPCBehavior? = null,
+    val npcRotation: Float = 0f,
     val rotation: Float = 0f,
     val textureRotation: Float = 0f,
     val topTextureRotation: Float = 0f, // ADDED

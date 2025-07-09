@@ -192,7 +192,7 @@ class NPCSystem : IFinePositionable {
         }
     }
 
-    fun createNPC(position: Vector3, npcType: NPCType, behavior: NPCBehavior): GameNPC? {
+    fun createNPC(position: Vector3, npcType: NPCType, behavior: NPCBehavior, initialRotation: Float = 0f): GameNPC? {
         val model = npcModels[npcType] ?: return null
         val instance = ModelInstance(model)
         instance.userData = "player"
@@ -203,8 +203,13 @@ class NPCSystem : IFinePositionable {
             behaviorType = behavior,
             position = position.cpy()
         )
-        // Set the initial facing direction from our system's state
-        newNpc.facingRotationY = currentRotation
+
+        // If an initial rotation is provided
+        newNpc.facingRotationY = if (initialRotation != 0f) initialRotation else this.currentRotation
+
+        // Immediately update the model's transform
+        newNpc.updateVisuals()
+
         return newNpc
     }
 

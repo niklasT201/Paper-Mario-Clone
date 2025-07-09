@@ -585,7 +585,7 @@ class SceneManager(
                 }
                 RoomElementType.NPC -> {
                     if (element.npcType != null && element.npcBehavior != null) {
-                        npcSystem.createNPC(element.position.cpy(), element.npcType, element.npcBehavior)?.let { gameNPC ->
+                        npcSystem.createNPC(element.position.cpy(), element.npcType, element.npcBehavior, element.npcRotation)?.let { gameNPC ->
                             newNPCs.add(gameNPC)
                         }
                     }
@@ -745,7 +745,8 @@ class SceneManager(
                 position = npc.position.cpy(),
                 elementType = RoomElementType.NPC,
                 npcType = npc.npcType,
-                npcBehavior = npc.behaviorType
+                npcBehavior = npc.behaviorType,
+                npcRotation = npc.facingRotationY
             ))
         }
 
@@ -849,7 +850,7 @@ class SceneManager(
                 }
                 RoomElementType.NPC -> {
                     if (element.npcType != null && element.npcBehavior != null) {
-                        npcSystem.createNPC(element.position.cpy(), element.npcType, element.npcBehavior)?.let { gameNPC ->
+                        npcSystem.createNPC(element.position.cpy(), element.npcType, element.npcBehavior, element.npcRotation)?.let { gameNPC ->
                             activeNPCs.add(gameNPC)
                         }
                     }
