@@ -47,6 +47,7 @@ public class Lwjgl3Launcher {
 // industrial assets
 // more animations adding
 
+// occulision optional
 // room/open world transition effect being slower and smoother transition itself
 
 // way for better room building
@@ -62,7 +63,6 @@ public class Lwjgl3Launcher {
 // separate lady and microphone
 // option for choosing door enter
 // fix car and player falling bug
-// showing 3dmodel collisions
 // blood system
 // black bars top/bottom or left/right
 // flickering light source
