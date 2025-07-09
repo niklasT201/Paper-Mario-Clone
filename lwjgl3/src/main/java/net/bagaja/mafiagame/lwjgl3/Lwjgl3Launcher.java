@@ -57,7 +57,7 @@ public class Lwjgl3Launcher {
 // maybe removing player spawnpoint preview
 // mission starting, saving and ending
 // enemies work in rooms
-// player facing north side, then block gets transparent
+// player movement improvement
 // particle system
 // separate lady and microphone
 // option for choosing door enter

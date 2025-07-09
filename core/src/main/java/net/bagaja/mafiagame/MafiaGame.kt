@@ -41,6 +41,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var highlightSystem: HighlightSystem
 
     private lateinit var faceCullingSystem: FaceCullingSystem
+    private lateinit var occlusionSystem: OcclusionSystem
 
     // Transition System
     private lateinit var transitionSystem: TransitionSystem
@@ -68,6 +69,7 @@ class MafiaGame : ApplicationAdapter() {
         setupGraphics()
         setupBlockSystem()
         faceCullingSystem = FaceCullingSystem(blockSize)
+        occlusionSystem = OcclusionSystem(blockSize)
         setupObjectSystem()
         setupItemSystem()
         setupCarSystem()
@@ -1357,6 +1359,7 @@ class MafiaGame : ApplicationAdapter() {
         //println("MafiaGame.render: Passing environment to provider, hash: ${environment.hashCode()}")
 
         parallaxBackgroundSystem.update(cameraManager.camera.position)
+        occlusionSystem.update(cameraManager.camera, playerSystem.getPosition(), sceneManager.activeBlocks)
 
         val environment = lightingManager.getEnvironment()
 
