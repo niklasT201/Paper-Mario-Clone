@@ -35,19 +35,19 @@ enum class InteriorType(
     val defaultScale: Vector3 = Vector3(2f, 2f, 2f)
 ) {
     // 2D Billboard objects
-    BAR("Bar", "textures/interior/bar.png", null, 2f, 1.5f, 1f, true, InteriorCategory.FURNITURE, 1f),
-    BARREL("Barrel", "textures/interior/barrel.png", null, 1f, 1.5f, 1f, true, InteriorCategory.FURNITURE, 1f),
+    BAR("Bar", "textures/interior/bar.png", null, 2f, 1.5f, 0.5f, true, InteriorCategory.FURNITURE, 1f),
+    BARREL("Barrel", "textures/interior/barrel.png", null, 1f, 1.5f, 0.5f, true, InteriorCategory.FURNITURE, 1f),
     BOARD("Board", "textures/interior/board.png", null, 2f, 1.5f, 0.1f, false, InteriorCategory.DECORATION, 1f),
     BROKEN_LAMP("Broken Lamp", "textures/interior/broken_lamp.png", null, 0.8f, 2f, 0.8f, false, InteriorCategory.LIGHTING, 1f),
-    CHAIR("Chair", "textures/interior/chair.png", null, 1f, 2f, 1f, true, InteriorCategory.FURNITURE, 1f),
-    DESK_LAMP("Desk Lamp", "textures/interior/desk_lamp.png", null, 0.6f, 1f, 0.6f, false, InteriorCategory.LIGHTING, 1f),
-    HANDLANTERN("Hand Lantern", "textures/interior/handlantern.png", null, 0.5f, 1f, 0.5f, false, InteriorCategory.LIGHTING, 1f),
+    CHAIR("Chair", "textures/interior/chair.png", null, 1f, 2f, 0.5f, true, InteriorCategory.FURNITURE, 1f),
+    DESK_LAMP("Desk Lamp", "textures/interior/desk_lamp.png", null, 0.6f, 1f, 0.4f, false, InteriorCategory.LIGHTING, 1f),
+    HANDLANTERN("Hand Lantern", "textures/interior/handlantern.png", null, 0.5f, 1f, 0.4f, false, InteriorCategory.LIGHTING, 1f),
     ITEM_FRAME("Item Frame", "textures/interior/itemframe.png", null, 1.5f, 1.5f, 0.1f, false, InteriorCategory.DECORATION, 1f),
-    MONEY_STACK("Money Stack", "textures/interior/money_stack.png", null, 0.5f, 0.3f, 0.5f, false, InteriorCategory.MISC, 1f),
-    OFFICE_CHAIR("Office Chair", "textures/interior/office_chair.png", null, 1f, 2f, 1f, true, InteriorCategory.FURNITURE, 1f),
-    TABLE("Table", "textures/interior/table.png", null, 2f, 2f, 2f, true, InteriorCategory.FURNITURE, 1f),
-    TABLE_DISH("Table with Dish", "textures/interior/table_dish.png", null, 2f, 1.2f, 2f, true, InteriorCategory.FURNITURE, 1f),
-    TELEPHONE("Telephone", "textures/interior/telephone.png", null, 0.4f, 0.6f, 0.4f, false, InteriorCategory.MISC, 1f),
+    MONEY_STACK("Money Stack", "textures/interior/money_stack.png", null, 0.5f, 0.3f, 0.3f, false, InteriorCategory.MISC, 1f),
+    OFFICE_CHAIR("Office Chair", "textures/interior/office_chair.png", null, 1f, 2f, 0.5f, true, InteriorCategory.FURNITURE, 1f),
+    TABLE("Table", "textures/interior/table.png", null, 2f, 2f, 0.5f, true, InteriorCategory.FURNITURE, 1f),
+    TABLE_DISH("Table with Dish", "textures/interior/table_dish.png", null, 2f, 1.2f, 0.5f, true, InteriorCategory.FURNITURE, 1f),
+    TELEPHONE("Telephone", "textures/interior/telephone.png", null, 0.4f, 0.6f, 0.3f, false, InteriorCategory.MISC, 1f),
     DOOR_INTERIOR("Interior Door", "textures/interior/door.png", null, 2f, 3f, 0.5f, true, InteriorCategory.FURNITURE, 1.5f),
 
     // 3D Model objects
@@ -406,31 +406,21 @@ data class GameInterior(
         if (!interiorType.is2D || !interiorType.hasCollision) {
             return false
         }
-
-        // For doors specifically, use a more generous and rectangular collision area
-        if (interiorType == InteriorType.DOOR_INTERIOR) {
-            return isPlayerNearDoor2D(playerPos, playerRadius)
-        }
-
-        // For other 2D objects, keep the existing circular collision
-        val dx = playerPos.x - position.x
-        val dz = playerPos.z - position.z
-        val distance2D = kotlin.math.sqrt(dx * dx + dz * dz)
-        val collisionRadius = (interiorType.width * scale.x) * 0.5f
-        return distance2D < (playerRadius + collisionRadius)
+        // 2D objects use the better rectangular collision check
+        return collidesWithPlayerRectangular2D(playerPos, playerRadius)
     }
 
-    private fun isPlayerNearDoor2D(playerPos: Vector3, playerRadius: Float): Boolean {
-        // Create a rectangular interaction area around the door
-        val doorHalfWidth = (interiorType.width * scale.x) * 0.6f // Slightly larger than visual
-        val doorHalfDepth = (interiorType.depth * scale.z) * 0.8f // More depth for easier interaction
+    private fun collidesWithPlayerRectangular2D(playerPos: Vector3, playerRadius: Float): Boolean {
+        val objectHalfWidth = (interiorType.width * scale.x) * 0.5f
+        // The 0.8f multiplier gives the flat object some "depth" for collision.
+        val objectHalfDepth = (interiorType.depth * scale.z) * 0.8f
 
         // Check if player is within the rectangular bounds
         val dx = kotlin.math.abs(playerPos.x - position.x)
         val dz = kotlin.math.abs(playerPos.z - position.z)
 
         // Use rectangular collision instead of circular
-        return dx <= (doorHalfWidth + playerRadius) && dz <= (doorHalfDepth + playerRadius)
+        return dx <= (objectHalfWidth + playerRadius) && dz <= (objectHalfDepth + playerRadius)
     }
 
     private fun intersectTriangleBounds(v1: Vector3, v2: Vector3, v3: Vector3, bounds: BoundingBox): Boolean {

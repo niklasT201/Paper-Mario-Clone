@@ -131,24 +131,22 @@ class PlayerSystem {
     }
 
     private fun canMoveToWithDoorCollision(x: Float, y: Float, z: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {
-        val horizontalShrink = 0.2f // Normal shrink for most objects
-        val doorHorizontalShrink = 0.8f // Much smaller collision box for doors
+        val shrinkFor3D = 0.2f  // Normal shrink for most objects
+        val shrinkFor2D = 0.8f  // Much smaller collision box for doors
 
         // Create player bounds for this check
-        val tempPlayerBounds = BoundingBox()
-        tempPlayerBounds.set(
-            Vector3(x - (playerSize.x / 2 - horizontalShrink), y - playerSize.y / 2, z - (playerSize.z / 2 - horizontalShrink)),
-            Vector3(x + (playerSize.x / 2 - horizontalShrink), y + playerSize.y / 2, z + (playerSize.z / 2 - horizontalShrink))
+        val playerBoundsFor3D = BoundingBox()
+        playerBoundsFor3D.set(
+            Vector3(x - (playerSize.x / 2 - shrinkFor3D), y - playerSize.y / 2, z - (playerSize.z / 2 - shrinkFor3D)),
+            Vector3(x + (playerSize.x / 2 - shrinkFor3D), y + playerSize.y / 2, z + (playerSize.z / 2 - shrinkFor3D))
         )
 
         for (gameBlock in gameBlocks) {
             if (!gameBlock.blockType.hasCollision) {
                 continue
             }
-            // We pass the *potential* future player bounds to the block's collision method.
-            if (gameBlock.collidesWith(tempPlayerBounds)) {
-                // Check if player is just standing on top. This is a simple check that can be improved.
-                val playerBottom = tempPlayerBounds.min.y
+            if (gameBlock.collidesWith(playerBoundsFor3D)) {
+                val playerBottom = playerBoundsFor3D.min.y
                 val blockAABB = gameBlock.getBoundingBox(blockSize, BoundingBox())
                 val blockTop = blockAABB.max.y
                 val tolerance = 0.1f
@@ -164,36 +162,29 @@ class PlayerSystem {
             }
         }
 
-        // Create smaller collision bounds specifically for doors
-        val doorBounds = BoundingBox()
-        doorBounds.set(
-            Vector3(x - (playerSize.x / 2 - doorHorizontalShrink), y - playerSize.y / 2, z - (playerSize.z / 2 - doorHorizontalShrink)),
-            Vector3(x + (playerSize.x / 2 - doorHorizontalShrink), y + playerSize.y / 2, z + (playerSize.z / 2 - doorHorizontalShrink))
-        )
-
         // Check house collisions
         for (house in gameHouses) {
             if (house.houseType == HouseType.STAIR) {
                 continue
             } else {
-                if (house.collidesWithMesh(tempPlayerBounds)) {
+                if (house.collidesWithMesh(playerBoundsFor3D)) {
                     return false // Collision with house detected
                 }
             }
         }
 
-        // Check interior collisions - use different bounds based on interior type
+        // Check interior collisions
         for (interior in gameInteriors) {
             if (!interior.interiorType.hasCollision) continue
 
             if (interior.interiorType.is3D) {
-                // For 3D objects, check if it's a door and use appropriate bounds
-                val boundsToUse = if (interior.interiorType == InteriorType.DOOR_INTERIOR) doorBounds else tempPlayerBounds
-                if (interior.collidesWithMesh(boundsToUse)) {
+                // Use the standard player bounds for 3D interiors
+                if (interior.collidesWithMesh(playerBoundsFor3D)) {
                     return false
                 }
             } else {
-                val playerRadius = (playerSize.x / 2f) - (if (interior.interiorType == InteriorType.DOOR_INTERIOR) doorHorizontalShrink else horizontalShrink)
+                // It's a 2D interior! Use the tighter player collision radius.
+                val playerRadius = (playerSize.x / 2f) - shrinkFor2D
                 if (interior.collidesWithPlayer2D(Vector3(x, y, z), playerRadius)) {
                     return false
                 }

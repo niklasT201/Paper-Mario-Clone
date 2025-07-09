@@ -57,7 +57,6 @@ public class Lwjgl3Launcher {
 // map saving
 // dialog system
 // mission starting, saving and ending
-// interior collision smaller
 // enemies work in rooms
 // player facing north side, then block gets transparent
 // particle system
