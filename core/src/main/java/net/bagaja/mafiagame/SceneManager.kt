@@ -86,6 +86,7 @@ class SceneManager(
 
     fun findHighestSupportY(x: Float, z: Float, currentY: Float, checkRadius: Float, blockSize: Float): Float {
         var highestSupportY = 0f // Default to ground level
+        val playerHeight = playerSystem.getPlayerBounds().getHeight() // Get player height for accurate checks
 
         // This tolerance means the system will check for ground at the player's feet
         val underfootTolerance = 1.0f
@@ -109,17 +110,41 @@ class SceneManager(
             }
         }
 
-        // Check against all active houses (which can include stairs)
+        // Check against all active houses
         for (house in activeHouses) {
-            val houseBounds = house.modelInstance.calculateBoundingBox(BoundingBox())
-            val horizontalOverlap = (x + checkRadius > houseBounds.min.x && x - checkRadius < houseBounds.max.x) &&
-                (z + checkRadius > houseBounds.min.z && z - checkRadius < houseBounds.max.z)
+            // NEW STAIR LOGIC (from old PlayerSystem)
+            if (house.houseType == HouseType.STAIR) {
+                val playerFootY = currentY - playerHeight / 2f
 
-            if(horizontalOverlap) {
-                val houseTop = houseBounds.max.y
-                // Only consider this house as support if it's at or below the player's feet.
-                if (houseTop <= currentY + underfootTolerance) {
-                    if (houseTop > highestSupportY) {
+                // Create test bounds at the potential new position
+                val testBounds = BoundingBox()
+                testBounds.set(
+                    Vector3(x - checkRadius, playerFootY, z - checkRadius),
+                    Vector3(x + checkRadius, currentY + playerHeight / 2f, z + checkRadius)
+                )
+
+                // Are we currently colliding with the stair mesh?
+                if (house.collidesWithMesh(testBounds)) {
+                    // Yes -> We need to step UP. Find the correct height.
+                    val stairStepHeight = findStairStepHeight(house, x, z, currentY, checkRadius, playerHeight)
+                    if (stairStepHeight > highestSupportY) {
+                        highestSupportY = stairStepHeight
+                    }
+                } else {
+                    // No -> We might be standing on it. Find the support height BELOW us.
+                    val supportHeight = findStairSupportHeight(house, x, z, currentY, checkRadius, playerHeight)
+                    if (supportHeight > highestSupportY) {
+                        highestSupportY = supportHeight
+                    }
+                }
+            } else {
+                val houseBounds = house.modelInstance.calculateBoundingBox(BoundingBox())
+                val horizontalOverlap = (x + checkRadius > houseBounds.min.x && x - checkRadius < houseBounds.max.x) &&
+                    (z + checkRadius > houseBounds.min.z && z - checkRadius < houseBounds.max.z)
+
+                if(horizontalOverlap) {
+                    val houseTop = houseBounds.max.y
+                    if (houseTop <= currentY + underfootTolerance && houseTop > highestSupportY) {
                         highestSupportY = houseTop
                     }
                 }
@@ -150,15 +175,68 @@ class SceneManager(
 
             if (wasHit) {
                 // Only consider this interior as support if it's at or below the player's feet.
-                if (maxHitY <= currentY + underfootTolerance) {
-                    if (maxHitY > highestSupportY) {
-                        highestSupportY = maxHitY
-                    }
+                if (maxHitY <= currentY + underfootTolerance && maxHitY > highestSupportY) {
+                    highestSupportY = maxHitY
                 }
             }
         }
 
         return highestSupportY
+    }
+
+    private fun findStairStepHeight(house: GameHouse, x: Float, z: Float, currentY: Float, checkRadius: Float, playerHeight: Float): Float {
+        val stepSize = 0.1f
+        val maxStepUp = 4.0f // Matches player's MAX_STEP_HEIGHT
+        val playerFootY = currentY - playerHeight / 2f
+        var lastCollisionHeight = playerFootY
+        val testBounds = BoundingBox()
+
+        // Try different heights to find where we stop colliding
+        for (stepHeight in generateSequence(0f) { it + stepSize }.takeWhile { it <= maxStepUp }) {
+            val testPlayerCenterY = currentY + stepHeight
+            testBounds.set(
+                Vector3(x - checkRadius, testPlayerCenterY - playerHeight / 2f, z - checkRadius),
+                Vector3(x + checkRadius, testPlayerCenterY + playerHeight / 2f, z + checkRadius)
+            )
+
+            if (house.collidesWithMesh(testBounds)) {
+                lastCollisionHeight = testPlayerCenterY - playerHeight / 2f
+            } else {
+                // Found the first non-colliding height. The surface is just below this.
+                return lastCollisionHeight + 0.1f // Small margin above the step
+            }
+        }
+
+        // If we still collide after max step up, it's a wall. Return current foot position.
+        return playerFootY
+    }
+
+    /**
+     * Finds the height of the stair surface when the player is already on it.
+     * Iterates downwards to find the ground.
+     */
+    private fun findStairSupportHeight(house: GameHouse, x: Float, z: Float, currentY: Float, checkRadius: Float, playerHeight: Float): Float {
+        val stepSize = 0.05f
+        var lastNonCollisionFootY = 0f // Default to ground
+        val testBounds = BoundingBox()
+
+        // Check downward from current position to find the stair surface
+        for (checkPlayerCenterY in generateSequence(currentY) { it - stepSize }.takeWhile { it >= 0f }) {
+            testBounds.set(
+                Vector3(x - checkRadius, checkPlayerCenterY - playerHeight / 2f, z - checkRadius),
+                Vector3(x + checkRadius, checkPlayerCenterY + playerHeight / 2f, z + checkRadius)
+            )
+
+            if (house.collidesWithMesh(testBounds)) {
+                // Found a collision. The support surface is the last place we *didn't* collide.
+                return lastNonCollisionFootY
+            } else {
+                // No collision yet, so this height is safe. Record the foot level.
+                lastNonCollisionFootY = checkPlayerCenterY - playerHeight / 2f
+            }
+        }
+
+        return 0f // If we fall all the way through, we're at ground level.
     }
 
     fun findHighestSupportYForCar(x: Float, z: Float, checkRadius: Float, blockSize: Float): Float {

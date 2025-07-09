@@ -230,15 +230,6 @@ class CarSelectionUI(
                 pixmap.fillCircle(13, 38, 4) // Front wheel
                 pixmap.fillCircle(37, 38, 4) // Rear wheel
             }
-            CarType.SPORTS_CAR -> {
-                // Low, sleek sports car
-                pixmap.setColor(Color(0.9f, 0.9f, 0.1f, 1f)) // Yellow
-                pixmap.fillRectangle(8, 22, 34, 12) // Main body (lower)
-                pixmap.fillRectangle(12, 18, 26, 8) // Top (smaller)
-                pixmap.setColor(Color.BLACK)
-                pixmap.fillCircle(16, 36, 3) // Front wheel
-                pixmap.fillCircle(34, 36, 3) // Rear wheel
-            }
             CarType.VAN -> {
                 // Tall van shape
                 pixmap.setColor(Color(0.5f, 0.5f, 0.5f, 1f)) // Gray
@@ -268,14 +259,13 @@ class CarSelectionUI(
                 pixmap.fillCircle(18, 38, 3) // Front wheel
                 pixmap.fillCircle(32, 38, 3) // Rear wheel
             }
-            CarType.MOTORCYCLE -> {
-                // Motorcycle shape
-                pixmap.setColor(Color(0.2f, 0.2f, 0.2f, 1f)) // Dark gray
-                pixmap.fillRectangle(20, 18, 10, 8) // Main body
-                pixmap.fillRectangle(18, 15, 4, 6) // Handlebars
+            CarType.BOSS_CAR -> {
+                pixmap.setColor(Color(0.8f, 0.2f, 0.2f, 1f)) // Red
+                pixmap.fillRectangle(5, 20, 15, 15) // Cab
+                pixmap.fillRectangle(20, 18, 25, 17) // Cargo area
                 pixmap.setColor(Color.BLACK)
-                pixmap.fillCircle(15, 32, 4) // Front wheel
-                pixmap.fillCircle(35, 32, 4) // Rear wheel
+                pixmap.fillCircle(13, 38, 4) // Front wheel
+                pixmap.fillCircle(37, 38, 4) // Rear wheel
             }
         }
 

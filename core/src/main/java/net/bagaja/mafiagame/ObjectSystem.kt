@@ -390,6 +390,8 @@ enum class ObjectType(
     val lightOffsetY: Float = 0f // Vertical offset from object center
 ) {
     TREE("Tree", "textures/objects/models/tree.png", 14.5f, 15.6f),
+    BUSH("Bush", "textures/objects/models/bush.png", 3f, 3f),
+    IRON_FENCE("Iron Fence", "textures/objects/models/iron_fence.png", 10f, 5f),
 
     LANTERN("Lantern", "textures/objects/models/lantern.png", 3f, 11f,
         hasLightSource = true,

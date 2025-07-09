@@ -288,6 +288,12 @@ class ObjectSelectionUI(
                 pixmap.setColor(Color(1f, 1f, 0.8f, 1f))
                 pixmap.fillCircle(25, 25, 3) // Light glow
             }
+            else -> {
+                pixmap.setColor(Color(0.4f, 0.8f, 0.2f, 1f))
+                pixmap.fillCircle(25, 20, 15) // Tree crown
+                pixmap.setColor(Color(0.6f, 0.4f, 0.2f, 1f))
+                pixmap.fillRectangle(22, 35, 6, 15)
+            }
         }
 
         val texture = Texture(pixmap)

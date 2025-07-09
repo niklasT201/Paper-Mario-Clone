@@ -324,12 +324,11 @@ enum class CarType(
     val width: Float,
     val height: Float
 ) {
-    DEFAULT("DEFAULT", "textures/objects/cars/car_driving.png", 10f, 7f),
-    SUV("SUV", "textures/cars/suv.png", 8f, 5f),
-    TRUCK("Truck", "textures/cars/truck.png", 11f, 6f),
-    SPORTS_CAR("Sports Car", "textures/cars/sports_car.png", 6f, 3.5f),
-    VAN("Van", "textures/cars/van.png", 7f, 5.5f),
-    POLICE_CAR("Police Car", "textures/cars/police_car.png", 7f, 4f),
-    TAXI("Taxi", "textures/cars/taxi.png", 7f, 4f),
-    MOTORCYCLE("Motorcycle", "textures/cars/motorcycle.png", 2.5f, 4f)
+    DEFAULT("Default", "textures/objects/cars/car_driving.png", 10f, 7f),
+    BOSS_CAR("Boss Car", "textures/objects/cars/boss_car.png", 10f, 7f),
+    SUV("SUV", "textures/objects/cars/suv.png", 8f, 5f),
+    TRUCK("Truck", "textures/objects/cars/truck.png", 11f, 6f),
+    VAN("Van", "textures/objects/cars/van.png", 7f, 5.5f),
+    POLICE_CAR("Police Car", "textures/objects/cars/police_car.png", 7f, 4f),
+    TAXI("Taxi", "textures/objects/cars/taxi.png", 10f, 7f),
 }

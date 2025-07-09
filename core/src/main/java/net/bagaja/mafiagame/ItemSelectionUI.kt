@@ -230,6 +230,22 @@ class ItemSelectionUI(
                 pixmap.fillRectangle(30, 28, 12, 4) // Stock
                 pixmap.fillRectangle(25, 18, 4, 6) // Trigger guard
             }
+            ItemType.MOLOTOV -> {
+                pixmap.setColor(Color(0.2f, 0.2f, 0.2f, 1f))
+                pixmap.fillRectangle(5, 22, 35, 6) // Barrel
+                pixmap.fillCircle(10, 16, 6) // Drum magazine
+                pixmap.setColor(Color(0.4f, 0.3f, 0.2f, 1f))
+                pixmap.fillRectangle(30, 28, 12, 4) // Stock
+                pixmap.fillRectangle(25, 18, 4, 6) // Trigger guard
+            }
+            ItemType.DYNAMITE -> {
+                pixmap.setColor(Color(0.2f, 0.2f, 0.2f, 1f))
+                pixmap.fillRectangle(5, 22, 35, 6) // Barrel
+                pixmap.fillCircle(10, 16, 6) // Drum magazine
+                pixmap.setColor(Color(0.4f, 0.3f, 0.2f, 1f))
+                pixmap.fillRectangle(30, 28, 12, 4) // Stock
+                pixmap.fillRectangle(25, 18, 4, 6) // Trigger guard
+            }
         }
 
         val texture = Texture(pixmap)

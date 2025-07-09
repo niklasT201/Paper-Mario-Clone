@@ -224,6 +224,34 @@ class BackgroundSelectionUI(
                 pixmap.setColor(Color(0.3f, 0.6f, 0.3f, 1f)) // Green
                 pixmap.fillRectangle(0, 40, 60, 10) // Garden/ground
             }
+            BackgroundType.MANSION -> {
+                pixmap.setColor(Color(0.9f, 0.8f, 0.6f, 1f)) // Light cream
+                pixmap.fillRectangle(5, 20, 50, 25) // Main body
+                pixmap.setColor(Color(0.7f, 0.4f, 0.3f, 1f)) // Red-brown
+                pixmap.fillTriangle(0, 20, 30, 5, 60, 20) // Large roof
+                pixmap.setColor(Color(0.3f, 0.6f, 0.3f, 1f)) // Green
+                pixmap.fillRectangle(0, 40, 60, 10) // Garden/ground
+            }
+            BackgroundType.NICKELODEON -> {
+                pixmap.setColor(Color(0.8f, 0.6f, 0.4f, 1f)) // Brown
+                pixmap.fillRectangle(15, 25, 30, 20) // House body
+                pixmap.setColor(Color(0.6f, 0.3f, 0.2f, 1f)) // Dark brown
+                pixmap.fillTriangle(10, 25, 30, 10, 50, 25) // Roof
+                pixmap.setColor(Color(0.4f, 0.2f, 0.1f, 1f)) // Very dark brown
+                pixmap.fillRectangle(20, 35, 8, 10) // Door
+            }
+            BackgroundType.TRANSPARENT_HOUSE -> {
+                // Apartment building
+                pixmap.setColor(Color(0.7f, 0.7f, 0.7f, 1f)) // Gray
+                pixmap.fillRectangle(10, 15, 40, 30) // Building body
+                pixmap.setColor(Color(0.5f, 0.5f, 0.5f, 1f)) // Darker gray
+                // Windows
+                for (i in 0..2) {
+                    for (j in 0..1) {
+                        pixmap.fillRectangle(15 + i * 10, 20 + j * 10, 6, 6)
+                    }
+                }
+            }
         }
 
         val texture = Texture(pixmap)

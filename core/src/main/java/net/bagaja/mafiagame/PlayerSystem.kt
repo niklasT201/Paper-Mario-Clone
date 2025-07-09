@@ -500,7 +500,7 @@ class PlayerSystem {
 
         // 2. Apply Gravity and Step-Up Logic
         val playerFootY = playerPosition.y - (playerSize.y / 2f)
-        val supportY = sceneManager.findHighestSupportY(nextX, nextZ, playerFootY, playerSize.x / 2f, blockSize)
+        val supportY = sceneManager.findHighestSupportY(nextX, nextZ, playerPosition.y, playerSize.x / 2f, blockSize)
 
         val effectiveSupportY = if (supportY - playerFootY <= MAX_STEP_HEIGHT) {
             // Step is valid, use the new ground height.

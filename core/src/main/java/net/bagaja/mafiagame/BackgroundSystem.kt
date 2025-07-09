@@ -353,4 +353,7 @@ enum class BackgroundType(
     SMALL_HOUSE("Small House BG", "textures/objects/houses/worker_house.png", 20f, 25f),
     FLAT("Flat BG", "textures/objects/houses/flat_default.png", 20f, 25f),
     VILLA("Villa BG", "textures/objects/houses/villa.png", 30f, 35f),
+    MANSION("Mansion", "textures/objects/houses/mansion.png", 30f, 35f),
+    NICKELODEON("Nickelodeon", "textures/objects/houses/nickelodeon.png", 30f, 35f),
+    TRANSPARENT_HOUSE("Test House", "textures/objects/houses/reuseable_house.png", 20f, 25f),
 }
