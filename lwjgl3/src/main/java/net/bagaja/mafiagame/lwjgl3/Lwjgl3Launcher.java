@@ -50,12 +50,12 @@ public class Lwjgl3Launcher {
 // room/open world transition effect being slower and smoother transition itself
 
 // way for better room building
-// player spawnpoint not visible
 // npc rotation saving
 // working collisions for ramp, pillar and corner
-// improve performance for rooms
+// improve performance for rooms (camera starting shaking)
 // map saving
 // dialog system
+// maybe removing player spawnpoint preview
 // mission starting, saving and ending
 // enemies work in rooms
 // player facing north side, then block gets transparent

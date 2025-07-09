@@ -402,7 +402,10 @@ class MafiaGame : ApplicationAdapter() {
                 backgroundSystem.hidePreview()
             }
             UIManager.Tool.PARALLAX -> placeParallaxImage(ray)
-            UIManager.Tool.INTERIOR -> placeInterior(ray)
+            UIManager.Tool.INTERIOR -> {
+                placeInterior(ray)
+                interiorSystem.hidePreview()
+            }
             UIManager.Tool.ENEMY -> placeEnemy(ray)
             UIManager.Tool.NPC -> placeNPC(ray)
         }
@@ -483,7 +486,6 @@ class MafiaGame : ApplicationAdapter() {
                 }
             }
             UIManager.Tool.INTERIOR -> {
-                // Note: You will need to expose `activeInteriors` from your SceneManager
                 val interiorToRemove = raycastSystem.getInteriorAtRay(ray, sceneManager.activeInteriors)
                 if (interiorToRemove != null) {
                     removeInterior(interiorToRemove)
@@ -1436,6 +1438,12 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render highlight using HighlightSystem
         highlightSystem.render(modelBatch, cameraManager.camera, environment)
+
+        if (interiorSystem.isPreviewActive()) {
+            interiorSystem.billboardModelBatch.begin(cameraManager.camera)
+            interiorSystem.renderPreview(interiorSystem.billboardModelBatch, environment)
+            interiorSystem.billboardModelBatch.end()
+        }
 
         if (showInvisibleBlockOutlines) {
             highlightSystem.renderInvisibleBlockOutlines(

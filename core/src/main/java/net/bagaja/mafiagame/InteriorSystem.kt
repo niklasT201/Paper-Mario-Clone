@@ -114,8 +114,13 @@ class InteriorSystem : IFinePositionable {
     private val interiorModels = mutableMapOf<InteriorType, Model>()
     private val interiorTextures = mutableMapOf<InteriorType, Texture>()
     private val modelLoader = G3dModelLoader(JsonReader())
-    private val billboardModelBatch: ModelBatch // For rendering 2D billboards
-    private val billboardShaderProvider: BillboardShaderProvider
+    val billboardModelBatch: ModelBatch // For rendering 2D billboards
+    private val billboardShaderProvider: BillboardShaderProvider = BillboardShaderProvider()
+    private var previewInstance: GameInterior? = null
+
+    fun isPreviewActive(): Boolean {
+        return previewInstance != null
+    }
 
     var currentSelectedInterior = InteriorType.BAR
     var currentSelectedInteriorIndex = 0
@@ -129,7 +134,6 @@ class InteriorSystem : IFinePositionable {
     private val rotationStep = 90f
 
     init {
-        billboardShaderProvider = BillboardShaderProvider()
         billboardShaderProvider.setBillboardLightingStrength(0.8f) // Adjust lighting as needed
         billboardShaderProvider.setMinLightLevel(0.4f)
         billboardModelBatch = ModelBatch(billboardShaderProvider)
@@ -229,10 +233,59 @@ class InteriorSystem : IFinePositionable {
         }
     }
 
+    fun updatePreview(ray: Ray) {
+        // Only show a preview if the selected object is a spawnpoint
+        if (currentSelectedInterior != InteriorType.PLAYER_SPAWNPOINT) {
+            hidePreview() // Hide any existing preview if another type is selected
+            return
+        }
+
+        val intersection = Vector3()
+        val floorPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+        if (Intersector.intersectRayPlane(ray, floorPlane, intersection)) {
+            // If we don't have a preview instance yet, create one
+            if (previewInstance == null) {
+                previewInstance = createInteriorInstance(InteriorType.PLAYER_SPAWNPOINT)?.also {
+                    // Make the preview semi-transparent
+                    val material = it.instance.materials.first()
+                    val blendingAttr = material.get(BlendingAttribute.Type) as? BlendingAttribute
+                    blendingAttr?.opacity = 0.6f // Set transparency
+                }
+            }
+
+            // Update the preview's position and transform
+            previewInstance?.let {
+                it.position.set(intersection)
+                // Adjust for ground offset and height, just like placing
+                it.position.y += it.interiorType.groundOffset
+                it.position.y += it.interiorType.height / 2f
+                it.updateTransform()
+            }
+        }
+    }
+
+    fun hidePreview() {
+        previewInstance = null
+    }
+
+    fun renderPreview(modelBatch: ModelBatch, environment: Environment) {
+        // If the preview instance exists
+        previewInstance?.let {
+            if (it.interiorType.is2D) {
+                modelBatch.render(it.instance, environment)
+            }
+        }
+    }
+
     fun renderBillboards(camera: Camera, environment: Environment, interiors: com.badlogic.gdx.utils.Array<GameInterior>) {
         billboardShaderProvider.setEnvironment(environment)
         billboardModelBatch.begin(camera)
         for (interior in interiors) {
+            if (interior.interiorType == InteriorType.PLAYER_SPAWNPOINT) {
+                continue
+            }
+
             if (interior.interiorType.is2D) {
                 // The billboard shader will handle facing the camera
                 billboardModelBatch.render(interior.instance, environment)

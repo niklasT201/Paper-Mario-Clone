@@ -113,6 +113,9 @@ class HighlightSystem(private val blockSize: Float) {
             UIManager.Tool.ENEMY -> updateEnemyHighlight(ray, gameEnemies, raycastSystem)
             UIManager.Tool.NPC -> updateNPCHighlight(ray, gameNPCs, raycastSystem)
         }
+        if (uiManager.selectedTool != UIManager.Tool.INTERIOR) {
+            interiorSystem.hidePreview()
+        }
     }
 
     fun renderInvisibleBlockOutlines(
@@ -406,6 +409,20 @@ class HighlightSystem(private val blockSize: Float) {
     }
 
     private fun updateInteriorHighlight(ray: Ray, gameInteriors: Array<GameInterior>, interiorSystem: InteriorSystem, raycastSystem: RaycastSystem) {
+        interiorSystem.updatePreview(ray)
+
+        if (interiorSystem.currentSelectedInterior == InteriorType.PLAYER_SPAWNPOINT) {
+            hideHighlight()
+
+            val interiorToRemove = raycastSystem.getInteriorAtRay(ray, gameInteriors)
+            if (interiorToRemove != null && interiorToRemove.interiorType == InteriorType.PLAYER_SPAWNPOINT) {
+                val size = Vector3(interiorToRemove.interiorType.width, interiorToRemove.interiorType.height, interiorToRemove.interiorType.depth)
+                updateHighlightSize(size)
+                showHighlight(interiorToRemove.position, removeColor)
+            }
+            return
+        }
+
         // First, check if hovering over an existing interior to remove it
         val interiorToRemove = raycastSystem.getInteriorAtRay(ray, gameInteriors)
         if (interiorToRemove != null) {
