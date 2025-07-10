@@ -34,7 +34,8 @@ class UIManager(
     private val lightingManager: LightingManager,
     private val shaderEffectManager: ShaderEffectManager,
     private val enemySystem: EnemySystem,
-    private val npcSystem: NPCSystem
+    private val npcSystem: NPCSystem,
+    private val particleSystem: ParticleSystem,
 ) {
     private lateinit var stage: Stage
     private lateinit var skin: Skin
@@ -48,6 +49,7 @@ class UIManager(
     private lateinit var interiorSelectionUI: InteriorSelectionUI
     private lateinit var enemySelectionUI: EnemySelectionUI
     private lateinit var npcSelectionUI: NPCSelectionUI
+    private lateinit var particleSelectionUI: ParticleSelectionUI
     private lateinit var lightSourceUI: LightSourceUI
     private lateinit var skyCustomizationUI: SkyCustomizationUI
     private lateinit var shaderEffectUI: ShaderEffectUI
@@ -73,7 +75,7 @@ class UIManager(
     private val TEXT_MUTED = Color(0.6f, 0.6f, 0.7f, 1f)
 
     enum class Tool {
-        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC
+        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE
     }
 
     fun initialize() {
@@ -137,6 +139,9 @@ class UIManager(
 
         npcSelectionUI = NPCSelectionUI(npcSystem, skin, stage)
         npcSelectionUI.initialize()
+
+        particleSelectionUI = ParticleSelectionUI(particleSystem, skin, stage)
+        particleSelectionUI.initialize()
 
         shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager)
         shaderEffectUI.initialize()
@@ -591,6 +596,7 @@ class UIManager(
             Tool.INTERIOR -> Color.BROWN
             Tool.ENEMY -> Color.RED
             Tool.NPC -> Color(0.2f, 0.8f, 1f, 1f)
+            Tool.PARTICLE -> Color(1f, 0.5f, 0.2f, 1f)
         }
 
         // Create gradient background
@@ -793,6 +799,22 @@ class UIManager(
                 pixmap.fillCircle(18, 16, 2)
                 pixmap.fillCircle(24, 16, 2)
             }
+            Tool.PARTICLE -> {
+                // Sparkle/Burst icon
+                pixmap.setColor(shadowColor)
+                pixmap.fillCircle(19, 19, 8)
+                pixmap.setColor(highlightColor)
+                pixmap.fillCircle(18, 18, 8)
+                // Rays
+                for (i in 0..7) {
+                    val angle = i * 45f * kotlin.math.PI / 180f
+                    val x1 = 18 + cos(angle) * 8
+                    val y1 = 18 + sin(angle) * 8
+                    val x2 = 18 + cos(angle) * 14
+                    val y2 = 18 + sin(angle) * 14
+                    pixmap.drawLine(x1.toInt(), y1.toInt(), x2.toInt(), y2.toInt())
+                }
+            }
         }
 
         val texture = Texture(pixmap)
@@ -813,6 +835,7 @@ class UIManager(
             Tool.INTERIOR -> Color(0.8f, 0.5f, 0.2f, 1f)
             Tool.ENEMY -> Color.RED
             Tool.NPC -> Color(0.2f, 0.8f, 1f, 1f)
+            Tool.PARTICLE -> Color(1f, 0.5f, 0.2f, 1f)
         }
     }
 
@@ -829,6 +852,7 @@ class UIManager(
             Tool.INTERIOR -> "Interior"
             Tool.ENEMY -> "Enemy"
             Tool.NPC -> "NPC"
+            Tool.PARTICLE -> "Particle"
         }
     }
 
@@ -1171,6 +1195,18 @@ class UIManager(
     fun hideNPCSelection() { npcSelectionUI.hide() }
     fun updateNPCSelection() { npcSelectionUI.update() }
 
+    fun showParticleSelection() {
+        particleSelectionUI.show()
+    }
+
+    fun hideParticleSelection() {
+        particleSelectionUI.hide()
+    }
+
+    fun updateParticleSelection() {
+        particleSelectionUI.update()
+    }
+
     fun updatePlacementInfo(info: String) {
         if (::placementInfoLabel.isInitialized) {
             placementInfoLabel.setText(info)
@@ -1424,6 +1460,7 @@ class UIManager(
         lightSourceUI.dispose()
         skyCustomizationUI.dispose()
         shaderEffectUI.dispose()
+        particleSelectionUI.dispose()
         stage.dispose()
         skin.dispose()
     }

@@ -64,9 +64,12 @@ class MafiaGame : ApplicationAdapter() {
     private val blockSize = 4f
 
     lateinit var lightingManager: LightingManager
+    private lateinit var particleSystem: ParticleSystem
 
     override fun create() {
         setupGraphics()
+        particleSystem = ParticleSystem()
+        particleSystem.initialize()
         setupBlockSystem()
         faceCullingSystem = FaceCullingSystem(blockSize)
         //occlusionSystem = OcclusionSystem(blockSize)
@@ -129,6 +132,7 @@ class MafiaGame : ApplicationAdapter() {
             shaderEffectManager,
             enemySystem,
             npcSystem,
+            particleSystem,
         )
         uiManager.initialize()
 
@@ -147,6 +151,7 @@ class MafiaGame : ApplicationAdapter() {
             interiorSystem,
             enemySystem,
             npcSystem,
+            particleSystem,
             sceneManager,
             roomTemplateManager,
             shaderEffectManager,
@@ -410,6 +415,7 @@ class MafiaGame : ApplicationAdapter() {
             }
             UIManager.Tool.ENEMY -> placeEnemy(ray)
             UIManager.Tool.NPC -> placeNPC(ray)
+            UIManager.Tool.PARTICLE -> placeParticleEffect(ray)
         }
     }
 
@@ -508,6 +514,7 @@ class MafiaGame : ApplicationAdapter() {
                     return true
                 }
             }
+            UIManager.Tool.PARTICLE -> return false
         }
         return false
     }
@@ -1290,6 +1297,48 @@ class MafiaGame : ApplicationAdapter() {
         println("Removed ${npcToRemove.npcType.displayName} at: ${npcToRemove.position}")
     }
 
+    private fun placeParticleEffect(ray: Ray) {
+        val intersection = Vector3()
+        var hitPoint: Vector3? = null
+        var hitNormal: Vector3? = null // To orient effects like impacts
+
+        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeBlocks)
+        if (hitBlock != null) {
+            val blockBounds = hitBlock.getBoundingBox(blockSize, BoundingBox())
+            if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, blockBounds, intersection)) {
+                hitPoint = intersection.cpy()
+                // A simple way to get the hit normal
+                val relativePos = Vector3(intersection).sub(hitBlock.position)
+                val absX = kotlin.math.abs(relativePos.x)
+                val absY = kotlin.math.abs(relativePos.y)
+                val absZ = kotlin.math.abs(relativePos.z)
+                hitNormal = when {
+                    absY > absX && absY > absZ -> Vector3(0f, if (relativePos.y > 0) 1f else -1f, 0f)
+                    absX > absY && absX > absZ -> Vector3(if (relativePos.x > 0) 1f else -1f, 0f, 0f)
+                    else -> Vector3(0f, 0f, if (relativePos.z > 0) 1f else -1f)
+                }
+            }
+        }
+
+        // If no object was hit, intersect with the ground plane
+        if (hitPoint == null) {
+            val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+                hitPoint = intersection.cpy()
+                hitNormal = Vector3.Y // Normal is straight up
+            }
+        }
+
+        // Spawn the effect if we found a point
+        hitPoint?.let { pos ->
+            val effectType = particleSystem.currentSelectedEffect
+            val isGunSmokeEffect = effectType == ParticleEffectType.GUN_SMOKE_PLUME || effectType == ParticleEffectType.GUN_SMOKE_BURST
+            val direction = if (isGunSmokeEffect) ray.direction else hitNormal
+            particleSystem.spawnEffect(effectType, pos, direction)
+            println("Spawned ${effectType.displayName} at $pos")
+        }
+    }
+
     override fun render() {
         // Begin capturing the frame for post-processing
         shaderEffectManager.beginCapture()
@@ -1329,6 +1378,8 @@ class MafiaGame : ApplicationAdapter() {
 
         // Handle player input
         handlePlayerInput()
+        particleSystem.update(deltaTime)
+        playerSystem.update(deltaTime)
         playerSystem.update(deltaTime)
         enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
         npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
@@ -1352,7 +1403,8 @@ class MafiaGame : ApplicationAdapter() {
             sceneManager.activeInteriors,
             interiorSystem,
             sceneManager.activeEnemies,
-            sceneManager.activeNPCs
+            sceneManager.activeNPCs,
+            particleSystem
         )
 
         //shaderProvider.setEnvironment(environment)
@@ -1432,6 +1484,9 @@ class MafiaGame : ApplicationAdapter() {
         npcSystem.renderNPCs(cameraManager.camera, environment, sceneManager.activeNPCs)
         carSystem.render(cameraManager.camera, environment, sceneManager.activeCars)
 
+        // Render particles
+        particleSystem.render(cameraManager.camera, environment)
+
         // Render items
         itemSystem.render(cameraManager.camera, environment)
 
@@ -1508,6 +1563,7 @@ class MafiaGame : ApplicationAdapter() {
         transitionSystem.dispose()
         enemySystem.dispose()
         npcSystem.dispose()
+        particleSystem.dispose()
 
         // Dispose shader effect manager
         shaderEffectManager.dispose()

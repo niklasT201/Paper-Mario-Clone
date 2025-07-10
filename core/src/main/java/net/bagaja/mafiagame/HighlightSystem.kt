@@ -39,6 +39,7 @@ class HighlightSystem(private val blockSize: Float) {
         UIManager.Tool.INTERIOR to Color(0.8f, 0.5f, 0.2f, 0.3f), // Brown
         UIManager.Tool.ENEMY to Color(1f, 0f, 0f, 0.4f), // Red highlight for enemies
         UIManager.Tool.NPC to Color(0.2f, 0.8f, 1f, 0.4f),
+        UIManager.Tool.PARTICLE to Color(1f, 0.5f, 0.2f, 0.4f)
 
     )
 
@@ -94,7 +95,8 @@ class HighlightSystem(private val blockSize: Float) {
         gameInteriors: Array<GameInterior>,
         interiorSystem: InteriorSystem,
         gameEnemies: Array<GameEnemy>,
-        gameNPCs: Array<GameNPC>
+        gameNPCs: Array<GameNPC>,
+        particleSystem: ParticleSystem,
     ) {
         val mouseX = Gdx.input.x.toFloat()
         val mouseY = Gdx.input.y.toFloat()
@@ -112,6 +114,7 @@ class HighlightSystem(private val blockSize: Float) {
             UIManager.Tool.INTERIOR -> updateInteriorHighlight(ray, gameInteriors, interiorSystem, raycastSystem)
             UIManager.Tool.ENEMY -> updateEnemyHighlight(ray, gameEnemies, raycastSystem)
             UIManager.Tool.NPC -> updateNPCHighlight(ray, gameNPCs, raycastSystem)
+            UIManager.Tool.PARTICLE -> updateParticleHighlight(ray, particleSystem)
         }
         if (uiManager.selectedTool != UIManager.Tool.INTERIOR) {
             interiorSystem.hidePreview()
@@ -488,6 +491,21 @@ class HighlightSystem(private val blockSize: Float) {
             val placementPos = Vector3(intersection.x, intersection.y + 2f, intersection.z)
             updateHighlightSize(Vector3(3f, 4f, 3f)) // Generic preview size
             showHighlight(placementPos, toolColors[UIManager.Tool.NPC]!!)
+        } else {
+            hideHighlight()
+        }
+    }
+
+    private fun updateParticleHighlight(ray: Ray, particleSystem: ParticleSystem) {
+        val effectType = particleSystem.currentSelectedEffect
+        val highlightSize = effectType.scale + effectType.scaleVariance
+        updateHighlightSize(Vector3(highlightSize, highlightSize, highlightSize))
+
+        val intersection = Vector3()
+        val groundPlane = Plane(Vector3.Y, 0f)
+
+        if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            showHighlight(intersection, toolColors[UIManager.Tool.PARTICLE]!!)
         } else {
             hideHighlight()
         }

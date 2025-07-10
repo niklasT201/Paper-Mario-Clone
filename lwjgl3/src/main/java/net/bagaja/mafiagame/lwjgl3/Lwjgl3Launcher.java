@@ -58,8 +58,9 @@ public class Lwjgl3Launcher {
 // maybe removing player spawnpoint preview
 // mission starting, saving and ending
 // enemies work in rooms
-// particle system
 // separate lady and microphone
+// particles have the option to rotate
+// maybe coded effects too
 // option for choosing door enter
 // fix car and player falling bug
 // blood system
@@ -84,5 +85,5 @@ public class Lwjgl3Launcher {
 // fbx-conv -f house.obj house.g3dj
 
 //  as you see hopefully, when i place a house, the game calculates where the door entry should be. that is fine for most houses, but it can also be that it doesnt fit and so the door entry is not right. so i would like to know if its possible to like for the player point, also having the option to place a door point, so not a visible door, only a point, that i have to place if i want after placing the house with its room. if i dont want, i can simply press esc and then the house will calculate the door entry like currently, otherwise it waits unly i placed the door entry and then connects this point with the room, so when i press e at this position, i get into this house, and when im in the room, and leave it, i get spawned back at this door point. is it possible to add this?
-
 //  idea i have for the camera would be that instead of just not getting through the wall, it instead checks if the player is moving to a wall or being hidden by it, so the player so to be near it, and then instead of staying near the player, it rotates, so instead of showing the players front, it rotates and shows the players back, so instead of the block wall being in front of the player(s camera), the camera rotates and now the block wall is behind the player. if you get what i mean
+// can you help me with my kotlin 3d game? i have a problem with my player movement :=( the falling/gravity is broken. i try to explain what is wrong. i build a block pillar, lets say 30 blocks stacked on top of each other, number not important. Now i get on the highest block, and then move away from it, what i means, now i fall. till this anything is right, but then the problematic part comes. when i moved away from the block to fall, my collision box stopped colliding with the block, whats right, but when i now move while falling back to the block (pillar), so colliding with it, the fall stops, at the moment i collide, so the collision breaks the falling and lets the game think im standing on top of a block again. when i stop holding the button that moved to the block pillar direction, and started the collision, you could think, then the falling starts again, but this is not happening, the falling is completely stopped. i have to literally press a different movement key to start the falling again, that means that the key calls the check if a block is under my feet again, that was not checked anymore. i also tested it by placing a block under the player while he was stuck at the block pillar, but it didnt change anything, and when i removed it again, the player also kept stuck, so the movement key is the only way to recall the gravity check

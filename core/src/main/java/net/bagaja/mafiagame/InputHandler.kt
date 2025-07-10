@@ -21,6 +21,7 @@ class InputHandler(
     private val interiorSystem: InteriorSystem,
     private val enemySystem: EnemySystem,
     private val npcSystem: NPCSystem,
+    private val particleSystem: ParticleSystem,
     private val sceneManager: SceneManager,
     private val roomTemplateManager: RoomTemplateManager,
     private val shaderEffectManager: ShaderEffectManager,
@@ -42,6 +43,7 @@ class InputHandler(
     private var isInteriorSelectionMode = false
     private var isEnemySelectionMode = false
     private var isNPCSelectionMode = false
+    private var isParticleSelectionMode = false
     private var isTimeSpeedUpPressed = false
 
     // Variables for continuous block placement/removal
@@ -218,6 +220,10 @@ class InputHandler(
                         if (amountY > 0) npcSystem.nextNPCType() else npcSystem.previousNPCType()
                     }
                     uiManager.updateNPCSelection()
+                    return true
+                } else if (isParticleSelectionMode) { // ADD THIS BLOCK
+                    if (amountY > 0) particleSystem.nextEffect() else particleSystem.previousEffect()
+                    uiManager.updateParticleSelection()
                     return true
                 } else {
                     // Normal camera zoom
@@ -423,6 +429,7 @@ class InputHandler(
                     Input.Keys.NUMPAD_9 -> uiManager.selectedTool = Tool.INTERIOR
                     Input.Keys.NUMPAD_0 -> uiManager.selectedTool = Tool.ENEMY
                     Input.Keys.NUM_7 -> uiManager.selectedTool = Tool.NPC
+                    Input.Keys.NUM_6 -> uiManager.selectedTool = Tool.PARTICLE
                     // Fine positioning controls
                     Input.Keys.LEFT -> {
                         if (getCurrentPositionableSystem()?.finePosMode == true) {
@@ -509,6 +516,13 @@ class InputHandler(
                         }
                         return true
                     }
+                    Input.Keys.X -> {
+                        if (!isParticleSelectionMode && !isNPCSelectionMode && !isEnemySelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode && !isInteriorSelectionMode) {
+                            isParticleSelectionMode = true
+                            uiManager.showParticleSelection()
+                        }
+                        return true
+                    }
                     Input.Keys.U -> {
                         if (!isNPCSelectionMode && !isEnemySelectionMode && !isBlockSelectionMode&& !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode && !isInteriorSelectionMode) {
                             isNPCSelectionMode = true
@@ -543,6 +557,7 @@ class InputHandler(
                     }
                     Input.Keys.J -> { isInteriorSelectionMode = false; uiManager.hideInteriorSelection(); return true }
                     Input.Keys.Y -> { isEnemySelectionMode = false; uiManager.hideEnemySelection(); return true }
+                    Input.Keys.X -> { isParticleSelectionMode = false; uiManager.hideParticleSelection(); return true }
                     Input.Keys.U -> { isNPCSelectionMode = false; uiManager.hideNPCSelection(); return true }
                     // Release fine positioning keys
                     Input.Keys.LEFT -> { leftPressed = false; return true }
