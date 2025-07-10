@@ -47,18 +47,17 @@ public class Lwjgl3Launcher {
 // industrial assets
 // more animations adding
 
-// occulision optional
+// occlusion optional
 // room/open world transition effect being slower and smoother transition itself
 
-// way for better room building
 // working collisions for ramp, pillar and corner
+// teleportation points
 // improve performance for rooms (camera starting shaking)
 // map saving
 // dialog system
 // maybe removing player spawnpoint preview
 // mission starting, saving and ending
 // enemies work in rooms
-// player movement improvement
 // particle system
 // separate lady and microphone
 // option for choosing door enter
@@ -85,3 +84,5 @@ public class Lwjgl3Launcher {
 // fbx-conv -f house.obj house.g3dj
 
 //  as you see hopefully, when i place a house, the game calculates where the door entry should be. that is fine for most houses, but it can also be that it doesnt fit and so the door entry is not right. so i would like to know if its possible to like for the player point, also having the option to place a door point, so not a visible door, only a point, that i have to place if i want after placing the house with its room. if i dont want, i can simply press esc and then the house will calculate the door entry like currently, otherwise it waits unly i placed the door entry and then connects this point with the room, so when i press e at this position, i get into this house, and when im in the room, and leave it, i get spawned back at this door point. is it possible to add this?
+
+//  idea i have for the camera would be that instead of just not getting through the wall, it instead checks if the player is moving to a wall or being hidden by it, so the player so to be near it, and then instead of staying near the player, it rotates, so instead of showing the players front, it rotates and shows the players back, so instead of the block wall being in front of the player(s camera), the camera rotates and now the block wall is behind the player. if you get what i mean

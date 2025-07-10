@@ -273,7 +273,7 @@ class PlayerSystem {
             val blockLeft = blockCenterX - blockHalfSize
             val blockRight = blockCenterX + blockHalfSize
             val blockFront = blockCenterZ - blockHalfSize
-            val blockBack = blockCenterZ + blockHalfSize
+            val blockBack = blockCenterZ - blockHalfSize
 
             // Check for horizontal overlap
             val horizontalOverlap = !(playerRight < blockLeft || playerLeft > blockRight ||
@@ -472,9 +472,7 @@ class PlayerSystem {
 
 
     private fun handlePlayerOnFootMovement(deltaTime: Float, sceneManager: SceneManager, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {
-        var moved = false
-
-        // Reset movement flag
+        val originalPosition = playerPosition.cpy() // For checking if movement occurred
         isMoving = false
         var currentMovementDirection = 0f
 
@@ -486,33 +484,54 @@ class PlayerSystem {
         if (Gdx.input.isKeyPressed(Input.Keys.W)) { deltaZ -= playerSpeed * deltaTime }
         if (Gdx.input.isKeyPressed(Input.Keys.S)) { deltaZ += playerSpeed * deltaTime }
 
-        val nextX = playerPosition.x + deltaX
-        val nextZ = playerPosition.z + deltaZ
+        // 2. Resolve X-axis movement first
+        if (deltaX != 0f) {
+            val playerFootY = playerPosition.y - (playerSize.y / 2f)
+            val supportY = sceneManager.findHighestSupportY(playerPosition.x + deltaX, playerPosition.z, playerPosition.y, playerSize.x / 2f, blockSize)
 
-        // 2. Apply Gravity and Step-Up Logic
-        val playerFootY = playerPosition.y - (playerSize.y / 2f)
-        val supportY = sceneManager.findHighestSupportY(nextX, nextZ, playerPosition.y, playerSize.x / 2f, blockSize)
-
-        val effectiveSupportY = if (supportY - playerFootY <= MAX_STEP_HEIGHT) {
-            // Step is valid, use the new ground height.
-            supportY
-        } else {
-            // Step is too high (a wall), maintain current Y-level.
-            playerFootY
-        }
-
-        val targetY = effectiveSupportY + (playerSize.y / 2f) // Player's origin is in its center
-        val fallY = playerPosition.y - FALL_SPEED * deltaTime
-        val nextY = kotlin.math.max(targetY, fallY)
-
-        // 3. Check for collisions before moving
-        if (canMoveToWithDoorCollision(nextX, nextY, nextZ, gameBlocks, gameHouses, gameInteriors)) {
-            if (deltaX != 0f || deltaZ != 0f || kotlin.math.abs(nextY - playerPosition.y) > 0.01f) {
-                playerPosition.set(nextX, nextY, nextZ)
-                moved = true
-                isMoving = deltaX != 0f || deltaZ != 0f
+            // Check if the step is too high before attempting to move
+            if (supportY - playerFootY <= MAX_STEP_HEIGHT) {
+                // For the collision check, we use a Y that's on top of the potential new ground.
+                val checkY = supportY + (playerSize.y / 2f)
+                if (canMoveToWithDoorCollision(playerPosition.x + deltaX, checkY, playerPosition.z, gameBlocks, gameHouses, gameInteriors)) {
+                    playerPosition.x += deltaX
+                }
             }
         }
+
+        // 3. Resolve Z-axis movement second
+        if (deltaZ != 0f) {
+            // Use the potentially updated X position from the previous step
+            val playerFootY = playerPosition.y - (playerSize.y / 2f)
+            val supportY = sceneManager.findHighestSupportY(playerPosition.x, playerPosition.z + deltaZ, playerPosition.y, playerSize.x / 2f, blockSize)
+
+            // Check if the step is too high
+            if (supportY - playerFootY <= MAX_STEP_HEIGHT) {
+                val checkY = supportY + (playerSize.y / 2f)
+                if (canMoveToWithDoorCollision(playerPosition.x, checkY, playerPosition.z + deltaZ, gameBlocks, gameHouses, gameInteriors)) {
+                    playerPosition.z += deltaZ
+                }
+            }
+        }
+
+        // 4. Resolve Y-axis (Gravity and Final Grounding)
+        val finalSupportY = sceneManager.findHighestSupportY(playerPosition.x, playerPosition.z, originalPosition.y, playerSize.x / 2f, blockSize)
+        val playerFootY = originalPosition.y - (playerSize.y / 2f)
+
+        // Ensure the final ground position is a valid step from where the player *started* the frame.
+        val effectiveSupportY = if (finalSupportY - playerFootY <= MAX_STEP_HEIGHT) {
+            finalSupportY
+        } else {
+            sceneManager.findHighestSupportY(originalPosition.x, originalPosition.z, originalPosition.y, playerSize.x / 2f, blockSize)
+        }
+
+        val targetY = effectiveSupportY + (playerSize.y / 2f)
+        val fallY = playerPosition.y - FALL_SPEED * deltaTime // Fall from the current position
+        playerPosition.y = kotlin.math.max(targetY, fallY)
+
+        // 5. Update flags and visuals
+        val moved = !playerPosition.epsilonEquals(originalPosition, 0.001f)
+        isMoving = (originalPosition.x != playerPosition.x) || (originalPosition.z != playerPosition.z)
 
         // Handle animation and rotation
         if (isMoving && !lastIsMoving) animationSystem.playAnimation("walking")
