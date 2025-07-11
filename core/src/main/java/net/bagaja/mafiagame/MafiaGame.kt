@@ -427,7 +427,7 @@ class MafiaGame : ApplicationAdapter() {
             UIManager.Tool.BLOCK -> {
                 val blockToRemove = raycastSystem.getBlockAtRay(ray, sceneManager.activeBlocks)
                 if (blockToRemove != null) {
-                    removeBlock(blockToRemove)
+                    removeBlockArea(blockToRemove)
                     return true
                 }
             }
@@ -769,7 +769,7 @@ class MafiaGame : ApplicationAdapter() {
             val gridX = floor(newX / blockSize) * blockSize
             val gridY = floor(newY / blockSize) * blockSize
             val gridZ = floor(newZ / blockSize) * blockSize
-            
+
             placeBlockArea(gridX, gridY, gridZ)
         }
     }
@@ -781,6 +781,64 @@ class MafiaGame : ApplicationAdapter() {
 
         // Use the centralized system
         faceCullingSystem.updateFacesAround(position, sceneManager.activeBlocks)
+    }
+
+    private fun removeBlockArea(centerBlock: GameBlock) {
+        val buildMode = blockSystem.currentBuildMode
+        val size = buildMode.size
+
+        // If it's just a 1x1 area
+        if (size == 1) {
+            removeBlock(centerBlock)
+            return
+        }
+
+        // For 3x3 or 5x5 areas
+        val blocksToRemoveList = mutableListOf<GameBlock>()
+        val centerPos = centerBlock.position
+        val offset = (size - 1) / 2
+        val isWall = buildMode.isWall
+
+        for (i in 0 until size) {
+            for (j in 0 until size) {
+                // Calculate the target center position for each block in the area
+                val targetX: Float
+                val targetY: Float
+                val targetZ: Float
+
+                if (isWall) {
+                    // Removing a wall area (X, Y plane), centered on the block that was clicked
+                    targetX = centerPos.x + (i - offset) * blockSize
+                    targetY = centerPos.y + (j - offset) * blockSize
+                    targetZ = centerPos.z
+                } else {
+                    // Removing a floor area (X, Z plane)
+                    targetX = centerPos.x + (i - offset) * blockSize
+                    targetY = centerPos.y
+                    targetZ = centerPos.z + (j - offset) * blockSize
+                }
+                val targetPos = Vector3(targetX, targetY, targetZ)
+
+                // Find if a block exists at this target position
+                val blockFound = sceneManager.activeBlocks.find { it.position.epsilonEquals(targetPos, 0.1f) }
+                if (blockFound != null) {
+                    blocksToRemoveList.add(blockFound)
+                }
+            }
+        }
+
+        if (blocksToRemoveList.isNotEmpty()) {
+            val positionsToUpdate = blocksToRemoveList.map { it.position }
+
+            val gdxArrayToRemove = Array(blocksToRemoveList.toTypedArray())
+            sceneManager.activeBlocks.removeAll(gdxArrayToRemove, true)
+
+            // Update face culling for all affected areas
+            for (pos in positionsToUpdate) {
+                faceCullingSystem.updateFacesAround(pos, sceneManager.activeBlocks)
+            }
+            println("Removed ${blocksToRemoveList.size} blocks in a $size x $size area.")
+        }
     }
 
     private fun removeObject(objectToRemove: GameObject) {
