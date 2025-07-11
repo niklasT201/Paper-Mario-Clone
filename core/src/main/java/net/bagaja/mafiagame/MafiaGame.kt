@@ -1334,7 +1334,9 @@ class MafiaGame : ApplicationAdapter() {
             val effectType = particleSystem.currentSelectedEffect
             val isGunSmokeEffect = effectType == ParticleEffectType.GUN_SMOKE_PLUME || effectType == ParticleEffectType.GUN_SMOKE_BURST
             val direction = if (isGunSmokeEffect) ray.direction else hitNormal
-            particleSystem.spawnEffect(effectType, pos, direction)
+
+            // Pass the surface normal for ground-oriented effects
+            particleSystem.spawnEffect(effectType, pos, direction, hitNormal)
             println("Spawned ${effectType.displayName} at $pos")
         }
     }

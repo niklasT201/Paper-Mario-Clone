@@ -1,5 +1,3 @@
-// Replace the entire contents of ParticleSystem.kt with this code
-
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
@@ -15,11 +13,6 @@ import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
 import kotlin.random.Random
-
-/**
- * Defines the properties of a particle effect, now matching your asset library.
- */
-// In ParticleSystem.kt
 
 /**
  * Defines the properties of a particle effect, now matching your asset library.
@@ -326,7 +319,7 @@ class ParticleSystem {
     /**
      * Spawns a particle effect at a given position.
      */
-    fun spawnEffect(type: ParticleEffectType, position: Vector3, baseDirection: Vector3? = null) {
+    fun spawnEffect(type: ParticleEffectType, position: Vector3, baseDirection: Vector3? = null, surfaceNormal: Vector3? = null) {
         val model = particleModels[type] ?: return // Can't spawn if model isn't loaded
         val particleCount = type.particleCount.random()
 
@@ -355,6 +348,11 @@ class ParticleSystem {
             val scale = type.scale + (Random.nextFloat() - 0.5f) * 2f * type.scaleVariance
             instance.transform.scale(scale, scale, scale)
 
+            // Handle ground-oriented effects (blood splatters and boot prints)
+            if (isGroundOrientedEffect(type) && surfaceNormal != null) {
+                orientParticleToSurface(instance, surfaceNormal)
+            }
+
             val particle = GameParticle(
                 type = type,
                 instance = instance,
@@ -366,6 +364,45 @@ class ParticleSystem {
             )
             activeParticles.add(particle)
         }
+    }
+
+    private fun isGroundOrientedEffect(type: ParticleEffectType): Boolean {
+        return when (type) {
+            ParticleEffectType.BLOOD_SPLATTER_1,
+            ParticleEffectType.BLOOD_SPLATTER_2,
+            ParticleEffectType.BLOOD_SPLATTER_3,
+            ParticleEffectType.BOOT_PRINTS -> true
+            else -> false
+        }
+    }
+
+    private fun orientParticleToSurface(instance: ModelInstance, surfaceNormal: Vector3) {
+        val transform = instance.transform
+        val position = Vector3()
+        transform.getTranslation(position)
+
+        // Reset rotation and set position
+        transform.idt()
+        transform.setTranslation(position)
+
+        // Create rotation to align with surface
+        val up = Vector3(0f, 0f, 1f) // Original particle "up" direction (facing camera)
+        val normal = Vector3(surfaceNormal).nor()
+
+        // Calculate rotation axis and angle
+        val rotationAxis = Vector3(up).crs(normal)
+        val angle = Math.acos(up.dot(normal).toDouble()).toFloat() * com.badlogic.gdx.math.MathUtils.radiansToDegrees
+
+        // Only rotate if there's a meaningful rotation needed
+        if (rotationAxis.len() > 0.001f) {
+            rotationAxis.nor()
+            transform.rotate(rotationAxis, angle)
+        }
+
+        // Apply scaling after rotation
+        val currentScale = Vector3()
+        transform.getScale(currentScale)
+        transform.scale(currentScale.x, currentScale.y, currentScale.z)
     }
 
     fun update(deltaTime: Float) {

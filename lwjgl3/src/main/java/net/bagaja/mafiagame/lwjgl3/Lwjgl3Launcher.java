@@ -52,6 +52,12 @@ public class Lwjgl3Launcher {
 
 // working collisions for ramp, pillar and corner
 // teleportation points
+// coded particles
+// running swipes
+// maybe water blocks
+// improving placement for block, 1x1, 3x3, 5x5
+// npc and enemy ui option for choosing death level
+// spawner for particles
 // improve performance for rooms (camera starting shaking)
 // map saving
 // dialog system
