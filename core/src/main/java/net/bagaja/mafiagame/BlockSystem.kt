@@ -14,6 +14,24 @@ import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Vector3
 
+enum class BuildMode(val size: Int, val isWall: Boolean) {
+    SINGLE(1, false),
+    WALL_3x3(3, true),
+    FLOOR_3x3(3, false),
+    WALL_5x5(5, true),
+    FLOOR_5x5(5, false);
+
+    fun getDisplayName(): String {
+        return when(this) {
+            SINGLE -> "1x1 Area"
+            WALL_3x3 -> "3x3 Wall"
+            FLOOR_3x3 -> "3x3 Floor"
+            WALL_5x5 -> "5x5 Wall"
+            FLOOR_5x5 -> "5x5 Floor"
+        }
+    }
+}
+
 // Block system class to manage different block types
 class BlockSystem {
     // Caches for the two different model types
@@ -34,6 +52,8 @@ class BlockSystem {
     var currentTopTextureRotation = 0f
         private set
     var rotationMode = BlockRotationMode.GEOMETRY
+        private set
+    var currentBuildMode = BuildMode.SINGLE
         private set
 
     private lateinit var modelBuilder: ModelBuilder
@@ -451,6 +471,19 @@ class BlockSystem {
                 }
             }
         }
+    }
+
+    fun nextBuildMode() {
+        val modes = BuildMode.entries.toTypedArray()
+        currentBuildMode = modes[(modes.indexOf(currentBuildMode) + 1) % modes.size]
+        println("Build mode set to: ${currentBuildMode.getDisplayName()}")
+    }
+
+    fun previousBuildMode() {
+        val modes = BuildMode.entries.toTypedArray()
+        val currentIndex = modes.indexOf(currentBuildMode)
+        currentBuildMode = if (currentIndex > 0) modes[currentIndex - 1] else modes.last()
+        println("Build mode set to: ${currentBuildMode.getDisplayName()}")
     }
 
     fun nextShape() {

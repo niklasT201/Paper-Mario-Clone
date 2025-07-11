@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.Plane
+import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import kotlin.math.floor
 import com.badlogic.gdx.utils.Array
@@ -83,6 +84,7 @@ class HighlightSystem(private val blockSize: Float) {
     fun update(
         cameraManager: CameraManager,
         uiManager: UIManager,
+        blockSystem: BlockSystem,
         gameBlocks: Array<GameBlock>,
         gameObjects: Array<GameObject>,
         gameCars: Array<GameCar>,
@@ -103,7 +105,7 @@ class HighlightSystem(private val blockSize: Float) {
         val ray = cameraManager.camera.getPickRay(mouseX, mouseY)
 
         when (uiManager.selectedTool) {
-            UIManager.Tool.BLOCK -> updateBlockHighlight(ray, gameBlocks, raycastSystem)
+            UIManager.Tool.BLOCK -> updateBlockHighlight(ray, gameBlocks, raycastSystem, blockSystem)
             UIManager.Tool.OBJECT -> updateObjectHighlight(ray, gameObjects, objectSystem, raycastSystem)
             UIManager.Tool.ITEM -> updateItemHighlight(ray, itemSystem, raycastSystem)
             UIManager.Tool.CAR -> updateCarHighlight(ray, gameCars, raycastSystem, uiManager)
@@ -153,13 +155,36 @@ class HighlightSystem(private val blockSize: Float) {
         Gdx.gl.glDisable(GL20.GL_BLEND)
     }
 
-    private fun updateBlockHighlight(ray: Ray, gameBlocks: Array<GameBlock>, raycastSystem: RaycastSystem) {
+    private fun updateBlockHighlight(ray: Ray, gameBlocks: Array<GameBlock>, raycastSystem: RaycastSystem, blockSystem: BlockSystem) {
+        val buildMode = blockSystem.currentBuildMode
+        val size = buildMode.size.toFloat()
+
         val hitBlock = raycastSystem.getBlockAtRay(ray, gameBlocks)
 
-        updateHighlightSize(Vector3(blockSize, blockSize, blockSize))
-
         if (hitBlock != null) {
-            // Show red highlight for block removal
+            // REMOVAL HIGHLIGHT
+            var highlightSize = Vector3(blockSize, blockSize, blockSize)
+
+            if (buildMode.isWall) {
+                val blockBounds = BoundingBox()
+                hitBlock.getBoundingBox(blockSize, blockBounds)
+                val intersection = Vector3()
+                if (Intersector.intersectRayBounds(ray, blockBounds, intersection)) {
+                    val relativePos = intersection.cpy().sub(hitBlock.position)
+                    val absX = kotlin.math.abs(relativePos.x)
+                    val absY = kotlin.math.abs(relativePos.y)
+                    val absZ = kotlin.math.abs(relativePos.z)
+                    when {
+                        absX > absY && absX > absZ -> highlightSize.set(blockSize, size * blockSize, size * blockSize) // YZ plane
+                        absY > absX && absY > absZ -> highlightSize.set(size * blockSize, blockSize, size * blockSize) // XZ plane
+                        else -> highlightSize.set(size * blockSize, size * blockSize, blockSize) // XY plane
+                    }
+                }
+            } else { // Floor mode
+                highlightSize.set(size * blockSize, blockSize, size * blockSize)
+            }
+
+            updateHighlightSize(highlightSize)
             showHighlight(hitBlock.position, removeColor)
         } else {
             // Show green highlight for block placement
@@ -167,21 +192,21 @@ class HighlightSystem(private val blockSize: Float) {
             val groundPlane = Plane(Vector3.Y, 0f)
 
             if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-                // Snap to grid
-                val gridX = floor(intersection.x / blockSize) * blockSize
-                val gridZ = floor(intersection.z / blockSize) * blockSize
-                val placementPos = Vector3(gridX + blockSize / 2, blockSize / 2, gridZ + blockSize / 2)
+                val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
+                val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
 
-                // Check if position is occupied
-                val existingBlock = gameBlocks.find { gameBlock ->
-                    gameBlock.position.dst(placementPos) < 0.1f
-                }
-
-                if (existingBlock == null) {
-                    showHighlight(placementPos, placeColor)
+                // Floors are flat, Walls are vertical.
+                val highlightSize = if (buildMode.isWall) {
+                    Vector3(size * blockSize, size * blockSize, blockSize)
                 } else {
-                    hideHighlight()
+                    Vector3(size * blockSize, blockSize, size * blockSize)
                 }
+
+                val yOffset = highlightSize.y / 2f
+                val placementPos = Vector3(gridX, yOffset, gridZ)
+
+                updateHighlightSize(highlightSize)
+                showHighlight(placementPos, placeColor)
             } else {
                 hideHighlight()
             }

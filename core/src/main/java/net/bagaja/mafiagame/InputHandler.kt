@@ -296,7 +296,20 @@ class InputHandler(
                         uiManager.toggleSkyCustomizationUI()
                         return true
                     }
-                    Input.Keys.T -> { // Let's use 'T' for 'T'ransform or 'T'ype
+                    Input.Keys.V -> {
+                        // Only cycle area when the block tool is active
+                        if (uiManager.selectedTool == Tool.BLOCK) {
+                            if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) {
+                                blockSystem.previousBuildMode()
+                            } else {
+                                blockSystem.nextBuildMode()
+                            }
+                            uiManager.updateBlockSelection() // Update UI to show the new mode
+                            return true
+                        }
+                        return false // Not in block mode, let other systems handle 'V' if needed
+                    }
+                    Input.Keys.T -> {
                         if (isBlockSelectionMode) { // Only cycle shapes when in block mode
                             if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)) {
                                 blockSystem.previousShape()

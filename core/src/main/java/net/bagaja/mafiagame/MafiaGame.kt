@@ -649,6 +649,73 @@ class MafiaGame : ApplicationAdapter() {
         return highestY
     }
 
+    private fun placeBlockArea(cornerX: Float, cornerY: Float, cornerZ: Float) {
+        val buildMode = blockSystem.currentBuildMode
+        val blockType = blockSystem.currentSelectedBlock
+        val size = buildMode.size
+
+        // If it's just a 1x1 area
+        if (size == 1) {
+            val position = Vector3(cornerX + blockSize / 2, cornerY + (blockSize * blockType.height) / 2, cornerZ + blockSize / 2)
+            // Check if block already exists at this position
+            val existingBlock = sceneManager.activeBlocks.find { gameBlock ->
+                // This check might need to be more robust for different shapes and sizes
+                gameBlock.position.dst(position) < 0.1f
+            }
+            if (existingBlock == null) {
+                addBlock(cornerX, cornerY, cornerZ, blockType)
+                println("${blockType.displayName} (${blockSystem.currentSelectedShape.getDisplayName()}) placed at: $cornerX, $cornerY, $cornerZ")
+            } else {
+                println("Block already exists at this position")
+            }
+            return
+        }
+
+        // For 3x3 or 5x5 areas
+        val offset = (size - 1) / 2
+        val isWall = buildMode.isWall
+
+        for (i in 0 until size) {
+            for (j in 0 until size) {
+                // Calculate the grid coordinates (bottom-left corner) for the current block in the area
+                val currentBlockX: Float
+                val currentBlockY: Float
+                val currentBlockZ: Float
+
+                if (isWall) {
+                    // Placing a wall (X, Y plane). The provided corner is the center block's corner.
+                    currentBlockX = cornerX + (i - offset) * blockSize
+                    currentBlockY = cornerY + (j - offset) * blockSize
+                    currentBlockZ = cornerZ
+                } else {
+                    // Placing a floor (X, Z plane)
+                    currentBlockX = cornerX + (i - offset) * blockSize
+                    currentBlockY = cornerY
+                    currentBlockZ = cornerZ + (j - offset) * blockSize
+                }
+
+                // Calculate the center position for the existence check
+                val checkPosition = Vector3(
+                    currentBlockX + blockSize / 2,
+                    currentBlockY + (blockSize * blockType.height) / 2,
+                    currentBlockZ + blockSize / 2
+                )
+
+                // Check if a block already exists at this position
+                val existingBlock = sceneManager.activeBlocks.find { gameBlock ->
+                    gameBlock.position.dst(checkPosition) < 0.1f
+                }
+
+                if (existingBlock == null) {
+                    // Pass the calculated corner coordinates to addBlock
+                    addBlock(currentBlockX, currentBlockY, currentBlockZ, blockType)
+                }
+            }
+        }
+        val areaType = if (isWall) "Wall" else "Floor"
+        println("${blockType.displayName} $size x $size $areaType placed around center corner: $cornerX, $cornerY, $cornerZ")
+    }
+
     private fun placeBlock(ray: Ray) {
         val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeBlocks)
 
@@ -665,19 +732,7 @@ class MafiaGame : ApplicationAdapter() {
                 val gridX = floor(intersection.x / blockSize) * blockSize
                 val gridZ = floor(intersection.z / blockSize) * blockSize
 
-                // Check if block already exists at this position
-                val existingBlock = sceneManager.activeBlocks.find { gameBlock ->
-                    kotlin.math.abs(gameBlock.position.x - (gridX + blockSize / 2)) < 0.1f &&
-                        kotlin.math.abs(gameBlock.position.y - (blockSize / 2)) < 0.1f &&
-                        kotlin.math.abs(gameBlock.position.z - (gridZ + blockSize / 2)) < 0.1f
-                }
-
-                if (existingBlock == null) {
-                    addBlock(gridX, 0f, gridZ, blockSystem.currentSelectedBlock)
-                    println("${blockSystem.currentSelectedBlock.displayName} block placed at: $gridX, 0, $gridZ")
-                } else {
-                    println("Block already exists at this position")
-                }
+                placeBlockArea(gridX, 0f, gridZ)
             }
         }
     }
@@ -714,19 +769,8 @@ class MafiaGame : ApplicationAdapter() {
             val gridX = floor(newX / blockSize) * blockSize
             val gridY = floor(newY / blockSize) * blockSize
             val gridZ = floor(newZ / blockSize) * blockSize
-
-            // Check if block already exists at this position
-            val existingBlock = sceneManager.activeBlocks.find { gameBlock ->
-                // This check might need to be more robust for different shapes and sizes
-                gameBlock.position.dst(gridX + blockSize / 2, gridY + blockSize / 2, gridZ + blockSize / 2) < 0.1f
-            }
-
-            if (existingBlock == null) {
-                addBlock(gridX, gridY, gridZ, blockSystem.currentSelectedBlock)
-                println("${blockSystem.currentSelectedBlock.displayName} (${blockSystem.currentSelectedShape.getDisplayName()}) placed adjacent at: $gridX, $gridY, $gridZ")
-            } else {
-                println("Block already exists at this position")
-            }
+            
+            placeBlockArea(gridX, gridY, gridZ)
         }
     }
 
@@ -1393,6 +1437,7 @@ class MafiaGame : ApplicationAdapter() {
         highlightSystem.update(
             cameraManager,
             uiManager,
+            blockSystem,
             sceneManager.activeBlocks,
             sceneManager.activeObjects,
             sceneManager.activeCars,

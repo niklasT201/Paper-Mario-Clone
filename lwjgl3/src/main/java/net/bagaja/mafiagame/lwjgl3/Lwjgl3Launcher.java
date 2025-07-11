@@ -54,8 +54,8 @@ public class Lwjgl3Launcher {
 // teleportation points
 // coded particles
 // running swipes
+// option to turn on screen light
 // maybe water blocks
-// improving placement for block, 1x1, 3x3, 5x5
 // npc and enemy ui option for choosing death level
 // spawner for particles
 // improve performance for rooms (camera starting shaking)

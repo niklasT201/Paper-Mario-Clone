@@ -35,6 +35,7 @@ class BlockSelectionUI(
     private lateinit var rotationLabel: Label
     private lateinit var rotationModeLabel: Label
     private lateinit var shapeLabel: Label
+    private lateinit var buildModeLabel: Label
 
     private data class BlockSelectionItem(
         val container: Table,
@@ -80,7 +81,7 @@ class BlockSelectionUI(
         setupModifiersSection(mainContainer)
 
         val instructionLabel = Label(
-            "Hold [B] + Mouse Wheel to change blocks | [Q/E] Rotate | [T] Change Shape | [R] Toggle Rotation Mode",
+            "Hold [B] + Mouse Wheel to change blocks | [Q/E] Rotate | [T] Change Shape | [R] Toggle Rotation Mode | [V] Change Area",
             skin
         )
         instructionLabel.setFontScale(0.8f)
@@ -115,10 +116,16 @@ class BlockSelectionUI(
         shapeLabel.setFontScale(0.9f)
         shapeLabel.color = Color(0.8f, 1f, 0.9f, 1f) // Light green
 
+        // ADD the build mode label
+        buildModeLabel = Label("", skin)
+        buildModeLabel.setFontScale(0.9f)
+        buildModeLabel.color = Color(1f, 0.9f, 0.7f, 1f) // Light orange
+
         // Add them to the table with some spacing
         modifiersTable.add(rotationLabel).padRight(25f)
-        modifiersTable.add(rotationModeLabel).padRight(25f) // NEW
-        modifiersTable.add(shapeLabel)
+        modifiersTable.add(rotationModeLabel).padRight(25f)
+        modifiersTable.add(shapeLabel).padRight(25f) // MODIFIED: Added padding
+        modifiersTable.add(buildModeLabel) // ADD THIS
 
         // Add the modifiers table to the main UI container
         mainContainer.add(modifiersTable).padBottom(15f).row()
@@ -326,6 +333,9 @@ class BlockSelectionUI(
 
         val shapeName = blockSystem.currentSelectedShape.getDisplayName()
         shapeLabel.setText("[YELLOW]Shape:[] $shapeName ([ORANGE]T[])")
+
+        val buildModeName = blockSystem.currentBuildMode.getDisplayName()
+        buildModeLabel.setText("[YELLOW]Area:[] $buildModeName ([ORANGE]V[])")
 
         // Scrolling and item selection
         val currentIndex = blockSystem.currentSelectedBlockIndex
