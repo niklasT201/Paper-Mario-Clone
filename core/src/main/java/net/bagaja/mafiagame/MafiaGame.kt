@@ -942,15 +942,20 @@ class MafiaGame : ApplicationAdapter() {
         }
 
         val settings = uiManager.getLightSourceSettings()
-        val (intensity, range, color, rotX, rotY, rotZ) = settings
 
         // Create light source with rotation
         val lightSource = objectSystem.createLightSource(
-            Vector3(position.x, position.y, position.z),
-            intensity,
-            range,
-            color,
-            rotX, rotY, rotZ  // Pass rotation values
+            position = Vector3(position.x, position.y, position.z),
+            intensity = settings.intensity,
+            range = settings.range,
+            color = settings.color,
+            rotationX = settings.rotationX,
+            rotationY = settings.rotationY,
+            rotationZ = settings.rotationZ,
+            flickerMode = settings.flickerMode,
+            loopOnDuration = settings.loopOnDuration,
+            loopOffDuration = settings.loopOffDuration,
+            timedFlickerLifetime = settings.timedFlickerLifetime
         )
 
         // Create model instances
@@ -960,7 +965,7 @@ class MafiaGame : ApplicationAdapter() {
         lightingManager.addLightSource(lightSource, instances)
 
         lastPlacedInstance = lightSource
-        println("Light source placed at: ${position.x}, ${position.y}, ${position.z}")
+        println("Light source placed at: ${position.x}, ${position.y}, ${position.z} with flicker mode: ${settings.flickerMode}")
     }
 
     private fun addItemToScene(position: Vector3) {
@@ -1476,6 +1481,14 @@ class MafiaGame : ApplicationAdapter() {
 
         // Update lighting manager
         lightingManager.update(deltaTime, cameraManager.camera.position, timeMultiplier)
+
+        val expiredLightIds = lightingManager.collectAndClearExpiredLights()
+        if (expiredLightIds.isNotEmpty()) {
+            expiredLightIds.forEach { id ->
+                // Also remove it from the object system so it doesn't leave a ghost object
+                objectSystem.removeLightSource(id)
+            }
+        }
 
         // Update input handler for continuous actions
         inputHandler.update(deltaTime)

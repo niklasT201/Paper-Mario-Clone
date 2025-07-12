@@ -16,6 +16,19 @@ import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
 
+data class LightSourceSettings(
+    val intensity: Float,
+    val range: Float,
+    val color: Color,
+    val rotationX: Float,
+    val rotationY: Float,
+    val rotationZ: Float,
+    val flickerMode: FlickerMode,
+    val loopOnDuration: Float,
+    val loopOffDuration: Float,
+    val timedFlickerLifetime: Float
+)
+
 /**
  * Modern UI for customizing light source properties with sleek design
  */
@@ -49,6 +62,20 @@ class LightSourceUI(
     var nextColor = Color(LightSource.DEFAULT_COLOR_R, LightSource.DEFAULT_COLOR_G, LightSource.DEFAULT_COLOR_B, 1f)
 
     private var isVisible = false
+
+    private lateinit var flickerModeSelectBox: SelectBox<FlickerMode>
+    private lateinit var onOffControlsGroup: Table
+    private lateinit var lifetimeControlsGroup: Table
+    private lateinit var onOffSlider: Slider
+    private lateinit var onOffLabel: Label
+    private lateinit var lifetimeSlider: Slider
+    private lateinit var lifetimeLabel: Label
+
+    // Add new properties for flicker settings
+    var nextFlickerMode = FlickerMode.NONE
+    var nextLoopOnDuration = 0.1f
+    var nextLoopOffDuration = 0.2f
+    var nextTimedLifetime = 10f
 
     fun initialize() {
         createLightPanel()
@@ -149,6 +176,8 @@ class LightSourceUI(
             rotationZLabel.setText("${value.toInt()}°")
         }
 
+        createFlickerControls(settingsContainer)
+
         // Color picker - now as clickable button
         val colorContainer = Table()
         colorContainer.add(Label("Color:", skin)).left().padBottom(8f).row()
@@ -248,6 +277,76 @@ class LightSourceUI(
         mainContainer.add(buttonContainer).center()
     }
 
+    private fun createFlickerControls(parent: Table) {
+        val flickerMainContainer = Table()
+        flickerMainContainer.add(Label("Flicker Mode:", skin)).left().padBottom(8f).row()
+
+        flickerModeSelectBox = SelectBox<FlickerMode>(skin)
+        flickerModeSelectBox.items = com.badlogic.gdx.utils.Array(FlickerMode.values())
+        flickerModeSelectBox.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                nextFlickerMode = flickerModeSelectBox.selected
+                updateFlickerControlsVisibility()
+            }
+        })
+        flickerMainContainer.add(flickerModeSelectBox).width(320f).padBottom(10f).row()
+
+        // Group for On/Off controls
+        onOffControlsGroup = Table()
+        val onOffHeader = Table()
+        onOffHeader.add(Label("On/Off Time:", skin)).left().expandX()
+        onOffLabel = Label("0.10s / 0.20s", skin)
+        onOffHeader.add(onOffLabel).right()
+        onOffControlsGroup.add(onOffHeader).fillX().padBottom(5f).row()
+        onOffSlider = Slider(0.02f, 1f, 0.01f, false, skin)
+        onOffSlider.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                nextLoopOnDuration = onOffSlider.value
+                nextLoopOffDuration = onOffSlider.value * 2
+                onOffLabel.setText("%.2fs / %.2fs".format(nextLoopOnDuration, nextLoopOffDuration))
+            }
+        })
+        onOffControlsGroup.add(onOffSlider).fillX().padBottom(15f).row()
+        flickerMainContainer.add(onOffControlsGroup).fillX().row()
+
+        // Group for Lifetime controls
+        lifetimeControlsGroup = Table()
+        val lifetimeHeader = Table()
+        lifetimeHeader.add(Label("Flicker Lifetime:", skin)).left().expandX()
+        lifetimeLabel = Label("10s", skin)
+        lifetimeHeader.add(lifetimeLabel).right()
+        lifetimeControlsGroup.add(lifetimeHeader).fillX().padBottom(5f).row()
+        lifetimeSlider = Slider(1f, 60f, 1f, false, skin)
+        lifetimeSlider.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                nextTimedLifetime = lifetimeSlider.value
+                lifetimeLabel.setText("${nextTimedLifetime.toInt()}s")
+            }
+        })
+        lifetimeControlsGroup.add(lifetimeSlider).fillX().padBottom(15f).row()
+        flickerMainContainer.add(lifetimeControlsGroup).fillX().row()
+
+        parent.add(flickerMainContainer).fillX().padTop(10f).row()
+        updateFlickerControlsVisibility() // Set initial visibility
+    }
+
+    private fun updateFlickerControlsVisibility() {
+        when (nextFlickerMode) {
+            FlickerMode.NONE -> {
+                onOffControlsGroup.isVisible = false
+                lifetimeControlsGroup.isVisible = false
+            }
+            FlickerMode.LOOP -> {
+                onOffControlsGroup.isVisible = true
+                lifetimeControlsGroup.isVisible = false
+            }
+            FlickerMode.TIMED_FLICKER_OFF -> {
+                onOffControlsGroup.isVisible = true
+                lifetimeControlsGroup.isVisible = true
+            }
+        }
+    }
+
     private fun resetToDefaults() {
         nextIntensity = LightSource.DEFAULT_INTENSITY
         nextRange = LightSource.DEFAULT_RANGE
@@ -255,6 +354,12 @@ class LightSourceUI(
         nextRotationX = 0f
         nextRotationY = 0f
         nextRotationZ = 0f
+
+        // Reset flicker state
+        nextFlickerMode = FlickerMode.NONE
+        nextLoopOnDuration = 0.1f
+        nextLoopOffDuration = 0.2f
+        nextTimedLifetime = 10f
 
         intensitySlider.value = (nextIntensity / LightSource.MAX_INTENSITY) * 100f
         rangeSlider.value = ((nextRange - LightSource.MIN_RANGE) / (LightSource.MAX_RANGE - LightSource.MIN_RANGE)) * 100f
@@ -264,14 +369,22 @@ class LightSourceUI(
         rotationYSlider.value = nextRotationY
         rotationZSlider.value = nextRotationZ
 
+        // Update flicker UI
+        flickerModeSelectBox.selected = nextFlickerMode
+        onOffSlider.value = nextLoopOnDuration
+        lifetimeSlider.value = nextTimedLifetime
+
         // Update labels
         intensityLabel.setText("${((nextIntensity / LightSource.MAX_INTENSITY) * 100f).toInt()}%")
         rangeLabel.setText("${(((nextRange - LightSource.MIN_RANGE) / (LightSource.MAX_RANGE - LightSource.MIN_RANGE)) * 100f).toInt()}%")
         rotationXLabel.setText("${nextRotationX.toInt()}°")
         rotationYLabel.setText("${nextRotationY.toInt()}°")
         rotationZLabel.setText("${nextRotationZ.toInt()}°")
+        onOffLabel.setText("%.2fs / %.2fs".format(nextLoopOnDuration, nextLoopOffDuration))
+        lifetimeLabel.setText("${nextTimedLifetime.toInt()}s")
 
         updateColorPreview()
+        updateFlickerControlsVisibility()
     }
 
     // Method to clear focus and hide UI
@@ -385,16 +498,25 @@ class LightSourceUI(
     fun isVisible(): Boolean = isVisible
 
     // Get current settings for placing new light
-    fun getCurrentSettings(): Tuple6<Float, Float, Color, Float, Float, Float> {
-        return Tuple6(nextIntensity, nextRange, Color(nextColor), nextRotationX, nextRotationY, nextRotationZ)
+    fun getCurrentSettings(): LightSourceSettings {
+        return LightSourceSettings(
+            nextIntensity,
+            nextRange,
+            Color(nextColor),
+            nextRotationX,
+            nextRotationY,
+            nextRotationZ,
+            nextFlickerMode,
+            nextLoopOnDuration,
+            nextLoopOffDuration,
+            nextTimedLifetime
+        )
     }
 
     fun dispose() {
         colorPickerDialog?.remove()
     }
 }
-
-data class Tuple6<A, B, C, D, E, F>(val first: A, val second: B, val third: C, val fourth: D, val fifth: E, val sixth: F)
 
 /**
  * Color picker dialog with HSV color wheel and RGB sliders

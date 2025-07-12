@@ -70,7 +70,6 @@ public class Lwjgl3Launcher {
 // fix car and player falling bug
 // blood system
 // black bars top/bottom or left/right
-// flickering light source
 // when shooting flickering light gets spawned
 // improve camera for interiors
 // player visible optional in cars

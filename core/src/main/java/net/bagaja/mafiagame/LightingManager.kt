@@ -69,9 +69,10 @@ class LightingManager {
     fun update(deltaTime: Float, cameraPosition: Vector3, timeMultiplier: Float = 1.0f) {
         // Update day/night cycle with the multiplier
         dayNightCycle.update(deltaTime, timeMultiplier)
-
-        // Update sky system
         skySystem.update(dayNightCycle, cameraPosition)
+
+        // NEW: Update flickering lights logic
+        updateFlickeringLights(deltaTime)
 
         updateLighting()
 
@@ -232,6 +233,81 @@ class LightingManager {
                 modelBatch.render(invisibleInstance, environment)
             }
         }
+    }
+
+    private fun updateFlickeringLights(deltaTime: Float) {
+        if (lightSources.isEmpty()) return
+
+        for (lightSource in lightSources.values) {
+            // Skip lights that are already marked for removal or not set to flicker
+            if (lightSource.isMarkedForRemoval || lightSource.flickerMode == FlickerMode.NONE) {
+                continue
+            }
+
+            when (lightSource.flickerMode) {
+                FlickerMode.LOOP -> {
+                    lightSource.flickerTimer += deltaTime
+                    val isOn = lightSource.intensity > 0
+                    if (isOn) {
+                        if (lightSource.flickerTimer >= lightSource.loopOnDuration) {
+                            lightSource.intensity = 0f
+                            lightSource.flickerTimer = 0f
+                            lightSource.updatePointLight()
+                        }
+                    } else { // Is off
+                        if (lightSource.flickerTimer >= lightSource.loopOffDuration) {
+                            lightSource.intensity = lightSource.baseIntensity
+                            lightSource.flickerTimer = 0f
+                            lightSource.updatePointLight()
+                        }
+                    }
+                }
+                FlickerMode.TIMED_FLICKER_OFF -> {
+                    lightSource.lifetime += deltaTime
+                    if (lightSource.lifetime >= lightSource.timedFlickerLifetime) {
+                        // Time's up, mark for removal
+                        if (!lightSource.isMarkedForRemoval) {
+                            lightSource.intensity = 0f
+                            lightSource.isEnabled = false
+                            lightSource.updatePointLight()
+                            lightSource.isMarkedForRemoval = true
+                        }
+                    } else {
+                        // Still flickering during its lifetime
+                        lightSource.flickerTimer += deltaTime
+                        val isOn = lightSource.intensity > 0
+                        if (isOn) {
+                            if (lightSource.flickerTimer >= lightSource.loopOnDuration) {
+                                lightSource.intensity = 0f
+                                lightSource.flickerTimer = 0f
+                                lightSource.updatePointLight()
+                            }
+                        } else { // Is off
+                            if (lightSource.flickerTimer >= lightSource.loopOffDuration) {
+                                lightSource.intensity = lightSource.baseIntensity
+                                lightSource.flickerTimer = 0f
+                                lightSource.updatePointLight()
+                            }
+                        }
+                    }
+                }
+                FlickerMode.NONE -> {} // Should not happen, but here for completeness
+            }
+        }
+    }
+
+    fun collectAndClearExpiredLights(): List<Int> {
+        val expiredIds = lightSources.values
+            .filter { it.isMarkedForRemoval }
+            .map { it.id }
+
+        if (expiredIds.isNotEmpty()) {
+            println("Cleaning up ${expiredIds.size} expired light source(s).")
+            expiredIds.forEach { id ->
+                removeLightSource(id)
+            }
+        }
+        return expiredIds
     }
 
     fun updateSkyPaletteColor(timeOfDay: DayNightCycle.TimeOfDay, colorType: SkySystem.SkyColorType, newColor: Color) {

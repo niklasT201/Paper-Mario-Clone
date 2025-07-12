@@ -275,9 +275,27 @@ class ObjectSystem: IFinePositionable {
         color: Color = Color(LightSource.DEFAULT_COLOR_R, LightSource.DEFAULT_COLOR_G, LightSource.DEFAULT_COLOR_B, 1f),
         rotationX: Float = 0f,
         rotationY: Float = 0f,
-        rotationZ: Float = 0f
+        rotationZ: Float = 0f,
+        flickerMode: FlickerMode = FlickerMode.NONE,
+        loopOnDuration: Float = 0.1f,
+        loopOffDuration: Float = 0.1f,
+        timedFlickerLifetime: Float = 10f
     ): LightSource {
-        val lightSource = LightSource(nextLightId++, position, intensity, range, color, true, rotationX, rotationY, rotationZ)
+        val lightSource = LightSource(
+            id = nextLightId++,
+            position = position,
+            intensity = intensity,
+            range = range,
+            color = color,
+            isEnabled = true,
+            rotationX = rotationX,
+            rotationY = rotationY,
+            rotationZ = rotationZ,
+            flickerMode = flickerMode,
+            loopOnDuration = loopOnDuration,
+            loopOffDuration = loopOffDuration,
+            timedFlickerLifetime = timedFlickerLifetime
+        )
         lightSource.updateTransform() // Apply initial rotation
         lightSources[lightSource.id] = lightSource
         return lightSource

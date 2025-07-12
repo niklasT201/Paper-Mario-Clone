@@ -1147,7 +1147,7 @@ class UIManager(
         interiorSelectionUI.update()
     }
 
-    fun getLightSourceSettings(): Tuple6<Float, Float, Color, Float, Float, Float> {
+    fun getLightSourceSettings(): LightSourceSettings {
         return lightSourceUI.getCurrentSettings()
     }
 

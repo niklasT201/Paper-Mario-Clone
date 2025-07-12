@@ -13,6 +13,13 @@ import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 
+enum class FlickerMode {
+    NONE,           // Normal, steady light
+    LOOP,           // On/off indefinitely
+    TIMED_FLICKER_OFF // Flickers for a duration, then turns off permanently
+}
+
+
 /**
  * Represents a customizable light source in the game world
  */
@@ -25,11 +32,20 @@ data class LightSource(
     var isEnabled: Boolean = true,
     var rotationX: Float = 0f,
     var rotationY: Float = 0f,
-    var rotationZ: Float = 0f
+    var rotationZ: Float = 0f,
+    val flickerMode: FlickerMode = FlickerMode.NONE,
+    val loopOnDuration: Float = 0.1f,
+    val loopOffDuration: Float = 0.1f,
+    val timedFlickerLifetime: Float = 10.0f
 ) {
     var pointLight: RangePointLight? = null
     private var modelInstance: ModelInstance? = null
     private var debugModelInstance: ModelInstance? = null
+
+    @Transient var flickerTimer: Float = 0f
+    @Transient var lifetime: Float = 0f
+    @Transient var isMarkedForRemoval: Boolean = false
+    @Transient val baseIntensity: Float = intensity // Store original intensity
 
     companion object {
         // Default light properties
@@ -79,11 +95,12 @@ data class LightSource(
         val finalIntensity = calculatedIntensity * (this.intensity / 50f)
 
         light?.set(
-            if (isEnabled) Color(color.r, color.g, color.b, 1f) else Color.BLACK,
+            // Use intensity > 0 check along with isEnabled
+            if (isEnabled && this.intensity > 0) Color(color.r, color.g, color.b, 1f) else Color.BLACK,
             position.x,
             position.y + LIGHT_SIZE / 2f,
             position.z,
-            if (isEnabled) finalIntensity else 0f
+            if (isEnabled && this.intensity > 0) finalIntensity else 0f
         )
     }
 
