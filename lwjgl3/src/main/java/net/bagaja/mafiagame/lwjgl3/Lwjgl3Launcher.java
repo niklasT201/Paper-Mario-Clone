@@ -52,7 +52,6 @@ public class Lwjgl3Launcher {
 
 // working collisions for ramp, pillar and corner
 // teleportation points
-// coded particles
 // running swipes
 // option to turn on screen light
 // maybe water blocks
@@ -75,7 +74,6 @@ public class Lwjgl3Launcher {
 // when shooting flickering light gets spawned
 // improve camera for interiors
 // player visible optional in cars
-// maybe changing 30 min daycicle to 50
 // killed enemies drop items
 // enemies have an inventory and collect items
 // footprints when moving through dead enemies

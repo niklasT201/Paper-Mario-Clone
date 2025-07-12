@@ -7,8 +7,8 @@ import kotlin.math.sin
 
 class DayNightCycle {
     // Timing configuration (in seconds)
-    val dayDuration = 20f * 60f      // 20 minutes for full day
-    private val nightDuration = 10f * 60f    // 10 minutes for full night
+    val dayDuration = 30f * 60f      // 20 minutes for full day
+    private val nightDuration = 20f * 60f    // 10 minutes for full night
     private val totalCycleDuration = dayDuration + nightDuration
 
     // Transition periods (in seconds)
