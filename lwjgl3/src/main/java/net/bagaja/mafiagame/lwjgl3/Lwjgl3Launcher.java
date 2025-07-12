@@ -60,7 +60,6 @@ public class Lwjgl3Launcher {
 // improve performance for rooms (camera starting shaking)
 // map saving
 // dialog system
-// maybe removing player spawnpoint preview
 // mission starting, saving and ending
 // enemies work in rooms
 // separate lady and microphone
@@ -80,8 +79,6 @@ public class Lwjgl3Launcher {
 // adding ammunition
 // adding health
 // adding multiple city areas
-// spotlight effect
-// key for light source rotation testing
 // item pickups have a glow
 
 // fbx-conv house.obj house.g3dj

@@ -384,9 +384,9 @@ class SceneManager(
         // Always resume time progression when returning to the outside world.
         game.lightingManager.clearTimeOverride()
         game.shaderEffectManager.clearRoomOverride()
-        restoreWorldState()
 
         restoreWorldState()
+
         currentScene = SceneType.WORLD
         currentInteriorId = null
 

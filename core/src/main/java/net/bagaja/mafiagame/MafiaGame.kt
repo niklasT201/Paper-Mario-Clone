@@ -1456,7 +1456,8 @@ class MafiaGame : ApplicationAdapter() {
         Gdx.gl.glViewport(0, 0, Gdx.graphics.width, Gdx.graphics.height)
 
         // Check if we are in an interior
-        val isInInterior = sceneManager.currentScene == SceneType.HOUSE_INTERIOR
+        val currentSceneType = sceneManager.currentScene
+        val isInInterior = currentSceneType == SceneType.HOUSE_INTERIOR || currentSceneType == SceneType.TRANSITIONING_TO_WORLD
 
         // If in an interior, use a black background
         val clearColor = if (isInInterior) {
