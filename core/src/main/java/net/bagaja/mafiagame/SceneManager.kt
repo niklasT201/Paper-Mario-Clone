@@ -512,13 +512,15 @@ class SceneManager(
                 }
                 RoomElementType.OBJECT -> {
                     element.objectType?.let { objectType ->
-                        // MODIFIED: Handle light sources as a special case
                         if (objectType == ObjectType.LIGHT_SOURCE) {
                             val light = objectSystem.createLightSource(
                                 position = element.position.cpy(),
                                 intensity = element.lightIntensity ?: LightSource.DEFAULT_INTENSITY,
                                 range = element.lightRange ?: LightSource.DEFAULT_RANGE,
-                                color = element.lightColor ?: Color(LightSource.DEFAULT_COLOR_R, LightSource.DEFAULT_COLOR_G, LightSource.DEFAULT_COLOR_B, 1f)
+                                color = element.lightColor ?: Color(LightSource.DEFAULT_COLOR_R, LightSource.DEFAULT_COLOR_G, LightSource.DEFAULT_COLOR_B, 1f),
+                                flickerMode = element.flickerMode ?: FlickerMode.NONE,
+                                loopOnDuration = element.loopOnDuration ?: 0.1f,
+                                loopOffDuration = element.loopOffDuration ?: 0.2f
                             )
                             newLights[light.id] = light
                         } else {
@@ -751,14 +753,19 @@ class SceneManager(
         }
 
         game.lightingManager.getLightSources().values.forEach { light ->
-            elements.add(RoomElement(
-                position = light.position.cpy(),
-                elementType = RoomElementType.OBJECT,
-                objectType = ObjectType.LIGHT_SOURCE,
-                lightColor = light.color.cpy(),
-                lightIntensity = light.intensity,
-                lightRange = light.range
-            ))
+            if (light.flickerMode == FlickerMode.NONE || light.flickerMode == FlickerMode.LOOP) {
+                elements.add(RoomElement(
+                    position = light.position.cpy(),
+                    elementType = RoomElementType.OBJECT,
+                    objectType = ObjectType.LIGHT_SOURCE,
+                    lightColor = light.color.cpy(),
+                    lightIntensity = light.baseIntensity,
+                    lightRange = light.range,
+                    flickerMode = light.flickerMode,
+                    loopOnDuration = light.loopOnDuration,
+                    loopOffDuration = light.loopOffDuration
+                ))
+            }
         }
 
         val newTemplate = RoomTemplate(
@@ -818,8 +825,22 @@ class SceneManager(
                 }
                 RoomElementType.OBJECT -> {
                     element.objectType?.let { objectType ->
-                        objectSystem.createGameObjectWithLight(objectType, element.position.cpy(), lightingManager = null)?.let { gameObject ->
-                            activeObjects.add(gameObject)
+                        if (objectType == ObjectType.LIGHT_SOURCE) {
+                            val light = objectSystem.createLightSource(
+                                position = element.position.cpy(),
+                                intensity = element.lightIntensity ?: LightSource.DEFAULT_INTENSITY,
+                                range = element.lightRange ?: LightSource.DEFAULT_RANGE,
+                                color = element.lightColor ?: Color(LightSource.DEFAULT_COLOR_R, LightSource.DEFAULT_COLOR_G, LightSource.DEFAULT_COLOR_B, 1f),
+                                flickerMode = element.flickerMode ?: FlickerMode.NONE,
+                                loopOnDuration = element.loopOnDuration ?: 0.1f,
+                                loopOffDuration = element.loopOffDuration ?: 0.2f
+                            )
+                            val instances = objectSystem.createLightSourceInstances(light)
+                            game.lightingManager.addLightSource(light, instances)
+                        } else {
+                            objectSystem.createGameObjectWithLight(objectType, element.position.cpy(), lightingManager = game.lightingManager)?.let { gameObject ->
+                                activeObjects.add(gameObject)
+                            }
                         }
                     }
                 }

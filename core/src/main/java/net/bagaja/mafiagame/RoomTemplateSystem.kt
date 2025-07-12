@@ -26,7 +26,10 @@ data class RoomElement(
     val scale: Vector3 = Vector3(1f, 1f, 1f),
     val lightColor: Color? = null,
     val lightIntensity: Float? = null,
-    val lightRange: Float? = null
+    val lightRange: Float? = null,
+    val flickerMode: FlickerMode? = null,
+    val loopOnDuration: Float? = null,
+    val loopOffDuration: Float? = null
 )
 
 enum class RoomElementType {
