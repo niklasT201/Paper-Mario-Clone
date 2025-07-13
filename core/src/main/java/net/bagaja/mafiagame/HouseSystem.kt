@@ -252,11 +252,12 @@ enum class HouseType(
     val width: Float,
     val height: Float,
     val modelPath: String,
-    val canHaveRoom: Boolean
+    val canHaveRoom: Boolean,
+    val doorOffset: Vector3
 ) {
-    HOUSE_1("Flat Left", "Models/flat_left.png", 10f, 10f, "Models/flat_left.g3dj", true),
-    HOUSE_2("Flat Middle", "Models/flat_middle.png", 12f, 12f, "Models/flat_middle.g3dj", true),
-    HOUSE_3("Flat Right", "Models/flat_right.png", 15f, 15f, "Models/flat_right.g3dj", true),
-    HOUSE_4("House", "Models/house_model.png", 18f, 18f, "Models/house.g3dj", true),
-    STAIR("Stair", "Models/stair_flat.png", 18f, 18f, "Models/stair.g3dj", false)
+    HOUSE_1("Flat Left", "Models/flat_left.png", 10f, 10f, "Models/flat_left.g3dj", true, Vector3(0f, 4.5f, 7f)),
+    HOUSE_2("Flat Middle", "Models/flat_middle.png", 12f, 12f, "Models/flat_middle.g3dj", true, Vector3(0f, 4.5f, 7f)),
+    HOUSE_3("Flat Right", "Models/flat_right.png", 15f, 15f, "Models/flat_right.g3dj", true, Vector3(0f, 4.5f, 7f)),
+    HOUSE_4("House", "Models/house_model.png", 18f, 18f, "Models/house.g3dj", true,  Vector3(0f, 4.5f, 7f)),
+    STAIR("Stair", "Models/stair_flat.png", 18f, 18f, "Models/stair.g3dj", false, Vector3.Zero)
 }

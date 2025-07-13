@@ -58,7 +58,6 @@ public class Lwjgl3Launcher {
 // only new wipes rotating with players direction not old ones too
 // maybe water blocks
 // south park like animation
-// lock appearing in front of locked cars and houses
 // npc and enemy ui option for choosing death level
 // spawner for particles
 // improve performance for rooms (camera starting shaking)

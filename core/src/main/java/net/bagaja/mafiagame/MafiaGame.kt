@@ -1,3 +1,4 @@
+// MafiaGame.kt (Updated with Stair Fix)
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.ApplicationAdapter
@@ -301,6 +302,13 @@ class MafiaGame : ApplicationAdapter() {
                     val closestHouse = sceneManager.activeHouses.minByOrNull { it.position.dst(playerPos) }
 
                     if (closestHouse != null) {
+                        // First, check if the "house" is even enterable (e.g., not a stair model).
+                        if (!closestHouse.houseType.canHaveRoom) {
+                            // It's a non-enterable structure like stairs. Do nothing.
+                            // The interaction attempt stops here.
+                            return
+                        }
+
                         // Check if the house is locked before proceeding
                         if (closestHouse.isLocked) {
                             println("This house is locked.")
@@ -351,7 +359,6 @@ class MafiaGame : ApplicationAdapter() {
                     }
 
                     val playerPos = playerSystem.getPosition()
-                    val playerRadius = 1.5f // Half of player width from PlayerSystem
 
                     // Collision detection for doors
                     if (isPlayerNearDoor(playerPos, exitDoor)) {
@@ -1502,10 +1509,11 @@ class MafiaGame : ApplicationAdapter() {
         handlePlayerInput()
         particleSystem.update(deltaTime)
         playerSystem.update(deltaTime)
-        playerSystem.update(deltaTime)
         enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
         npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
-        lockIndicatorSystem.update(playerSystem.getPosition(), sceneManager.activeCars)
+
+        // Update the lock indicator based on player, car, and house positions
+        lockIndicatorSystem.update(playerSystem.getPosition(), sceneManager.activeCars, sceneManager.activeHouses)
 
         // Update item system (animations, collisions, etc.)
         itemSystem.update(deltaTime, cameraManager.camera, playerSystem, sceneManager)

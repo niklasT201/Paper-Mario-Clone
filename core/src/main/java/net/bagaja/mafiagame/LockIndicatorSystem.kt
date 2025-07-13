@@ -11,27 +11,34 @@ import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.utils.Array
 
 /**
- * Manages a floating 2D lock icon that indicates a car is locked.
- * The icon circles the car to always stay between the player and the car.
+ * Manages floating 2D lock icons for both cars and houses.
+ * - Car locks circle the car to always stay between the player and the car.
+ * - House locks are static in front of the door.
  */
 class LockIndicatorSystem {
+
+    // --- Data class to manage each individual lock icon ---
+    private data class LockIcon(
+        val instance: ModelInstance,
+        var isVisible: Boolean = false
+    )
+
     // Rendering components
     private lateinit var lockTexture: Texture
     private lateinit var lockModel: Model
-    private lateinit var lockInstance: ModelInstance
     private lateinit var billboardModelBatch: ModelBatch
     private lateinit var billboardShaderProvider: BillboardShaderProvider
 
-    // State
-    private var isVisible = false
-    private val position = Vector3()
+    // A list to hold all lock icons we might need to render
+    private val lockIcons = Array<LockIcon>()
+    private var carLockIcon: LockIcon? = null
 
-    // How close the player needs to be to see the lock
-    private val activationDistance = 15f
-    // How far from the car's side the lock floats
-    private val horizontalOffset = 2.5f
+    // Configuration
+    private val activationDistance = 25f // Increased range to see house locks from further
+    private val carHorizontalOffset = 2.5f
 
     fun initialize() {
         billboardShaderProvider = BillboardShaderProvider().apply {
@@ -66,22 +73,41 @@ class LockIndicatorSystem {
             material,
             (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
         )
-
-        lockInstance = ModelInstance(lockModel)
-        lockInstance.userData = "player"
     }
 
     /**
-     * This is the core logic. It runs every frame to decide if and where to show the lock.
+     * Creates a new lock icon instance. This is a helper function.
      */
-    fun update(playerPos: Vector3, cars: com.badlogic.gdx.utils.Array<GameCar>) {
-        // Find the closest car that is locked
+    private fun createLockIcon(): LockIcon {
+        val instance = ModelInstance(lockModel)
+        instance.userData = "player" // For the billboard shader
+        return LockIcon(instance)
+    }
+
+    /**
+     * The main update loop. It now checks both cars and houses.
+     */
+    fun update(playerPos: Vector3, cars: Array<GameCar>, houses: Array<GameHouse>) {
+        // --- Handle Car Lock ---
+        updateCarLock(playerPos, cars)
+
+        // Handle House Locks
+        updateHouseLocks(playerPos, houses)
+    }
+
+    private fun updateCarLock(playerPos: Vector3, cars: Array<GameCar>) {
+        // Ensure the single car lock icon exists
+        if (carLockIcon == null) {
+            carLockIcon = createLockIcon()
+        }
+
         val closestLockedCar = cars.filter { it.isLocked }
             .minByOrNull { it.position.dst2(playerPos) }
 
         // Check if a car was found and if it's within our activation range
         if (closestLockedCar != null && closestLockedCar.position.dst(playerPos) < activationDistance) {
             val car = closestLockedCar
+            val carLockPos = Vector3()
 
             // Positioning Logic
             // Get the horizontal vector from the car to the player
@@ -89,47 +115,73 @@ class LockIndicatorSystem {
             direction.y = 0f
             direction.nor()
 
-            // Calculate the lock's final horizontal position
-            val distanceFromCarCenter = (car.carType.width / 2f) + horizontalOffset
-            val finalX = car.position.x + (direction.x * distanceFromCarCenter)
-            val finalZ = car.position.z + (direction.z * distanceFromCarCenter)
+            val distanceFromCarCenter = (car.carType.width / 2f) + carHorizontalOffset
+            carLockPos.set(car.position)
+                .add(direction.scl(distanceFromCarCenter))
+                .add(0f, car.carType.height / 2f, 0f)
 
-            //Calculate the lock's vertical position
-            val finalY = car.position.y + (car.carType.height / 2f)
-
-            // Set the final position
-            position.set(finalX, finalY, finalZ)
-
-            // 1. Calculate the squared distance from the car to the player
+            // Visibility Logic
             val playerDistSq = car.position.dst2(playerPos)
+            val lockDistSq = car.position.dst2(carLockPos)
+            carLockIcon!!.isVisible = lockDistSq < playerDistSq
 
-            // 2. Calculate the squared distance from the car to the lock icon's position
-            val lockDistSq = car.position.dst2(position)
-
-            // 3. The lock is only visible if it's closer to the car than the player is
-            isVisible = lockDistSq < playerDistSq
-
-            // Only update the model's transform if it's going to be visible.
-            if (isVisible) {
-                lockInstance.transform.setTranslation(position)
+            if (carLockIcon!!.isVisible) {
+                carLockIcon!!.instance.transform.setTranslation(carLockPos)
             }
 
         } else {
-            // If no suitable car is found, hide the icon.
-            isVisible = false
+            carLockIcon!!.isVisible = false
         }
     }
 
-    /**
-     * Renders the lock icon if it's visible.
-     */
-    fun render(camera: Camera, environment: Environment) {
-        if (!isVisible) return
+    private fun updateHouseLocks(playerPos: Vector3, houses: com.badlogic.gdx.utils.Array<GameHouse>) {
+        val lockedHouses = houses.filter { it.isLocked }
 
+        // Ensure we have enough lock icons for all locked houses
+        while (lockIcons.size < lockedHouses.size) {
+            lockIcons.add(createLockIcon())
+        }
+
+        // Hide all house locks by default
+        for (icon in lockIcons) {
+            icon.isVisible = false
+        }
+
+        // Now, iterate through the locked houses and activate their corresponding icons
+        for (i in lockedHouses.indices) {
+            val house = lockedHouses[i]
+            val icon = lockIcons[i]
+
+            // Check if player is close enough to this specific house
+            if (house.position.dst(playerPos) < activationDistance) {
+                icon.isVisible = true
+
+                // Calculate the static door position
+                val doorPosition = Vector3(house.position).add(house.houseType.doorOffset)
+                icon.instance.transform.setTranslation(doorPosition)
+            }
+        }
+    }
+
+    fun render(camera: Camera, environment: Environment) {
         // Pass world lighting information to our special shader
         billboardShaderProvider.setEnvironment(environment)
         billboardModelBatch.begin(camera)
-        billboardModelBatch.render(lockInstance, environment)
+
+        // Render the car lock if it's visible
+        carLockIcon?.let {
+            if (it.isVisible) {
+                billboardModelBatch.render(it.instance, environment)
+            }
+        }
+
+        // Render all visible house locks
+        for (icon in lockIcons) {
+            if (icon.isVisible) {
+                billboardModelBatch.render(icon.instance, environment)
+            }
+        }
+
         billboardModelBatch.end()
     }
 
