@@ -251,7 +251,8 @@ class MafiaGame : ApplicationAdapter() {
                 sceneManager.activeBlocks,
                 sceneManager.activeHouses,
                 sceneManager.activeInteriors,
-                sceneManager.activeCars
+                sceneManager.activeCars,
+                particleSystem
             )
 
             if (moved) {

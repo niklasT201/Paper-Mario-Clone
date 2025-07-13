@@ -42,6 +42,10 @@ class PlayerSystem {
     private var isMoving = false
     private var lastIsMoving = false
 
+    // Wipe effect
+    private var wipeEffectTimer = 0f
+    private val WIPE_EFFECT_INTERVAL = 0.15f
+
     // Reference to block system for collision detection
     private var blockSize = 4f
 
@@ -348,11 +352,11 @@ class PlayerSystem {
         return 0f // Ground level if no suitable height found
     }
 
-    fun handleMovement(deltaTime: Float, sceneManager: SceneManager, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>, allCars: Array<GameCar>): Boolean {
+    fun handleMovement(deltaTime: Float, sceneManager: SceneManager, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>, allCars: Array<GameCar>, particleSystem: ParticleSystem): Boolean {
         return if (isDriving) {
             handleCarMovement(deltaTime, sceneManager, gameBlocks, gameHouses, gameInteriors, allCars)
         } else {
-            handlePlayerOnFootMovement(deltaTime, sceneManager, gameBlocks, gameHouses, gameInteriors)
+            handlePlayerOnFootMovement(deltaTime, sceneManager, gameBlocks, gameHouses, gameInteriors, particleSystem)
         }
     }
 
@@ -470,8 +474,7 @@ class PlayerSystem {
         return true
     }
 
-
-    private fun handlePlayerOnFootMovement(deltaTime: Float, sceneManager: SceneManager, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {
+    private fun handlePlayerOnFootMovement(deltaTime: Float, sceneManager: SceneManager, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>, particleSystem: ParticleSystem): Boolean {
         val originalPosition = playerPosition.cpy() // For checking if movement occurred
         isMoving = false
         var currentMovementDirection = 0f
@@ -562,6 +565,24 @@ class PlayerSystem {
         // 5. Update flags and visuals
         val moved = !playerPosition.epsilonEquals(originalPosition, 0.001f)
         isMoving = (originalPosition.x != playerPosition.x) || (originalPosition.z != playerPosition.z)
+
+        if (isMoving) {
+            wipeEffectTimer += deltaTime
+            if (wipeEffectTimer >= WIPE_EFFECT_INTERVAL) {
+                wipeEffectTimer = 0f // Reset timer
+
+                // Spawn position
+                val yOffset = 1.0f
+                val zOffset = -0.5f
+                val wipePosition = playerPosition.cpy().add(0f, -yOffset, zOffset)
+
+                // Spawn the effect
+                particleSystem.spawnEffect(ParticleEffectType.MOVEMENT_WIPE, wipePosition)
+            }
+        } else {
+            // Reset timer if not moving
+            wipeEffectTimer = WIPE_EFFECT_INTERVAL
+        }
 
         if(moved) {
             println("DEBUG: Final Position: (${"%.2f".format(playerPosition.x)}, ${"%.2f".format(playerPosition.y)}, ${"%.2f".format(playerPosition.z)})")

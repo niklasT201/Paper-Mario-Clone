@@ -205,6 +205,13 @@ enum class ParticleEffectType(
         frameDuration = 0.1f, isLooping = false, particleLifetime = 5.0f,
         particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f, // No gravity, sticks to ground
         scale = 1.0f, scaleVariance = 0f, fadeIn = 0.2f, fadeOut = 2.0f
+    ),
+    MOVEMENT_WIPE(
+        "Movement Wipe",
+        arrayOf("textures/particles/wipe.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 0.4f,
+        particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
+        scale = 1.5f, scaleVariance = 0.3f, fadeIn = 0.05f, fadeOut = 0.35f
     );
 
     val isAnimated: Boolean get() = texturePaths.size > 1
@@ -325,6 +332,8 @@ class ParticleSystem {
 
         for (i in 0 until particleCount) {
             val instance = ModelInstance(model)
+            instance.userData = "player"
+
             val life = type.particleLifetime
 
             // Create a unique animation system for each particle if needed
