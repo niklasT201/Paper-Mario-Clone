@@ -52,8 +52,10 @@ public class Lwjgl3Launcher {
 
 // working collisions for ramp, pillar and corner
 // teleportation points
-// running swipes
 // option to turn on screen light
+// player wipe is switching to vertical when pressing W or S
+// player image changing to back image when pressing W
+// only new wipes rotating with players direction not old ones too
 // maybe water blocks
 // south park like animation
 // lock appearing in front of locked cars and houses
@@ -72,7 +74,6 @@ public class Lwjgl3Launcher {
 // blood system
 // black bars top/bottom or left/right
 // when shooting flickering light gets spawned
-// improve camera for interiors
 // player visible optional in cars
 // killed enemies drop items
 // enemies have an inventory and collect items

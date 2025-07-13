@@ -39,6 +39,7 @@ class MafiaGame : ApplicationAdapter() {
 
     // Highlight System
     private lateinit var highlightSystem: HighlightSystem
+    private lateinit var lockIndicatorSystem: LockIndicatorSystem
 
     private lateinit var faceCullingSystem: FaceCullingSystem
     private lateinit var occlusionSystem: OcclusionSystem
@@ -76,6 +77,8 @@ class MafiaGame : ApplicationAdapter() {
         setupObjectSystem()
         setupItemSystem()
         setupCarSystem()
+        lockIndicatorSystem = LockIndicatorSystem()
+        lockIndicatorSystem.initialize()
         setupHouseSystem()
         setupBackgroundSystem()
         setupParallaxSystem()
@@ -1502,6 +1505,7 @@ class MafiaGame : ApplicationAdapter() {
         playerSystem.update(deltaTime)
         enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
         npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
+        lockIndicatorSystem.update(playerSystem.getPosition(), sceneManager.activeCars)
 
         // Update item system (animations, collisions, etc.)
         itemSystem.update(deltaTime, cameraManager.camera, playerSystem, sceneManager)
@@ -1603,6 +1607,7 @@ class MafiaGame : ApplicationAdapter() {
         enemySystem.renderEnemies(cameraManager.camera, environment, sceneManager.activeEnemies)
         npcSystem.renderNPCs(cameraManager.camera, environment, sceneManager.activeNPCs)
         carSystem.render(cameraManager.camera, environment, sceneManager.activeCars)
+        lockIndicatorSystem.render(cameraManager.camera, environment)
 
         // Render particles
         particleSystem.render(cameraManager.camera, environment)
@@ -1677,6 +1682,7 @@ class MafiaGame : ApplicationAdapter() {
         houseSystem.dispose()
         backgroundSystem.dispose()
         highlightSystem.dispose()
+        lockIndicatorSystem.dispose()
         lightingManager.dispose()
         parallaxBackgroundSystem.dispose()
         interiorSystem.dispose()
