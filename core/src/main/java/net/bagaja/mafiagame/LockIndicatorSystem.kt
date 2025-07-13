@@ -28,16 +28,13 @@ class LockIndicatorSystem {
     private var isVisible = false
     private val position = Vector3()
 
-    // --- Configuration ---
     // How close the player needs to be to see the lock
     private val activationDistance = 15f
     // How far from the car's side the lock floats
     private val horizontalOffset = 2.5f
 
     fun initialize() {
-        // Setup a special shader and batch for billboards that always face the camera
         billboardShaderProvider = BillboardShaderProvider().apply {
-            // Make the lock bright and mostly unaffected by world lighting
             setBillboardLightingStrength(1.0f)
             setMinLightLevel(0.8f)
         }
@@ -45,22 +42,19 @@ class LockIndicatorSystem {
 
         // Load the lock texture from your assets
         try {
-            // NOTE: The path is relative to your 'assets' folder
             lockTexture = Texture(Gdx.files.internal("gui/lock.png"))
             lockTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
         } catch (e: Exception) {
             println("ERROR: Could not load 'gui/lock.png'. Make sure the file exists in your assets folder.")
-            // As a fallback to prevent crashing, we use another texture.
             lockTexture = Texture(Gdx.files.internal("textures/player/pig_character.png"))
         }
 
-        // Create the 2D plane (billboard) model for the lock
         val modelBuilder = ModelBuilder()
-        val lockSize = 2f // The visual size of the lock icon in the 3D world
+        val lockSize = 2f
         val material = Material(
             TextureAttribute.createDiffuse(lockTexture),
-            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA), // For transparency
-            IntAttribute.createCullFace(GL20.GL_NONE) // Don't hide the back
+            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
+            IntAttribute.createCullFace(GL20.GL_NONE)
         )
 
         lockModel = modelBuilder.createRect(
@@ -68,12 +62,13 @@ class LockIndicatorSystem {
             lockSize / 2, -lockSize / 2, 0f,
             lockSize / 2,  lockSize / 2, 0f,
             -lockSize / 2,  lockSize / 2, 0f,
-            0f, 0f, 1f, // The "normal" of the plane
+            0f, 0f, 1f,
             material,
             (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
         )
 
         lockInstance = ModelInstance(lockModel)
+        lockInstance.userData = "player"
     }
 
     /**
@@ -82,30 +77,42 @@ class LockIndicatorSystem {
     fun update(playerPos: Vector3, cars: com.badlogic.gdx.utils.Array<GameCar>) {
         // Find the closest car that is locked
         val closestLockedCar = cars.filter { it.isLocked }
-            .minByOrNull { it.position.dst2(playerPos) } // Using dst2 is faster
+            .minByOrNull { it.position.dst2(playerPos) }
 
         // Check if a car was found and if it's within our activation range
         if (closestLockedCar != null && closestLockedCar.position.dst(playerPos) < activationDistance) {
-            isVisible = true
             val car = closestLockedCar
 
-            // --- Positioning Logic ---
-            // 1. Get the horizontal vector from the car to the player.
+            // Positioning Logic
+            // Get the horizontal vector from the car to the player
             val direction = Vector3(playerPos).sub(car.position)
-            direction.y = 0f // We only care about the horizontal direction for rotation
-            direction.nor()  // Normalize to get a pure direction vector (length of 1)
+            direction.y = 0f
+            direction.nor()
 
-            // 2. Calculate the lock's final horizontal position.
+            // Calculate the lock's final horizontal position
             val distanceFromCarCenter = (car.carType.width / 2f) + horizontalOffset
             val finalX = car.position.x + (direction.x * distanceFromCarCenter)
             val finalZ = car.position.z + (direction.z * distanceFromCarCenter)
 
-            // 3. Calculate the lock's vertical position (centered on the car).
+            //Calculate the lock's vertical position
             val finalY = car.position.y + (car.carType.height / 2f)
 
-            // 4. Set the final position and update the 3D model's transform.
+            // Set the final position
             position.set(finalX, finalY, finalZ)
-            lockInstance.transform.setTranslation(position)
+
+            // 1. Calculate the squared distance from the car to the player
+            val playerDistSq = car.position.dst2(playerPos)
+
+            // 2. Calculate the squared distance from the car to the lock icon's position
+            val lockDistSq = car.position.dst2(position)
+
+            // 3. The lock is only visible if it's closer to the car than the player is
+            isVisible = lockDistSq < playerDistSq
+
+            // Only update the model's transform if it's going to be visible.
+            if (isVisible) {
+                lockInstance.transform.setTranslation(position)
+            }
 
         } else {
             // If no suitable car is found, hide the icon.
@@ -121,7 +128,6 @@ class LockIndicatorSystem {
 
         // Pass world lighting information to our special shader
         billboardShaderProvider.setEnvironment(environment)
-
         billboardModelBatch.begin(camera)
         billboardModelBatch.render(lockInstance, environment)
         billboardModelBatch.end()
