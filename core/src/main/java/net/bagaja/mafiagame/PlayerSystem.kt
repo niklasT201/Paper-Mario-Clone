@@ -577,7 +577,12 @@ class PlayerSystem {
                 val wipePosition = playerPosition.cpy().add(0f, -yOffset, zOffset)
 
                 // Spawn the effect
-                particleSystem.spawnEffect(ParticleEffectType.MOVEMENT_WIPE, wipePosition)
+                particleSystem.spawnEffect(
+                    type = ParticleEffectType.MOVEMENT_WIPE,
+                    position = wipePosition,
+                    initialRotation = playerCurrentRotationY,
+                    targetRotation = playerTargetRotationY
+                )
             }
         } else {
             // Reset timer if not moving

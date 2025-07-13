@@ -227,16 +227,21 @@ data class GameParticle(
     val position: Vector3,
     val velocity: Vector3,
     var life: Float, // Remaining lifetime
-    val initialLife: Float // For calculating fade
+    val initialLife: Float, // For calculating fade
+    val scale: Float, // Store the particle's scale
+    var animatesRotation: Boolean = false,
+    var currentRotationY: Float = 0f,
+    var targetRotationY: Float = 0f,
+    var isSurfaceOriented: Boolean = false
 ) {
     val material: Material = instance.materials.first()
-    val blendingAttribute: BlendingAttribute = material.get(BlendingAttribute.Type) as BlendingAttribute
+    private val blendingAttribute: BlendingAttribute = material.get(BlendingAttribute.Type) as BlendingAttribute
+    private val rotationSpeed: Float = 360f // Degrees per second, matches player
 
     fun update(deltaTime: Float) {
         // Basic physics
         velocity.y += type.gravity * deltaTime
         position.add(velocity.x * deltaTime, velocity.y * deltaTime, velocity.z * deltaTime)
-        instance.transform.setTranslation(position)
 
         // Animation
         if (type.isAnimated) {
@@ -249,6 +254,14 @@ data class GameParticle(
         // Lifetime and fading
         life -= deltaTime
         updateOpacity()
+
+        // Update rotation if enabled
+        if (animatesRotation) {
+            updateRotation(deltaTime)
+        }
+
+        // Update the model's transform
+        updateTransform()
     }
 
     private fun updateOpacity() {
@@ -266,6 +279,36 @@ data class GameParticle(
         }
 
         blendingAttribute.opacity = opacity.coerceIn(0f, 1f)
+    }
+
+    private fun updateRotation(deltaTime: Float) {
+        var rotationDifference = targetRotationY - currentRotationY
+        if (rotationDifference > 180f) rotationDifference -= 360f
+        else if (rotationDifference < -180f) rotationDifference += 360f
+
+        if (kotlin.math.abs(rotationDifference) > 1f) {
+            val rotationStep = rotationSpeed * deltaTime
+            if (rotationDifference > 0f) currentRotationY += kotlin.math.min(rotationStep, rotationDifference)
+            else currentRotationY += kotlin.math.max(-rotationStep, rotationDifference)
+            if (currentRotationY >= 360f) currentRotationY -= 360f
+            else if (currentRotationY < 0f) currentRotationY += 360f
+        } else {
+            currentRotationY = targetRotationY
+        }
+    }
+
+    fun updateTransform() {
+        if (isSurfaceOriented) {
+            instance.transform.setTranslation(position)
+        } else {
+            // For billboard particles
+            instance.transform.idt() // Reset transform to identity
+            instance.transform.setTranslation(position) // Set position
+            if (animatesRotation) {
+                instance.transform.rotate(Vector3.Y, currentRotationY) // Apply animated rotation
+            }
+            instance.transform.scale(scale, scale, scale) // Re-apply scale
+        }
     }
 }
 
@@ -326,7 +369,14 @@ class ParticleSystem {
     /**
      * Spawns a particle effect at a given position.
      */
-    fun spawnEffect(type: ParticleEffectType, position: Vector3, baseDirection: Vector3? = null, surfaceNormal: Vector3? = null) {
+    fun spawnEffect(
+        type: ParticleEffectType,
+        position: Vector3,
+        baseDirection: Vector3? = null,
+        surfaceNormal: Vector3? = null,
+        initialRotation: Float? = null,
+        targetRotation: Float? = null
+    ) {
         val model = particleModels[type] ?: return // Can't spawn if model isn't loaded
         val particleCount = type.particleCount.random()
 
@@ -355,12 +405,6 @@ class ParticleSystem {
 
             // Calculate scale
             val scale = type.scale + (Random.nextFloat() - 0.5f) * 2f * type.scaleVariance
-            instance.transform.scale(scale, scale, scale)
-
-            // Handle ground-oriented effects (blood splatters and boot prints)
-            if (isGroundOrientedEffect(type) && surfaceNormal != null) {
-                orientParticleToSurface(instance, surfaceNormal)
-            }
 
             val particle = GameParticle(
                 type = type,
@@ -369,8 +413,26 @@ class ParticleSystem {
                 position = position.cpy(),
                 velocity = velocity,
                 life = life,
-                initialLife = life
+                initialLife = life,
+                scale = scale
             )
+
+            // Handle surface orientation before setting up other animations
+            if (isGroundOrientedEffect(type) && surfaceNormal != null) {
+                orientParticleToSurface(instance, surfaceNormal)
+                particle.isSurfaceOriented = true
+            }
+
+            // Set up rotation animation
+            if (initialRotation != null && targetRotation != null) {
+                particle.animatesRotation = true
+                particle.currentRotationY = initialRotation
+                particle.targetRotationY = targetRotation
+            }
+
+            // Apply the initial transform
+            particle.updateTransform()
+
             activeParticles.add(particle)
         }
     }
