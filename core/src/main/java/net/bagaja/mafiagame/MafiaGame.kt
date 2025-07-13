@@ -7,6 +7,7 @@ import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.*
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g3d.*
+import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.math.collision.BoundingBox
@@ -298,14 +299,11 @@ class MafiaGame : ApplicationAdapter() {
                     }
 
                     // Try to enter a house
-                    val door_level_y = 4.5f
                     val closestHouse = sceneManager.activeHouses.minByOrNull { it.position.dst(playerPos) }
 
                     if (closestHouse != null) {
                         // First, check if the "house" is even enterable (e.g., not a stair model).
                         if (!closestHouse.houseType.canHaveRoom) {
-                            // It's a non-enterable structure like stairs. Do nothing.
-                            // The interaction attempt stops here.
                             return
                         }
 
@@ -316,10 +314,13 @@ class MafiaGame : ApplicationAdapter() {
                             return // Stop the interaction
                         }
 
-                        val doorPosition = Vector3(closestHouse.position.x, door_level_y, closestHouse.position.z)
+                        // We now calculate the HORIZONTAL distance, ignoring the Y-axis.
+                        val playerPos2D = Vector2(playerPos.x, playerPos.z)
+                        val housePos2D = Vector2(closestHouse.position.x, closestHouse.position.z)
 
-                        if (playerPos.dst(doorPosition) < 8f) {
-                            // Success! The player is close enough to the door.
+                        // Check the 2D distance on the ground plane.
+                        if (playerPos2D.dst(housePos2D) < 8f) {
+                            // Success! The player is close enough horizontally.
                             sceneManager.transitionToInterior(closestHouse)
                         } else {
                             println("No house nearby to enter. (Too far from the door)")
