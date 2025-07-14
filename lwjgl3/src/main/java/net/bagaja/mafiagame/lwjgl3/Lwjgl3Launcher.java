@@ -54,6 +54,7 @@ public class Lwjgl3Launcher {
 // maybe bigger wipe image
 // teleportation points
 // option to turn on screen light
+// more randomness in particles spawning
 // player wipe is switching to vertical when pressing W or S
 // player image changing to back image when pressing W
 // only new wipes rotating with players direction not old ones too

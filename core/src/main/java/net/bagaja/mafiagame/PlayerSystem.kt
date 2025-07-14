@@ -232,11 +232,11 @@ class PlayerSystem {
 
         val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
         val velocity = Vector3(directionX * equippedWeapon.bulletSpeed, 0f, 0f)
-        val spawnOffsetX = directionX * 1.5f
-        val spawnPos = playerPosition.cpy().add(spawnOffsetX, 0f, 0f)
+        val bulletSpawnOffsetX = directionX * 1.5f
+        val bulletSpawnPos = playerPosition.cpy().add(bulletSpawnOffsetX, 0f, 0f)
 
         val bullet = Bullet(
-            position = spawnPos,
+            position = bulletSpawnPos,
             velocity = velocity,
             modelInstance = ModelInstance(bulletModel),
             lifetime = equippedWeapon.bulletLifetime
@@ -244,9 +244,20 @@ class PlayerSystem {
         activeBullets.add(bullet)
 
         // Spawn the muzzle flash particle effect
+        val muzzleFlashHorizontalOffset = 0.5f
+        val muzzleFlashVerticalOffset = 0.4f
+
+        // Calculate the final position
+        val muzzleFlashPosition = bulletSpawnPos.cpy().add(
+            muzzleFlashHorizontalOffset * directionX, // Push it forward
+            muzzleFlashVerticalOffset,                // Push it up
+            0f
+        )
+
+        // Spawn particle effect
         particleSystem.spawnEffect(
             type = ParticleEffectType.FIRED_SHOT,
-            position = spawnPos.cpy()
+            position = muzzleFlashPosition
         )
     }
 
