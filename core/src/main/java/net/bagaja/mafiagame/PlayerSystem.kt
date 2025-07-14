@@ -4,6 +4,8 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.*
 import com.badlogic.gdx.graphics.g3d.*
+import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
+import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
@@ -48,22 +50,47 @@ class PlayerSystem {
 
     // Reference to block system for collision detection
     private var blockSize = 4f
+    private lateinit var particleSystem: ParticleSystem
 
     var isDriving = false
         private set
     private var drivingCar: GameCar? = null
     private val carSpeed = 20f // Speed is still relevant
 
+    private var equippedWeapon: WeaponType = WeaponType.TOMMY_GUN
+    private var weapons: List<WeaponType> = listOf(WeaponType.UNARMED, WeaponType.TOMMY_GUN, WeaponType.PISTOL)
+    private var currentWeaponIndex = 1
+    private var currentMagazineCount = 0
+
+    private var isShooting = false
+    private val shootingPoseDuration = 0.2f
+    private var shootingPoseTimer = 0f
+    private var fireRateTimer = 0f
+
+    // Caches for weapon assets to avoid loading them repeatedly
+    private val poseTextures = mutableMapOf<String, Texture>()
+    private val bulletModels = mutableMapOf<String, Model>()
+
+    private val activeBullets = Array<Bullet>()
+
     fun getPlayerBounds(): BoundingBox {
         return playerBounds
     }
 
-    fun initialize(blockSize: Float) {
+    fun initialize(blockSize: Float, particleSystem: ParticleSystem) {
         this.blockSize = blockSize
+        this.particleSystem = particleSystem
         setupAnimationSystem()
+
+        // Load weapon
+        setupWeaponAssets()
+
         setupBillboardShader()
         setupPlayerModel()
         updatePlayerBounds()
+
+        // Set initial weapon state
+        currentMagazineCount = equippedWeapon.magazineSize
     }
 
     private fun setupBillboardShader() {
@@ -132,6 +159,102 @@ class PlayerSystem {
         playerPosition.set(newPosition)
         updatePlayerBounds()
         println("Player position set to: $newPosition")
+    }
+
+    private fun setupWeaponAssets() {
+        val modelBuilder = ModelBuilder()
+        for (weapon in WeaponType.entries) {
+            // Load player pose texture
+            if (!poseTextures.containsKey(weapon.playerPoseTexturePath)) {
+                poseTextures[weapon.playerPoseTexturePath] = Texture(Gdx.files.internal(weapon.playerPoseTexturePath))
+            }
+
+            // Load bullet model if it's a shooting weapon and we haven't loaded it yet
+            weapon.bulletTexturePath?.let { path ->
+                if (!bulletModels.containsKey(path)) {
+                    val bulletTexture = Texture(Gdx.files.internal(path))
+                    val bulletMaterial = Material(
+                        TextureAttribute.createDiffuse(bulletTexture),
+                        BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
+                        IntAttribute.createCullFace(GL20.GL_NONE)
+                    )
+                    bulletModels[path] = modelBuilder.createRect(
+                        -0.3f, -0.15f, 0f, 0.3f, -0.15f, 0f, 0.3f, 0.15f, 0f, -0.3f, 0.15f, 0f,
+                        0f, 0f, 1f, bulletMaterial,
+                        (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
+                    )
+                }
+            }
+        }
+    }
+
+    private fun handleWeaponInput(deltaTime: Float) {
+        fireRateTimer -= deltaTime
+
+        if (equippedWeapon == WeaponType.UNARMED) {
+            isShooting = false
+            return
+        }
+
+        if (Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
+            when (equippedWeapon.actionType) {
+                WeaponActionType.SHOOTING -> {
+                    if (fireRateTimer <= 0f) {
+                        // TODO: Add check for magazine count here
+                        // if (currentMagazineCount > 0 || !equippedWeapon.requiresReload) { ... }
+
+                        spawnBullet()
+                        fireRateTimer = equippedWeapon.fireCooldown
+                        // currentMagazineCount--
+                    }
+                    isShooting = true
+                    shootingPoseTimer = shootingPoseDuration
+                }
+                WeaponActionType.MELEE -> {
+                    // TODO: Implement melee attack logic
+                }
+                WeaponActionType.THROWABLE -> {
+                    // TODO: Implement throwable weapon logic
+                }
+            }
+        }
+
+        if (isShooting) {
+            shootingPoseTimer -= deltaTime
+            if (shootingPoseTimer <= 0f) {
+                isShooting = false
+            }
+        }
+    }
+
+    private fun spawnBullet() {
+        val bulletModel = bulletModels[equippedWeapon.bulletTexturePath] ?: return
+
+        val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
+        val velocity = Vector3(directionX * equippedWeapon.bulletSpeed, 0f, 0f)
+        val spawnOffsetX = directionX * 1.5f
+        val spawnPos = playerPosition.cpy().add(spawnOffsetX, 0f, 0f)
+
+        val bullet = Bullet(
+            position = spawnPos,
+            velocity = velocity,
+            modelInstance = ModelInstance(bulletModel),
+            lifetime = equippedWeapon.bulletLifetime
+        )
+        activeBullets.add(bullet)
+
+        // Spawn the muzzle flash particle effect
+        particleSystem.spawnEffect(
+            type = ParticleEffectType.FIRED_SHOT,
+            position = spawnPos.cpy()
+        )
+    }
+
+    fun cycleWeapon() {
+        currentWeaponIndex = (currentWeaponIndex + 1) % weapons.size
+        equippedWeapon = weapons[currentWeaponIndex]
+        currentMagazineCount = equippedWeapon.magazineSize
+        println("Equipped: ${equippedWeapon.displayName}")
     }
 
     private fun canMoveToWithDoorCollision(x: Float, y: Float, z: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {
@@ -487,6 +610,11 @@ class PlayerSystem {
         if (Gdx.input.isKeyPressed(Input.Keys.W)) { deltaZ -= playerSpeed * deltaTime }
         if (Gdx.input.isKeyPressed(Input.Keys.S)) { deltaZ += playerSpeed * deltaTime }
 
+        if (isShooting && !equippedWeapon.allowsMovementWhileShooting) {
+            deltaX = 0f
+            deltaZ = 0f
+        }
+
         // DEBUG: Print initial state only when trying to move
         if (deltaX != 0f || deltaZ != 0f) {
             println("\n--- FRAME START ---")
@@ -597,8 +725,14 @@ class PlayerSystem {
         }
 
         // Handle animation and rotation
-        if (isMoving && !lastIsMoving) animationSystem.playAnimation("walking")
-        else if (!isMoving && lastIsMoving) animationSystem.playAnimation("idle")
+        if (isShooting) {
+            // No need for a separate animation, just update the texture directly
+            updatePlayerTexture(poseTextures[equippedWeapon.playerPoseTexturePath]!!)
+        } else {
+            // Revert to normal walk/idle animations
+            if (isMoving && !lastIsMoving) animationSystem.playAnimation("walking")
+            else if (!isMoving && lastIsMoving) animationSystem.playAnimation("idle")
+        }
         lastIsMoving = isMoving
 
         // Update target rotation based on horizontal movement
@@ -694,16 +828,29 @@ class PlayerSystem {
     }
 
     fun update(deltaTime: Float) {
-        // Update animation system
-        animationSystem.update(deltaTime)
+        handleWeaponInput(deltaTime)
 
-        // Update player texture if it changed
-        val newTexture = animationSystem.getCurrentTexture()
-        if (newTexture != null && newTexture != playerTexture) {
-            updatePlayerTexture(newTexture)
-            println("Updated texture to: ${animationSystem.getCurrentAnimationName()}") // Debug print
+        // Update animation only when not shooting
+        if (!isShooting) {
+            // Update animation system
+            animationSystem.update(deltaTime)
+
+            // Update player texture if it changed
+            val newTexture = animationSystem.getCurrentTexture()
+            if (newTexture != null) {
+                updatePlayerTexture(newTexture)
+                println("Updated texture to: ${animationSystem.getCurrentAnimationName()}") // Debug print
+            }
         }
 
+        val bulletIterator = activeBullets.iterator()
+        while (bulletIterator.hasNext()) {
+            val bullet = bulletIterator.next()
+            bullet.update(deltaTime)
+            if (bullet.lifetime <= 0f) {
+                bulletIterator.remove()
+            }
+        }
         updatePlayerTransform()
     }
 
@@ -719,17 +866,21 @@ class PlayerSystem {
     }
 
     fun render(camera: Camera, environment: Environment) {
-        // If the player is driving, do not render their 2D model.
-        if (isDriving) {
-            return
-        }
-
         // Set the environment for the billboard shader so it knows about the lights
         billboardShaderProvider.setEnvironment(environment)
+        billboardModelBatch.begin(camera)
 
-        // Render using the custom billboard model batch with proper lighting
-        billboardModelBatch.begin(camera) // Use the passed camera directly
-        billboardModelBatch.render(playerInstance, environment)
+        // If the player is driving, do not render their 2D model.
+        if (!isDriving) {
+            billboardModelBatch.render(playerInstance, environment)
+        }
+
+        // Render all active bullets
+        for (bullet in activeBullets) {
+            bullet.modelInstance.transform.setTranslation(bullet.position)
+            billboardModelBatch.render(bullet.modelInstance, environment)
+        }
+
         billboardModelBatch.end()
     }
 
@@ -766,5 +917,8 @@ class PlayerSystem {
         animationSystem.dispose()
         billboardModelBatch.dispose()
         billboardShaderProvider.dispose()
+
+        poseTextures.values.forEach { it.dispose() }
+        bulletModels.values.forEach { it.dispose() }
     }
 }

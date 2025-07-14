@@ -99,7 +99,7 @@ class MafiaGame : ApplicationAdapter() {
         transitionSystem = TransitionSystem()
 
         playerSystem = PlayerSystem()
-        playerSystem.initialize(blockSize)
+        playerSystem.initialize(blockSize, particleSystem)
 
         // Initialize Shader Effect Manager
         shaderEffectManager = ShaderEffectManager()

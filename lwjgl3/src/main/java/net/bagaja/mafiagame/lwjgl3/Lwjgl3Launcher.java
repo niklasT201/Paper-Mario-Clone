@@ -51,6 +51,7 @@ public class Lwjgl3Launcher {
 // room/open world transition effect being slower and smoother transition itself
 
 // working collisions for ramp, pillar and corner
+// maybe bigger wipe image
 // teleportation points
 // option to turn on screen light
 // player wipe is switching to vertical when pressing W or S
