@@ -244,13 +244,21 @@ class PlayerSystem {
         activeBullets.add(bullet)
 
         // Spawn the muzzle flash particle effect
-        val muzzleFlashHorizontalOffset = 0.5f
+        val muzzleFlashRightOffset = 0.7f
+        val muzzleFlashLeftOffset = -0.01f
+
+        // vertical offset
         val muzzleFlashVerticalOffset = 0.4f
+
+        val finalHorizontalOffset = when (directionX) {
+            -1f -> -muzzleFlashLeftOffset
+            else -> muzzleFlashRightOffset
+        }
 
         // Calculate the final position
         val muzzleFlashPosition = bulletSpawnPos.cpy().add(
-            muzzleFlashHorizontalOffset * directionX, // Push it forward
-            muzzleFlashVerticalOffset,                // Push it up
+            finalHorizontalOffset,
+            muzzleFlashVerticalOffset,
             0f
         )
 
