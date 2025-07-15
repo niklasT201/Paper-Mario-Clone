@@ -35,6 +35,7 @@ enum class ParticleEffectType(
     val gravity: Float,
     val scale: Float,
     val scaleVariance: Float,
+    val sizeRandomnessChance: Float = 1.0f,
     val fadeIn: Float = 0.1f, // Time to fade in
     val fadeOut: Float = 0.5f  // Time to fade out
 ) {
@@ -196,7 +197,7 @@ enum class ParticleEffectType(
         arrayOf("textures/particles/gun_smoke/gun_smoke_6.png"), // Can be made into an animation if you have more frames
         frameDuration = 0.1f, isLooping = false, particleLifetime = 3.0f, lifetimeVariance = 0.4f, swingChance = 0.75f, swingAmplitude = 4f, swingAmplitudeVariance = 5f,  swingFrequencyVariance = 0.5f, swingFrequency = 0.5f,
         particleCount = 1..1, initialSpeed = 0.5f, speedVariance = 0.2f, gravity = 2f, // Flames go up
-        scale = 1.5f, scaleVariance = 0.3f, fadeOut = 1.0f
+        scale = 1.5f, scaleVariance = 0.3f, fadeIn = 0.05f, fadeOut = 1.0f
     ),
     ITEM_GLOW(
         "Item Glow",
@@ -432,7 +433,15 @@ class ParticleSystem {
             velocity.scl(speed)
 
             // Calculate scale
-            val scale = type.scale + (Random.nextFloat() - 0.5f) * 2f * type.scaleVariance
+            val scale: Float
+            if (type.scaleVariance > 0f && Random.nextFloat() < type.sizeRandomnessChance) {
+                val sizeVariance = (Random.nextFloat() - 0.5f) * 2f * type.scaleVariance
+                // Ensure scale doesn't become zero or negative
+                scale = (type.scale + sizeVariance).coerceAtLeast(0.1f)
+            } else {
+                // This particle gets the default base size
+                scale = type.scale
+            }
 
             // Per-particle randomization
             val willSwing = Random.nextFloat() < type.swingChance

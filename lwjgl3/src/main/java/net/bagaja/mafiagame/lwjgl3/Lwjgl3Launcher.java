@@ -54,8 +54,6 @@ public class Lwjgl3Launcher {
 // maybe bigger wipe image
 // teleportation points
 // option to turn on screen light
-// more randomness in particles spawning
-// smaller gun smoke
 // wipe starting after an amount of seconds
 // separate particle clouds
 // particles get bigger over time
