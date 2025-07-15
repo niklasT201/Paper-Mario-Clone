@@ -192,7 +192,7 @@ enum class ParticleEffectType(
     FIRED_SHOT(
         "Shot",
         arrayOf("textures/particles/gun_smoke/gun_smoke_6.png"), // Can be made into an animation if you have more frames
-        frameDuration = 0.1f, isLooping = false, particleLifetime = 3.0f, lifetimeVariance = 0.4f,
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 3.0f, lifetimeVariance = 0.4f, swingEnabled = true, swingAmplitude = 4f, swingFrequency = 1f,
         particleCount = 1..1, initialSpeed = 0.5f, speedVariance = 0.2f, gravity = 2f, // Flames go up
         scale = 1.5f, scaleVariance = 0.3f, fadeOut = 1.0f
     ),
@@ -317,17 +317,20 @@ data class GameParticle(
             instance.transform.setTranslation(position)
         } else {
             // For billboard particles
-            instance.transform.idt() // Reset transform to identity
+            instance.transform.idt() // Reset transform
             instance.transform.setTranslation(position) // Set position
+
+            // 1. Apply the base Y-axis rotation first (for facing left/right)
             if (animatesRotation) {
                 instance.transform.rotate(Vector3.Y, currentRotationY) // Apply animated rotation
             }
 
+            // 2. Apply the swing/rocking animation
             if (type.swingEnabled) {
-                instance.transform.rotate(Vector3.X, swingAngle)
+                instance.transform.rotate(Vector3.Z, swingAngle)
             }
 
-            // Re-apply scale last
+            // 3. Re-apply scale last
             instance.transform.scale(scale, scale, scale) // Re-apply scale
         }
     }

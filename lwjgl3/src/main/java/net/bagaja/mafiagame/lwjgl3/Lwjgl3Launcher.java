@@ -56,7 +56,6 @@ public class Lwjgl3Launcher {
 // option to turn on screen light
 // more randomness in particles spawning
 // smaller gun smoke
-// particle having different disappear time
 // wipe starting after an amount of seconds
 // separate particle clouds
 // particles get bigger over time
@@ -73,7 +72,6 @@ public class Lwjgl3Launcher {
 // mission starting, saving and ending
 // enemies work in rooms
 // separate lady and microphone
-// particles have the option to rotate
 // maybe coded effects too
 // option for choosing door enter
 // fix car and player falling bug
