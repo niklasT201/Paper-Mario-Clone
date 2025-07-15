@@ -23,6 +23,10 @@ enum class ParticleEffectType(
     val frameDuration: Float,
     val isLooping: Boolean,
     val particleLifetime: Float,
+    val lifetimeVariance: Float = 0f, // How much to randomize lifetime
+    val swingEnabled: Boolean = false,
+    val swingAmplitude: Float = 15f, // How far it swings in degrees
+    val swingFrequency: Float = 2f, // How many full swings per second
     val particleCount: IntRange,
     val initialSpeed: Float,
     val speedVariance: Float,
@@ -188,7 +192,7 @@ enum class ParticleEffectType(
     FIRED_SHOT(
         "Shot",
         arrayOf("textures/particles/gun_smoke/gun_smoke_6.png"), // Can be made into an animation if you have more frames
-        frameDuration = 0.1f, isLooping = true, particleLifetime = 3.0f,
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 3.0f, lifetimeVariance = 0.4f,
         particleCount = 1..1, initialSpeed = 0.5f, speedVariance = 0.2f, gravity = 2f, // Flames go up
         scale = 1.5f, scaleVariance = 0.3f, fadeOut = 1.0f
     ),
@@ -232,7 +236,8 @@ data class GameParticle(
     var animatesRotation: Boolean = false,
     var currentRotationY: Float = 0f,
     var targetRotationY: Float = 0f,
-    var isSurfaceOriented: Boolean = false
+    var isSurfaceOriented: Boolean = false,
+    var swingAngle: Float = 0f
 ) {
     val material: Material = instance.materials.first()
     private val blendingAttribute: BlendingAttribute = material.get(BlendingAttribute.Type) as BlendingAttribute
@@ -258,6 +263,11 @@ data class GameParticle(
         // Update rotation if enabled
         if (animatesRotation) {
             updateRotation(deltaTime)
+        }
+
+        // Update swinging animation if enabled
+        if (type.swingEnabled) {
+            updateSwinging()
         }
 
         // Update the model's transform
@@ -297,6 +307,11 @@ data class GameParticle(
         }
     }
 
+    private fun updateSwinging() {
+        val timeAlive = initialLife - life
+        swingAngle = kotlin.math.sin(timeAlive * type.swingFrequency * 2 * kotlin.math.PI.toFloat()) * type.swingAmplitude
+    }
+
     fun updateTransform() {
         if (isSurfaceOriented) {
             instance.transform.setTranslation(position)
@@ -307,6 +322,12 @@ data class GameParticle(
             if (animatesRotation) {
                 instance.transform.rotate(Vector3.Y, currentRotationY) // Apply animated rotation
             }
+
+            if (type.swingEnabled) {
+                instance.transform.rotate(Vector3.X, swingAngle)
+            }
+
+            // Re-apply scale last
             instance.transform.scale(scale, scale, scale) // Re-apply scale
         }
     }
@@ -320,7 +341,6 @@ class ParticleSystem {
     private val particleModels = mutableMapOf<ParticleEffectType, Model>()
 
     private val billboardModelBatch: ModelBatch
-    // Each system that uses billboards should have its own provider and batch
     private val billboardShaderProvider: BillboardShaderProvider = BillboardShaderProvider().apply {
         setBillboardLightingStrength(0.9f)
         setMinLightLevel(0.5f)
@@ -338,7 +358,6 @@ class ParticleSystem {
 
         for (type in ParticleEffectType.entries) {
             try {
-                // We only need one model per effect type, the texture is changed per-particle
                 val texture = Texture(Gdx.files.internal(type.texturePaths.first()), true).apply {
                     setFilter(Texture.TextureFilter.MipMapLinearLinear, Texture.TextureFilter.Linear)
                 }
@@ -384,7 +403,8 @@ class ParticleSystem {
             val instance = ModelInstance(model)
             instance.userData = "player"
 
-            val life = type.particleLifetime
+            val lifeVariance = (Random.nextFloat() - 0.5f) * 2f * type.lifetimeVariance
+            val life = (type.particleLifetime + lifeVariance).coerceAtLeast(0.1f)
 
             // Create a unique animation system for each particle if needed
             val animSystem = AnimationSystem()
@@ -482,8 +502,6 @@ class ParticleSystem {
             val particle = iterator.next()
             particle.update(deltaTime)
             if (particle.life <= 0) {
-                // Note: The model instance itself doesn't need disposal, as it shares the model
-                // But if the animation system had unique textures, they would be disposed here.
                 particle.animationSystem.dispose()
                 iterator.remove()
             }

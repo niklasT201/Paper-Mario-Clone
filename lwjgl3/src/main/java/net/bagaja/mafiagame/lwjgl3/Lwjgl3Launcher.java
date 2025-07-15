@@ -57,6 +57,9 @@ public class Lwjgl3Launcher {
 // more randomness in particles spawning
 // smaller gun smoke
 // particle having different disappear time
+// wipe starting after an amount of seconds
+// separate particle clouds
+// particles get bigger over time
 // player wipe is switching to vertical when pressing W or S
 // player image changing to back image when pressing W
 // only new wipes rotating with players direction not old ones too

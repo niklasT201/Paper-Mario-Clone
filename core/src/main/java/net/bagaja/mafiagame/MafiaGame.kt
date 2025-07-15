@@ -1,4 +1,3 @@
-// MafiaGame.kt (Updated with Stair Fix)
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.ApplicationAdapter
