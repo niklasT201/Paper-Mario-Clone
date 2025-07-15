@@ -24,9 +24,11 @@ enum class ParticleEffectType(
     val isLooping: Boolean,
     val particleLifetime: Float,
     val lifetimeVariance: Float = 0f, // How much to randomize lifetime
-    val swingEnabled: Boolean = false,
+    val swingChance: Float = 0f, // Chance that a particle will swing
     val swingAmplitude: Float = 15f, // How far it swings in degrees
+    val swingAmplitudeVariance: Float = 0f,
     val swingFrequency: Float = 2f, // How many full swings per second
+    val swingFrequencyVariance: Float = 0f,
     val particleCount: IntRange,
     val initialSpeed: Float,
     val speedVariance: Float,
@@ -192,7 +194,7 @@ enum class ParticleEffectType(
     FIRED_SHOT(
         "Shot",
         arrayOf("textures/particles/gun_smoke/gun_smoke_6.png"), // Can be made into an animation if you have more frames
-        frameDuration = 0.1f, isLooping = false, particleLifetime = 3.0f, lifetimeVariance = 0.4f, swingEnabled = true, swingAmplitude = 4f, swingFrequency = 1f,
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 3.0f, lifetimeVariance = 0.4f, swingChance = 0.75f, swingAmplitude = 4f, swingAmplitudeVariance = 5f,  swingFrequencyVariance = 0.5f, swingFrequency = 0.5f,
         particleCount = 1..1, initialSpeed = 0.5f, speedVariance = 0.2f, gravity = 2f, // Flames go up
         scale = 1.5f, scaleVariance = 0.3f, fadeOut = 1.0f
     ),
@@ -237,6 +239,9 @@ data class GameParticle(
     var currentRotationY: Float = 0f,
     var targetRotationY: Float = 0f,
     var isSurfaceOriented: Boolean = false,
+    val swings: Boolean,
+    val swingAmplitude: Float,
+    val swingFrequency: Float,
     var swingAngle: Float = 0f
 ) {
     val material: Material = instance.materials.first()
@@ -266,7 +271,7 @@ data class GameParticle(
         }
 
         // Update swinging animation if enabled
-        if (type.swingEnabled) {
+        if (this.swings) {
             updateSwinging()
         }
 
@@ -309,7 +314,7 @@ data class GameParticle(
 
     private fun updateSwinging() {
         val timeAlive = initialLife - life
-        swingAngle = kotlin.math.sin(timeAlive * type.swingFrequency * 2 * kotlin.math.PI.toFloat()) * type.swingAmplitude
+        swingAngle = kotlin.math.sin(timeAlive * this.swingFrequency * 2 * kotlin.math.PI.toFloat()) * this.swingAmplitude
     }
 
     fun updateTransform() {
@@ -326,7 +331,7 @@ data class GameParticle(
             }
 
             // 2. Apply the swing/rocking animation
-            if (type.swingEnabled) {
+            if (this.swings) {
                 instance.transform.rotate(Vector3.Z, swingAngle)
             }
 
@@ -429,6 +434,15 @@ class ParticleSystem {
             // Calculate scale
             val scale = type.scale + (Random.nextFloat() - 0.5f) * 2f * type.scaleVariance
 
+            // Per-particle randomization
+            val willSwing = Random.nextFloat() < type.swingChance
+
+            val ampVariance = (Random.nextFloat() - 0.5f) * 2f * type.swingAmplitudeVariance
+            val particleAmplitude = (type.swingAmplitude + ampVariance).coerceAtLeast(0f)
+
+            val freqVariance = (Random.nextFloat() - 0.5f) * 2f * type.swingFrequencyVariance
+            val particleFrequency = (type.swingFrequency + freqVariance).coerceAtLeast(0.1f)
+
             val particle = GameParticle(
                 type = type,
                 instance = instance,
@@ -437,7 +451,10 @@ class ParticleSystem {
                 velocity = velocity,
                 life = life,
                 initialLife = life,
-                scale = scale
+                scale = scale,
+                swings = willSwing,
+                swingAmplitude = particleAmplitude,
+                swingFrequency = particleFrequency
             )
 
             // Handle surface orientation before setting up other animations
