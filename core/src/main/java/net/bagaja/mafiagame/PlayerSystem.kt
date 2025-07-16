@@ -744,13 +744,15 @@ class PlayerSystem {
                     val yOffset = 1.0f
                     val zOffset = -0.5f
                     val wipePosition = playerPosition.cpy().add(0f, -yOffset, zOffset)
+                    val wipeSize = 2.5f
 
                     // Spawn the effect
                     particleSystem.spawnEffect(
                         type = ParticleEffectType.MOVEMENT_WIPE,
                         position = wipePosition,
                         initialRotation = playerCurrentRotationY,
-                        targetRotation = playerTargetRotationY
+                        targetRotation = playerTargetRotationY,
+                        overrideScale = wipeSize
                     )
                 }
             }
