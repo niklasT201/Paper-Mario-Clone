@@ -378,10 +378,10 @@ class ParticleSystem {
                 )
 
                 val model = modelBuilder.createRect(
-                    -type.scale / 2f, -type.scale / 2f, 0f,
-                    type.scale / 2f, -type.scale / 2f, 0f,
-                    type.scale / 2f, type.scale / 2f, 0f,
-                    -type.scale / 2f, type.scale / 2f, 0f,
+                    -0.5f, -0.5f, 0f,
+                    0.5f, -0.5f, 0f,
+                    0.5f,  0.5f, 0f,
+                    -0.5f,  0.5f, 0f,
                     0f, 0f, 1f, // Normal facing forward
                     material,
                     (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
@@ -403,7 +403,8 @@ class ParticleSystem {
         baseDirection: Vector3? = null,
         surfaceNormal: Vector3? = null,
         initialRotation: Float? = null,
-        targetRotation: Float? = null
+        targetRotation: Float? = null,
+        overrideScale: Float? = null
     ) {
         val model = particleModels[type] ?: return // Can't spawn if model isn't loaded
         val particleCount = type.particleCount.random()
@@ -434,12 +435,14 @@ class ParticleSystem {
 
             // Calculate scale
             val scale: Float
-            if (type.scaleVariance > 0f && Random.nextFloat() < type.sizeRandomnessChance) {
+            if (overrideScale != null) {
+                scale = overrideScale
+            } else if (type.scaleVariance > 0f && Random.nextFloat() < type.sizeRandomnessChance) {
                 val sizeVariance = (Random.nextFloat() - 0.5f) * 2f * type.scaleVariance
                 // Ensure scale doesn't become zero or negative
                 scale = (type.scale + sizeVariance).coerceAtLeast(0.1f)
             } else {
-                // This particle gets the default base size
+                // Fallback to the default base size
                 scale = type.scale
             }
 

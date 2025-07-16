@@ -66,6 +66,10 @@ class PlayerSystem {
     private val shootingPoseDuration = 0.2f
     private var shootingPoseTimer = 0f
     private var fireRateTimer = 0f
+    private var chargeTime = 0f
+    private val minShotScale = 0.7f // The initial size of the particle on a quick tap
+    private val maxShotScale = 2.0f // The maximum size limit for the particle
+    private val chargeDurationForMaxScale = 10f
 
     // Caches for weapon assets to avoid loading them repeatedly
     private val poseTextures = mutableMapOf<String, Texture>()
@@ -193,10 +197,14 @@ class PlayerSystem {
 
         if (equippedWeapon == WeaponType.UNARMED) {
             isShooting = false
+            chargeTime = 0f // Reset charge when unarmed
             return
         }
 
+        // Check for button press
         if (Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
+            chargeTime += deltaTime // Increment charge time while holding the button
+
             when (equippedWeapon.actionType) {
                 WeaponActionType.SHOOTING -> {
                     if (fireRateTimer <= 0f) {
@@ -217,6 +225,9 @@ class PlayerSystem {
                     // TODO: Implement throwable weapon logic
                 }
             }
+        } else {
+            // Button is released, reset the charge time
+            chargeTime = 0f
         }
 
         if (isShooting) {
@@ -263,9 +274,14 @@ class PlayerSystem {
         )
 
         // Spawn particle effect
+        val chargeProgress = (chargeTime / chargeDurationForMaxScale).coerceIn(0f, 1f)
+        val currentShotScale = minShotScale + (maxShotScale - minShotScale) * chargeProgress
+
+        // Spawn particle effect with override scale
         particleSystem.spawnEffect(
             type = ParticleEffectType.FIRED_SHOT,
-            position = muzzleFlashPosition
+            position = muzzleFlashPosition,
+            overrideScale = currentShotScale
         )
     }
 
