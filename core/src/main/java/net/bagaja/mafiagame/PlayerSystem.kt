@@ -45,6 +45,7 @@ class PlayerSystem {
     private var lastIsMoving = false
 
     // Wipe effect
+    private var continuousMovementTimer = 0f
     private var wipeEffectTimer = 0f
     private val WIPE_EFFECT_INTERVAL = 0.15f
 
@@ -730,24 +731,33 @@ class PlayerSystem {
         isMoving = (originalPosition.x != playerPosition.x) || (originalPosition.z != playerPosition.z)
 
         if (isMoving) {
-            wipeEffectTimer += deltaTime
-            if (wipeEffectTimer >= WIPE_EFFECT_INTERVAL) {
-                wipeEffectTimer = 0f // Reset timer
+            // Player is moving
+            continuousMovementTimer += deltaTime
 
-                // Spawn position
-                val yOffset = 1.0f
-                val zOffset = -0.5f
-                val wipePosition = playerPosition.cpy().add(0f, -yOffset, zOffset)
+            // Only check for wipe spawning if player moving for at least 1 second
+            if (continuousMovementTimer >= 0.3f) {
+                wipeEffectTimer += deltaTime
+                if (wipeEffectTimer >= WIPE_EFFECT_INTERVAL) {
+                    wipeEffectTimer = 0f // Reset timer
 
-                // Spawn the effect
-                particleSystem.spawnEffect(
-                    type = ParticleEffectType.MOVEMENT_WIPE,
-                    position = wipePosition,
-                    initialRotation = playerCurrentRotationY,
-                    targetRotation = playerTargetRotationY
-                )
+                    // Spawn position
+                    val yOffset = 1.0f
+                    val zOffset = -0.5f
+                    val wipePosition = playerPosition.cpy().add(0f, -yOffset, zOffset)
+
+                    // Spawn the effect
+                    particleSystem.spawnEffect(
+                        type = ParticleEffectType.MOVEMENT_WIPE,
+                        position = wipePosition,
+                        initialRotation = playerCurrentRotationY,
+                        targetRotation = playerTargetRotationY
+                    )
+                }
             }
         } else {
+            // If player stops, reset the continuous movement timer
+            continuousMovementTimer = 0f
+
             // Reset timer if not moving
             wipeEffectTimer = WIPE_EFFECT_INTERVAL
         }

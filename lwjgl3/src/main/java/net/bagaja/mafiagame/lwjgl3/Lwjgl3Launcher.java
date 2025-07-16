@@ -54,7 +54,6 @@ public class Lwjgl3Launcher {
 // maybe bigger wipe image
 // teleportation points
 // option to turn on screen light
-// wipe starting after an amount of seconds
 // separate particle clouds
 // player wipe is switching to vertical when pressing W or S
 // player image changing to back image when pressing W
