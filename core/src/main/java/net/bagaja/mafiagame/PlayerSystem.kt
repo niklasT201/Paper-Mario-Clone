@@ -926,7 +926,6 @@ class PlayerSystem {
             // Ignore invisible blocks or blocks without collision
             if (!block.blockType.hasCollision || !block.blockType.isVisible) continue
 
-            // Use the block's own collision method, which supports complex shapes
             if (block.collidesWith(bullet.bounds)) {
                 outHitPoint.set(bullet.position) // Use bullet's position as impact point
                 println("Bullet hit a Block")
@@ -934,13 +933,27 @@ class PlayerSystem {
             }
         }
 
-        // 2. Check against Houses
-        for (house in sceneManager.activeHouses) {
-            // Houses use per-triangle mesh collision
-            if (house.collidesWithMesh(bullet.bounds)) {
-                outHitPoint.set(bullet.position)
-                println("Bullet hit a House")
-                return true
+        val travelDistance = bullet.velocity.len() * Gdx.graphics.deltaTime
+        if (travelDistance > 0.001f) { // Only check if the bullet actually moved
+            val bulletStartPos = bullet.position.cpy().mulAdd(bullet.velocity, -Gdx.graphics.deltaTime)
+            val bulletRay = Ray(bulletStartPos, bullet.velocity.cpy().nor())
+
+            // 2. Check against Houses
+            for (house in sceneManager.activeHouses) {
+                // Houses use per-triangle mesh collision
+                val houseBounds = house.modelInstance.calculateBoundingBox(BoundingBox())
+                houseBounds.mul(house.modelInstance.transform)
+
+                if (com.badlogic.gdx.math.Intersector.intersectRayBounds(bulletRay, houseBounds, null)) {
+                    // If cheap check passes, do expensive, precise per-triangle check
+                    if (house.intersectsRay(bulletRay, outHitPoint)) {
+                        // Did the intersection happen within the distance the bullet traveled?
+                        if (bulletStartPos.dst2(outHitPoint) <= travelDistance * travelDistance) {
+                            println("Bullet hit a House (Raycast)")
+                            return true
+                        }
+                    }
+                }
             }
         }
 
@@ -958,20 +971,18 @@ class PlayerSystem {
             }
         }
 
-        // 4. Check against standard Objects (trees, fences, etc.)
+        // 4. Check against standard Objects
         for (obj in sceneManager.activeObjects) {
-            // Invisible objects (like light source markers) shouldn't block bullets
+            // Invisible objects shouldn't block bullets
             if (obj.objectType.isInvisible) continue
-
-            val objBounds = obj.getBoundingBox()
-            if (objBounds.intersects(bullet.bounds)) {
+            if (obj.getBoundingBox().intersects(bullet.bounds)) {
                 outHitPoint.set(bullet.position)
                 println("Bullet hit an Object")
                 return true
             }
         }
 
-        // No collision detected with any of the specified types
+        // No collision detected
         return false
     }
 
