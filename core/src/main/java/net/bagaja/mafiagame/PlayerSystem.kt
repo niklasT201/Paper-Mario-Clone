@@ -38,6 +38,8 @@ class PlayerSystem {
     private var playerCurrentRotationY = 0f
     private val rotationSpeed = 360f
     private var lastMovementDirection = 0f
+    private lateinit var playerBackTexture: Texture
+    private var isPressingW = false
 
     // Animation system
     private lateinit var animationSystem: AnimationSystem
@@ -124,6 +126,7 @@ class PlayerSystem {
         // Create idle animation (single frame)
         val idleFrames = arrayOf("textures/player/pig_character.png")
         animationSystem.createAnimation("idle", idleFrames, 1.0f, true)
+        playerBackTexture = Texture(Gdx.files.internal("textures/player/pig_character_back.png"))
 
         // Start with idle animation
         animationSystem.playAnimation("idle")
@@ -643,7 +646,9 @@ class PlayerSystem {
         var deltaZ = 0f
         if (Gdx.input.isKeyPressed(Input.Keys.A)) { deltaX -= playerSpeed * deltaTime; currentMovementDirection = -1f }
         if (Gdx.input.isKeyPressed(Input.Keys.D)) { deltaX += playerSpeed * deltaTime; currentMovementDirection = 1f }
-        if (Gdx.input.isKeyPressed(Input.Keys.W)) { deltaZ -= playerSpeed * deltaTime }
+
+        isPressingW = Gdx.input.isKeyPressed(Input.Keys.W)
+        if (isPressingW) { deltaZ -= playerSpeed * deltaTime }
         if (Gdx.input.isKeyPressed(Input.Keys.S)) { deltaZ += playerSpeed * deltaTime }
 
         if (isShooting && !equippedWeapon.allowsMovementWhileShooting) {
@@ -772,13 +777,12 @@ class PlayerSystem {
         }
 
         // Handle animation and rotation
-        if (isShooting) {
+        if (isMoving && !lastIsMoving) {
             // No need for a separate animation, just update the texture directly
-            updatePlayerTexture(poseTextures[equippedWeapon.playerPoseTexturePath]!!)
-        } else {
+            animationSystem.playAnimation("walking")
+        } else if (!isMoving && lastIsMoving) {
             // Revert to normal walk/idle animations
-            if (isMoving && !lastIsMoving) animationSystem.playAnimation("walking")
-            else if (!isMoving && lastIsMoving) animationSystem.playAnimation("idle")
+            animationSystem.playAnimation("idle")
         }
         lastIsMoving = isMoving
 
@@ -877,17 +881,19 @@ class PlayerSystem {
     fun update(deltaTime: Float) {
         handleWeaponInput(deltaTime)
 
-        // Update animation only when not shooting
-        if (!isShooting) {
-            // Update animation system
-            animationSystem.update(deltaTime)
+        // Update animation system
+        animationSystem.update(deltaTime)
 
-            // Update player texture if it changed
-            val newTexture = animationSystem.getCurrentTexture()
-            if (newTexture != null) {
-                updatePlayerTexture(newTexture)
-                println("Updated texture to: ${animationSystem.getCurrentAnimationName()}") // Debug print
-            }
+        // Update player texture if it changed
+        val finalTexture: Texture? = when {
+            isPressingW -> playerBackTexture
+            isShooting -> poseTextures[equippedWeapon.playerPoseTexturePath]
+            else -> animationSystem.getCurrentTexture()
+        }
+
+        // Update the player's texture
+        finalTexture?.let {
+            updatePlayerTexture(it)
         }
 
         val bulletIterator = activeBullets.iterator()
@@ -961,6 +967,8 @@ class PlayerSystem {
 
     fun dispose() {
         playerModel.dispose()
+        playerBackTexture.dispose()
+
         animationSystem.dispose()
         billboardModelBatch.dispose()
         billboardShaderProvider.dispose()
