@@ -79,6 +79,7 @@ class PlayerSystem {
     private val bulletModels = mutableMapOf<String, Model>()
 
     private val activeBullets = Array<Bullet>()
+    private val tempCheckBounds = BoundingBox()
 
     fun getPlayerBounds(): BoundingBox {
         return playerBounds
@@ -707,28 +708,28 @@ class PlayerSystem {
         }
 
         // 4. Resolve Y-axis (Gravity and Final Grounding)
-        println("--- Y-AXIS RESOLUTION ---")
+        //println("--- Y-AXIS RESOLUTION ---")
         val finalSupportY = sceneManager.findHighestSupportY(playerPosition.x, playerPosition.z, originalPosition.y, playerSize.x / 2f, blockSize)
         val playerFootY = originalPosition.y - (playerSize.y / 2f)
-        println("DEBUG (Y-Axis): finalSupportY = ${"%.2f".format(finalSupportY)}, originalPlayerFootY = ${"%.2f".format(playerFootY)}")
+        //println("DEBUG (Y-Axis): finalSupportY = ${"%.2f".format(finalSupportY)}, originalPlayerFootY = ${"%.2f".format(playerFootY)}")
 
         // Ensure the final ground position is a valid step from where the player *started* the frame.
         val effectiveSupportY: Float
         if (finalSupportY - playerFootY <= MAX_STEP_HEIGHT) {
             effectiveSupportY = finalSupportY
-            println("DEBUG (Y-Axis): Step is valid. effectiveSupportY = ${"%.2f".format(effectiveSupportY)}")
+            //println("DEBUG (Y-Axis): Step is valid. effectiveSupportY = ${"%.2f".format(effectiveSupportY)}")
         } else {
             effectiveSupportY = sceneManager.findHighestSupportY(originalPosition.x, originalPosition.z, originalPosition.y, playerSize.x / 2f, blockSize)
-            println("DEBUG (Y-Axis): Step too high! Using original support. effectiveSupportY = ${"%.2f".format(effectiveSupportY)}")
+           // println("DEBUG (Y-Axis): Step too high! Using original support. effectiveSupportY = ${"%.2f".format(effectiveSupportY)}")
         }
 
         val targetY = effectiveSupportY + (playerSize.y / 2f)
         val fallY = playerPosition.y - FALL_SPEED * deltaTime // Fall from the current position
-        println("DEBUG (Y-Axis): final targetY = ${"%.2f".format(targetY)}, fallY = ${"%.2f".format(fallY)}")
+        //println("DEBUG (Y-Axis): final targetY = ${"%.2f".format(targetY)}, fallY = ${"%.2f".format(fallY)}")
 
         val finalY = kotlin.math.max(targetY, fallY)
         playerPosition.y = finalY
-        println("DEBUG (Y-Axis): Chose finalY = ${"%.2f".format(finalY)}. Setting playerPosition.y.")
+        //println("DEBUG (Y-Axis): Chose finalY = ${"%.2f".format(finalY)}. Setting playerPosition.y.")
 
 
         // 5. Update flags and visuals
@@ -878,7 +879,7 @@ class PlayerSystem {
         }
     }
 
-    fun update(deltaTime: Float) {
+    fun update(deltaTime: Float, sceneManager: SceneManager) {
         handleWeaponInput(deltaTime)
 
         // Update animation system
@@ -900,11 +901,78 @@ class PlayerSystem {
         while (bulletIterator.hasNext()) {
             val bullet = bulletIterator.next()
             bullet.update(deltaTime)
+
+            // Collision Check
+            val hitPoint = Vector3()
+            if (checkBulletCollision(bullet, sceneManager, hitPoint)) {
+                // On hit, spawn a particle effect
+                particleSystem.spawnEffect(ParticleEffectType.DUST_IMPACT, hitPoint)
+
+                // Destroy bullet
+                bulletIterator.remove()
+                continue // Skip next bullet
+            }
+
             if (bullet.lifetime <= 0f) {
                 bulletIterator.remove()
             }
         }
         updatePlayerTransform()
+    }
+
+    private fun checkBulletCollision(bullet: Bullet, sceneManager: SceneManager, outHitPoint: Vector3): Boolean {
+        // 1. Check against Blocks
+        for (block in sceneManager.activeBlocks) {
+            // Ignore invisible blocks or blocks without collision
+            if (!block.blockType.hasCollision || !block.blockType.isVisible) continue
+
+            // Use the block's own collision method, which supports complex shapes
+            if (block.collidesWith(bullet.bounds)) {
+                outHitPoint.set(bullet.position) // Use bullet's position as impact point
+                println("Bullet hit a Block")
+                return true
+            }
+        }
+
+        // 2. Check against Houses
+        for (house in sceneManager.activeHouses) {
+            // Houses use per-triangle mesh collision
+            if (house.collidesWithMesh(bullet.bounds)) {
+                outHitPoint.set(bullet.position)
+                println("Bullet hit a House")
+                return true
+            }
+        }
+
+        // 3. Check against Interior objects
+        for (interior in sceneManager.activeInteriors) {
+            if (!interior.interiorType.hasCollision) continue
+
+            // Calculate the world-space bounding box for the interior object
+            interior.instance.calculateBoundingBox(tempCheckBounds).mul(interior.instance.transform)
+
+            if (tempCheckBounds.intersects(bullet.bounds)) {
+                outHitPoint.set(bullet.position)
+                println("Bullet hit an Interior object")
+                return true
+            }
+        }
+
+        // 4. Check against standard Objects (trees, fences, etc.)
+        for (obj in sceneManager.activeObjects) {
+            // Invisible objects (like light source markers) shouldn't block bullets
+            if (obj.objectType.isInvisible) continue
+
+            val objBounds = obj.getBoundingBox()
+            if (objBounds.intersects(bullet.bounds)) {
+                outHitPoint.set(bullet.position)
+                println("Bullet hit an Object")
+                return true
+            }
+        }
+
+        // No collision detected with any of the specified types
+        return false
     }
 
     private fun updatePlayerTransform() {

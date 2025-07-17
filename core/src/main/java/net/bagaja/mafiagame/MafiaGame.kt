@@ -1508,7 +1508,7 @@ class MafiaGame : ApplicationAdapter() {
         // Handle player input
         handlePlayerInput()
         particleSystem.update(deltaTime)
-        playerSystem.update(deltaTime)
+        playerSystem.update(deltaTime, sceneManager)
         enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
         npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
 

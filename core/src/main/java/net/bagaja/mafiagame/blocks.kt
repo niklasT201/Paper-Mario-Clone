@@ -88,6 +88,16 @@ data class GameBlock(
     }
 
     fun getBoundingBox(blockSize: Float, out: BoundingBox): BoundingBox {
+        if (shape == BlockShape.FULL_BLOCK) {
+            val halfSize = blockSize / 2f
+            val blockHeight = blockSize * this.blockType.height / 2f
+            out.set(
+                Vector3(position.x - halfSize, position.y - blockHeight, position.z - halfSize),
+                Vector3(position.x + halfSize, position.y + blockHeight, position.z + halfSize)
+            )
+            return out
+        }
+
         val instance = modelInstance ?: faceInstances?.values?.firstOrNull()
         if (instance == null) {
             return out.set(Vector3.Zero, Vector3.Zero)

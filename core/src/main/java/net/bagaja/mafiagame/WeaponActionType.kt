@@ -2,6 +2,7 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.collision.BoundingBox
 
 data class Bullet(
     val position: Vector3,
@@ -9,10 +10,25 @@ data class Bullet(
     val modelInstance: ModelInstance,
     var lifetime: Float
 ) {
+    val bounds: BoundingBox = BoundingBox()
+    private val bulletSize = 0.2f // A small collision box for the bullet
+
+    init {
+        updateBounds()
+    }
+
     fun update(deltaTime: Float) {
         position.mulAdd(velocity, deltaTime)
-        // The transform for billboarding (making it face the camera) is updated in the render loop
+        updateBounds()
         lifetime -= deltaTime
+    }
+
+    private fun updateBounds() {
+        val halfSize = bulletSize / 2f
+        bounds.set(
+            position.cpy().sub(halfSize),
+            position.cpy().add(halfSize)
+        )
     }
 }
 
