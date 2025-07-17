@@ -14,6 +14,14 @@ import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
 import kotlin.math.floor
 
+enum class HitObjectType {
+    NONE,
+    BLOCK,
+    HOUSE,
+    OBJECT,
+    INTERIOR
+}
+
 class PlayerSystem {
     // Player model and rendering
     private lateinit var playerTexture: Texture
@@ -904,9 +912,14 @@ class PlayerSystem {
 
             // Collision Check
             val hitPoint = Vector3()
-            if (checkBulletCollision(bullet, sceneManager, hitPoint)) {
+            val hitType = checkBulletCollision(bullet, sceneManager, hitPoint)
+
+            // Check if ANY valid object was hit
+            if (hitType != HitObjectType.NONE) {
                 // On hit, spawn a particle effect
-                particleSystem.spawnEffect(ParticleEffectType.DUST_IMPACT, hitPoint)
+                if (hitType != HitObjectType.HOUSE) {
+                    particleSystem.spawnEffect(ParticleEffectType.DUST_IMPACT, hitPoint)
+                }
 
                 // Destroy bullet
                 bulletIterator.remove()
@@ -920,7 +933,7 @@ class PlayerSystem {
         updatePlayerTransform()
     }
 
-    private fun checkBulletCollision(bullet: Bullet, sceneManager: SceneManager, outHitPoint: Vector3): Boolean {
+    private fun checkBulletCollision(bullet: Bullet, sceneManager: SceneManager, outHitPoint: Vector3): HitObjectType {
         // 1. Check against Blocks
         for (block in sceneManager.activeBlocks) {
             // Ignore invisible blocks or blocks without collision
@@ -929,7 +942,7 @@ class PlayerSystem {
             if (block.collidesWith(bullet.bounds)) {
                 outHitPoint.set(bullet.position) // Use bullet's position as impact point
                 println("Bullet hit a Block")
-                return true
+                return HitObjectType.BLOCK
             }
         }
 
@@ -941,16 +954,13 @@ class PlayerSystem {
             // 2. Check against Houses
             for (house in sceneManager.activeHouses) {
                 // Houses use per-triangle mesh collision
-                val houseBounds = house.modelInstance.calculateBoundingBox(BoundingBox())
-                houseBounds.mul(house.modelInstance.transform)
-
+                val houseBounds = house.modelInstance.calculateBoundingBox(BoundingBox()).mul(house.modelInstance.transform)
                 if (com.badlogic.gdx.math.Intersector.intersectRayBounds(bulletRay, houseBounds, null)) {
                     // If cheap check passes, do expensive, precise per-triangle check
                     if (house.intersectsRay(bulletRay, outHitPoint)) {
                         // Did the intersection happen within the distance the bullet traveled?
                         if (bulletStartPos.dst2(outHitPoint) <= travelDistance * travelDistance) {
-                            println("Bullet hit a House (Raycast)")
-                            return true
+                            return HitObjectType.HOUSE
                         }
                     }
                 }
@@ -966,8 +976,7 @@ class PlayerSystem {
 
             if (tempCheckBounds.intersects(bullet.bounds)) {
                 outHitPoint.set(bullet.position)
-                println("Bullet hit an Interior object")
-                return true
+                return HitObjectType.INTERIOR
             }
         }
 
@@ -977,13 +986,11 @@ class PlayerSystem {
             if (obj.objectType.isInvisible) continue
             if (obj.getBoundingBox().intersects(bullet.bounds)) {
                 outHitPoint.set(bullet.position)
-                println("Bullet hit an Object")
-                return true
+                return HitObjectType.OBJECT
             }
         }
 
-        // No collision detected
-        return false
+        return HitObjectType.NONE
     }
 
     private fun updatePlayerTransform() {
