@@ -272,11 +272,15 @@ class PlayerSystem {
         val bulletSpawnOffsetX = directionX * 1.5f
         val bulletSpawnPos = playerPosition.cpy().add(bulletSpawnOffsetX, 0f, 0f)
 
+        // Determine rotation
+        val bulletRotation = if (directionX < 0) 180f else 0f
+
         val bullet = Bullet(
             position = bulletSpawnPos,
             velocity = velocity,
             modelInstance = ModelInstance(bulletModel),
-            lifetime = equippedWeapon.bulletLifetime
+            lifetime = equippedWeapon.bulletLifetime,
+            rotationY = bulletRotation
         )
         activeBullets.add(bullet)
 
@@ -1127,7 +1131,6 @@ class PlayerSystem {
 
         // Render all active bullets
         for (bullet in activeBullets) {
-            bullet.modelInstance.transform.setTranslation(bullet.position)
             billboardModelBatch.render(bullet.modelInstance, environment)
         }
 

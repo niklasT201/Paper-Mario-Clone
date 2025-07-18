@@ -8,7 +8,8 @@ data class Bullet(
     val position: Vector3,
     val velocity: Vector3,
     val modelInstance: ModelInstance,
-    var lifetime: Float
+    var lifetime: Float,
+    val rotationY: Float
 ) {
     val bounds: BoundingBox = BoundingBox()
     private val bulletSize = 0.2f // A small collision box for the bullet
@@ -21,6 +22,15 @@ data class Bullet(
         position.mulAdd(velocity, deltaTime)
         updateBounds()
         lifetime -= deltaTime
+
+        // Visual update
+        updateTransform()
+    }
+
+    private fun updateTransform() {
+        modelInstance.transform.idt()
+        modelInstance.transform.setTranslation(position)
+        modelInstance.transform.rotate(Vector3.Y, rotationY)
     }
 
     private fun updateBounds() {
