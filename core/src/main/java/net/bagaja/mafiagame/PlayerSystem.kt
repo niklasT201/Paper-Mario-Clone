@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
@@ -25,7 +26,12 @@ enum class HitObjectType {
     NPC
 }
 
-data class HitResult(val type: HitObjectType, val hitObject: Any? = null)
+data class CollisionResult(
+    val type: HitObjectType,
+    val hitObject: Any?,
+    val hitPoint: Vector3,
+    val surfaceNormal: Vector3
+)
 
 class PlayerSystem {
     // Player model and rendering
@@ -67,6 +73,7 @@ class PlayerSystem {
     // Reference to block system for collision detection
     private var blockSize = 4f
     private lateinit var particleSystem: ParticleSystem
+    private val PARTICLE_IMPACT_OFFSET = 1.2f
 
     var isDriving = false
         private set
@@ -916,28 +923,26 @@ class PlayerSystem {
             bullet.update(deltaTime)
 
             // Collision Check
-            val hitPoint = Vector3()
-            val hitResult = checkBulletCollision(bullet, sceneManager, hitPoint)
+            val collisionResult = checkBulletCollision(bullet, sceneManager)
 
             // Check if ANY valid object was hit
-            if (hitResult.type != HitObjectType.NONE) {
+            if (collisionResult != null) {
                 // Destroy bullet
                 bulletIterator.remove()
 
-                when (hitResult.type) {
-                    HitObjectType.BLOCK, HitObjectType.OBJECT, HitObjectType.INTERIOR -> {
+                // Calculate the spawn position using the RELIABLE normal from the result
+                val particleSpawnPos = collisionResult.hitPoint.cpy().mulAdd(collisionResult.surfaceNormal, PARTICLE_IMPACT_OFFSET)
+
+                when (collisionResult.type) {
+                    HitObjectType.BLOCK, HitObjectType.OBJECT, HitObjectType.INTERIOR, HitObjectType.HOUSE -> {
                         // Spawn dust/sparks for static objects
-                        particleSystem.spawnEffect(ParticleEffectType.DUST_IMPACT, hitPoint)
-                    }
-                    HitObjectType.HOUSE -> {
-                        // House was hit, do nothing
+                        particleSystem.spawnEffect(ParticleEffectType.DUST_IMPACT, particleSpawnPos)
                     }
                     HitObjectType.ENEMY -> {
-                        val enemy = hitResult.hitObject as GameEnemy
-
+                        val enemy = collisionResult.hitObject as GameEnemy
                         // 50% chance to spawn blood effects
                         if (Random.nextFloat() < 0.5f) {
-                            spawnBloodEffects(enemy.position, sceneManager)
+                            spawnBloodEffects(particleSpawnPos, sceneManager)
                         }
 
                         if (enemy.takeDamage(equippedWeapon.damage)) {
@@ -946,11 +951,10 @@ class PlayerSystem {
                         }
                     }
                     HitObjectType.NPC -> {
-                        val npc = hitResult.hitObject as GameNPC
-
+                        val npc = collisionResult.hitObject as GameNPC
                         // 50% chance to spawn blood effects
                         if (Random.nextFloat() < 0.5f) {
-                            spawnBloodEffects(npc.position, sceneManager)
+                            spawnBloodEffects(particleSpawnPos, sceneManager)
                         }
 
                         if (npc.takeDamage(equippedWeapon.damage)) {
@@ -958,8 +962,7 @@ class PlayerSystem {
                             sceneManager.activeNPCs.removeValue(npc, true)
                         }
                     }
-                    HitObjectType.NONE -> { // Nothing here
-                    }
+                    HitObjectType.NONE -> {}
                 }
                 continue // Skip next bullet
             }
@@ -971,76 +974,89 @@ class PlayerSystem {
         updatePlayerTransform()
     }
 
-    private fun checkBulletCollision(bullet: Bullet, sceneManager: SceneManager, outHitPoint: Vector3): HitResult {
+    private fun checkBulletCollision(bullet: Bullet, sceneManager: SceneManager): CollisionResult? {
+        val travelDistanceSq = bullet.velocity.len2() * (Gdx.graphics.deltaTime * Gdx.graphics.deltaTime)
+        if (travelDistanceSq == 0f) return null // Don't check if bullet hasn't moved
+
+        val bulletRay = Ray(bullet.position.cpy().mulAdd(bullet.velocity, -Gdx.graphics.deltaTime), bullet.velocity.cpy().nor())
+        val intersectionPoint = Vector3()
+
+        var closestResult: CollisionResult? = null
+        var closestDistSq = Float.MAX_VALUE
+
         // 1. Check against Blocks
         for (block in sceneManager.activeBlocks) {
             // Ignore invisible blocks or blocks without collision
             if (!block.blockType.hasCollision || !block.blockType.isVisible) continue
 
-            if (block.collidesWith(bullet.bounds)) {
-                outHitPoint.set(bullet.position) // Use bullet's position as impact point
-                return HitResult(HitObjectType.BLOCK)
-            }
-        }
+            val blockBounds = block.getBoundingBox(blockSize, BoundingBox())
+            if (Intersector.intersectRayBounds(bulletRay, blockBounds, intersectionPoint)) {
+                val distSq = bulletRay.origin.dst2(intersectionPoint)
+                if (distSq <= travelDistanceSq && distSq < closestDistSq) {
+                    val blockCenter = block.position
+                    val relativeHitPos = intersectionPoint.cpy().sub(blockCenter)
+                    val normal = Vector3()
 
-        val travelDistance = bullet.velocity.len() * Gdx.graphics.deltaTime
-        if (travelDistance > 0.001f) { // Only check if the bullet actually moved
-            val bulletStartPos = bullet.position.cpy().mulAdd(bullet.velocity, -Gdx.graphics.deltaTime)
-            val bulletRay = Ray(bulletStartPos, bullet.velocity.cpy().nor())
-
-            // 2. Check against Houses
-            for (house in sceneManager.activeHouses) {
-                // Houses use per-triangle mesh collision
-                val houseBounds = house.modelInstance.calculateBoundingBox(BoundingBox()).mul(house.modelInstance.transform)
-                if (com.badlogic.gdx.math.Intersector.intersectRayBounds(bulletRay, houseBounds, null)) {
-                    // If cheap check passes, do expensive, precise per-triangle check
-                    if (house.intersectsRay(bulletRay, outHitPoint)) {
-                        // Did the intersection happen within the distance the bullet traveled?
-                        if (bulletStartPos.dst2(outHitPoint) <= travelDistance * travelDistance) {
-                            return HitResult(HitObjectType.HOUSE)
-                        }
+                    if (kotlin.math.abs(relativeHitPos.x) > kotlin.math.abs(relativeHitPos.y) && kotlin.math.abs(relativeHitPos.x) > kotlin.math.abs(relativeHitPos.z)) {
+                        normal.set(if (relativeHitPos.x > 0) 1f else -1f, 0f, 0f)
+                    } else if (kotlin.math.abs(relativeHitPos.y) > kotlin.math.abs(relativeHitPos.x) && kotlin.math.abs(relativeHitPos.y) > kotlin.math.abs(relativeHitPos.z)) {
+                        normal.set(0f, if (relativeHitPos.y > 0) 1f else -1f, 0f)
+                    } else {
+                        normal.set(0f, 0f, if (relativeHitPos.z > 0) 1f else -1f)
                     }
+                    closestResult = CollisionResult(HitObjectType.BLOCK, block, intersectionPoint.cpy(), normal)
+                    closestDistSq = distSq
                 }
             }
         }
 
-        // 3. Check against Interior objects
-        for (interior in sceneManager.activeInteriors) {
-            if (!interior.interiorType.hasCollision) continue
+        // 2. Check against complex meshes
+        val allMeshes = sceneManager.activeHouses.map { it to HitObjectType.HOUSE } +
+            sceneManager.activeInteriors.filter { it.interiorType.is3D && it.interiorType.hasCollision }.map { it to HitObjectType.INTERIOR }
 
-            // Calculate the world-space bounding box for the interior object
-            interior.instance.calculateBoundingBox(tempCheckBounds).mul(interior.instance.transform)
+        for ((meshObject, type) in allMeshes) {
+            var hit = false
+            when (meshObject) {
+                is GameHouse -> {
+                    if (meshObject.intersectsRay(bulletRay, intersectionPoint)) {
+                        hit = true
+                    }
+                }
+                is GameInterior -> {
+                    if (meshObject.intersectsRay(bulletRay, intersectionPoint)) {
+                        hit = true
+                    }
+                }
+            }
 
-            if (tempCheckBounds.intersects(bullet.bounds)) {
-                outHitPoint.set(bullet.position)
-                return HitResult(HitObjectType.INTERIOR) // Return the specific enemy
+            if (hit) {
+                val distSq = bulletRay.origin.dst2(intersectionPoint)
+                if (distSq <= travelDistanceSq && distSq < closestDistSq) {
+                    val normal = bullet.velocity.cpy().nor().scl(-1f)
+                    closestResult = CollisionResult(type, meshObject, intersectionPoint.cpy(), normal)
+                    closestDistSq = distSq
+                }
             }
         }
 
-        // 4. Check against standard Objects
-        for (obj in sceneManager.activeObjects) {
-            // Invisible objects shouldn't block bullets
-            if (obj.objectType.isInvisible) continue
-            if (obj.getBoundingBox().intersects(bullet.bounds)) {
-                outHitPoint.set(bullet.position)
-                return HitResult(HitObjectType.OBJECT)
+        // 3. Check against simple bounding boxes
+        val simpleObjects = sceneManager.activeEnemies.map { it to HitObjectType.ENEMY } +
+            sceneManager.activeNPCs.map { it to HitObjectType.NPC } +
+            sceneManager.activeObjects.filter { !it.objectType.isInvisible }.map { it to HitObjectType.OBJECT }
+
+        for ((obj, type) in simpleObjects) {
+            val bounds = (obj as? GameEnemy)?.getBoundingBox() ?: (obj as? GameNPC)?.getBoundingBox() ?: (obj as? GameObject)?.getBoundingBox() ?: continue
+            if (Intersector.intersectRayBounds(bulletRay, bounds, intersectionPoint)) {
+                val distSq = bulletRay.origin.dst2(intersectionPoint)
+                if (distSq <= travelDistanceSq && distSq < closestDistSq) {
+                    val normal = bullet.velocity.cpy().nor().scl(-1f)
+                    closestResult = CollisionResult(type, obj, intersectionPoint.cpy(), normal)
+                    closestDistSq = distSq
+                }
             }
         }
 
-        for (enemy in sceneManager.activeEnemies) {
-            if (enemy.getBoundingBox().intersects(bullet.bounds)) {
-                outHitPoint.set(bullet.position)
-                return HitResult(HitObjectType.ENEMY, enemy)
-            }
-        }
-        for (npc in sceneManager.activeNPCs) {
-            if (npc.getBoundingBox().intersects(bullet.bounds)) {
-                outHitPoint.set(bullet.position)
-                return HitResult(HitObjectType.NPC, npc) // Return the specific NPC
-            }
-        }
-
-        return HitResult(HitObjectType.NONE)
+        return closestResult
     }
 
     private fun spawnBloodEffects(position: Vector3, sceneManager: SceneManager) {

@@ -56,7 +56,9 @@ public class Lwjgl3Launcher {
 // character dies, blood pool will spawn and get bigger over time
 // option to turn on screen light
 // separate particle clouds
+// blood spawning in center of npc/enemy
 // player wipe is switching to vertical when pressing W or S
+// bullet collides with cars too
 // only new wipes rotating with players direction not old ones too
 // maybe water blocks
 // south park like animation
