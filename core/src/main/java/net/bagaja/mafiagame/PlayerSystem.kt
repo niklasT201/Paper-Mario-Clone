@@ -23,7 +23,8 @@ enum class HitObjectType {
     OBJECT,
     INTERIOR,
     ENEMY,
-    NPC
+    NPC,
+    CAR
 }
 
 data class CollisionResult(
@@ -930,14 +931,20 @@ class PlayerSystem {
                 // Destroy bullet
                 bulletIterator.remove()
 
-                // Calculate the spawn position using the RELIABLE normal from the result
+                // Calculate the spawn position
                 val particleSpawnPos = collisionResult.hitPoint.cpy().mulAdd(collisionResult.surfaceNormal, PARTICLE_IMPACT_OFFSET)
 
                 when (collisionResult.type) {
-                    HitObjectType.BLOCK, HitObjectType.OBJECT, HitObjectType.INTERIOR, HitObjectType.HOUSE -> {
+                    HitObjectType.BLOCK, HitObjectType.INTERIOR, HitObjectType.CAR -> {
                         // Spawn dust/sparks for static objects
                         particleSystem.spawnEffect(ParticleEffectType.DUST_IMPACT, particleSpawnPos)
                     }
+
+                    HitObjectType.OBJECT,
+                    HitObjectType.HOUSE -> {
+                        // Intentionally do nothing
+                    }
+
                     HitObjectType.ENEMY -> {
                         val enemy = collisionResult.hitObject as GameEnemy
                         // 50% chance to spawn blood effects
@@ -1017,16 +1024,8 @@ class PlayerSystem {
         for ((meshObject, type) in allMeshes) {
             var hit = false
             when (meshObject) {
-                is GameHouse -> {
-                    if (meshObject.intersectsRay(bulletRay, intersectionPoint)) {
-                        hit = true
-                    }
-                }
-                is GameInterior -> {
-                    if (meshObject.intersectsRay(bulletRay, intersectionPoint)) {
-                        hit = true
-                    }
-                }
+                is GameHouse -> { if (meshObject.intersectsRay(bulletRay, intersectionPoint)) hit = true }
+                is GameInterior -> { if (meshObject.intersectsRay(bulletRay, intersectionPoint)) hit = true }
             }
 
             if (hit) {
@@ -1042,10 +1041,12 @@ class PlayerSystem {
         // 3. Check against simple bounding boxes
         val simpleObjects = sceneManager.activeEnemies.map { it to HitObjectType.ENEMY } +
             sceneManager.activeNPCs.map { it to HitObjectType.NPC } +
-            sceneManager.activeObjects.filter { !it.objectType.isInvisible }.map { it to HitObjectType.OBJECT }
+            sceneManager.activeObjects.filter { !it.objectType.isInvisible }.map { it to HitObjectType.OBJECT } +
+            sceneManager.activeCars.map { it to HitObjectType.CAR }
 
         for ((obj, type) in simpleObjects) {
-            val bounds = (obj as? GameEnemy)?.getBoundingBox() ?: (obj as? GameNPC)?.getBoundingBox() ?: (obj as? GameObject)?.getBoundingBox() ?: continue
+            val bounds = (obj as? GameEnemy)?.getBoundingBox() ?: (obj as? GameNPC)?.getBoundingBox() ?: (obj as? GameObject)?.getBoundingBox() ?: (obj as? GameCar)?.getBoundingBox() ?: continue
+
             if (Intersector.intersectRayBounds(bulletRay, bounds, intersectionPoint)) {
                 val distSq = bulletRay.origin.dst2(intersectionPoint)
                 if (distSq <= travelDistanceSq && distSq < closestDistSq) {
