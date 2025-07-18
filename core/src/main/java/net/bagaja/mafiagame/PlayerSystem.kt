@@ -13,6 +13,7 @@ import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
 import kotlin.math.floor
+import kotlin.random.Random
 
 enum class HitObjectType {
     NONE,
@@ -933,7 +934,12 @@ class PlayerSystem {
                     }
                     HitObjectType.ENEMY -> {
                         val enemy = hitResult.hitObject as GameEnemy
-                        spawnBloodEffects(enemy.position)
+
+                        // 50% chance to spawn blood effects
+                        if (Random.nextFloat() < 0.5f) {
+                            spawnBloodEffects(enemy.position)
+                        }
+
                         if (enemy.takeDamage(equippedWeapon.damage)) {
                             // Enemy died, remove it
                             sceneManager.activeEnemies.removeValue(enemy, true)
@@ -941,7 +947,12 @@ class PlayerSystem {
                     }
                     HitObjectType.NPC -> {
                         val npc = hitResult.hitObject as GameNPC
-                        spawnBloodEffects(npc.position)
+
+                        // 50% chance to spawn blood effects
+                        if (Random.nextFloat() < 0.5f) {
+                            spawnBloodEffects(npc.position)
+                        }
+
                         if (npc.takeDamage(equippedWeapon.damage)) {
                             // NPC died, remove it from the scene
                             sceneManager.activeNPCs.removeValue(npc, true)
@@ -1040,8 +1051,8 @@ class PlayerSystem {
             ParticleEffectType.BLOOD_DRIP
         )
 
-        // Spawn a random number of particles (e.g., between 3 and 7)
-        val particleCount = (3..7).random()
+        // Spawn a random number of particles
+        val particleCount = (1..3).random()
         for (i in 0 until particleCount) {
             // Pick a random effect from our list
             val randomEffect = bloodEffects.random()
@@ -1049,8 +1060,8 @@ class PlayerSystem {
             // Give the particle a random velocity for a nice "splatter" spray
             val randomVelocity = Vector3(
                 (Math.random() - 0.5).toFloat() * 10f, // Random X
-                (Math.random() * 5f).toFloat(),         // Mostly upwards
-                (Math.random() - 0.5).toFloat() * 10f  // Random Z
+                (Math.random() * 5f).toFloat(),  // Mostly upwards
+                (Math.random() - 0.5).toFloat() * 10f // Random Z
             )
 
             particleSystem.spawnEffect(randomEffect, position.cpy(), randomVelocity)
