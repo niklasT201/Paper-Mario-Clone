@@ -19,8 +19,12 @@ enum class HitObjectType {
     BLOCK,
     HOUSE,
     OBJECT,
-    INTERIOR
+    INTERIOR,
+    ENEMY,
+    NPC
 }
+
+data class HitResult(val type: HitObjectType, val hitObject: Any? = null)
 
 class PlayerSystem {
     // Player model and rendering
@@ -912,17 +916,40 @@ class PlayerSystem {
 
             // Collision Check
             val hitPoint = Vector3()
-            val hitType = checkBulletCollision(bullet, sceneManager, hitPoint)
+            val hitResult = checkBulletCollision(bullet, sceneManager, hitPoint)
 
             // Check if ANY valid object was hit
-            if (hitType != HitObjectType.NONE) {
-                // On hit, spawn a particle effect
-                if (hitType != HitObjectType.HOUSE) {
-                    particleSystem.spawnEffect(ParticleEffectType.DUST_IMPACT, hitPoint)
-                }
-
+            if (hitResult.type != HitObjectType.NONE) {
                 // Destroy bullet
                 bulletIterator.remove()
+
+                when (hitResult.type) {
+                    HitObjectType.BLOCK, HitObjectType.OBJECT, HitObjectType.INTERIOR -> {
+                        // Spawn dust/sparks for static objects
+                        particleSystem.spawnEffect(ParticleEffectType.DUST_IMPACT, hitPoint)
+                    }
+                    HitObjectType.HOUSE -> {
+                        // House was hit, do nothing
+                    }
+                    HitObjectType.ENEMY -> {
+                        val enemy = hitResult.hitObject as GameEnemy
+                        spawnBloodEffects(enemy.position)
+                        if (enemy.takeDamage(equippedWeapon.damage)) {
+                            // Enemy died, remove it
+                            sceneManager.activeEnemies.removeValue(enemy, true)
+                        }
+                    }
+                    HitObjectType.NPC -> {
+                        val npc = hitResult.hitObject as GameNPC
+                        spawnBloodEffects(npc.position)
+                        if (npc.takeDamage(equippedWeapon.damage)) {
+                            // NPC died, remove it from the scene
+                            sceneManager.activeNPCs.removeValue(npc, true)
+                        }
+                    }
+                    HitObjectType.NONE -> { // Nothing here
+                    }
+                }
                 continue // Skip next bullet
             }
 
@@ -933,7 +960,7 @@ class PlayerSystem {
         updatePlayerTransform()
     }
 
-    private fun checkBulletCollision(bullet: Bullet, sceneManager: SceneManager, outHitPoint: Vector3): HitObjectType {
+    private fun checkBulletCollision(bullet: Bullet, sceneManager: SceneManager, outHitPoint: Vector3): HitResult {
         // 1. Check against Blocks
         for (block in sceneManager.activeBlocks) {
             // Ignore invisible blocks or blocks without collision
@@ -941,8 +968,7 @@ class PlayerSystem {
 
             if (block.collidesWith(bullet.bounds)) {
                 outHitPoint.set(bullet.position) // Use bullet's position as impact point
-                println("Bullet hit a Block")
-                return HitObjectType.BLOCK
+                return HitResult(HitObjectType.BLOCK)
             }
         }
 
@@ -960,7 +986,7 @@ class PlayerSystem {
                     if (house.intersectsRay(bulletRay, outHitPoint)) {
                         // Did the intersection happen within the distance the bullet traveled?
                         if (bulletStartPos.dst2(outHitPoint) <= travelDistance * travelDistance) {
-                            return HitObjectType.HOUSE
+                            return HitResult(HitObjectType.HOUSE)
                         }
                     }
                 }
@@ -976,7 +1002,7 @@ class PlayerSystem {
 
             if (tempCheckBounds.intersects(bullet.bounds)) {
                 outHitPoint.set(bullet.position)
-                return HitObjectType.INTERIOR
+                return HitResult(HitObjectType.INTERIOR) // Return the specific enemy
             }
         }
 
@@ -986,11 +1012,49 @@ class PlayerSystem {
             if (obj.objectType.isInvisible) continue
             if (obj.getBoundingBox().intersects(bullet.bounds)) {
                 outHitPoint.set(bullet.position)
-                return HitObjectType.OBJECT
+                return HitResult(HitObjectType.OBJECT)
             }
         }
 
-        return HitObjectType.NONE
+        for (enemy in sceneManager.activeEnemies) {
+            if (enemy.getBoundingBox().intersects(bullet.bounds)) {
+                outHitPoint.set(bullet.position)
+                return HitResult(HitObjectType.ENEMY, enemy)
+            }
+        }
+        for (npc in sceneManager.activeNPCs) {
+            if (npc.getBoundingBox().intersects(bullet.bounds)) {
+                outHitPoint.set(bullet.position)
+                return HitResult(HitObjectType.NPC, npc) // Return the specific NPC
+            }
+        }
+
+        return HitResult(HitObjectType.NONE)
+    }
+
+    private fun spawnBloodEffects(position: Vector3) {
+        val bloodEffects = listOf(
+            ParticleEffectType.BLOOD_SPLATTER_1,
+            ParticleEffectType.BLOOD_SPLATTER_2,
+            ParticleEffectType.BLOOD_SPLATTER_3,
+            ParticleEffectType.BLOOD_DRIP
+        )
+
+        // Spawn a random number of particles (e.g., between 3 and 7)
+        val particleCount = (3..7).random()
+        for (i in 0 until particleCount) {
+            // Pick a random effect from our list
+            val randomEffect = bloodEffects.random()
+
+            // Give the particle a random velocity for a nice "splatter" spray
+            val randomVelocity = Vector3(
+                (Math.random() - 0.5).toFloat() * 10f, // Random X
+                (Math.random() * 5f).toFloat(),         // Mostly upwards
+                (Math.random() - 0.5).toFloat() * 10f  // Random Z
+            )
+
+            particleSystem.spawnEffect(randomEffect, position.cpy(), randomVelocity)
+        }
     }
 
     private fun updatePlayerTransform() {

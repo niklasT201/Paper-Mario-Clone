@@ -120,6 +120,29 @@ data class GameNPC(
         }
     }
 
+    fun takeDamage(damage: Float): Boolean {
+        // If NPC is already a Guard or Provoked, they just take damage and stay mad.
+        if (behaviorType == NPCBehavior.GUARD || currentState == NPCState.PROVOKED) {
+            health -= damage
+            println("Hostile NPC ${npcType.displayName} took $damage damage. HP: $health")
+        } else {
+            // For neutral NPCs, hitting them increases provocation.
+            health -= damage
+            provocationLevel += provocationPerHit
+            println("NPC ${npcType.displayName} was hit! Provocation: $provocationLevel / $provocationThreshold. HP: $health")
+
+            // If threshold is reached, become hostile
+            if (provocationLevel >= provocationThreshold) {
+                println("Enough is enough! NPC ${npcType.displayName} is now hostile!")
+                currentState = NPCState.PROVOKED
+                stateTimer = 0f // Reset timer for the new state
+            }
+        }
+
+        // Return true if the NPC should be removed from the game
+        return health <= 0
+    }
+
     /** Decays the provocation level over time so the NPC can "forgive" accidental hits. */
     fun decayProvocation(deltaTime: Float) {
         if (provocationLevel > 0 && currentState != NPCState.PROVOKED) {

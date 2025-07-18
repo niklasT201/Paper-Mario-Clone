@@ -52,7 +52,9 @@ public class Lwjgl3Launcher {
 
 // working collisions for ramp, pillar and corner
 // teleportation points
+// when shooting at characters, blood can but doesnt need to spawn, for less particles
 // option to turn on screen light
+// NPCs can flee or fight
 // separate particle clouds
 // player wipe is switching to vertical when pressing W or S
 // only new wipes rotating with players direction not old ones too

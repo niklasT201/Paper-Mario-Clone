@@ -79,6 +79,12 @@ data class GameEnemy(
         )
         return boundingBox
     }
+
+    fun takeDamage(damage: Float): Boolean {
+        this.health -= damage
+        println("${this.enemyType.displayName} took $damage damage. HP remaining: ${this.health}")
+        return this.health <= 0
+    }
 }
 
 // --- ENEMY MANAGEMENT SYSTEM ---
