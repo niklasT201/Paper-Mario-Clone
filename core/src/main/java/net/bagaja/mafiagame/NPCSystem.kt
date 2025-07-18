@@ -81,6 +81,10 @@ data class GameNPC(
     val provocationThreshold: Float = 30f         // After this, NPC becomes hostile
     private val provocationPerHit: Float = 12f          // One hit isn't enough, but 3 quick hits are.
 
+    var isMoving: Boolean = false
+    var walkAnimationTimer: Float = 0f
+    var wobbleAngle: Float = 0f
+
     // Collision properties
     private val boundsSize = Vector3(npcType.width, npcType.height, npcType.width)
     private val boundingBox = BoundingBox()
@@ -89,6 +93,7 @@ data class GameNPC(
         modelInstance.transform.idt()
         modelInstance.transform.setTranslation(position)
         modelInstance.transform.rotate(Vector3.Y, facingRotationY)
+        modelInstance.transform.rotate(Vector3.Z, wobbleAngle) // Rotate on Z-axis for the wobble
     }
 
     fun getBoundingBox(): BoundingBox {
@@ -158,6 +163,8 @@ class NPCSystem : IFinePositionable {
     private val npcTextures = mutableMapOf<NPCType, Texture>()
     private lateinit var billboardModelBatch: ModelBatch
     private lateinit var billboardShaderProvider: BillboardShaderProvider
+    private val WOBBLE_AMPLITUDE_DEGREES = 5f // How far it tilts left/right. 10 degrees is a good start.
+    private val WOBBLE_FREQUENCY = 6f
 
     var currentSelectedNPCType = NPCType.FRED_THE_HERMIT
         private set
@@ -242,6 +249,8 @@ class NPCSystem : IFinePositionable {
         val playerPos = playerSystem.getPosition()
 
         for (npc in sceneManager.activeNPCs) {
+            // Reset moving flag
+            npc.isMoving = false
             // ACTIVATION CHECK
             val distanceToPlayer = npc.position.dst(playerPos)
             if (distanceToPlayer > activationRange) {
@@ -258,6 +267,24 @@ class NPCSystem : IFinePositionable {
             }
             npc.decayProvocation(deltaTime)
             updateAI(npc, playerPos, deltaTime, sceneManager)
+
+            if (npc.isMoving) {
+                // If moving, advance animation timer
+                npc.walkAnimationTimer += deltaTime
+                // Calculate wobble angle
+                val angleRad = sin(npc.walkAnimationTimer * WOBBLE_FREQUENCY)
+                npc.wobbleAngle = angleRad * WOBBLE_AMPLITUDE_DEGREES
+            } else {
+                // If not moving, smoothly return to an upright position
+                if (kotlin.math.abs(npc.wobbleAngle) > 0.1f) {
+                    // Interpolate back to 0. The '10f' is the speed of return.
+                    npc.wobbleAngle *= (1.0f - deltaTime * 10f).coerceAtLeast(0f)
+                } else {
+                    npc.wobbleAngle = 0f // Snap to 0 if very close
+                }
+                // Reset the timer when not moving
+                npc.walkAnimationTimer = 0f
+            }
 
             val shouldAutoRotate = npc.behaviorType != NPCBehavior.STATIONARY || npc.currentState == NPCState.PROVOKED
 
@@ -389,6 +416,7 @@ class NPCSystem : IFinePositionable {
         val nextPos = Vector3(npc.position).add(delta)
         if (canNpcMoveTo(nextPos, npc, sceneManager)) {
             npc.position.set(nextPos)
+            npc.isMoving = true
         }
     }
 

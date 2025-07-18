@@ -12,6 +12,7 @@ import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.utils.Array
 import java.util.*
 import kotlin.math.max
+import kotlin.math.sin
 
 // --- ENUMERATIONS FOR ENEMY PROPERTIES ---
 
@@ -59,17 +60,20 @@ data class GameEnemy(
     var targetPosition: Vector3? = null
     var facingRotationY: Float = 0f
 
+    var isMoving: Boolean = false
+    var walkAnimationTimer: Float = 0f
+    var wobbleAngle: Float = 0f
+
     // Collision properties
     private val boundsSize = Vector3(enemyType.width, enemyType.height, enemyType.width)
     private val boundingBox = BoundingBox()
 
     fun updateVisuals() {
-        // Reset the transform
         modelInstance.transform.idt()
-        // Set its position in the world
         modelInstance.transform.setTranslation(position)
-        // Apply the left/right facing rotation. The billboard shader does the rest.
         modelInstance.transform.rotate(Vector3.Y, facingRotationY)
+        // APPLY THE WOBBLE
+        modelInstance.transform.rotate(Vector3.Z, wobbleAngle)
     }
 
     fun getBoundingBox(): BoundingBox {
@@ -94,6 +98,8 @@ class EnemySystem : IFinePositionable {
     private val enemyTextures = mutableMapOf<EnemyType, Texture>()
     private lateinit var billboardModelBatch: ModelBatch
     private lateinit var billboardShaderProvider: BillboardShaderProvider
+    private val WOBBLE_AMPLITUDE_DEGREES = 5f
+    private val WOBBLE_FREQUENCY = 6f
 
     // UI selection state
     var currentSelectedEnemyType = EnemyType.NOUSE_THUG
@@ -169,6 +175,7 @@ class EnemySystem : IFinePositionable {
         val playerPos = playerSystem.getPosition()
 
         for (enemy in sceneManager.activeEnemies) {
+            enemy.isMoving = false
 
             // --- ACTIVATION CHECK ---
             // Calculate the distance from the player to this enemy.
@@ -189,6 +196,20 @@ class EnemySystem : IFinePositionable {
                 applyPhysics(enemy, deltaTime, sceneManager, blockSize)
             }
             updateAI(enemy, playerPos, deltaTime, sceneManager)
+
+            if (enemy.isMoving) {
+                enemy.walkAnimationTimer += deltaTime
+                val angleRad = sin(enemy.walkAnimationTimer * WOBBLE_FREQUENCY)
+                enemy.wobbleAngle = angleRad * WOBBLE_AMPLITUDE_DEGREES
+            } else {
+                // Smoothly return to upright
+                if (kotlin.math.abs(enemy.wobbleAngle) > 0.1f) {
+                    enemy.wobbleAngle *= (1.0f - deltaTime * 10f).coerceAtLeast(0f)
+                } else {
+                    enemy.wobbleAngle = 0f
+                }
+                enemy.walkAnimationTimer = 0f
+            }
 
             if (playerPos.x > enemy.position.x) {
                 // Player is to the right of the enemy, so enemy should face right.
@@ -278,6 +299,7 @@ class EnemySystem : IFinePositionable {
         // A basic collision check to prevent walking through walls
         if (canEnemyMoveTo(nextPos, enemy, sceneManager)) {
             enemy.position.set(nextPos)
+            enemy.isMoving = true
         }
     }
 
