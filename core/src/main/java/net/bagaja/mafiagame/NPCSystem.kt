@@ -15,6 +15,11 @@ import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
 
+enum class DamageReaction {
+    FLEE,       // Runs away when damaged
+    FIGHT_BACK  // Becomes hostile when damaged
+}
+
 // --- ENUMERATIONS FOR NPC PROPERTIES ---
 
 enum class NPCType(
@@ -56,7 +61,8 @@ enum class NPCState {
     WANDERING,          // Moving to a random point
     FOLLOWING,          // Moving towards the player
     PROVOKED,           // Hostile state, attacking the player
-    COOLDOWN            // Temp state after hostility before returning to normal
+    COOLDOWN,           // Temp state after hostility before returning to normal
+    FLEEING
 }
 
 // --- MAIN NPC DATA CLASS ---
@@ -74,6 +80,7 @@ data class GameNPC(
     var targetPosition: Vector3? = null
     var facingRotationY: Float = 0f
     var homePosition: Vector3 = position.cpy() // For wandering radius
+    var reactionToDamage: DamageReaction = DamageReaction.FLEE
 
     // --- Provocation properties ---
     var provocationLevel: Float = 0f
@@ -126,21 +133,32 @@ data class GameNPC(
     }
 
     fun takeDamage(damage: Float): Boolean {
-        // If NPC is already a Guard or Provoked, they just take damage and stay mad.
-        if (behaviorType == NPCBehavior.GUARD || currentState == NPCState.PROVOKED) {
-            health -= damage
-            println("Hostile NPC ${npcType.displayName} took $damage damage. HP: $health")
-        } else {
-            // For neutral NPCs, hitting them increases provocation.
-            health -= damage
-            provocationLevel += provocationPerHit
-            println("NPC ${npcType.displayName} was hit! Provocation: $provocationLevel / $provocationThreshold. HP: $health")
+        // Apply damage first, regardless of reaction
+        health -= damage
+        println("NPC ${npcType.displayName} took $damage damage. HP: $health")
 
-            // If threshold is reached, become hostile
-            if (provocationLevel >= provocationThreshold) {
-                println("Enough is enough! NPC ${npcType.displayName} is now hostile!")
-                currentState = NPCState.PROVOKED
-                stateTimer = 0f // Reset timer for the new state
+        // If the NPC is already a guard or provoked, they just stay mad
+        if (behaviorType == NPCBehavior.GUARD || currentState == NPCState.PROVOKED) {
+            // No state change needed, just check if they are defeated
+            return health <= 0
+        }
+
+        when (reactionToDamage) {
+            DamageReaction.FIGHT_BACK -> {
+                // old "Iron Golem" logic
+                provocationLevel += provocationPerHit
+                println("Provocation: $provocationLevel / $provocationThreshold.")
+                if (provocationLevel >= provocationThreshold) {
+                    println("NPC is now hostile!")
+                    currentState = NPCState.PROVOKED
+                    stateTimer = 0f // Reset timer for the new state
+                }
+            }
+            DamageReaction.FLEE -> {
+                // default logic
+                println("NPC is fleeing!")
+                currentState = NPCState.FLEEING
+                stateTimer = 0f // Reset timer for flee duration
             }
         }
 
@@ -165,6 +183,7 @@ class NPCSystem : IFinePositionable {
     private lateinit var billboardShaderProvider: BillboardShaderProvider
     private val WOBBLE_AMPLITUDE_DEGREES = 5f // How far it tilts left/right. 10 degrees is a good start.
     private val WOBBLE_FREQUENCY = 6f
+    private val fleeDuration = 5.0f
 
     var currentSelectedNPCType = NPCType.FRED_THE_HERMIT
         private set
@@ -313,6 +332,26 @@ class NPCSystem : IFinePositionable {
     }
 
     private fun updateAI(npc: GameNPC, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {
+        if (npc.currentState == NPCState.FLEEING) {
+            npc.stateTimer += deltaTime
+
+            // Check if the flee duration is over
+            if (npc.stateTimer >= fleeDuration) {
+                println("NPC ${npc.npcType.displayName} has calmed down.")
+                npc.currentState = NPCState.IDLE // Return to normal behavior
+                npc.stateTimer = 0f
+            } else {
+                // Keep fleeing
+                // 1. Calculate direction AWAY from the player
+                val awayDirection = npc.position.cpy().sub(playerPos).nor()
+                // 2. Set a target point in that direction
+                val fleeTarget = npc.position.cpy().add(awayDirection.scl(20f)) // Target a point 20 units away
+                // 3. Move towards that target
+                moveTowards(npc, fleeTarget, deltaTime, sceneManager)
+            }
+            return // Skip other AI behaviors while fleeing
+        }
+
         // Hostility Overrides
         if (npc.currentState == NPCState.PROVOKED) {
             npc.stateTimer += deltaTime

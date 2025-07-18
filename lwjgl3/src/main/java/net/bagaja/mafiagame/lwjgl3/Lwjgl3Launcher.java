@@ -55,7 +55,6 @@ public class Lwjgl3Launcher {
 // block hit particles arent fully in block
 // character dies, blood pool will spawn and get bigger over time
 // option to turn on screen light
-// NPCs can flee or fight
 // separate particle clouds
 // player wipe is switching to vertical when pressing W or S
 // only new wipes rotating with players direction not old ones too
