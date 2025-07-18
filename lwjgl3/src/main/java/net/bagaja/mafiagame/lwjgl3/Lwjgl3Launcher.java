@@ -52,7 +52,8 @@ public class Lwjgl3Launcher {
 
 // working collisions for ramp, pillar and corner
 // teleportation points
-// when shooting at characters, blood can but doesnt need to spawn, for less particles
+// block hit particles arent fully in block
+// character dies, blood pool will spawn and get bigger over time
 // option to turn on screen light
 // NPCs can flee or fight
 // separate particle clouds

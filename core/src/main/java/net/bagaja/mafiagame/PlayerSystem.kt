@@ -937,7 +937,7 @@ class PlayerSystem {
 
                         // 50% chance to spawn blood effects
                         if (Random.nextFloat() < 0.5f) {
-                            spawnBloodEffects(enemy.position)
+                            spawnBloodEffects(enemy.position, sceneManager)
                         }
 
                         if (enemy.takeDamage(equippedWeapon.damage)) {
@@ -950,7 +950,7 @@ class PlayerSystem {
 
                         // 50% chance to spawn blood effects
                         if (Random.nextFloat() < 0.5f) {
-                            spawnBloodEffects(npc.position)
+                            spawnBloodEffects(npc.position, sceneManager)
                         }
 
                         if (npc.takeDamage(equippedWeapon.damage)) {
@@ -1043,28 +1043,47 @@ class PlayerSystem {
         return HitResult(HitObjectType.NONE)
     }
 
-    private fun spawnBloodEffects(position: Vector3) {
-        val bloodEffects = listOf(
+    private fun spawnBloodEffects(position: Vector3, sceneManager: SceneManager) {
+        val bloodSplatterEffects = listOf(
             ParticleEffectType.BLOOD_SPLATTER_1,
             ParticleEffectType.BLOOD_SPLATTER_2,
             ParticleEffectType.BLOOD_SPLATTER_3,
-            ParticleEffectType.BLOOD_DRIP
         )
+        val bloodDripEffect = ParticleEffectType.BLOOD_DRIP
+
+        // All possible effects, used for random picking
+        val allBloodEffects = bloodSplatterEffects + bloodDripEffect
 
         // Spawn a random number of particles
         val particleCount = (1..3).random()
+
         for (i in 0 until particleCount) {
             // Pick a random effect from our list
-            val randomEffect = bloodEffects.random()
+            val randomEffect = allBloodEffects.random()
 
-            // Give the particle a random velocity for a nice "splatter" spray
-            val randomVelocity = Vector3(
-                (Math.random() - 0.5).toFloat() * 10f, // Random X
-                (Math.random() * 5f).toFloat(),  // Mostly upwards
-                (Math.random() - 0.5).toFloat() * 10f // Random Z
-            )
+            if (randomEffect == bloodDripEffect) {
+                val randomVelocity = Vector3(
+                    (Math.random() - 0.5).toFloat() * 5f,
+                    (Math.random() * 3f).toFloat(),
+                    (Math.random() - 0.5).toFloat() * 5f
+                )
+                particleSystem.spawnEffect(randomEffect, position.cpy(), randomVelocity)
+            } else {
+                // 1. Find the ground Y-coordinate
+                val groundY = sceneManager.findHighestSupportY(position.x, position.z, position.y, 0.1f, blockSize)
+                val spawnPos = Vector3(position.x, groundY + 0.1f, position.z) // Place slightly above ground
 
-            particleSystem.spawnEffect(randomEffect, position.cpy(), randomVelocity)
+                // 2. The normal for a flat ground surface is always straight up.
+                val groundNormal = Vector3.Y
+
+                // 3. Spawn the splatter
+                particleSystem.spawnEffect(
+                    type = randomEffect,
+                    position = spawnPos,
+                    baseDirection = null,
+                    surfaceNormal = groundNormal
+                )
+            }
         }
     }
 
