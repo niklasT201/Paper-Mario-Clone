@@ -49,6 +49,17 @@ enum class InteriorType(
     TABLE_DISH("Table with Dish", "textures/interior/table_dish.png", null, 2f, 1.2f, 0.5f, true, InteriorCategory.FURNITURE, 1f),
     TELEPHONE("Telephone", "textures/interior/telephone.png", null, 0.4f, 0.6f, 0.3f, false, InteriorCategory.MISC, 1f),
     DOOR_INTERIOR("Interior Door", "textures/interior/door.png", null, 2f, 3f, 0.5f, true, InteriorCategory.FURNITURE, 1.5f),
+    MICROPHONE(
+        "Microphone",
+        "textures/interior/microphone.png",
+        null,
+        2f, 5f, 0.5f,
+        true,
+        InteriorCategory.FURNITURE,
+        0f,
+        false,
+        Vector3(0.8f, 0.8f, 0.8f)
+    ),
 
     // 3D Model objects
     BOOKSHELF_3D("Bookshelf", "Models/shelf_model.png", "Models/bookshelf.g3dj", 4f, 6f, 2f, true, InteriorCategory.FURNITURE, -3f),
