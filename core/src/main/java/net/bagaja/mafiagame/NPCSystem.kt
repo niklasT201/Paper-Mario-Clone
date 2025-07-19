@@ -32,6 +32,7 @@ enum class NPCType(
 ) {
     GEORGE_MELES("George Meles", "textures/characters/george_meles.png", 3.4f, 4.5f, 120f, 5.5f),
     LADY_FOX("Lady Fox", "textures/characters/lady_fox.png", 5f, 6.5f, 80f, 8f),
+    LADY_FOX_MICROPHONE("Lady Fox with Microphone", "textures/characters/lady_fox_with_microphone.png", 5f, 6.5f, 80f, 8f),
     FRED_THE_HERMIT("Fred the Hermit", "textures/characters/fred_hermit.png", 4f, 5f, 100f, 4.5f),
     MR_QUESTMARK("Mr. Questmark", "textures/characters/Mr_Questmark.png", 4.0f, 5f, 100f, 5.0f),
     NUN("Nun", "textures/characters/nun.png", 4f, 5f, 70f, 5.5f),
@@ -39,12 +40,17 @@ enum class NPCType(
     ARMADILLO("Armadillo", "textures/characters/armadillo.png", 4f, 5f, 120f, 5.5f),
     BEAR("Bear", "textures/characters/bear.png", 4.5f, 6f, 120f, 5.5f),
     DODO("Dodo", "textures/characters/dodo.png", 3.4f, 4.5f, 120f, 5.5f),
+    RACCOON("Raccoon", "textures/characters/raccoon.png", 4f, 5f, 120f, 5.5f),
+    MS_EINIGSTEIN("Ms Einigstein", "textures/characters/ms_einigstein.png", 3.4f, 4.5f, 120f, 5.5f),
     FROG("Frog", "textures/characters/frog.png", 3.4f, 4.5f, 120f, 5.5f),
     GOOSE("Goose", "textures/characters/goose.png", 4.5f, 6f, 120f, 5.5f),
     LIZARD("Lizard", "textures/characters/lizard.png", 3.4f, 4.5f, 120f, 5.5f),
     MOTH("Moth", "textures/characters/moth.png", 3.4f, 4.5f, 120f, 5.5f),
     RED_PANDA("Red Panda", "textures/characters/red_panda.png", 4f, 5f, 120f, 5.5f),
     SNAKE("Snake", "textures/characters/snake.png", 4f, 5f, 120f, 5.5f),
+    OCTOPUS("Octopus", "textures/characters/octopus.png", 4f, 5f, 120f, 5.5f),
+    PRESIDENT("President", "textures/characters/rooster.png", 5f, 6.5f, 80f, 8f),
+    PRESIDENT_TOMMY_GUN("President with Tommy Gun", "textures/characters/rooster_president.png", 5f, 6.5f, 80f, 8f),
 }
 
 enum class NPCBehavior(val displayName: String) {

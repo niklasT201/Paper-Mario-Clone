@@ -8,6 +8,7 @@ import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.Label
+import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane
 import com.badlogic.gdx.scenes.scene2d.ui.Skin
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
@@ -23,6 +24,8 @@ class NPCSelectionUI(
     private lateinit var npcTypeItems: MutableList<NPCSelectionItem>
     private lateinit var behaviorItems: MutableList<BehaviorSelectionItem>
     private lateinit var rotationLabel: Label
+    private lateinit var npcScrollPane: ScrollPane
+    private lateinit var behaviorScrollPane: ScrollPane
     private val loadedTextures = mutableMapOf<String, Texture>()
 
     // Use specific data classes like in EnemySelectionUI
@@ -67,25 +70,43 @@ class NPCSelectionUI(
         mainContainer.add(Label("NPC Type", skin, "section")).padBottom(10f).row()
         val npcTypeContainer = Table()
         npcTypeItems = mutableListOf()
+
         NPCType.entries.forEachIndexed { index, npcType ->
             val item = createNPCTypeItem(npcType, index == npcSystem.currentNPCTypeIndex)
             npcTypeItems.add(item)
             if (index > 0) npcTypeContainer.add().width(15f)
             npcTypeContainer.add(item.container).size(100f, 60f)
         }
-        mainContainer.add(npcTypeContainer).padBottom(20f).row()
+
+        // Create scroll pane for NPC types
+        npcScrollPane = ScrollPane(npcTypeContainer, skin)
+        npcScrollPane.setScrollingDisabled(false, true) // Allow horizontal scrolling only
+        npcScrollPane.setFadeScrollBars(false)
+        npcScrollPane.setVariableSizeKnobs(false)
+
+        // Set a maximum width for the scroll pane (adjust based on your screen size)
+        val maxScrollWidth = 600f // Adjust this value as needed
+        mainContainer.add(npcScrollPane).width(maxScrollWidth).height(80f).padBottom(20f).row()
 
         // Behavior Section
         mainContainer.add(Label("NPC Behavior", skin, "section")).padBottom(10f).row()
         val behaviorContainer = Table()
         behaviorItems = mutableListOf()
+
         NPCBehavior.entries.forEachIndexed { index, behavior ->
             val item = createBehaviorItem(behavior, index == npcSystem.currentBehaviorIndex)
             behaviorItems.add(item)
             if (index > 0) behaviorContainer.add().width(15f)
             behaviorContainer.add(item.container).size(90f, 60f)
         }
-        mainContainer.add(behaviorContainer).padBottom(10f).row()
+
+        // Create scroll pane for behaviors
+        behaviorScrollPane = ScrollPane(behaviorContainer, skin)
+        behaviorScrollPane.setScrollingDisabled(false, true) // Allow horizontal scrolling only
+        behaviorScrollPane.setFadeScrollBars(false)
+        behaviorScrollPane.setVariableSizeKnobs(false)
+
+        mainContainer.add(behaviorScrollPane).width(maxScrollWidth).height(80f).padBottom(10f).row()
 
         rotationLabel = Label("", skin, "default")
         rotationLabel.setAlignment(Align.center)
@@ -144,17 +165,50 @@ class NPCSelectionUI(
             val item = npcTypeItems[i]
             val isSelected = i == npcSystem.currentNPCTypeIndex
             updateItemVisuals(item.container, item.nameLabel, isSelected, item.background, item.selectedBackground)
+
+            // Auto-scroll to the selected NPC type
+            if (isSelected) {
+                scrollToSelectedItem(npcScrollPane, i, npcTypeItems.size, 115f) // 100f item width + 15f spacing
+            }
         }
-        // Animate behavior items
+
+        // Animate behavior items and scroll to selected
         for (i in behaviorItems.indices) {
             val item = behaviorItems[i]
             val isSelected = i == npcSystem.currentBehaviorIndex
             updateItemVisuals(item.container, item.nameLabel, isSelected, item.background, item.selectedBackground)
+
+            // Auto-scroll to the selected behavior
+            if (isSelected) {
+                scrollToSelectedItem(behaviorScrollPane, i, behaviorItems.size, 105f) // 90f item width + 15f spacing
+            }
         }
 
         // Update rotation label text
         val direction = if (npcSystem.currentRotation == 0f) "Right" else "Left"
         rotationLabel.setText("Initial Facing: [YELLOW]$direction[]")
+    }
+
+    private fun scrollToSelectedItem(scrollPane: ScrollPane, selectedIndex: Int, totalItems: Int, itemWidth: Float) {
+        if (totalItems <= 1) return
+
+        // Calculate the position of the selected item
+        val selectedItemPosition = selectedIndex * itemWidth
+        val scrollPaneWidth = scrollPane.width
+        val totalContentWidth = totalItems * itemWidth
+
+        // Only scroll if content is wider than the scroll pane
+        if (totalContentWidth > scrollPaneWidth) {
+            // Calculate the center position for the selected item
+            val targetScrollX = selectedItemPosition - (scrollPaneWidth / 2f) + (itemWidth / 2f)
+
+            // Clamp the scroll position to valid bounds
+            val maxScrollX = totalContentWidth - scrollPaneWidth
+            val clampedScrollX = targetScrollX.coerceIn(0f, maxScrollX)
+
+            // Instantly scroll to the target position
+            scrollPane.scrollX = clampedScrollX
+        }
     }
 
     private fun updateItemVisuals(container: Table, label: Label, isSelected: Boolean, normalBg: Drawable, selectedBg: Drawable) {
@@ -172,7 +226,15 @@ class NPCSelectionUI(
         )
     }
 
-    fun show() { selectionTable.setVisible(true) }
+    fun show() {
+        selectionTable.setVisible(true)
+        // Force an update to ensure proper scrolling when shown
+        update()
+    }
+
     fun hide() { selectionTable.setVisible(false) }
-    fun dispose() { loadedTextures.values.forEach { it.dispose() } }
+
+    fun dispose() {
+        loadedTextures.values.forEach { it.dispose() }
+    }
 }

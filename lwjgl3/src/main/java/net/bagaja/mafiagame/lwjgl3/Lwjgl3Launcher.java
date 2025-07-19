@@ -52,6 +52,7 @@ public class Lwjgl3Launcher {
 
 // working collisions for ramp, pillar and corner
 // teleportation points
+// car explosion when getting shot at
 // character dies, blood pool will spawn and get bigger over time
 // option to turn on screen light
 // separate particle clouds
@@ -60,13 +61,13 @@ public class Lwjgl3Launcher {
 // maybe water blocks
 // south park like animation
 // npc and enemy ui option for choosing death level
+// colliding with items gives the picked item
 // spawner for particles
 // improve performance for rooms (camera starting shaking)
 // map saving
 // dialog system
 // mission starting, saving and ending
 // enemies work in rooms
-// separate lady and microphone
 // maybe coded effects too
 // option for choosing door enter
 // fix car and player falling bug
