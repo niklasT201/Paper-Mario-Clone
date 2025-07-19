@@ -951,9 +951,18 @@ class PlayerSystem {
 
                     HitObjectType.ENEMY -> {
                         val enemy = collisionResult.hitObject as GameEnemy
+
+                        // Use the enemy's center
+                        val bloodSpawnPosition = enemy.position.cpy()
+
+                        // small random offset to make it look less robotic
+                        val offsetX = (Random.nextFloat() - 0.5f) * (enemy.enemyType.width * 0.4f)
+                        val offsetY = (Random.nextFloat() - 0.5f) * (enemy.enemyType.height * 0.4f)
+                        bloodSpawnPosition.add(offsetX, offsetY, 0f) // No Z offset for 2D characters
+
                         // 50% chance to spawn blood effects
                         if (Random.nextFloat() < 0.5f) {
-                            spawnBloodEffects(particleSpawnPos, sceneManager)
+                            spawnBloodEffects(bloodSpawnPosition, sceneManager)
                         }
 
                         if (enemy.takeDamage(equippedWeapon.damage)) {
@@ -963,9 +972,18 @@ class PlayerSystem {
                     }
                     HitObjectType.NPC -> {
                         val npc = collisionResult.hitObject as GameNPC
+
+                        // Use the NPC's center
+                        val bloodSpawnPosition = npc.position.cpy()
+
+                        // small random offset
+                        val offsetX = (Random.nextFloat() - 0.5f) * (npc.npcType.width * 0.4f)
+                        val offsetY = (Random.nextFloat() - 0.5f) * (npc.npcType.height * 0.4f)
+                        bloodSpawnPosition.add(offsetX, offsetY, 0f)
+
                         // 50% chance to spawn blood effects
                         if (Random.nextFloat() < 0.5f) {
-                            spawnBloodEffects(particleSpawnPos, sceneManager)
+                            spawnBloodEffects(bloodSpawnPosition, sceneManager)
                         }
 
                         if (npc.takeDamage(equippedWeapon.damage)) {

@@ -52,11 +52,9 @@ public class Lwjgl3Launcher {
 
 // working collisions for ramp, pillar and corner
 // teleportation points
-// block hit particles arent fully in block
 // character dies, blood pool will spawn and get bigger over time
 // option to turn on screen light
 // separate particle clouds
-// blood spawning in center of npc/enemy
 // player wipe is switching to vertical when pressing W or S
 // only new wipes rotating with players direction not old ones too
 // maybe water blocks
