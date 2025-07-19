@@ -128,8 +128,14 @@ class InputHandler(
                             val raycastSystem = RaycastSystem(4f) // Assuming block size
                             val spawner = raycastSystem.getParticleSpawnerAtRay(ray, sceneManager.activeParticleSpawners)
                             if (spawner != null) {
-                                uiManager.showParticleSpawnerUI(spawner)
-                                return true
+                                // Check if debug mode is on (i.e., the purple cube is visible)
+                                if (objectSystem.debugMode) {
+                                    // Debug mode is ON: Remove the spawner directly
+                                } else {
+                                    // Debug mode is OFF: Open the UI for configuration.
+                                    uiManager.showParticleSpawnerUI(spawner)
+                                    return true // Consume the input, preventing removal or camera drag.
+                                }
                             }
                         }
                         // Try to remove a block. If successful, consume the event.
@@ -141,7 +147,7 @@ class InputHandler(
                             lastRemovalY = screenY
                             return true
                         }
-                        // No block removed, handle as camera drag
+                        // No object removed, handle as camera drag
                         isRightMousePressed = true
                         lastMouseX = screenX.toFloat()
                         lastMouseY = screenY.toFloat()

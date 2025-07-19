@@ -136,6 +136,7 @@ class ParticleSpawnerUI(
     fun hide() {
         window.isVisible = false
         currentSpawner = null
+        stage.unfocusAll()
     }
 
     private fun applyChanges() {

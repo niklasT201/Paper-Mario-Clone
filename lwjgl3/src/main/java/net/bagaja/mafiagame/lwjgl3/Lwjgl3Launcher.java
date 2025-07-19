@@ -51,7 +51,6 @@ public class Lwjgl3Launcher {
 // room/open world transition effect being slower and smoother transition itself
 
 // working collisions for ramp, pillar and corner
-// once opened spawner ui, nothing works anymore
 // spawned particles in room dont disappear immideatly when switching to world
 // teleportation points
 // car explosion when getting shot at
