@@ -53,8 +53,43 @@ class ObjectSystem: IFinePositionable {
         for (objectType in ObjectType.entries) {
             try {
                 if (objectType.isInvisible) {
-                    // Create invisible light source
-                    createInvisibleLightSource(modelBuilder, objectType)
+                   // Create a tiny, completely transparent model for the standard "invisible" instance
+                    val invisibleMaterial = Material(
+                        ColorAttribute.createDiffuse(0f, 0f, 0f, 0f),
+                        BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.0f),
+                        IntAttribute.createCullFace(GL20.GL_NONE)
+                    )
+                    val invisibleModel = modelBuilder.createBox(0.1f, 0.1f, 0.1f, invisibleMaterial,
+                        (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong())
+                    objectModels[objectType] = invisibleModel
+
+                    // Now create the unique, visible debug model
+                    when (objectType) {
+                        ObjectType.LIGHT_SOURCE -> {
+                            // Create invisible light source
+                            val debugMaterial = Material(
+                                ColorAttribute.createDiffuse(Color.YELLOW),
+                                ColorAttribute.createEmissive(0.3f, 0.3f, 0f, 1f),
+                                BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.7f)
+                            )
+                            val debugModel = modelBuilder.createSphere(objectType.width, objectType.height, objectType.width, 12, 12, debugMaterial,
+                                (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong())
+                            debugModels[objectType] = debugModel
+                        }
+                        ObjectType.PARTICLE_SPAWNER -> {
+                            // A purple cube to distinguish it from light sources
+                            val debugMaterial = Material(
+                                ColorAttribute.createDiffuse(Color.PURPLE),
+                                ColorAttribute.createEmissive(0.3f, 0.0f, 0.3f, 1f),
+                                BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.7f)
+                            )
+                            val debugModel = modelBuilder.createBox(objectType.width, objectType.height, objectType.width, debugMaterial,
+                                (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong())
+                            debugModels[objectType] = debugModel
+                        }
+                        else -> { /* No other invisible types yet */ }
+                    }
+
                 } else {
                     // Load texture for visible objects
                     val texture = Texture(Gdx.files.internal(objectType.texturePath))
@@ -68,7 +103,7 @@ class ObjectSystem: IFinePositionable {
                         IntAttribute.createCullFace(GL20.GL_NONE) // Disable backface culling
                     )
 
-                    // Create cross-shaped model (X when viewed from above)
+                    // Create cross-shaped model
                     val model = createCrossModel(modelBuilder, material, objectType)
                     objectModels[objectType] = model
                 }
@@ -78,39 +113,6 @@ class ObjectSystem: IFinePositionable {
                 println("Failed to load object ${objectType.displayName}: ${e.message}")
             }
         }
-    }
-
-    private fun createInvisibleLightSource(modelBuilder: ModelBuilder, objectType: ObjectType) {
-        // Create completely transparent material for invisible light source
-        val invisibleMaterial = Material(
-            ColorAttribute.createDiffuse(0f, 0f, 0f, 0f), // Completely transparent
-            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.0f),
-            IntAttribute.createCullFace(GL20.GL_NONE) // Disable culling so it doesn't interfere
-        )
-
-        // Create a tiny invisible point
-        val invisibleModel = modelBuilder.createBox(
-            0.1f, 0.1f, 0.1f,
-            invisibleMaterial,
-            (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
-        )
-        objectModels[objectType] = invisibleModel
-
-        // Create debug visualization (semi-transparent bright yellow sphere for better visibility)
-        val debugMaterial = Material(
-            ColorAttribute.createDiffuse(Color.YELLOW),
-            ColorAttribute.createEmissive(0.3f, 0.3f, 0f, 1f), // Add emissive glow
-            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.7f) // More visible
-        )
-
-        // Use sphere instead of box for better light source representation
-        val debugModel = modelBuilder.createSphere(
-            objectType.width, objectType.height, objectType.width,
-            12, 12, // segments for sphere
-            debugMaterial,
-            (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
-        )
-        debugModels[objectType] = debugModel
     }
 
     private fun createCrossModel(modelBuilder: ModelBuilder, material: Material, objectType: ObjectType): Model {

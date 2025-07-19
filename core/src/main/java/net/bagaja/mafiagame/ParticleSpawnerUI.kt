@@ -1,5 +1,6 @@
 package net.bagaja.mafiagame
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
@@ -8,7 +9,6 @@ import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.Array as GdxArray
-import com.badlogic.gdx.Gdx // Import Gdx for file handling
 
 class ParticleSpawnerUI(
     private val skin: Skin,
@@ -29,7 +29,7 @@ class ParticleSpawnerUI(
     private val removeButton: TextButton
     private val closeButton: TextButton
 
-    // NEW: Cache for preview textures to avoid reloading
+    // Cache for preview textures to avoid reloading
     private val previewTextures = mutableMapOf<ParticleEffectType, Texture>()
 
     init {
@@ -44,14 +44,10 @@ class ParticleSpawnerUI(
 
         window.isModal = false
         window.isMovable = true
-        window.setSize(450f, 380f) // Increased height slightly for buttons
+        window.setSize(450f, 380f)
         window.setPosition(stage.width / 2f - 225f, stage.height / 2f - 190f)
         window.align(Align.top)
         window.padTop(40f) // Space for the title bar
-
-        // --- FIX STARTS HERE ---
-        // A Window is a Table, so we add elements directly to it.
-        // There is no 'contentTable'.
 
         // Preview and Effect Selection
         val topTable = Table()
@@ -65,7 +61,6 @@ class ParticleSpawnerUI(
         effectTable.add(Label("Particle Effect:", skin)).left().row()
         effectTable.add(effectSelectBox).expandX().fillX()
         topTable.add(effectTable).grow()
-        // Add topTable to the main window
         window.add(topTable).colspan(2).fillX().padBottom(15f).row()
 
         // Min/Max Particles
@@ -76,7 +71,6 @@ class ParticleSpawnerUI(
         minMaxTable.add(minParticlesField).width(80f)
         minMaxTable.add(Label("Max Particles:", skin)).padLeft(20f).padRight(10f)
         minMaxTable.add(maxParticlesField).width(80f)
-        // Add minMaxTable to the main window
         window.add(minMaxTable).colspan(2).padTop(10f).left().row()
 
         // Spawn Interval
@@ -84,21 +78,16 @@ class ParticleSpawnerUI(
         val intervalTable = Table()
         intervalTable.add(Label("Spawn Interval (sec):", skin)).left().padRight(10f)
         intervalTable.add(intervalField).width(80f).left()
-        // Add intervalTable to the main window
         window.add(intervalTable).colspan(2).padTop(10f).left().row()
 
-        // --- FIX ENDS HERE ---
-
-        // Buttons
         applyButton = TextButton("Apply", skin)
         removeButton = TextButton("Remove Spawner", skin)
-        removeButton.color.set(1f, 0.6f, 0.6f, 1f) // Make it look dangerous
+        removeButton.color.set(1f, 0.6f, 0.6f, 1f)
         closeButton = TextButton("Close", skin)
         val buttonTable = Table()
         buttonTable.add(applyButton).pad(10f)
         buttonTable.add(removeButton).pad(10f)
         buttonTable.add(closeButton).pad(10f)
-        // Add the button table to the window
         window.add(buttonTable).colspan(2).expandY().bottom().padBottom(10f)
 
         window.isVisible = false
@@ -137,7 +126,7 @@ class ParticleSpawnerUI(
         effectSelectBox.selected = spawner.particleEffectType.displayName
         minParticlesField.text = spawner.minParticles.toString()
         maxParticlesField.text = spawner.maxParticles.toString()
-        intervalField.text = String.format("%.2f", spawner.spawnInterval) // Format to 2 decimal places
+        intervalField.text = spawner.spawnInterval.toString()
 
         updatePreviewImage()
         window.toFront()
@@ -155,7 +144,8 @@ class ParticleSpawnerUI(
         val selectedEffectName = effectSelectBox.selected
         spawner.particleEffectType = ParticleEffectType.entries.find { it.displayName == selectedEffectName } ?: spawner.particleEffectType
 
-        val newMin = minParticlesField.text.toIntOrNull()?.coerceAtLeast(1) ?: spawner.minParticles
+        // Allow min particles to be 0
+        val newMin = minParticlesField.text.toIntOrNull()?.coerceAtLeast(0) ?: spawner.minParticles
         spawner.minParticles = newMin
         spawner.maxParticles = maxParticlesField.text.toIntOrNull()?.coerceAtLeast(newMin) ?: spawner.maxParticles
 
@@ -179,7 +169,6 @@ class ParticleSpawnerUI(
 
     fun isVisible(): Boolean = window.isVisible
 
-    // NEW: Add a dispose method to clean up textures
     fun dispose() {
         previewTextures.values.forEach { it.dispose() }
         previewTextures.clear()

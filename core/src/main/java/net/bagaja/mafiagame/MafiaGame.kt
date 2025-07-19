@@ -1493,11 +1493,14 @@ class MafiaGame : ApplicationAdapter() {
             val surfaceY = findHighestSurfaceYAt(intersection.x, intersection.z)
             val spawnerPosition = Vector3(intersection.x, surfaceY, intersection.z)
 
-            val spawnerGameObject = objectSystem.createGameObjectWithLight(ObjectType.PARTICLE_SPAWNER, spawnerPosition)
+            val spawnerGameObject = objectSystem.createGameObjectWithLight(ObjectType.PARTICLE_SPAWNER, spawnerPosition.cpy())
 
             if (spawnerGameObject != null) {
+                // Manually set the transform of the visible debug model to the spawn position
+                spawnerGameObject.debugInstance?.transform?.setTranslation(spawnerPosition)
+
                 val newSpawner = GameParticleSpawner(
-                    position = spawnerPosition,
+                    position = spawnerPosition.cpy(),
                     gameObject = spawnerGameObject
                 )
                 sceneManager.activeParticleSpawners.add(newSpawner)
