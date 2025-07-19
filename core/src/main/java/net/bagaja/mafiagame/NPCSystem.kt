@@ -473,10 +473,15 @@ class NPCSystem : IFinePositionable {
         )
         sceneManager.activeBlocks.forEach { block ->
             // Use the block's accurate collision check
-            if (block.collidesWith(npcBounds)) return false
+            if (block.blockType.hasCollision && block.collidesWith(npcBounds)) return false
         }
         sceneManager.activeHouses.forEach {
             if (it.collidesWithMesh(npcBounds)) return false
+        }
+        sceneManager.activeInteriors.forEach { interior ->
+            if (interior.interiorType.hasCollision && interior.collidesWithMesh(npcBounds)) {
+                return false
+            }
         }
         return true
     }

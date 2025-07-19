@@ -373,16 +373,6 @@ class EnemySystem : IFinePositionable {
             }
         }
 
-        // 4. Check against other enemies
-        sceneManager.activeEnemies.forEach { otherEnemy ->
-            // Make sure we're not checking the enemy against itself!
-            if (otherEnemy.id != enemy.id) {
-                if (enemyBounds.intersects(otherEnemy.getBoundingBox())) {
-                    return false
-                }
-            }
-        }
-
         // If we passed all checks, the move is valid
         return true
     }
