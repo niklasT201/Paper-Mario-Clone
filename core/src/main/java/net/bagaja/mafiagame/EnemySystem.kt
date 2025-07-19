@@ -344,19 +344,46 @@ class EnemySystem : IFinePositionable {
 
 
     private fun canEnemyMoveTo(newPosition: Vector3, enemy: GameEnemy, sceneManager: SceneManager): Boolean {
-        val enemyBounds = enemy.getBoundingBox() // Get the box at the new position
+        // Create the enemy's bounding box at the potential new position
+        val enemyBounds = enemy.getBoundingBox()
         enemyBounds.set(
             enemyBounds.min.set(newPosition.x - enemy.enemyType.width / 2f, newPosition.y - enemy.enemyType.height / 2f, newPosition.z - enemy.enemyType.width / 2f),
             enemyBounds.max.set(newPosition.x + enemy.enemyType.width / 2f, newPosition.y + enemy.enemyType.height / 2f, newPosition.z + enemy.enemyType.width / 2f)
         )
 
+        // 1. Check against blocks
         sceneManager.activeBlocks.forEach { block ->
             // Use the block's accurate collision check
-            if (block.collidesWith(enemyBounds)) return false
+            if (block.blockType.hasCollision && block.collidesWith(enemyBounds)) {
+                return false
+            }
         }
+
+        // 2. Check against houses
         sceneManager.activeHouses.forEach {
-            if (it.collidesWithMesh(enemyBounds)) return false
+            if (it.collidesWithMesh(enemyBounds)) {
+                return false
+            }
         }
+
+        // 3. Check against solid interior objects
+        sceneManager.activeInteriors.forEach { interior ->
+            if (interior.interiorType.hasCollision && interior.collidesWithMesh(enemyBounds)) {
+                return false
+            }
+        }
+
+        // 4. Check against other enemies
+        sceneManager.activeEnemies.forEach { otherEnemy ->
+            // Make sure we're not checking the enemy against itself!
+            if (otherEnemy.id != enemy.id) {
+                if (enemyBounds.intersects(otherEnemy.getBoundingBox())) {
+                    return false
+                }
+            }
+        }
+
+        // If we passed all checks, the move is valid
         return true
     }
 
