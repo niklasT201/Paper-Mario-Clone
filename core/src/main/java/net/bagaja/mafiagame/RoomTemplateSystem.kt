@@ -29,7 +29,11 @@ data class RoomElement(
     val lightRange: Float? = null,
     val flickerMode: FlickerMode? = null,
     val loopOnDuration: Float? = null,
-    val loopOffDuration: Float? = null
+    val loopOffDuration: Float? = null,
+    val particleEffectType: ParticleEffectType? = null,
+    val spawnerMinParticles: Int? = null,
+    val spawnerMaxParticles: Int? = null,
+    val spawnerInterval: Float? = null
 )
 
 enum class RoomElementType {
@@ -38,7 +42,8 @@ enum class RoomElementType {
     ITEM,
     INTERIOR,
     ENEMY,
-    NPC
+    NPC,
+    PARTICLE_SPAWNER
 }
 
 data class RoomTemplate(

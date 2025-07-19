@@ -423,6 +423,7 @@ class SceneManager(
             items = Array(activeItems),
             enemies = Array(activeEnemies),
             npcs = Array(activeNPCs),
+            particleSpawners = Array(activeParticleSpawners),
             playerPosition = playerSystem.getPosition(), // Save player pos just outside door
             cameraPosition = Vector3(), // You would save camera state here too if needed
             lights = game.lightingManager.getLightSources()
@@ -443,6 +444,7 @@ class SceneManager(
         activeItems.addAll(state.items)
         activeEnemies.addAll(state.enemies)
         activeNPCs.addAll(state.npcs)
+        activeParticleSpawners.addAll(state.particleSpawners)
 
         // Synchronize the ItemSystem with the restored world items
         itemSystem.setActiveItems(activeItems)
@@ -456,13 +458,13 @@ class SceneManager(
         val currentState = interiorStates[id] ?: return
         println("Saving state for interior instance: $id")
 
-        // MODIFIED: Added enemies to the state
         currentState.blocks.clear(); currentState.blocks.addAll(activeBlocks)
         currentState.objects.clear(); currentState.objects.addAll(activeObjects)
         currentState.items.clear(); currentState.items.addAll(activeItems)
         currentState.interiors.clear(); currentState.interiors.addAll(activeInteriors)
         currentState.enemies.clear(); currentState.enemies.addAll(activeEnemies)
         currentState.npcs.clear(); currentState.npcs.addAll(activeNPCs)
+        currentState.particleSpawners.clear(); currentState.particleSpawners.addAll(activeParticleSpawners)
         currentState.playerPosition.set(playerSystem.getPosition())
 
         currentState.lights.clear()
@@ -478,6 +480,7 @@ class SceneManager(
         activeInteriors.addAll(state.interiors)
         activeEnemies.addAll(state.enemies)
         activeNPCs.addAll(state.npcs)
+        activeParticleSpawners.addAll(state.particleSpawners)
 
         // Synchronize the ItemSystem with the loaded interior items
         itemSystem.setActiveItems(activeItems)
@@ -492,6 +495,7 @@ class SceneManager(
         val newInteriors = Array<GameInterior>()
         val newEnemies = Array<GameEnemy>()
         val newNPCs = Array<GameNPC>()
+        val newParticleSpawners = Array<GameParticleSpawner>()
         val newLights = mutableMapOf<Int, LightSource>()
 
         println("Building interior from template: ${template.name}")
@@ -593,9 +597,25 @@ class SceneManager(
                         }
                     }
                 }
+                RoomElementType.PARTICLE_SPAWNER -> {
+                    if (element.particleEffectType != null) {
+                        val spawnerGameObject = objectSystem.createGameObjectWithLight(ObjectType.PARTICLE_SPAWNER, element.position.cpy())
+                        if (spawnerGameObject != null) {
+                            spawnerGameObject.debugInstance?.transform?.setTranslation(element.position)
+                            val newSpawner = GameParticleSpawner(
+                                position = element.position.cpy(),
+                                gameObject = spawnerGameObject,
+                                particleEffectType = element.particleEffectType,
+                                minParticles = element.spawnerMinParticles ?: 1,
+                                maxParticles = element.spawnerMaxParticles ?: 3,
+                                spawnInterval = element.spawnerInterval ?: 1.0f
+                            )
+                            newParticleSpawners.add(newSpawner)
+                        }
+                    }
+                }
             }
         }
-
         // After all blocks are created, run face culling on the entire collection
         recalculateAllFacesInCollection(newBlocks)
 
@@ -622,6 +642,7 @@ class SceneManager(
             interiors = newInteriors,
             enemies = newEnemies,
             npcs = newNPCs,
+            particleSpawners = newParticleSpawners,
             playerPosition = template.entrancePosition.cpy(),
             isTimeFixed = template.isTimeFixed,
             fixedTimeProgress = template.fixedTimeProgress,
@@ -753,6 +774,17 @@ class SceneManager(
             ))
         }
 
+        activeParticleSpawners.forEach { spawner ->
+            elements.add(RoomElement(
+                position = spawner.position.cpy(),
+                elementType = RoomElementType.PARTICLE_SPAWNER,
+                particleEffectType = spawner.particleEffectType,
+                spawnerMinParticles = spawner.minParticles,
+                spawnerMaxParticles = spawner.maxParticles,
+                spawnerInterval = spawner.spawnInterval
+            ))
+        }
+
         game.lightingManager.getLightSources().values.forEach { light ->
             if (light.flickerMode == FlickerMode.NONE || light.flickerMode == FlickerMode.LOOP) {
                 elements.add(RoomElement(
@@ -877,6 +909,23 @@ class SceneManager(
                         }
                     }
                 }
+                RoomElementType.PARTICLE_SPAWNER -> {
+                    if (element.particleEffectType != null) {
+                        val spawnerGameObject = objectSystem.createGameObjectWithLight(ObjectType.PARTICLE_SPAWNER, element.position.cpy())
+                        if (spawnerGameObject != null) {
+                            spawnerGameObject.debugInstance?.transform?.setTranslation(element.position)
+                            val newSpawner = GameParticleSpawner(
+                                position = element.position.cpy(),
+                                gameObject = spawnerGameObject,
+                                particleEffectType = element.particleEffectType,
+                                minParticles = element.spawnerMinParticles ?: 1,
+                                maxParticles = element.spawnerMaxParticles ?: 3,
+                                spawnInterval = element.spawnerInterval ?: 1.0f
+                            )
+                            activeParticleSpawners.add(newSpawner)
+                        }
+                    }
+                }
             }
         }
         // After loading all blocks, run face culling on the entire active collection
@@ -908,6 +957,7 @@ class SceneManager(
         activeEnemies.clear()
         activeNPCs.clear()
         activeParticleSpawners.clear()
+        activeParticleSpawners.clear()
     }
 }
 
@@ -919,6 +969,7 @@ data class WorldState(
     val items: Array<GameItem>,
     val enemies: Array<GameEnemy>,
     val npcs: Array<GameNPC>,
+    val particleSpawners: Array<GameParticleSpawner>,
     val playerPosition: Vector3,
     val cameraPosition: Vector3,
     val lights: Map<Int, LightSource>
@@ -933,6 +984,7 @@ data class InteriorState(
     val interiors: Array<GameInterior> = Array(),
     val enemies: Array<GameEnemy> = Array(),
     val npcs: Array<GameNPC> = Array(),
+    val particleSpawners: Array<GameParticleSpawner> = Array(),
     var playerPosition: Vector3,
     var isTimeFixed: Boolean = false,
     var fixedTimeProgress: Float = 0.5f,
