@@ -563,6 +563,16 @@ class ParticleSystem {
         currentSelectedEffect = ParticleEffectType.entries[prevIndex]
     }
 
+    fun clearAllParticles() {
+        val iterator = activeParticles.iterator()
+        while (iterator.hasNext()) {
+            val particle = iterator.next()
+            particle.animationSystem.dispose()
+            iterator.remove()
+        }
+        println("ParticleSystem: All active particles have been cleared.")
+    }
+
     fun dispose() {
         particleModels.values.forEach { it.dispose() }
         particleModels.clear()

@@ -33,7 +33,8 @@ class SceneManager(
     val cameraManager: CameraManager,
     private val transitionSystem: TransitionSystem,
     private val faceCullingSystem: FaceCullingSystem,
-    private val game: MafiaGame
+    private val game: MafiaGame,
+    private val particleSystem: ParticleSystem
 ) {
     // --- ACTIVE SCENE DATA ---
     val activeBlocks = Array<GameBlock>()
@@ -362,6 +363,8 @@ class SceneManager(
 
         loadInteriorState(loadedInterior)
 
+        particleSystem.clearAllParticles()
+
         currentInteriorId = house.id
         currentScene = SceneType.HOUSE_INTERIOR
         playerSystem.setPosition(interior.playerPosition)
@@ -396,6 +399,8 @@ class SceneManager(
             playerSystem.setPosition(it.playerPosition)
             cameraManager.resetAndSnapToPlayer(it.playerPosition, false)
         }
+
+        particleSystem.clearAllParticles()
     }
 
     private fun setSceneLights(lights: Map<Int, LightSource>) {

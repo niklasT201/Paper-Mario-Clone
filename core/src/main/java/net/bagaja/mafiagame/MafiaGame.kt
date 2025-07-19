@@ -119,7 +119,8 @@ class MafiaGame : ApplicationAdapter() {
             cameraManager,
             transitionSystem,
             faceCullingSystem,
-            this
+            this,
+            particleSystem
         )
 
         transitionSystem.create(cameraManager.findUiCamera())
