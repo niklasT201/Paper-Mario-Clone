@@ -252,6 +252,25 @@ class RaycastSystem(private val blockSize: Float) {
         return closestInterior
     }
 
+    fun getParticleSpawnerAtRay(ray: Ray, spawners: Array<GameParticleSpawner>): GameParticleSpawner? {
+        var closestSpawner: GameParticleSpawner? = null
+        var closestDistance = Float.MAX_VALUE
+
+        for (spawner in spawners) {
+            val bounds = spawner.gameObject.getBoundingBox()
+
+            val intersection = Vector3()
+            if (Intersector.intersectRayBounds(ray, bounds, intersection)) {
+                val distance = ray.origin.dst2(intersection)
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestSpawner = spawner
+                }
+            }
+        }
+        return closestSpawner
+    }
+
     fun getEnemyAtRay(ray: Ray, gameEnemies: Array<GameEnemy>): GameEnemy? {
         var closestEnemy: GameEnemy? = null
         var closestDistance = Float.MAX_VALUE

@@ -44,6 +44,7 @@ class SceneManager(
     val activeInteriors = Array<GameInterior>()
     val activeEnemies = Array<GameEnemy>()
     val activeNPCs = Array<GameNPC>()
+    val activeParticleSpawners = Array<GameParticleSpawner>()
 
     // --- STATE MANAGEMENT ---
     var currentScene: SceneType = SceneType.WORLD
@@ -906,6 +907,7 @@ class SceneManager(
         activeInteriors.clear()
         activeEnemies.clear()
         activeNPCs.clear()
+        activeParticleSpawners.clear()
     }
 }
 

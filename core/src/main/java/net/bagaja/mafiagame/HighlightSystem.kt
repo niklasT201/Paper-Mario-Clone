@@ -87,6 +87,7 @@ class HighlightSystem(private val blockSize: Float) {
         blockSystem: BlockSystem,
         gameBlocks: Array<GameBlock>,
         gameObjects: Array<GameObject>,
+        gameParticleSpawners: Array<GameParticleSpawner>,
         gameCars: Array<GameCar>,
         gameHouses: Array<GameHouse>,
         backgroundSystem: BackgroundSystem,
@@ -106,7 +107,7 @@ class HighlightSystem(private val blockSize: Float) {
 
         when (uiManager.selectedTool) {
             UIManager.Tool.BLOCK -> updateBlockHighlight(ray, gameBlocks, raycastSystem, blockSystem)
-            UIManager.Tool.OBJECT -> updateObjectHighlight(ray, gameObjects, objectSystem, raycastSystem)
+            UIManager.Tool.OBJECT -> updateObjectHighlight(ray, gameObjects, gameParticleSpawners, objectSystem, raycastSystem, gameBlocks)
             UIManager.Tool.ITEM -> updateItemHighlight(ray, itemSystem, raycastSystem)
             UIManager.Tool.CAR -> updateCarHighlight(ray, gameCars, raycastSystem, uiManager)
             UIManager.Tool.PLAYER -> updatePlayerHighlight(ray, gameBlocks, raycastSystem)
@@ -213,7 +214,7 @@ class HighlightSystem(private val blockSize: Float) {
         }
     }
 
-    private fun updateObjectHighlight(ray: Ray, gameObjects: Array<GameObject>, objectSystem: ObjectSystem, raycastSystem: RaycastSystem) {
+    private fun updateObjectHighlight(ray: Ray, gameObjects: Array<GameObject>, gameParticleSpawners: Array<GameParticleSpawner>, objectSystem: ObjectSystem, raycastSystem: RaycastSystem, gameBlocks: Array<GameBlock>) {
         val intersection = Vector3()
         val groundPlane = Plane(Vector3.Y, 0f)
 
@@ -228,6 +229,22 @@ class HighlightSystem(private val blockSize: Float) {
                         showHighlight(existingLight.position, removeColor)
                     } else {
                         showHighlight(Vector3(intersection.x, intersection.y, intersection.z), toolColors[UIManager.Tool.OBJECT]!!)
+                    }
+                }
+                ObjectType.PARTICLE_SPAWNER -> {
+                    // First, check if we're hovering over an existing spawner
+                    val spawnerToHighlight = raycastSystem.getParticleSpawnerAtRay(ray, gameParticleSpawners)
+                    if (spawnerToHighlight != null) {
+                        // Highlight the existing spawner for removal/editing
+                        val type = spawnerToHighlight.gameObject.objectType
+                        updateHighlightSize(Vector3(type.width, type.height, type.width))
+                        // Show a unique color (e.g., orange) to indicate it's for editing, not removal
+                        showHighlight(spawnerToHighlight.position, Color(1f, 0.5f, 0f, 0.4f))
+                    } else {
+                        // Show placement highlight
+                        val placementPos = Vector3(intersection.x, intersection.y + 1f, intersection.z)
+                        updateHighlightSize(Vector3(2f, 2f, 2f)) // Generic placement size
+                        showHighlight(placementPos, toolColors[UIManager.Tool.OBJECT]!!)
                     }
                 }
                 else -> {

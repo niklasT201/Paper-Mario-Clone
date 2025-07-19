@@ -422,6 +422,7 @@ enum class ObjectType(
     ),
 
     LIGHT_SOURCE("Light Source", "", 2f, 2f, true, true),
+    PARTICLE_SPAWNER("Particle Spawner", "", 2f, 2f, true, canBePlacedAnywhere = true),
 
     BROKEN_LANTERN("Broken Lantern", "textures/objects/models/broken_lantern.png", 3f, 11f,
         hasLightSource = false // Broken lanterns don't emit light

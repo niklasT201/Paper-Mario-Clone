@@ -36,6 +36,8 @@ class UIManager(
     private val enemySystem: EnemySystem,
     private val npcSystem: NPCSystem,
     private val particleSystem: ParticleSystem,
+    private val particleSpawnerSystem: ParticleSpawnerSystem,
+    private val onRemoveSpawner: (spawner: GameParticleSpawner) -> Unit
 ) {
     private lateinit var stage: Stage
     private lateinit var skin: Skin
@@ -50,6 +52,7 @@ class UIManager(
     private lateinit var enemySelectionUI: EnemySelectionUI
     private lateinit var npcSelectionUI: NPCSelectionUI
     private lateinit var particleSelectionUI: ParticleSelectionUI
+    private lateinit var particleSpawnerUI: ParticleSpawnerUI
     private lateinit var lightSourceUI: LightSourceUI
     private lateinit var skyCustomizationUI: SkyCustomizationUI
     private lateinit var shaderEffectUI: ShaderEffectUI
@@ -142,6 +145,8 @@ class UIManager(
 
         particleSelectionUI = ParticleSelectionUI(particleSystem, skin, stage)
         particleSelectionUI.initialize()
+
+        particleSpawnerUI = ParticleSpawnerUI(skin, stage, particleSystem, onRemoveSpawner)
 
         shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager)
         shaderEffectUI.initialize()
@@ -1402,6 +1407,10 @@ class UIManager(
         if (::houseSelectionUI.isInitialized) {
             houseSelectionUI.refreshRoomList()
         }
+    }
+
+    fun showParticleSpawnerUI(spawner: GameParticleSpawner) {
+        particleSpawnerUI.show(spawner)
     }
 
     fun setPersistentMessage(message: String) {

@@ -62,13 +62,11 @@ public class Lwjgl3Launcher {
 // south park like animation
 // npc and enemy ui option for choosing death level
 // colliding with items gives the picked item
-// spawner for particles
 // improve performance for rooms (camera starting shaking)
 // map saving
 // dialog system
 // mission starting, saving and ending
 // enemies work in rooms
-// maybe coded effects too
 // option for choosing door enter
 // fix car and player falling bug
 // blood system

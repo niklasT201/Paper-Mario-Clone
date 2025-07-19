@@ -22,6 +22,7 @@ class InputHandler(
     private val enemySystem: EnemySystem,
     private val npcSystem: NPCSystem,
     private val particleSystem: ParticleSystem,
+    private val particleSpawnerSystem: ParticleSpawnerSystem,
     private val sceneManager: SceneManager,
     private val roomTemplateManager: RoomTemplateManager,
     private val shaderEffectManager: ShaderEffectManager,
@@ -122,6 +123,15 @@ class InputHandler(
                         return true
                     }
                     Input.Buttons.RIGHT -> {
+                        if (uiManager.selectedTool == Tool.OBJECT) {
+                            val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+                            val raycastSystem = RaycastSystem(4f) // Assuming block size
+                            val spawner = raycastSystem.getParticleSpawnerAtRay(ray, sceneManager.activeParticleSpawners)
+                            if (spawner != null) {
+                                uiManager.showParticleSpawnerUI(spawner)
+                                return true
+                            }
+                        }
                         // Try to remove a block. If successful, consume the event.
                         if (onRightClickAttemptBlockRemove(screenX, screenY)) {
                             isRightMousePressed = true
