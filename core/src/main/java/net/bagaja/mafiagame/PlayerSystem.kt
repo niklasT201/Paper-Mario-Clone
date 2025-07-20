@@ -668,6 +668,48 @@ class PlayerSystem {
         return true
     }
 
+    private fun resolveCollisions(gameBlocks: Array<GameBlock>) {
+        updatePlayerBounds() // Make sure our bounds are up-to-date with the latest position
+
+        for (block in gameBlocks) {
+            if (!block.blockType.hasCollision) continue
+
+            val blockBounds = block.getBoundingBox(blockSize, BoundingBox())
+
+            if (playerBounds.intersects(blockBounds)) {
+                // We have a collision after moving and falling. We need to push the player out.
+
+                // Calculate how much we are overlapping on each axis
+                val playerCenter = playerPosition
+                val blockCenter = block.position
+
+                val overlapX = (playerSize.x / 2f + blockSize / 2f) - kotlin.math.abs(playerCenter.x - blockCenter.x)
+                val overlapZ = (playerSize.z / 2f + blockSize / 2f) - kotlin.math.abs(playerCenter.z - blockCenter.z)
+
+                // We only care about horizontal push-out for this bug
+                if (overlapX > 0 && overlapZ > 0) {
+                    // Push out on the axis with the SMALLEST overlap.
+                    // This prevents being pushed through a wall when just scraping by one.
+                    if (overlapX < overlapZ) {
+                        if (playerCenter.x < blockCenter.x) {
+                            playerPosition.x -= overlapX // Push left
+                        } else {
+                            playerPosition.x += overlapX // Push right
+                        }
+                    } else {
+                        if (playerCenter.z < blockCenter.z) {
+                            playerPosition.z -= overlapZ // Push away
+                        } else {
+                            playerPosition.z += overlapZ // Push towards
+                        }
+                    }
+                    // After being pushed, update our bounds one last time for the next frame
+                    updatePlayerBounds()
+                }
+            }
+        }
+    }
+
     private fun handlePlayerOnFootMovement(deltaTime: Float, sceneManager: SceneManager, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>, particleSystem: ParticleSystem): Boolean {
         val originalPosition = playerPosition.cpy() // For checking if movement occurred
         isMoving = false
@@ -702,8 +744,8 @@ class PlayerSystem {
 
             // Check if the step is too high before attempting to move
             if (supportY - playerFootY <= MAX_STEP_HEIGHT) {
-                // For the collision check, we use a Y that's on top of the potential new ground.
-                val checkY = supportY + (playerSize.y / 2f)
+                // Always check for horizontal collisions
+                val checkY = playerPosition.y
                 println("DEBUG (X-Move): Step is OK. Collision check at checkY = ${"%.2f".format(checkY)}")
                 if (canMoveToWithDoorCollision(playerPosition.x + deltaX, checkY, playerPosition.z, gameBlocks, gameHouses, gameInteriors)) {
                     println("DEBUG (X-Move): PASSED. Moving player.x.")
@@ -725,7 +767,9 @@ class PlayerSystem {
 
             // Check if the step is too high
             if (supportY - playerFootY <= MAX_STEP_HEIGHT) {
-                val checkY = supportY + (playerSize.y / 2f)
+                val checkY = playerPosition.y
+                // old version that creates borders around blocks so you cant leave a block
+                // val checkY = supportY + (playerSize.y / 2f)
                 println("DEBUG (Z-Move): Step is OK. Collision check at checkY = ${"%.2f".format(checkY)}")
                 if (canMoveToWithDoorCollision(playerPosition.x, checkY, playerPosition.z + deltaZ, gameBlocks, gameHouses, gameInteriors)) {
                     println("DEBUG (Z-Move): PASSED. Moving player.z.")
@@ -761,7 +805,7 @@ class PlayerSystem {
         val finalY = kotlin.math.max(targetY, fallY)
         playerPosition.y = finalY
         //println("DEBUG (Y-Axis): Chose finalY = ${"%.2f".format(finalY)}. Setting playerPosition.y.")
-
+        //resolveCollisions(gameBlocks)
 
         // 5. Update flags and visuals
         val moved = !playerPosition.epsilonEquals(originalPosition, 0.001f)

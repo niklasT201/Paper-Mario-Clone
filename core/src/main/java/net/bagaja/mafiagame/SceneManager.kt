@@ -90,20 +90,19 @@ class SceneManager(
         var highestSupportY = 0f // Default to ground level
         val playerHeight = playerSystem.getPlayerBounds().getHeight() // Get player height for accurate checks
 
-        // This tolerance means the system will check for ground at the player's feet
+        // Tolerance to allow player's feet to be slightly above the surface
         val underfootTolerance = 1.0f
 
         // Check against all active blocks
         for (block in activeBlocks) {
-            if (!block.blockType.hasCollision) {
-                continue
-            }
+            if (!block.blockType.hasCollision) continue
+
             val blockBounds = block.getBoundingBox(blockSize, tempBlockBounds)
             // Check for horizontal overlap
-            val horizontalOverlap = (x + checkRadius > blockBounds.min.x && x - checkRadius < blockBounds.max.x) &&
-                (z + checkRadius > blockBounds.min.z && z - checkRadius < blockBounds.max.z)
+            val isDirectlyOverBlock = (x >= blockBounds.min.x && x <= blockBounds.max.x) &&
+                (z >= blockBounds.min.z && z <= blockBounds.max.z)
 
-            if (horizontalOverlap) {
+            if (isDirectlyOverBlock) {
                 val blockTop = blockBounds.max.y
                 // Only consider this block as support if it's at or below the player's feet.
                 if (blockTop <= currentY + underfootTolerance && blockTop > highestSupportY) {
