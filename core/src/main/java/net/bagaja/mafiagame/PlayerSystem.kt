@@ -60,6 +60,10 @@ class PlayerSystem {
     private var lastMovementDirection = 0f
     private lateinit var playerBackTexture: Texture
     private var isPressingW = false
+    private val isRotating: Boolean
+        get() {
+            return kotlin.math.abs(playerCurrentRotationY - playerTargetRotationY) > 1f
+        }
 
     // Animation system
     private lateinit var animationSystem: AnimationSystem
@@ -233,13 +237,15 @@ class PlayerSystem {
 
             when (equippedWeapon.actionType) {
                 WeaponActionType.SHOOTING -> {
-                    if (fireRateTimer <= 0f) {
+                    if (fireRateTimer <= 0f && !isRotating) {
                         // TODO: Add check for magazine count here
                         // if (currentMagazineCount > 0 || !equippedWeapon.requiresReload) { ... }
 
                         spawnBullet()
                         fireRateTimer = equippedWeapon.fireCooldown
                         // currentMagazineCount--
+                    } else if (isRotating) {
+                        fireRateTimer = equippedWeapon.fireCooldown
                     }
                     isShooting = true
                     shootingPoseTimer = shootingPoseDuration
