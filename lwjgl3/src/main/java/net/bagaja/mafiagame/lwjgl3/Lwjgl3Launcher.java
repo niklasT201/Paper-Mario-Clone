@@ -55,7 +55,6 @@ public class Lwjgl3Launcher {
 // npcs and enemies been able to move on blocks
 // car explosion when getting shot at
 // character dies, blood pool will spawn and get bigger over time
-// option to turn on screen light
 // separate particle clouds
 // player wipe is switching to vertical when pressing W or S
 // only new wipes rotating with players direction not old ones too

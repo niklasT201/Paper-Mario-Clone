@@ -308,6 +308,12 @@ class InputHandler(
                         uiManager.toggleShaderEffectUI()
                         return true
                     }
+                    Input.Keys.F5 -> {
+                        val isBright = game.lightingManager.toggleBuildModeBrightness()
+                        val status = if (isBright) "ON" else "OFF"
+                        uiManager.updatePlacementInfo("Build Mode Brightness: $status")
+                        return true
+                    }
                     Input.Keys.K -> {
                         uiManager.toggleSkyCustomizationUI()
                         return true

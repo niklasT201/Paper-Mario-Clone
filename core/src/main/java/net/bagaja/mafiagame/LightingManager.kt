@@ -36,6 +36,7 @@ class LightingManager {
     private val sunDistance = 2500f // How far away the sun sphere is placed
     private var isGrayscaleMode = false
     private var timeOverrideProgress: Float? = null
+    private var isBuildModeBright = false
 
     fun setGrayscaleMode(enabled: Boolean) {
         isGrayscaleMode = enabled
@@ -64,6 +65,12 @@ class LightingManager {
         val attributes = (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
         val model = modelBuilder.createSphere(150f, 150f, 150f, 20, 20, sunMaterial, attributes)
         sunModel = ModelInstance(model)
+    }
+
+    fun toggleBuildModeBrightness(): Boolean {
+        isBuildModeBright = !isBuildModeBright
+        println("Build Mode Brightness toggled to: $isBuildModeBright")
+        return isBuildModeBright
     }
 
     fun update(deltaTime: Float, cameraPosition: Vector3, timeMultiplier: Float = 1.0f) {
@@ -124,8 +131,14 @@ class LightingManager {
         val tempCycleForVisuals = DayNightCycle()
         tempCycleForVisuals.setDayProgress(visualProgress)
 
+        // Determine the final ambient light intensity
+        val ambientIntensity = if (isBuildModeBright) {
+            0.8f // A fixed bright value for building, regardless of time
+        } else {
+            tempCycleForVisuals.getAmbientIntensity() // Use the normal calculated intensity
+        }
+
         // Remove the old directional light before adding the new one
-        val ambientIntensity = tempCycleForVisuals.getAmbientIntensity()
         environment.set(ColorAttribute(ColorAttribute.AmbientLight, ambientIntensity, ambientIntensity, ambientIntensity, 1f))
         environment.remove(directionalLight)
 
