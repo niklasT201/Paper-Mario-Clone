@@ -912,8 +912,8 @@ class PlayerSystem {
 
         // Update player texture if it changed
         val finalTexture: Texture? = when {
-            isPressingW -> playerBackTexture
             isShooting -> poseTextures[equippedWeapon.playerPoseTexturePath]
+            isPressingW -> playerBackTexture
             else -> animationSystem.getCurrentTexture()
         }
 

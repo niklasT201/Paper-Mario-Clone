@@ -51,8 +51,8 @@ public class Lwjgl3Launcher {
 // room/open world transition effect being slower and smoother transition itself
 
 // working collisions for ramp, pillar and corner
-// rusher now freeze the game
 // teleportation points
+// npcs and enemies been able to move on blocks
 // car explosion when getting shot at
 // character dies, blood pool will spawn and get bigger over time
 // option to turn on screen light
