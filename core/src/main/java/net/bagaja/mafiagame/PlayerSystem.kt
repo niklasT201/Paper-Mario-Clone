@@ -328,11 +328,17 @@ class PlayerSystem {
         )
     }
 
-    fun cycleWeapon() {
-        currentWeaponIndex = (currentWeaponIndex + 1) % weapons.size
-        equippedWeapon = weapons[currentWeaponIndex]
-        currentMagazineCount = equippedWeapon.magazineSize
-        println("Equipped: ${equippedWeapon.displayName}")
+    fun equipWeapon(weaponType: WeaponType) {
+        if (!weapons.contains(weaponType)) {
+            // A mutable list is needed to add items
+            val mutableWeapons = weapons.toMutableList()
+            mutableWeapons.add(weaponType)
+            weapons = mutableWeapons
+        }
+
+        this.equippedWeapon = weaponType
+        this.currentMagazineCount = weaponType.magazineSize
+        println("Player equipped: ${weaponType.displayName}")
     }
 
     private fun canMoveToWithDoorCollision(x: Float, y: Float, z: Float, gameBlocks: Array<GameBlock>, gameHouses: Array<GameHouse>, gameInteriors: Array<GameInterior>): Boolean {

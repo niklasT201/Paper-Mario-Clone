@@ -71,7 +71,6 @@ public class Lwjgl3Launcher {
 // maybe water blocks
 // south park like animation
 // npc and enemy ui option for choosing death level
-// colliding with items gives the picked item
 // improve performance for rooms (camera starting shaking)
 // map saving
 // dialog system
