@@ -85,16 +85,9 @@ class PlayerSystem {
     private var drivingCar: GameCar? = null
     private val carSpeed = 20f // Speed is still relevant
 
-    private var equippedWeapon: WeaponType = WeaponType.TOMMY_GUN
-    private var weapons: List<WeaponType> = listOf(
-        WeaponType.UNARMED,
-        WeaponType.TOMMY_GUN,
-        WeaponType.PISTOL,
-        WeaponType.MACHINE_GUN,
-        WeaponType.MOLOTOV,
-        WeaponType.BASEBALL_BAT,
-    )
-    private var currentWeaponIndex = 1
+    private var equippedWeapon: WeaponType = WeaponType.UNARMED
+    private var weapons: List<WeaponType> = listOf(WeaponType.UNARMED)
+    private var currentWeaponIndex = 0
     private var currentMagazineCount = 0
 
     private var isShooting = false

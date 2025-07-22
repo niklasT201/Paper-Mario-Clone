@@ -337,7 +337,6 @@ enum class ItemType(
     SMALL_SHOTGUN("Small Shotgun", "textures/objects/items/weapons/small_shotgun.png", 2.5f, 1f, 20),
 
     MACHINE_GUN("Machine Gun", "textures/objects/items/weapons/machine_gun.png", 3.5f, 1.8f, 40, WeaponType.MACHINE_GUN),
-    MACHINE_GUN_DARKER("Heavy Machine Gun", "textures/objects/items/weapons/machine_gun_darker.png", 3.5f, 1.8f, 45, WeaponType.MACHINE_GUN),
 
     TOMMY_GUN("Tommy Gun", "textures/objects/items/weapons/tommy_gun.png", 3.5f, 1.5f, 35, WeaponType.TOMMY_GUN),
     TOMMY_GUN_LIGHT("Light Tommy Gun", "textures/objects/items/weapons/tommy_gun_light.png", 3.5f, 1.5f, 32, WeaponType.TOMMY_GUN),
