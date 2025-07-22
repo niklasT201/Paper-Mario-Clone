@@ -54,7 +54,6 @@ public class Lwjgl3Launcher {
 // teleportation points
 // npcs and enemies been able to move on blocks
 // player falling too early and being then stuck in blocks
-// adding graffiti objects
 // add new player with weapon images
 // car explosion when getting shot at
 // character dies, blood pool will spawn and get bigger over time

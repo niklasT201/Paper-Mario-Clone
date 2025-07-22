@@ -80,7 +80,7 @@ enum class WeaponType(
         magazineSize = 50,
         requiresReload = true,
         allowsMovementWhileShooting = false,
-        playerPoseTexturePath = "textures/player/weapons/tommy_gun/player_tommy_gun.png",
+        playerPoseTexturePath = "textures/player/weapons/tommy_gun/pig_character_tommy_gun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 150f,
         bulletLifetime = 1.5f

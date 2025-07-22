@@ -103,8 +103,13 @@ class ObjectSystem: IFinePositionable {
                         IntAttribute.createCullFace(GL20.GL_NONE) // Disable backface culling
                     )
 
-                    // Create cross-shaped model
-                    val model = createCrossModel(modelBuilder, material, objectType)
+                    // Decide which model to create
+                    val model = if (objectType.isSinglePlane) {
+                        createSinglePlaneModel(modelBuilder, material, objectType)
+                    } else {
+                        // Create cross-shaped model
+                        createCrossModel(modelBuilder, material, objectType)
+                    }
                     objectModels[objectType] = model
                 }
 
@@ -113,6 +118,35 @@ class ObjectSystem: IFinePositionable {
                 println("Failed to load object ${objectType.displayName}: ${e.message}")
             }
         }
+    }
+
+    private fun createSinglePlaneModel(modelBuilder: ModelBuilder, material: Material, objectType: ObjectType): Model {
+        val width = objectType.width
+        val height = objectType.height
+        val halfWidth = width / 2f
+
+        modelBuilder.begin()
+
+        val part = modelBuilder.part(
+            "plane",
+            GL20.GL_TRIANGLES,
+            (VertexAttributes.Usage.Position or
+                VertexAttributes.Usage.Normal or
+                VertexAttributes.Usage.TextureCoordinates).toLong(),
+            material
+        )
+
+        // Vertices for a single, upright quad
+        part.vertex(-halfWidth, 0f, 0f, 0f, 0f, 1f, 0f, 1f) // Bottom left
+        part.vertex(halfWidth, 0f, 0f, 0f, 0f, 1f, 1f, 1f)  // Bottom right
+        part.vertex(halfWidth, height, 0f, 0f, 0f, 1f, 1f, 0f) // Top right
+        part.vertex(-halfWidth, height, 0f, 0f, 0f, 1f, 0f, 0f) // Top left
+
+        // Triangles for the quad
+        part.triangle(0, 1, 2)
+        part.triangle(2, 3, 0)
+
+        return modelBuilder.end()
     }
 
     private fun createCrossModel(modelBuilder: ModelBuilder, material: Material, objectType: ObjectType): Model {
@@ -407,11 +441,15 @@ enum class ObjectType(
     val lightColorR: Float = 1f,
     val lightColorG: Float = 1f,
     val lightColorB: Float = 1f,
-    val lightOffsetY: Float = 0f // Vertical offset from object center
+    val lightOffsetY: Float = 0f, // Vertical offset from object center
+    val isSinglePlane: Boolean = false
 ) {
     TREE("Tree", "textures/objects/models/tree.png", 14.5f, 15.6f),
     BUSH("Bush", "textures/objects/models/bush.png", 3f, 3f),
-    IRON_FENCE("Iron Fence", "textures/objects/models/iron_fence.png", 10f, 5f),
+    IRON_FENCE("Iron Fence", "textures/objects/models/iron_fence.png", 10f, 5f, isSinglePlane = true),
+    GRAFITI_MOTH("Moth Graffiti", "textures/objects/models/grafity_moth.png", 5f, 5f,
+        isSinglePlane = true
+    ),
 
     LANTERN("Lantern", "textures/objects/models/lantern.png", 3f, 11f,
         hasLightSource = true,
