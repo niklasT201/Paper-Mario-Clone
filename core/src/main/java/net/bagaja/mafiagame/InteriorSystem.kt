@@ -32,7 +32,8 @@ enum class InteriorType(
     val category: InteriorCategory = InteriorCategory.FURNITURE,
     val groundOffset: Float = 0f,
     val isRandomizer: Boolean = false,
-    val defaultScale: Vector3 = Vector3(2f, 2f, 2f)
+    val defaultScale: Vector3 = Vector3(2f, 2f, 2f),
+    val isFloorObject: Boolean = false
 ) {
     // 2D Billboard objects
     BAR("Bar", "textures/interior/bar.png", null, 2f, 1.5f, 0.5f, true, InteriorCategory.FURNITURE, 1f),
@@ -49,6 +50,17 @@ enum class InteriorType(
     TABLE_DISH("Table with Dish", "textures/interior/table_dish.png", null, 2f, 1.2f, 0.5f, true, InteriorCategory.FURNITURE, 1f),
     TELEPHONE("Telephone", "textures/interior/telephone.png", null, 0.4f, 0.6f, 0.3f, false, InteriorCategory.MISC, 1f),
     DOOR_INTERIOR("Interior Door", "textures/interior/door.png", null, 2f, 3f, 0.5f, true, InteriorCategory.FURNITURE, 1.5f),
+    CARPET(
+        "Carpet",
+        "textures/interior/carpet.png", // The relative path to your new image
+        null,
+        width = 4f,
+        height = 0.1f,
+        depth = 6f,
+        hasCollision = false,
+        category = InteriorCategory.DECORATION,
+        isFloorObject = true
+    ),
     MICROPHONE(
         "Microphone",
         "textures/interior/microphone.png",
@@ -190,18 +202,34 @@ class InteriorSystem : IFinePositionable {
                     interiorModels[interiorType] = model
                     println("Loaded 3D interior model: ${interiorType.displayName}")
                 } else {
-                    // NEW: Create a billboard model for 2D types
-                    val model = modelBuilder.createRect(
-                        -interiorType.width / 2f, -interiorType.height / 2f, 0f,
-                        interiorType.width / 2f, -interiorType.height / 2f, 0f,
-                        interiorType.width / 2f,  interiorType.height / 2f, 0f,
-                        -interiorType.width / 2f,  interiorType.height / 2f, 0f,
-                        0f, 0f, 1f,
-                        material,
-                        (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
-                    )
-                    interiorModels[interiorType] = model // Store this new billboard model
-                    println("Created 2D billboard model for: ${interiorType.displayName}")
+                    // Differentiate between vertical billboards and floor objects
+                    if (interiorType.isFloorObject) {
+                        // Create a HORIZONTAL plane for floor objects like carpets
+                        val model = modelBuilder.createRect(
+                            -interiorType.width / 2f, 0f,  interiorType.depth / 2f, // back-left
+                            interiorType.width / 2f, 0f,  interiorType.depth / 2f, // back-right
+                            interiorType.width / 2f, 0f, -interiorType.depth / 2f, // front-right
+                            -interiorType.width / 2f, 0f, -interiorType.depth / 2f, // front-left
+                            0f, 1f, 0f, // normal (pointing straight up)
+                            material,
+                            (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
+                        )
+                        interiorModels[interiorType] = model
+                        println("Created 2D floor model for: ${interiorType.displayName}")
+                    } else {
+                        // NEW: Create a billboard model for 2D types
+                        val model = modelBuilder.createRect(
+                            -interiorType.width / 2f, -interiorType.height / 2f, 0f,
+                            interiorType.width / 2f, -interiorType.height / 2f, 0f,
+                            interiorType.width / 2f,  interiorType.height / 2f, 0f,
+                            -interiorType.width / 2f,  interiorType.height / 2f, 0f,
+                            0f, 0f, 1f,
+                            material,
+                            (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
+                        )
+                        interiorModels[interiorType] = model // Store this new billboard model
+                        println("Created 2D billboard model for: ${interiorType.displayName}")
+                    }
                 }
             } catch (e: Exception) {
                 println("Failed to load/create interior model for ${interiorType.displayName}: ${e.message}")
@@ -297,7 +325,7 @@ class InteriorSystem : IFinePositionable {
                 continue
             }
 
-            if (interior.interiorType.is2D) {
+            if (interior.interiorType.is2D && !interior.interiorType.isFloorObject) {
                 // The billboard shader will handle facing the camera
                 billboardModelBatch.render(interior.instance, environment)
             }

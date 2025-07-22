@@ -306,7 +306,7 @@ data class GameItem(
     }
 }
 
-// Item type definitions - you can add more item types here
+// Item type definitions - updated with new weapon folder structure and additional weapons
 enum class ItemType(
     val displayName: String,
     val texturePath: String,
@@ -314,13 +314,27 @@ enum class ItemType(
     val height: Float,
     val value: Int = 1 // For future scoring/inventory system
 ) {
+    // Non-weapon items
     MONEY_STACK("Money Stack", "textures/objects/items/money_stack.png", 2f, 2f, 10),
-    REVOLVER("Revolver", "textures/objects/items/revolver.png", 2f, 1.5f, 15),
-    SHOTGUN("Shotgun", "textures/objects/items/shotgun.png", 3f, 1.5f, 25),
-    SMALL_SHOTGUN("Small Shotgun", "textures/objects/items/small_shotgun.png", 2.5f, 1f, 20),
-    SMALLER_REVOLVER("Revolver", "textures/objects/items/smaller_revolver.png", 1.8f, 1.2f, 12),
-    TOMMY_GUN("Tommy Gun", "textures/objects/items/tommy_gun.png", 3.5f, 1.5f, 35),
-    DYNAMITE("Dynamite", "textures/objects/items/dynamite.png", 2f, 3f, 10),
-    MOLOTOV("Molotov", "textures/objects/items/molotov.png", 1.5f, 3f, 10),
 
+    // Weapons - now in weapons subfolder
+    REVOLVER("Revolver", "textures/objects/items/weapons/revolver.png", 2f, 1.5f, 15),
+    REVOLVER_LIGHT("Light Revolver", "textures/objects/items/weapons/revolver_light.png", 2f, 1.5f, 12),
+    SMALLER_REVOLVER("Small Revolver", "textures/objects/items/weapons/smaller_revolver.png", 1.8f, 1.2f, 12),
+
+    SHOTGUN("Shotgun", "textures/objects/items/weapons/shotgun.png", 3f, 1.5f, 25),
+    SHOTGUN_LIGHT("Light Shotgun", "textures/objects/items/weapons/shotgun_light.png", 3f, 1.5f, 22),
+    SMALL_SHOTGUN("Small Shotgun", "textures/objects/items/weapons/small_shotgun.png", 2.5f, 1f, 20),
+
+    MACHINE_GUN("Machine Gun", "textures/objects/items/weapons/machine_gun.png", 3.5f, 1.8f, 40),
+    MACHINE_GUN_DARKER("Heavy Machine Gun", "textures/objects/items/weapons/machine_gun_darker.png", 3.5f, 1.8f, 45),
+
+    TOMMY_GUN("Tommy Gun", "textures/objects/items/weapons/tommy_gun.png", 3.5f, 1.5f, 35),
+    TOMMY_GUN_LIGHT("Light Tommy Gun", "textures/objects/items/weapons/tommy_gun_light.png", 3.5f, 1.5f, 32),
+
+    KNIFE("Knife", "textures/objects/items/weapons/knife.png", 1.5f, 0.8f, 8),
+
+    // Explosives
+    DYNAMITE("Dynamite", "textures/objects/items/weapons/dynamite.png", 2f, 3f, 10),
+    MOLOTOV("Molotov", "textures/objects/items/weapons/molotov.png", 1.5f, 3f, 10),
 }

@@ -204,7 +204,7 @@ class ItemSelectionUI(
                 pixmap.fillRectangle(20, 20, 10, 2)
                 pixmap.fillRectangle(20, 28, 10, 2)
             }
-            ItemType.REVOLVER, ItemType.SMALLER_REVOLVER -> {
+            ItemType.REVOLVER-> {
                 // Gray revolver
                 pixmap.setColor(Color(0.5f, 0.5f, 0.5f, 1f))
                 pixmap.fillRectangle(10, 20, 30, 8) // Barrel
@@ -212,39 +212,13 @@ class ItemSelectionUI(
                 pixmap.fillRectangle(15, 30, 10, 6) // Handle
                 pixmap.setColor(Color(0.3f, 0.2f, 0.1f, 1f))
                 pixmap.fillRectangle(18, 32, 4, 8) // Grip
-            }
-            ItemType.SHOTGUN, ItemType.SMALL_SHOTGUN -> {
-                // Brown shotgun
-                pixmap.setColor(Color(0.4f, 0.3f, 0.2f, 1f))
-                pixmap.fillRectangle(5, 22, 40, 6) // Barrel
+            } else -> {
                 pixmap.setColor(Color(0.5f, 0.5f, 0.5f, 1f))
-                pixmap.fillRectangle(25, 28, 15, 4) // Stock
-                pixmap.fillRectangle(35, 18, 4, 6) // Trigger guard
-            }
-            ItemType.TOMMY_GUN -> {
-                // Black tommy gun
-                pixmap.setColor(Color(0.2f, 0.2f, 0.2f, 1f))
-                pixmap.fillRectangle(5, 22, 35, 6) // Barrel
-                pixmap.fillCircle(10, 16, 6) // Drum magazine
-                pixmap.setColor(Color(0.4f, 0.3f, 0.2f, 1f))
-                pixmap.fillRectangle(30, 28, 12, 4) // Stock
-                pixmap.fillRectangle(25, 18, 4, 6) // Trigger guard
-            }
-            ItemType.MOLOTOV -> {
-                pixmap.setColor(Color(0.2f, 0.2f, 0.2f, 1f))
-                pixmap.fillRectangle(5, 22, 35, 6) // Barrel
-                pixmap.fillCircle(10, 16, 6) // Drum magazine
-                pixmap.setColor(Color(0.4f, 0.3f, 0.2f, 1f))
-                pixmap.fillRectangle(30, 28, 12, 4) // Stock
-                pixmap.fillRectangle(25, 18, 4, 6) // Trigger guard
-            }
-            ItemType.DYNAMITE -> {
-                pixmap.setColor(Color(0.2f, 0.2f, 0.2f, 1f))
-                pixmap.fillRectangle(5, 22, 35, 6) // Barrel
-                pixmap.fillCircle(10, 16, 6) // Drum magazine
-                pixmap.setColor(Color(0.4f, 0.3f, 0.2f, 1f))
-                pixmap.fillRectangle(30, 28, 12, 4) // Stock
-                pixmap.fillRectangle(25, 18, 4, 6) // Trigger guard
+                pixmap.fillRectangle(10, 20, 30, 8) // Barrel
+                pixmap.fillCircle(15, 24, 8) // Cylinder
+                pixmap.fillRectangle(15, 30, 10, 6) // Handle
+                pixmap.setColor(Color(0.3f, 0.2f, 0.1f, 1f))
+                pixmap.fillRectangle(18, 32, 4, 8) // Grip
             }
         }
 

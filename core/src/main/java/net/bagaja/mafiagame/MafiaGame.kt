@@ -1355,8 +1355,14 @@ class MafiaGame : ApplicationAdapter() {
         val newInterior = interiorSystem.createInteriorInstance(interiorType) ?: return
 
         newInterior.position.set(position)
-        // Raise the object so its base is at the specified position
-        newInterior.position.y += interiorType.height / 2f
+        // Raise the object based on its type
+        if (interiorType.isFloorObject) {
+            // For carpets
+            newInterior.position.y += 0.01f
+        } else {
+            // For regular objects
+            newInterior.position.y += interiorType.height / 2f
+        }
         newInterior.rotation = interiorSystem.currentRotation
         newInterior.updateTransform()
 
@@ -1669,7 +1675,10 @@ class MafiaGame : ApplicationAdapter() {
         }
 
         for (interior in sceneManager.activeInteriors) {
-            interior.render(modelBatch, environment) // This will only render the 3D ones
+            // Render 3D models and new floor objects
+            if (interior.interiorType.is3D || interior.interiorType.isFloorObject) {
+                modelBatch.render(interior.instance, environment) // This will only render the 3D ones
+            }
         }
 
         // Render background preview
