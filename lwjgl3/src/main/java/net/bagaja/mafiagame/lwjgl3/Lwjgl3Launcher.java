@@ -54,6 +54,14 @@ public class Lwjgl3Launcher {
 // teleportation points
 // npcs and enemies been able to move on blocks
 // player falling too early and being then stuck in blocks
+// blood particles colorful in sin city shader
+// add player with knife image
+// add player with dynamite image
+// add player with baseball bat image
+// add player with revolver image
+// add player with shotgun image
+// add player with pistol image
+// fix player with tommy gun image
 // add new player with weapon images
 // car explosion when getting shot at
 // character dies, blood pool will spawn and get bigger over time

@@ -93,11 +93,36 @@ enum class WeaponType(
         magazineSize = 8,
         requiresReload = true,
         allowsMovementWhileShooting = true,
-        playerPoseTexturePath = "textures/player/weapons/tommy_gun/player_tommy_gun.png",
+        playerPoseTexturePath = "textures/player/weapons/tommy_gun/pig_character_tommy_gun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 200f,
         bulletLifetime = 2.0f
     ),
+    MACHINE_GUN(
+        displayName = "Machine Gun",
+        actionType = WeaponActionType.SHOOTING,
+        fireRatePerSecond = 12f,
+        damage = 18f,
+        magazineSize = 100,
+        requiresReload = true,
+        allowsMovementWhileShooting = false, // Heavy weapon
+        playerPoseTexturePath = "textures/player/weapons/machine_gun/pig_character_machine_gun.png",
+        bulletTexturePath = "textures/player/weapons/bullet_tile.png",
+        bulletSpeed = 180f,
+        bulletLifetime = 1.8f
+    ),
+    MOLOTOV(
+        displayName = "Molotov",
+        actionType = WeaponActionType.THROWABLE,
+        fireRatePerSecond = 0.5f, // Throw speed
+        damage = 50f, // Area damage
+        magazineSize = 0,
+        requiresReload = false,
+        allowsMovementWhileShooting = true,
+        playerPoseTexturePath = "textures/player/weapons/molotov/player_molotov.png",
+        bulletTexturePath = null // Doesn't shoot a bullet
+    ),
+
     // Example of a future melee weapon
     BASEBALL_BAT(
         displayName = "Baseball Bat",
@@ -107,7 +132,7 @@ enum class WeaponType(
         magazineSize = 0,
         requiresReload = false,
         allowsMovementWhileShooting = true,
-        playerPoseTexturePath = "textures/player/pig_character.png",
+        playerPoseTexturePath = "textures/player/weapons/baseball_bat/player_with_baseball_bat.png",
         bulletTexturePath = null
     );
 

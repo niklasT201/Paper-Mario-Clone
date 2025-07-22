@@ -86,7 +86,14 @@ class PlayerSystem {
     private val carSpeed = 20f // Speed is still relevant
 
     private var equippedWeapon: WeaponType = WeaponType.TOMMY_GUN
-    private var weapons: List<WeaponType> = listOf(WeaponType.UNARMED, WeaponType.TOMMY_GUN, WeaponType.PISTOL)
+    private var weapons: List<WeaponType> = listOf(
+        WeaponType.UNARMED,
+        WeaponType.TOMMY_GUN,
+        WeaponType.PISTOL,
+        WeaponType.MACHINE_GUN,
+        WeaponType.MOLOTOV,
+        WeaponType.BASEBALL_BAT,
+    )
     private var currentWeaponIndex = 1
     private var currentMagazineCount = 0
 
@@ -167,8 +174,8 @@ class PlayerSystem {
         // Create player material with the texture
         playerMaterial = Material(
             TextureAttribute.createDiffuse(playerTexture),
-            com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
-            com.badlogic.gdx.graphics.g3d.attributes.IntAttribute.createCullFace(GL20.GL_NONE)
+            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
+            IntAttribute.createCullFace(GL20.GL_NONE)
         )
 
         // Create a 3D plane/quad for the player (billboard)

@@ -317,7 +317,10 @@ enum class ItemType(
     // Non-weapon items
     MONEY_STACK("Money Stack", "textures/objects/items/money_stack.png", 2f, 2f, 10),
 
-    // Weapons - now in weapons subfolder
+    // Melee weapon
+    BASEBALL_BAT("Baseball Bat", "textures/objects/items/weapons/baseball_bat.png", 2f, 1.5f, 15),
+
+    // Weapons
     REVOLVER("Revolver", "textures/objects/items/weapons/revolver.png", 2f, 1.5f, 15),
     REVOLVER_LIGHT("Light Revolver", "textures/objects/items/weapons/revolver_light.png", 2f, 1.5f, 12),
     SMALLER_REVOLVER("Small Revolver", "textures/objects/items/weapons/smaller_revolver.png", 1.8f, 1.2f, 12),
