@@ -1444,6 +1444,29 @@ class UIManager(
         houseSelectionUI.selectCurrentRoom()
     }
 
+    fun showTeleporterNameDialog(title: String, initialText: String = "", onConfirm: (name: String) -> Unit) {
+        val dialog = Dialog(title, skin, "dialog")
+        val nameField = TextField(initialText, skin)
+        nameField.messageText = "e.g., 'To the stage'"
+
+        dialog.contentTable.add(nameField).width(300f).pad(10f)
+
+        val confirmButton = TextButton("Confirm", skin)
+        confirmButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                val name = nameField.text.trim().ifBlank { "Teleporter" }
+                onConfirm(name)
+                dialog.hide()
+            }
+        })
+
+        dialog.button(confirmButton)
+        dialog.key(com.badlogic.gdx.Input.Keys.ENTER, true)
+        dialog.key(com.badlogic.gdx.Input.Keys.ESCAPE, false)
+        dialog.show(stage)
+        stage.keyboardFocus = nameField
+    }
+
     fun getStage(): Stage = stage
 
     fun render() {

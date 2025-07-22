@@ -105,6 +105,7 @@ class PlayerSystem {
 
     private val activeBullets = Array<Bullet>()
     private val tempCheckBounds = BoundingBox()
+    private var teleportCooldown = 0f
 
     fun getPlayerBounds(): BoundingBox {
         return playerBounds
@@ -960,7 +961,23 @@ class PlayerSystem {
         }
     }
 
+    fun teleportTo(destination: Vector3): Boolean {
+        if (teleportCooldown > 0f) {
+            return false // Teleport failed due to cooldown
+        }
+
+        val finalDestination = destination.cpy().add(0f, playerSize.y / 2f, 0f)
+        setPosition(finalDestination)
+        teleportCooldown = 1.0f // 1 second cooldown before teleporting again
+        println("Player teleported!")
+
+        return true // Teleport was successful
+    }
+
     fun update(deltaTime: Float, sceneManager: SceneManager) {
+        if (teleportCooldown > 0f) {
+            teleportCooldown -= deltaTime
+        }
         handleWeaponInput(deltaTime)
 
         // Update animation system

@@ -50,8 +50,8 @@ public class Lwjgl3Launcher {
 // occlusion optional
 // room/open world transition effect being slower and smoother transition itself
 
+// fixing moving names for tp points
 // working collisions for ramp, pillar and corner
-// teleportation points
 // npcs and enemies been able to move on blocks
 // player falling too early and being then stuck in blocks
 // blood particles colorful in sin city shader
@@ -63,6 +63,8 @@ public class Lwjgl3Launcher {
 // add player with pistol image
 // fix player with tommy gun image
 // add new player with weapon images
+// player hitting with baseball bat
+// player stabbing with knife
 // car explosion when getting shot at
 // character dies, blood pool will spawn and get bigger over time
 // separate particle clouds

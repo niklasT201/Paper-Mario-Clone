@@ -23,6 +23,7 @@ class InputHandler(
     private val npcSystem: NPCSystem,
     private val particleSystem: ParticleSystem,
     private val particleSpawnerSystem: ParticleSpawnerSystem,
+    private val teleporterSystem: TeleporterSystem,
     private val sceneManager: SceneManager,
     private val roomTemplateManager: RoomTemplateManager,
     private val shaderEffectManager: ShaderEffectManager,
@@ -290,6 +291,12 @@ class InputHandler(
                 }
 
                 when (keycode) {
+                    Input.Keys.ESCAPE -> {
+                        if (game.teleporterSystem.isLinkingMode) {
+                            game.teleporterSystem.cancelLinking()
+                            return true
+                        }
+                    }
                     Input.Keys.F1 -> {
                         uiManager.toggleVisibility()
                         return true
@@ -679,7 +686,14 @@ class InputHandler(
 
     private fun getCurrentPositionableSystem(): IFinePositionable? {
         return when (uiManager.selectedTool) {
-            Tool.OBJECT -> objectSystem
+            Tool.OBJECT -> {
+                // Check if the selected object is a teleporter
+                if (objectSystem.currentSelectedObject == ObjectType.TELEPORTER) {
+                    teleporterSystem // If so, return the TeleporterSystem
+                } else {
+                    objectSystem // Otherwise, return the normal
+                }
+            }
             Tool.CAR -> carSystem
             Tool.HOUSE -> houseSystem
             Tool.ITEM -> itemSystem

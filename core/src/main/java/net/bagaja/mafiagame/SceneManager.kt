@@ -33,6 +33,7 @@ class SceneManager(
     val cameraManager: CameraManager,
     private val transitionSystem: TransitionSystem,
     private val faceCullingSystem: FaceCullingSystem,
+    val teleporterSystem: TeleporterSystem,
     private val game: MafiaGame,
     private val particleSystem: ParticleSystem
 ) {

@@ -69,6 +69,7 @@ class MafiaGame : ApplicationAdapter() {
 
     lateinit var lightingManager: LightingManager
     private lateinit var particleSystem: ParticleSystem
+    lateinit var teleporterSystem: TeleporterSystem
 
     override fun create() {
         setupGraphics()
@@ -107,24 +108,6 @@ class MafiaGame : ApplicationAdapter() {
         shaderEffectManager = ShaderEffectManager()
         shaderEffectManager.initialize()
 
-        sceneManager = SceneManager(
-            playerSystem,
-            blockSystem,
-            objectSystem,
-            itemSystem,
-            interiorSystem,
-            enemySystem,
-            npcSystem,
-            roomTemplateManager,
-            cameraManager,
-            transitionSystem,
-            faceCullingSystem,
-            this,
-            particleSystem
-        )
-
-        transitionSystem.create(cameraManager.findUiCamera())
-
         // Initialize UI Manager
         uiManager = UIManager(
             blockSystem,
@@ -144,6 +127,26 @@ class MafiaGame : ApplicationAdapter() {
             particleSpawnerSystem,
             this::removeParticleSpawner
         )
+        teleporterSystem = TeleporterSystem(objectSystem, uiManager)
+
+        sceneManager = SceneManager(
+            playerSystem,
+            blockSystem,
+            objectSystem,
+            itemSystem,
+            interiorSystem,
+            enemySystem,
+            npcSystem,
+            roomTemplateManager,
+            cameraManager,
+            transitionSystem,
+            faceCullingSystem,
+            teleporterSystem,
+            this,
+            particleSystem
+        )
+
+        transitionSystem.create(cameraManager.findUiCamera())
         uiManager.initialize()
 
         // Initialize Input Handler
@@ -163,6 +166,7 @@ class MafiaGame : ApplicationAdapter() {
             npcSystem,
             particleSystem,
             particleSpawnerSystem,
+            teleporterSystem,
             sceneManager,
             roomTemplateManager,
             shaderEffectManager,
@@ -293,6 +297,26 @@ class MafiaGame : ApplicationAdapter() {
                 return
             }
 
+            val playerPosForTeleport = playerSystem.getPosition()
+            val closestTeleporter = teleporterSystem.findClosestTeleporter(playerPosForTeleport, 3f)
+
+            if (closestTeleporter != null) {
+                closestTeleporter.linkedTeleporterId?.let { destId ->
+                    val destination = teleporterSystem.activeTeleporters.find { it.id == destId }
+                    if (destination != null) {
+                        // Step 1: Attempt to teleport and capture the result
+                        val teleportSucceeded = playerSystem.teleportTo(destination.gameObject.position)
+
+                        // Step 2: If it succeeded, update the camera
+                        if (teleportSucceeded) {
+                            // Use the camera's dedicated function to instantly snap to the player's new position
+                            cameraManager.resetAndSnapToPlayer(playerSystem.getPosition(), playerSystem.isDriving)
+                        }
+                        return // Interaction handled, stop here.
+                    }
+                }
+            }
+
             when (sceneManager.currentScene) {
                 SceneType.WORLD -> {
                     val playerPos = playerSystem.getPosition()
@@ -418,7 +442,9 @@ class MafiaGame : ApplicationAdapter() {
             UIManager.Tool.BLOCK -> placeBlock(ray)
             UIManager.Tool.PLAYER -> placePlayer(ray)
             UIManager.Tool.OBJECT -> {
-                if (objectSystem.currentSelectedObject == ObjectType.PARTICLE_SPAWNER) {
+                if (objectSystem.currentSelectedObject == ObjectType.TELEPORTER) {
+                    placeTeleporter(ray)
+                } else if (objectSystem.currentSelectedObject == ObjectType.PARTICLE_SPAWNER) {
                     placeParticleSpawner(ray)
                 } else {
                     placeObject(ray)
@@ -447,6 +473,12 @@ class MafiaGame : ApplicationAdapter() {
     private fun handleRightClickAndRemoveAction(screenX: Int, screenY: Int): Boolean {
         val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
 
+        // Handle cancelling teleporter linking
+        if (teleporterSystem.isLinkingMode) {
+            teleporterSystem.cancelLinking()
+            return true // Consume the click
+        }
+
         when (uiManager.selectedTool) {
             UIManager.Tool.BLOCK -> {
                 val blockToRemove = raycastSystem.getBlockAtRay(ray, sceneManager.activeBlocks)
@@ -456,6 +488,18 @@ class MafiaGame : ApplicationAdapter() {
                 }
             }
             UIManager.Tool.OBJECT -> {
+                // Check for teleporter removal
+                val teleporterGameObjects = Array(teleporterSystem.activeTeleporters.map { it.gameObject }.toTypedArray())
+                val teleporterToRemove = raycastSystem.getObjectAtRay(ray, teleporterGameObjects)
+
+                if (teleporterToRemove != null) {
+                    val tp = teleporterSystem.activeTeleporters.find { it.gameObject.id == teleporterToRemove.id }
+                    if (tp != null) {
+                        teleporterSystem.removeTeleporter(tp)
+                        return true
+                    }
+                }
+
                 if (objectSystem.currentSelectedObject == ObjectType.LIGHT_SOURCE) {
                     // Handle light source removal with proper 3D raycasting
                     val lightToRemove = raycastSystem.getLightSourceAtRay(ray, lightingManager)
@@ -629,6 +673,12 @@ class MafiaGame : ApplicationAdapter() {
                 instance.gameObject.modelInstance.transform.setTranslation(instance.position)
                 instance.gameObject.debugInstance?.transform?.setTranslation(instance.position)
                 println("Moved Particle Spawner to ${instance.position}")
+            }
+            is GameTeleporter -> {
+                instance.gameObject.position.add(deltaX, deltaY, deltaZ)
+                instance.gameObject.modelInstance.transform.setTranslation(instance.gameObject.position)
+                instance.gameObject.debugInstance?.transform?.setTranslation(instance.gameObject.position)
+                println("Moved Teleporter to ${instance.gameObject.position}")
             }
             else -> println("Fine positioning not supported for this object type.")
         }
@@ -1522,6 +1572,24 @@ class MafiaGame : ApplicationAdapter() {
         println("Removed Particle Spawner at ${spawner.position}")
     }
 
+    private fun placeTeleporter(ray: Ray) {
+        val intersection = Vector3()
+        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            val newTeleporter = teleporterSystem.addTeleporterAt(intersection) ?: return
+
+            // THIS IS THE IMPORTANT PART
+            lastPlacedInstance = newTeleporter
+
+            if (teleporterSystem.isLinkingMode) {
+                teleporterSystem.completeLinking(newTeleporter)
+            } else {
+                teleporterSystem.startLinking(newTeleporter)
+            }
+        }
+    }
+
     override fun render() {
         // Begin capturing the frame for post-processing
         shaderEffectManager.beginCapture()
@@ -1656,6 +1724,13 @@ class MafiaGame : ApplicationAdapter() {
             }
         }
 
+        // Render teleporter pads
+        for (teleporter in teleporterSystem.activeTeleporters) {
+            teleporter.gameObject.getRenderInstance(objectSystem.debugMode)?.let {
+                modelBatch.render(it, environment)
+            }
+        }
+
         for (spawner in sceneManager.activeParticleSpawners) {
             spawner.gameObject.getRenderInstance(objectSystem.debugMode)?.let {
                 modelBatch.render(it, environment)
@@ -1699,6 +1774,7 @@ class MafiaGame : ApplicationAdapter() {
 
         modelBatch.end()
 
+        teleporterSystem.renderNameplates(cameraManager.camera)
         interiorSystem.renderBillboards(cameraManager.camera, environment, sceneManager.activeInteriors)
 
         // Render highlight using HighlightSystem
@@ -1777,6 +1853,7 @@ class MafiaGame : ApplicationAdapter() {
         shaderEffectManager.dispose()
 
         // Dispose UIManager
+        teleporterSystem.dispose()
         uiManager.dispose()
     }
 }

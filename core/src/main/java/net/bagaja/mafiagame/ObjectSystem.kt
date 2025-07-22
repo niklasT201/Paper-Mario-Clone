@@ -87,6 +87,22 @@ class ObjectSystem: IFinePositionable {
                                 (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong())
                             debugModels[objectType] = debugModel
                         }
+                        ObjectType.TELEPORTER -> {
+                            // A cyan, semi-transparent box to represent the teleporter pad in debug mode
+                            val debugMaterial = Material(
+                                ColorAttribute.createDiffuse(Color.CYAN),
+                                ColorAttribute.createEmissive(0.0f, 0.3f, 0.3f, 1f),
+                                BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.5f)
+                            )
+                            val debugModel = modelBuilder.createBox(
+                                objectType.width, // Use the dimensions from the enum
+                                objectType.height,
+                                objectType.width, // Use width for depth to make a square pad
+                                debugMaterial,
+                                (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong()
+                            )
+                            debugModels[objectType] = debugModel
+                        }
                         else -> { /* No other invisible types yet */ }
                     }
 
@@ -427,6 +443,13 @@ data class GameObject(
     }
 }
 
+data class GameTeleporter(
+    val id: String,
+    val gameObject: GameObject,
+    var linkedTeleporterId: String? = null,
+    var name: String = "Unnamed Link"
+)
+
 // Enhanced object type definitions with invisible light source and future broken lantern
 enum class ObjectType(
     val displayName: String,
@@ -466,6 +489,10 @@ enum class ObjectType(
 
     BROKEN_LANTERN("Broken Lantern", "textures/objects/models/broken_lantern.png", 3f, 11f,
         hasLightSource = false // Broken lanterns don't emit light
+    ),
+
+    TELEPORTER("Teleporter", "", 1f, 1f,
+        isSinglePlane = true, isInvisible = true,
     ),
 
     TURNEDOFF_LANTERN("Turned Off Lantern", "textures/objects/models/turnedoff_lantern.png", 3f, 11f,
