@@ -33,7 +33,10 @@ data class RoomElement(
     val particleEffectType: ParticleEffectType? = null,
     val spawnerMinParticles: Int? = null,
     val spawnerMaxParticles: Int? = null,
-    val spawnerInterval: Float? = null
+    val spawnerInterval: Float? = null,
+    val teleporterId: String? = null,
+    val linkedTeleporterId: String? = null,
+    val teleporterName: String? = null
 )
 
 enum class RoomElementType {
@@ -43,7 +46,8 @@ enum class RoomElementType {
     INTERIOR,
     ENEMY,
     NPC,
-    PARTICLE_SPAWNER
+    PARTICLE_SPAWNER,
+    TELEPORTER
 }
 
 data class RoomTemplate(

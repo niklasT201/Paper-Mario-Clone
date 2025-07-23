@@ -470,6 +470,7 @@ class SceneManager(
         currentState.enemies.clear(); currentState.enemies.addAll(activeEnemies)
         currentState.npcs.clear(); currentState.npcs.addAll(activeNPCs)
         currentState.particleSpawners.clear(); currentState.particleSpawners.addAll(activeParticleSpawners)
+        currentState.teleporters.clear(); currentState.teleporters.addAll(teleporterSystem.activeTeleporters)
         currentState.playerPosition.set(playerSystem.getPosition())
 
         currentState.lights.clear()
@@ -486,6 +487,7 @@ class SceneManager(
         activeEnemies.addAll(state.enemies)
         activeNPCs.addAll(state.npcs)
         activeParticleSpawners.addAll(state.particleSpawners)
+        teleporterSystem.activeTeleporters.addAll(state.teleporters)
 
         // Synchronize the ItemSystem with the loaded interior items
         itemSystem.setActiveItems(activeItems)
@@ -502,6 +504,7 @@ class SceneManager(
         val newNPCs = Array<GameNPC>()
         val newParticleSpawners = Array<GameParticleSpawner>()
         val newLights = mutableMapOf<Int, LightSource>()
+        val newTeleporters = Array<GameTeleporter>()
 
         println("Building interior from template: ${template.name}")
 
@@ -619,6 +622,23 @@ class SceneManager(
                         }
                     }
                 }
+                RoomElementType.TELEPORTER -> {
+                    if (element.teleporterId != null) {
+                        val gameObject = objectSystem.createGameObjectWithLight(ObjectType.TELEPORTER, element.position.cpy())
+                        if (gameObject != null) {
+                            gameObject.modelInstance.transform.setTranslation(element.position)
+                            gameObject.debugInstance?.transform?.setTranslation(element.position)
+
+                            val newTeleporter = GameTeleporter(
+                                id = element.teleporterId, // Use saved ID to preserve links
+                                gameObject = gameObject,
+                                name = element.teleporterName ?: "Teleporter"
+                                // Link is set after all teleporters are created
+                            )
+                            newTeleporters.add(newTeleporter)
+                        }
+                    }
+                }
             }
         }
         // After all blocks are created, run face culling on the entire collection
@@ -639,6 +659,13 @@ class SceneManager(
                 println("Template has an exit door position, but no door object was found in the template's elements.")
             }
         }
+
+        // Link teleporters now that they all exist
+        template.elements.filter { it.elementType == RoomElementType.TELEPORTER }.forEach { element ->
+            val sourceTeleporter = newTeleporters.find { it.id == element.teleporterId }
+            sourceTeleporter?.linkedTeleporterId = element.linkedTeleporterId
+        }
+
         val interiorState = InteriorState(
             houseId = house.id,
             blocks = newBlocks,
@@ -648,6 +675,7 @@ class SceneManager(
             enemies = newEnemies,
             npcs = newNPCs,
             particleSpawners = newParticleSpawners,
+            teleporters = newTeleporters,
             playerPosition = template.entrancePosition.cpy(),
             isTimeFixed = template.isTimeFixed,
             fixedTimeProgress = template.fixedTimeProgress,
@@ -806,6 +834,16 @@ class SceneManager(
             }
         }
 
+        teleporterSystem.activeTeleporters.forEach { teleporter ->
+            elements.add(RoomElement(
+                position = teleporter.gameObject.position.cpy(),
+                elementType = RoomElementType.TELEPORTER,
+                teleporterId = teleporter.id,
+                linkedTeleporterId = teleporter.linkedTeleporterId,
+                teleporterName = teleporter.name
+            ))
+        }
+
         val newTemplate = RoomTemplate(
             id = id,
             name = name,
@@ -844,6 +882,7 @@ class SceneManager(
 
         println("Loading template '$templateId' into current room...")
         clearActiveScene()
+        val tempTeleporters = Array<GameTeleporter>()
 
         // Build the scene from the template's elements
         template.elements.forEach { element ->
@@ -931,8 +970,31 @@ class SceneManager(
                         }
                     }
                 }
+                RoomElementType.TELEPORTER -> {
+                    if (element.teleporterId != null) {
+                        val gameObject = objectSystem.createGameObjectWithLight(ObjectType.TELEPORTER, element.position.cpy())
+                        if (gameObject != null) {
+                            gameObject.modelInstance.transform.setTranslation(element.position)
+                            gameObject.debugInstance?.transform?.setTranslation(element.position)
+                            val newTeleporter = GameTeleporter(
+                                id = element.teleporterId,
+                                gameObject = gameObject,
+                                name = element.teleporterName ?: "Teleporter"
+                            )
+                            tempTeleporters.add(newTeleporter) // Add to temp list first
+                        }
+                    }
+                }
             }
         }
+
+        // Link the newly created teleporters
+        template.elements.filter { it.elementType == RoomElementType.TELEPORTER }.forEach { element ->
+            val sourceTeleporter = tempTeleporters.find { it.id == element.teleporterId }
+            sourceTeleporter?.linkedTeleporterId = element.linkedTeleporterId
+        }
+        teleporterSystem.activeTeleporters.addAll(tempTeleporters)
+
         // After loading all blocks, run face culling on the entire active collection
         recalculateAllFacesInCollection(activeBlocks)
 
@@ -962,7 +1024,7 @@ class SceneManager(
         activeEnemies.clear()
         activeNPCs.clear()
         activeParticleSpawners.clear()
-        activeParticleSpawners.clear()
+        teleporterSystem.activeTeleporters.clear()
     }
 }
 
@@ -990,6 +1052,7 @@ data class InteriorState(
     val enemies: Array<GameEnemy> = Array(),
     val npcs: Array<GameNPC> = Array(),
     val particleSpawners: Array<GameParticleSpawner> = Array(),
+    val teleporters: Array<GameTeleporter> = Array(), // ADDED
     var playerPosition: Vector3,
     var isTimeFixed: Boolean = false,
     var fixedTimeProgress: Float = 0.5f,
