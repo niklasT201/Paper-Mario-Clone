@@ -54,6 +54,7 @@ public class Lwjgl3Launcher {
 // items have the same height but different width
 // working collisions for ramp, pillar and corner
 // npcs and enemies been able to move on blocks
+// maybe adding player hiding tp point text behind it
 // visual reload/charging bar
 // molotov spreads fire and deals damage in this fire zome
 // dynamite explodes and deals damage

@@ -137,7 +137,7 @@ class TeleporterSystem(
 
         for (teleporter in activeTeleporters) {
             val teleporterPos = teleporter.gameObject.position
-            val textWorldPos = tempVec3.set(teleporterPos).add(0f, 1.5f, 0f)
+            val textWorldPos = tempVec3.set(teleporterPos).add(0f, 2.5f, 0f)
 
             if (camera.position.dst2(textWorldPos) < renderDistanceSq && camera.frustum.pointInFrustum(textWorldPos)) {
 
@@ -145,13 +145,13 @@ class TeleporterSystem(
                 val transformMatrix = Matrix4()
                 transformMatrix.setToTranslation(textWorldPos)
 
-                val scale = 0.035f
+                val scale = 0.45f
                 transformMatrix.scl(scale)
 
                 // DRAWING
                 spriteBatch.transformMatrix = transformMatrix
                 font.data.setScale(1.0f)
-                font.color = Color.CYAN
+                font.color = Color.WHITE
                 glyphLayout.setText(font, teleporter.name)
                 font.draw(spriteBatch, glyphLayout, -glyphLayout.width / 2, glyphLayout.height / 2)
             }
