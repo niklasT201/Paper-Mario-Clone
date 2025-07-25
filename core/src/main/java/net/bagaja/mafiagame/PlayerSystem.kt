@@ -34,6 +34,12 @@ data class CollisionResult(
     val surfaceNormal: Vector3
 )
 
+enum class PlayerState {
+    IDLE,
+    ATTACKING,      // For shooting and melee swings
+    CHARGING_THROW  // For holding down the mouse with a throwable weapon
+}
+
 class PlayerSystem {
     // Player model and rendering
     private lateinit var playerTexture: Texture
@@ -75,7 +81,6 @@ class PlayerSystem {
     private var wipeEffectTimer = 0f
     private val WIPE_EFFECT_INTERVAL = 0.15f
 
-    // Reference to block system for collision detection
     private var blockSize = 4f
     private lateinit var particleSystem: ParticleSystem
     private val PARTICLE_IMPACT_OFFSET = 1.2f
@@ -85,6 +90,10 @@ class PlayerSystem {
     private var drivingCar: GameCar? = null
     private val carSpeed = 20f // Speed is still relevant
 
+    private var state = PlayerState.IDLE
+    private var attackTimer = 0f // Timer for how long the ATTACKING state lasts
+    private var throwChargeTime = 0f
+
     private var equippedWeapon: WeaponType = WeaponType.UNARMED
     private var weapons: List<WeaponType> = listOf(WeaponType.UNARMED)
     private var currentWeaponIndex = 0
@@ -92,6 +101,7 @@ class PlayerSystem {
 
     private var isShooting = false
     private val shootingPoseDuration = 0.2f
+    private val MIN_THROW_CHARGE_TIME = 0.1f
     private var shootingPoseTimer = 0f
     private var fireRateTimer = 0f
     private var chargeTime = 0f
@@ -102,8 +112,10 @@ class PlayerSystem {
     // Caches for weapon assets to avoid loading them repeatedly
     private val poseTextures = mutableMapOf<String, Texture>()
     private val bulletModels = mutableMapOf<String, Model>()
+    private val throwableModels = mutableMapOf<WeaponType, Model>()
 
     private val activeBullets = Array<Bullet>()
+    private val activeThrowables = Array<ThrowableEntity>()
     private val tempCheckBounds = BoundingBox()
     private var teleportCooldown = 0f
 
@@ -142,9 +154,7 @@ class PlayerSystem {
         // Create walking animation
         val walkingFrames = arrayOf(
             "textures/player/animations/walking/walking_left.png",
-            //"textures/player/animations/walking/walking_middle.png",
             "textures/player/animations/walking/walking_right.png",
-            //"textures/player/animations/walking/walking_middle.png" // Return to middle for smooth loop
         )
 
         // Create walking animation with 0.15 seconds per frame (about 6.7 fps for smooth walking)
@@ -154,6 +164,20 @@ class PlayerSystem {
         val idleFrames = arrayOf("textures/player/pig_character.png")
         animationSystem.createAnimation("idle", idleFrames, 1.0f, true)
         playerBackTexture = Texture(Gdx.files.internal("textures/player/pig_character_back.png"))
+
+        animationSystem.createAnimation(
+            "attack_baseball_bat",
+            arrayOf("textures/player/pig_character.png", "textures/player/weapons/baseball_bat/player_baseball_bat.png"),
+            0.15f,
+            false // Not looping
+        )
+        animationSystem.createAnimation(
+            "attack_knife",
+            arrayOf("textures/player/pig_character.png", "textures/player/weapons/knife/player_knife.png"),
+            0.1f,
+            false // Not looping
+        )
+
 
         // Start with idle animation
         animationSystem.playAnimation("idle")
@@ -220,55 +244,142 @@ class PlayerSystem {
                     )
                 }
             }
+            if (weapon.actionType == WeaponActionType.THROWABLE) {
+                if (!throwableModels.containsKey(weapon)) {
+                    // Use the item texture for the thrown model
+                    val itemType = ItemType.entries.find { it.correspondingWeapon == weapon }
+                    if (itemType != null) {
+                        val texture = Texture(Gdx.files.internal(itemType.texturePath))
+                        val material = Material(
+                            TextureAttribute.createDiffuse(texture),
+                            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
+                            IntAttribute.createCullFace(GL20.GL_NONE)
+                        )
+                        // Create a simple billboard model for the thrown object
+                        throwableModels[weapon] = modelBuilder.createRect(
+                            -0.5f, -0.5f, 0f, 0.5f, -0.5f, 0f, 0.5f, 0.5f, 0f, -0.5f, 0.5f, 0f,
+                            0f, 0f, 1f, material,
+                            (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
+                        )
+                    }
+                }
+            }
         }
     }
 
     private fun handleWeaponInput(deltaTime: Float) {
         fireRateTimer -= deltaTime
+        attackTimer -= deltaTime
 
-        if (equippedWeapon == WeaponType.UNARMED) {
-            isShooting = false
-            chargeTime = 0f // Reset charge when unarmed
-            return
-        }
+        // State Machine Logic
+        when (state) {
+            PlayerState.IDLE -> {
+                // Check for input to start an action
+                if (Gdx.input.isButtonPressed(Input.Buttons.LEFT) && fireRateTimer <= 0f) {
 
-        // Check for button press
-        if (Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
-            chargeTime += deltaTime // Increment charge time while holding the button
-
-            when (equippedWeapon.actionType) {
-                WeaponActionType.SHOOTING -> {
-                    if (fireRateTimer <= 0f && !isRotating) {
-                        // TODO: Add check for magazine count here
-                        // if (currentMagazineCount > 0 || !equippedWeapon.requiresReload) { ... }
-
-                        spawnBullet()
-                        fireRateTimer = equippedWeapon.fireCooldown
-                        // currentMagazineCount--
-                    } else if (isRotating) {
-                        fireRateTimer = equippedWeapon.fireCooldown
+                    if (equippedWeapon == WeaponType.UNARMED) {
+                        return
                     }
-                    isShooting = true
-                    shootingPoseTimer = shootingPoseDuration
-                }
-                WeaponActionType.MELEE -> {
-                    // TODO: Implement melee attack logic
-                }
-                WeaponActionType.THROWABLE -> {
-                    // TODO: Implement throwable weapon logic
-                }
-            }
-        } else {
-            // Button is released, reset the charge time
-            chargeTime = 0f
-        }
 
-        if (isShooting) {
-            shootingPoseTimer -= deltaTime
-            if (shootingPoseTimer <= 0f) {
-                isShooting = false
+                    when (equippedWeapon.actionType) {
+                        WeaponActionType.SHOOTING -> {
+                            // TODO: Add check for magazine count here
+                            // if (currentMagazineCount > 0 || !equippedWeapon.requiresReload) {
+                            if (!isRotating) {
+                                spawnBullet()
+                                // currentMagazineCount--
+                                // } else {
+                                // TODO: Play an "empty clip" sound effect
+                                // }
+                                fireRateTimer = equippedWeapon.fireCooldown
+                                state = PlayerState.ATTACKING
+                                attackTimer = shootingPoseDuration
+                            }
+                        }
+                        WeaponActionType.MELEE -> {
+                            if (!isRotating) {
+                                val animName = when (equippedWeapon) {
+                                    WeaponType.BASEBALL_BAT -> "attack_baseball_bat"
+                                    WeaponType.KNIFE -> "attack_knife"
+                                    else -> null
+                                }
+
+                                if (animName != null) {
+                                    animationSystem.playAnimation(animName, true)
+                                    state = PlayerState.ATTACKING
+                                    attackTimer = animationSystem.currentAnimation?.getTotalDuration() ?: 0.3f
+                                    fireRateTimer = equippedWeapon.fireCooldown
+
+                                    // TODO: Implement melee attack logic here.
+                                    // This is the point where you would check for nearby enemies
+                                    // and apply damage to them.
+                                }
+                            }
+                        }
+                        WeaponActionType.THROWABLE -> {
+                            state = PlayerState.CHARGING_THROW
+                            throwChargeTime = 0f
+                        }
+                    }
+                }
+            }
+            PlayerState.ATTACKING -> {
+                if (attackTimer <= 0f) {
+                    state = PlayerState.IDLE
+                    if (equippedWeapon.actionType == WeaponActionType.MELEE) {
+                        animationSystem.playAnimation("idle")
+                    }
+                }
+            }
+            PlayerState.CHARGING_THROW -> {
+                throwChargeTime += deltaTime
+
+                // Check if the button was released
+                if (!Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
+                    // MODIFIED: Check if the button was held long enough to be a valid throw
+                    if (throwChargeTime >= MIN_THROW_CHARGE_TIME) {
+                        spawnThrowable() // Execute the throw
+                        fireRateTimer = equippedWeapon.fireCooldown
+                    } else {
+                        // The click was too short, treat it as an accidental click and do nothing.
+                        println("Throw cancelled: click too short.")
+                    }
+                    // Always return to idle after releasing the button
+                    state = PlayerState.IDLE
+                }
             }
         }
+    }
+
+    private fun spawnThrowable() {
+        val model = throwableModels[equippedWeapon] ?: return
+
+        // Throw Physics Calculation
+        val minPower = 15f
+        val maxPower = 45f
+        val chargeTimeToMaxPower = 1.2f // Seconds to reach max power
+
+        val chargeRatio = (throwChargeTime / chargeTimeToMaxPower).coerceIn(0f, 1f)
+        val throwPower = minPower + (maxPower - minPower) * chargeRatio
+
+        val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
+
+        // Throw at a 45-degree angle
+        val initialVelocity = Vector3(directionX, 1f, 0f).nor().scl(throwPower)
+
+        val spawnPosition = playerPosition.cpy().add(directionX * 1.5f, 1f, 0f)
+
+        val throwable = ThrowableEntity(
+            weaponType = equippedWeapon,
+            modelInstance = ModelInstance(model),
+            position = spawnPosition,
+            velocity = initialVelocity,
+            lifetime = 3.0f // 3-second fuse for dynamite
+        )
+
+        activeThrowables.add(throwable)
+
+        println("Threw ${equippedWeapon.displayName} with power $throwPower")
     }
 
     private fun spawnBullet() {
@@ -985,9 +1096,17 @@ class PlayerSystem {
 
         // Update player texture if it changed
         val finalTexture: Texture? = when {
-            isShooting -> poseTextures[equippedWeapon.playerPoseTexturePath]
+            state == PlayerState.ATTACKING -> {
+                if (equippedWeapon.actionType == WeaponActionType.MELEE) {
+                    animationSystem.getCurrentTexture() // Use the melee animation
+                } else {
+                    poseTextures[equippedWeapon.playerPoseTexturePath] // Use the shooting pose
+                }
+            }
+            state == PlayerState.CHARGING_THROW -> poseTextures[equippedWeapon.playerPoseTexturePath]
             isPressingW -> playerBackTexture
-            else -> animationSystem.getCurrentTexture()
+            equippedWeapon != WeaponType.UNARMED -> poseTextures[equippedWeapon.playerPoseTexturePath]
+            else -> animationSystem.getCurrentTexture() // Standard idle/walking
         }
 
         // Update the player's texture
@@ -1073,7 +1192,70 @@ class PlayerSystem {
                 bulletIterator.remove()
             }
         }
+
+        val throwableIterator = activeThrowables.iterator()
+        while (throwableIterator.hasNext()) {
+            val throwable = throwableIterator.next()
+            throwable.update(deltaTime)
+
+            val collisionResult = checkThrowableCollision(throwable, sceneManager)
+
+            if (collisionResult != null || throwable.lifetime <= 0) {
+                // It hit something or its fuse ran out
+                handleThrowableImpact(throwable, collisionResult?.hitPoint ?: throwable.position)
+                throwableIterator.remove()
+            }
+        }
+
         updatePlayerTransform()
+    }
+
+    private fun handleThrowableImpact(throwable: ThrowableEntity, impactPosition: Vector3) {
+        println("${throwable.weaponType.displayName} impacted at $impactPosition")
+        when (throwable.weaponType) {
+            WeaponType.DYNAMITE -> {
+                particleSystem.spawnEffect(ParticleEffectType.EXPLOSION, impactPosition)
+                // TODO: Add area-of-effect damage logic here
+            }
+            WeaponType.MOLOTOV -> {
+                // Spawn a lasting fire effect
+                particleSystem.spawnEffect(ParticleEffectType.FIRE_FLAME, impactPosition)
+                // TODO: Add area-of-effect damage over time logic here
+            }
+            else -> {} // Other throwable types can be handled here
+        }
+    }
+
+    // Collision detection logic for throwables
+    private fun checkThrowableCollision(throwable: ThrowableEntity, sceneManager: SceneManager): CollisionResult? {
+        val throwableBounds = throwable.getBoundingBox()
+        val intersectionPoint = Vector3()
+
+        // Check against Blocks
+        for (block in sceneManager.activeBlocks) {
+            if (!block.blockType.hasCollision) continue
+            val blockBounds = block.getBoundingBox(blockSize, BoundingBox())
+            if (throwableBounds.intersects(blockBounds)) {
+                return CollisionResult(HitObjectType.BLOCK, block, throwable.position, Vector3.Y) // Simple normal
+            }
+        }
+
+        // Check against complex meshes (Houses, 3D Interiors)
+        val allMeshes = sceneManager.activeHouses.map { it to HitObjectType.HOUSE } +
+            sceneManager.activeInteriors.filter { it.interiorType.is3D && it.interiorType.hasCollision }.map { it to HitObjectType.INTERIOR }
+
+        for ((meshObject, type) in allMeshes) {
+            val collides = when (meshObject) {
+                is GameHouse -> meshObject.collidesWithMesh(throwableBounds)
+                is GameInterior -> meshObject.collidesWithMesh(throwableBounds)
+                else -> false
+            }
+            if (collides) {
+                return CollisionResult(type, meshObject, throwable.position, Vector3.Y)
+            }
+        }
+
+        return null // No collision
     }
 
     private fun checkBulletCollision(bullet: Bullet, sceneManager: SceneManager): CollisionResult? {
@@ -1225,6 +1407,11 @@ class PlayerSystem {
             billboardModelBatch.render(bullet.modelInstance, environment)
         }
 
+        // Render all active throwables
+        for (throwable in activeThrowables) {
+            billboardModelBatch.render(throwable.modelInstance, environment)
+        }
+
         billboardModelBatch.end()
     }
 
@@ -1266,5 +1453,6 @@ class PlayerSystem {
 
         poseTextures.values.forEach { it.dispose() }
         bulletModels.values.forEach { it.dispose() }
+        throwableModels.values.forEach { it.dispose() }
     }
 }

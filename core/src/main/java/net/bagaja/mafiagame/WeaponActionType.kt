@@ -122,8 +122,29 @@ enum class WeaponType(
         playerPoseTexturePath = "textures/player/weapons/molotov/player_molotov.png",
         bulletTexturePath = null // Doesn't shoot a bullet
     ),
+    DYNAMITE(
+        displayName = "Dynamite",
+        actionType = WeaponActionType.THROWABLE,
+        fireRatePerSecond = 0.5f, // Throw speed
+        damage = 100f, // Area damage
+        magazineSize = 0,
+        requiresReload = false,
+        allowsMovementWhileShooting = true,
+        playerPoseTexturePath = "textures/player/weapons/dynamite/player_dynamite.png",
+        bulletTexturePath = null // Doesn't shoot a bullet
+    ),
+    KNIFE(
+        displayName = "Knife",
+        actionType = WeaponActionType.MELEE,
+        fireRatePerSecond = 2.0f, // Swing speed
+        damage = 40f,
+        magazineSize = 0,
+        requiresReload = false,
+        allowsMovementWhileShooting = true,
+        playerPoseTexturePath = "textures/player/weapons/knife/player_knife.png",
+        bulletTexturePath = null
+    ),
 
-    // Example of a future melee weapon
     BASEBALL_BAT(
         displayName = "Baseball Bat",
         actionType = WeaponActionType.MELEE,
@@ -132,10 +153,62 @@ enum class WeaponType(
         magazineSize = 0,
         requiresReload = false,
         allowsMovementWhileShooting = true,
-        playerPoseTexturePath = "textures/player/weapons/baseball_bat/player_with_baseball_bat.png",
+        playerPoseTexturePath = "textures/player/weapons/baseball_bat/player_baseball_bat.png",
         bulletTexturePath = null
     );
 
     // Calculated property for the cooldown timer
     val fireCooldown: Float = if (fireRatePerSecond > 0) 1f / fireRatePerSecond else Float.MAX_VALUE
+}
+
+data class ThrowableEntity(
+    val weaponType: WeaponType,
+    val modelInstance: ModelInstance,
+    val position: Vector3,
+    var velocity: Vector3,
+    var lifetime: Float // For timed explosions (like dynamite)
+) {
+    private val GRAVITY = -35f // A constant for gravitational pull
+    private val bounds = BoundingBox()
+    private val size = 1.0f // Collision size of the throwable
+    private var rotationZ = 0f
+    private val rotationSpeed = 360f // Degrees per second for tumbling effect
+
+    init {
+        updateBounds()
+    }
+
+    fun update(deltaTime: Float) {
+        // Apply gravity
+        velocity.y += GRAVITY * deltaTime
+
+        // Move the object
+        position.mulAdd(velocity, deltaTime)
+
+        // Apply rotation
+        rotationZ += rotationSpeed * deltaTime
+
+        // Update lifetime timer
+        lifetime -= deltaTime
+
+        updateTransform()
+        updateBounds()
+    }
+
+    private fun updateTransform() {
+        modelInstance.transform.setToTranslation(position)
+        modelInstance.transform.rotate(Vector3.Z, rotationZ) // Tumble forward
+    }
+
+    private fun updateBounds() {
+        val halfSize = size / 2f
+        bounds.set(
+            position.cpy().sub(halfSize),
+            position.cpy().add(halfSize)
+        )
+    }
+
+    fun getBoundingBox(): BoundingBox {
+        return bounds
+    }
 }

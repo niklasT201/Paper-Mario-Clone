@@ -51,13 +51,16 @@ public class Lwjgl3Launcher {
 // room/open world transition effect being slower and smoother transition itself
 
 // fixing moving names for tp points
+// adding missing cutstom font to tp points
+// water being bigger than normal blocks
+// items have the same height but different width
 // working collisions for ramp, pillar and corner
 // npcs and enemies been able to move on blocks
+// molotov spreads fire and deals damage in this fire zome
+// dynamite explodes and deals damage
+// missing knife, baseball bat and fist animations
 // player falling too early and being then stuck in blocks
 // blood particles colorful in sin city shader
-// add player with knife image
-// add player with dynamite image
-// add player with baseball bat image
 // add player with revolver image
 // add player with shotgun image
 // add player with pistol image

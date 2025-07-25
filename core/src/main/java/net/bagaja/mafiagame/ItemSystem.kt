@@ -341,9 +341,9 @@ enum class ItemType(
     TOMMY_GUN("Tommy Gun", "textures/objects/items/weapons/tommy_gun.png", 3.5f, 1.5f, 35, WeaponType.TOMMY_GUN),
     TOMMY_GUN_LIGHT("Light Tommy Gun", "textures/objects/items/weapons/tommy_gun_light.png", 3.5f, 1.5f, 32, WeaponType.TOMMY_GUN),
 
-    KNIFE("Knife", "textures/objects/items/weapons/knife.png", 1.5f, 0.8f, 8),
+    KNIFE("Knife", "textures/objects/items/weapons/knife.png", 1.5f, 0.8f, 8, WeaponType.KNIFE),
 
     // Explosives
-    DYNAMITE("Dynamite", "textures/objects/items/weapons/dynamite.png", 2f, 3f, 10),
+    DYNAMITE("Dynamite", "textures/objects/items/weapons/dynamite.png", 2f, 3f, 10, WeaponType.DYNAMITE),
     MOLOTOV("Molotov", "textures/objects/items/weapons/molotov.png", 1.5f, 3f, 10, WeaponType.MOLOTOV),
 }

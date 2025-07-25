@@ -7,7 +7,7 @@ import com.badlogic.gdx.utils.ObjectMap
 
 class AnimationSystem {
     private val animations = ObjectMap<String, Animation>()
-    private var currentAnimation: Animation? = null
+    var currentAnimation: Animation? = null
     private var currentAnimationTime = 0f
     private var currentTexture: Texture? = null
 
