@@ -50,8 +50,6 @@ public class Lwjgl3Launcher {
 // occlusion optional
 // room/open world transition effect being slower and smoother transition itself
 
-// fixing moving names for tp points
-// adding missing cutstom font to tp points
 // water being bigger than normal blocks
 // items have the same height but different width
 // working collisions for ramp, pillar and corner

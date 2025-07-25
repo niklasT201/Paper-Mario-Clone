@@ -125,75 +125,44 @@ class TeleporterSystem(
     }
 
     fun renderNameplates(camera: Camera) {
-        val playerPos = camera.position
-        val renderDistance = 20f
+        // SETUP FOR 3D SPRITEBATCH RENDERING
+        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+
+        spriteBatch.projectionMatrix = camera.combined
+        spriteBatch.begin()
+
+        val renderDistanceSq = 30f * 30f
 
         for (teleporter in activeTeleporters) {
             val teleporterPos = teleporter.gameObject.position
-            val distanceToPlayer = playerPos.dst(teleporterPos)
+            val textWorldPos = tempVec3.set(teleporterPos).add(0f, 1.5f, 0f)
 
-            if (distanceToPlayer < renderDistance) {
-                // Position for the text (above the teleporter)
-                val textWorldPos = Vector3(teleporterPos).add(0f, 3f, 0f)
+            if (camera.position.dst2(textWorldPos) < renderDistanceSq && camera.frustum.pointInFrustum(textWorldPos)) {
 
-                // Check if the teleporter is in front of the camera
-                val directionToTeleporter = Vector3(textWorldPos).sub(playerPos).nor()
-                val cameraForward = camera.direction.cpy().nor()
-                val dotProduct = directionToTeleporter.dot(cameraForward)
+                // STATIC 3D TRANSFORMATION
+                val transformMatrix = Matrix4()
+                transformMatrix.setToTranslation(textWorldPos)
 
-                // Only render if teleporter is in front of camera
-                if (dotProduct > 0.1f) {
-                    // Save current matrices
-                    val oldProjection = spriteBatch.projectionMatrix.cpy()
-                    val oldTransform = spriteBatch.transformMatrix.cpy()
+                val scale = 0.035f
+                transformMatrix.scl(scale)
 
-                    // Create billboard transformation matrix
-                    val billboardMatrix = Matrix4()
-
-                    // Calculate billboard vectors
-                    val forward = Vector3(playerPos).sub(textWorldPos).nor()
-                    val right = Vector3(camera.up).crs(forward).nor()
-                    val up = Vector3(forward).crs(right).nor()
-
-                    // Set up billboard matrix (always faces camera)
-                    billboardMatrix.setToLookAt(textWorldPos, playerPos, camera.up)
-                    billboardMatrix.inv() // Invert to face the camera
-
-                    // Scale based on distance for consistent size
-                    val scale = Math.max(0.005f, distanceToPlayer * 0.001f)
-                    billboardMatrix.scl(scale)
-
-                    // Set matrices for 3D rendering
-                    spriteBatch.projectionMatrix = camera.combined
-                    spriteBatch.transformMatrix = billboardMatrix
-
-                    // Disable depth testing so text always shows on top
-                    Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
-                    Gdx.gl.glEnable(GL20.GL_BLEND)
-                    Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
-
-                    spriteBatch.begin()
-
-                    font.color = Color.CYAN
-
-                    // Use GlyphLayout to get the width of the text
-                    glyphLayout.setText(font, teleporter.name)
-
-                    // Draw text centered at origin (billboard matrix handles positioning)
-                    val textX = -glyphLayout.width / 2f
-                    val textY = glyphLayout.height / 2f
-
-                    font.draw(spriteBatch, glyphLayout, textX, textY)
-
-                    spriteBatch.end()
-
-                    // Restore matrices and GL state
-                    spriteBatch.projectionMatrix = oldProjection
-                    spriteBatch.transformMatrix = oldTransform
-                    Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
-                }
+                // DRAWING
+                spriteBatch.transformMatrix = transformMatrix
+                font.data.setScale(1.0f)
+                font.color = Color.CYAN
+                glyphLayout.setText(font, teleporter.name)
+                font.draw(spriteBatch, glyphLayout, -glyphLayout.width / 2, glyphLayout.height / 2)
             }
         }
+
+        spriteBatch.end()
+
+        // Restore matrices and GL state
+        spriteBatch.transformMatrix.idt()
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDisable(GL20.GL_BLEND)
     }
 
     fun findClosestTeleporter(position: Vector3, maxDistance: Float): GameTeleporter? {

@@ -867,7 +867,7 @@ class UIManager(
 
             // Try to load and set custom font
             try {
-                val customFont = BitmapFont(Gdx.files.internal("ui/default.fnt"))
+                val customFont = BitmapFont(Gdx.files.internal("ui/default.fnt"), false)
                 loadedSkin.add("default-font", customFont, BitmapFont::class.java)
 
                 // Update existing styles to use the new font
