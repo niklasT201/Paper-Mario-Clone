@@ -40,7 +40,7 @@ class UIManager(
     private val onRemoveSpawner: (spawner: GameParticleSpawner) -> Unit
 ) {
     private lateinit var stage: Stage
-    private lateinit var skin: Skin
+    lateinit var skin: Skin
     private lateinit var blockSelectionUI: BlockSelectionUI
     private lateinit var objectSelectionUI: ObjectSelectionUI
     private lateinit var itemSelectionUI: ItemSelectionUI

@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
+import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
 
@@ -16,7 +17,7 @@ class TeleporterSystem(
 ) : IFinePositionable {
     val activeTeleporters = Array<GameTeleporter>()
     private val spriteBatch = SpriteBatch()
-    private val font = BitmapFont()
+    private val font: BitmapFont by lazy { uiManager.skin.getFont("default-font") }
     private val tempVec3 = Vector3()
     private val glyphLayout = GlyphLayout()
 
@@ -124,35 +125,75 @@ class TeleporterSystem(
     }
 
     fun renderNameplates(camera: Camera) {
-        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST) // Disable depth testing for 2D overlay
-
-        // DO NOT change the projection matrix. Let SpriteBatch use its default screen coordinates.
-        spriteBatch.begin()
-
         val playerPos = camera.position
-        val renderDistance = 20f // The distance you wanted
+        val renderDistance = 20f
 
         for (teleporter in activeTeleporters) {
-            if (playerPos.dst(teleporter.gameObject.position) < renderDistance) {
-                // Project 3D world coordinates to 2D screen coordinates
-                tempVec3.set(teleporter.gameObject.position).add(0f, 1f, 0f) // Position text slightly above the pad
-                camera.project(tempVec3)
+            val teleporterPos = teleporter.gameObject.position
+            val distanceToPlayer = playerPos.dst(teleporterPos)
 
-                if (tempVec3.z < 1f) { // Only draw if it's in front of the camera
+            if (distanceToPlayer < renderDistance) {
+                // Position for the text (above the teleporter)
+                val textWorldPos = Vector3(teleporterPos).add(0f, 3f, 0f)
+
+                // Check if the teleporter is in front of the camera
+                val directionToTeleporter = Vector3(textWorldPos).sub(playerPos).nor()
+                val cameraForward = camera.direction.cpy().nor()
+                val dotProduct = directionToTeleporter.dot(cameraForward)
+
+                // Only render if teleporter is in front of camera
+                if (dotProduct > 0.1f) {
+                    // Save current matrices
+                    val oldProjection = spriteBatch.projectionMatrix.cpy()
+                    val oldTransform = spriteBatch.transformMatrix.cpy()
+
+                    // Create billboard transformation matrix
+                    val billboardMatrix = Matrix4()
+
+                    // Calculate billboard vectors
+                    val forward = Vector3(playerPos).sub(textWorldPos).nor()
+                    val right = Vector3(camera.up).crs(forward).nor()
+                    val up = Vector3(forward).crs(right).nor()
+
+                    // Set up billboard matrix (always faces camera)
+                    billboardMatrix.setToLookAt(textWorldPos, playerPos, camera.up)
+                    billboardMatrix.inv() // Invert to face the camera
+
+                    // Scale based on distance for consistent size
+                    val scale = Math.max(0.005f, distanceToPlayer * 0.001f)
+                    billboardMatrix.scl(scale)
+
+                    // Set matrices for 3D rendering
+                    spriteBatch.projectionMatrix = camera.combined
+                    spriteBatch.transformMatrix = billboardMatrix
+
+                    // Disable depth testing so text always shows on top
+                    Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
+                    Gdx.gl.glEnable(GL20.GL_BLEND)
+                    Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+
+                    spriteBatch.begin()
+
                     font.color = Color.CYAN
 
                     // Use GlyphLayout to get the width of the text
                     glyphLayout.setText(font, teleporter.name)
 
-                    // Calculate the centered X position
-                    val textX = tempVec3.x - glyphLayout.width / 2
+                    // Draw text centered at origin (billboard matrix handles positioning)
+                    val textX = -glyphLayout.width / 2f
+                    val textY = glyphLayout.height / 2f
 
-                    font.draw(spriteBatch, glyphLayout, textX, tempVec3.y)
+                    font.draw(spriteBatch, glyphLayout, textX, textY)
+
+                    spriteBatch.end()
+
+                    // Restore matrices and GL state
+                    spriteBatch.projectionMatrix = oldProjection
+                    spriteBatch.transformMatrix = oldTransform
+                    Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
                 }
             }
         }
-        spriteBatch.end()
-        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST) // Re-enable depth testing
     }
 
     fun findClosestTeleporter(position: Vector3, maxDistance: Float): GameTeleporter? {
