@@ -303,54 +303,51 @@ object ShaderDefinitions {
     """
 
     const val sinCityShader = """
-        #ifdef GL_ES
-        precision mediump float;
-        #endif
+    #ifdef GL_ES
+    precision mediump float;
+    #endif
 
-        uniform sampler2D u_texture;
-        uniform float u_time;
-        varying vec2 v_texCoord;
+    uniform sampler2D u_texture;
+    uniform float u_time;
+    varying vec2 v_texCoord;
 
-        void main() {
-            vec4 originalColor = texture2D(u_texture, v_texCoord);
+    void main() {
+        vec4 originalColor = texture2D(u_texture, v_texCoord);
 
-            // --- Step 1: Calculate luminance for the grayscale base ---
-            float luminance = dot(originalColor.rgb, vec3(0.299, 0.587, 0.114));
-            vec3 grayColor = vec3(luminance);
+        // --- Step 1: Create the gentle, film-noir grayscale base ---
+        // This is working perfectly for the player, so we keep it.
+        float luminance = dot(originalColor.rgb, vec3(0.299, 0.587, 0.114));
+        vec3 grayColor = vec3(pow(luminance, 1.2));
 
-            // --- Step 2: Determine how colorful the pixel is (saturation) ---
-            // A higher value means more color and less gray.
-            float saturation = length(originalColor.rgb - grayColor);
+        // --- Step 2: The Definitive Color Restoration Rule using Chroma ---
 
-            // --- Step 3: Define a threshold for what counts as "colorful" ---
-            // This is the key value to tweak! Lower values let more color through.
-            // A good range to experiment with is 0.2 to 0.4.
-            float colorThreshold = 0.2;
+        // Find the strongest and weakest color channels.
+        float maxComp = max(originalColor.r, max(originalColor.g, originalColor.b));
+        float minComp = min(originalColor.r, min(originalColor.g, originalColor.b));
 
-            // --- Step 4: Create a blend factor based ONLY on saturation ---
-            // We use smoothstep for a nice transition from gray to color. This is the main fix.
-            float colorRestoreFactor = smoothstep(colorThreshold, colorThreshold + 0.25, saturation);
+        // Chroma is the difference. High chroma = pure, vibrant color. Low chroma = grayish/pastel color.
+        float chroma = maxComp - minComp;
 
-            // --- Step 5 (Recommended): Boost the restored color to make it "pop" ---
-            // Instead of just restoring the original color, we amplify it slightly.
-            vec3 boostedColor = originalColor.rgb * 1.4; // Boost brightness by 40%
+        // **THE KEY FIX:** We set a very high threshold for chroma.
+        // A color must be extremely pure (like a light source or blood) to pass this test.
+        // Washed-out colors like the sky or a pink nose have low chroma and will be filtered out.
+        // We use a high threshold like 0.7 to be very strict.
+        float finalRestoreFactor = smoothstep(0.7, 0.9, chroma);
 
-            // --- Step 6: Blend between the grayscale base and the boosted color ---
-            vec3 finalColor = mix(grayColor, boostedColor, colorRestoreFactor);
+        // --- Step 3: Blend from our grayscale base to the ORIGINAL color ---
+        vec3 finalColor = mix(grayColor, originalColor.rgb, finalRestoreFactor);
 
-            // --- Step 7: Add classic film effects ---
-            // Film Grain
-            float grain = fract(sin(dot(v_texCoord + u_time * 0.01, vec2(12.9898, 78.233))) * 43758.5453);
-            finalColor += (grain - 0.5) * 0.1;
+        // --- Step 4: Add classic film effects ---
+        float grain = fract(sin(dot(v_texCoord + u_time * 0.01, vec2(12.9898, 78.233))) * 43758.5453);
+        finalColor += (grain - 0.5) * 0.1;
 
-            // Vignette
-            vec2 center = v_texCoord - 0.5;
-            float vignette = 1.0 - dot(center, center) * 0.8;
-            finalColor *= vignette;
+        vec2 center = v_texCoord - 0.5;
+        float vignette = 1.0 - dot(center, center) * 0.8;
+        finalColor *= vignette;
 
-            gl_FragColor = vec4(clamp(finalColor, 0.0, 1.0), originalColor.a);
-        }
-    """
+        gl_FragColor = vec4(clamp(finalColor, 0.0, 1.0), originalColor.a);
+    }
+"""
 
     const val grindhouseShader = """
         #ifdef GL_ES
