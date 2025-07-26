@@ -17,6 +17,9 @@ import kotlin.math.sin
 
 // Item system class to manage 2D rotating item pickups
 class ItemSystem: IFinePositionable {
+    companion object {
+        const val UNIFIED_ITEM_HEIGHT = 2.0f // All items will now have this visual height in the game world.
+    }
     private val itemModels = mutableMapOf<ItemType, Model>()
     private val itemTextures = mutableMapOf<ItemType, Texture>()
     private val gameItems = Array<GameItem>()
@@ -71,7 +74,7 @@ class ItemSystem: IFinePositionable {
 
     private fun createBillboardModel(modelBuilder: ModelBuilder, material: Material, itemType: ItemType): Model {
         val width = itemType.width
-        val height = itemType.height
+        val height = UNIFIED_ITEM_HEIGHT
         val halfWidth = width / 2f
         val halfHeight = height / 2f
 
@@ -252,7 +255,6 @@ data class GameItem(
     fun getBoundingBox(): BoundingBox {
         val bounds = BoundingBox()
         val halfWidth = itemType.width / 2f
-        val halfHeight = itemType.height / 2f
 
         // Create a smaller collision box for easier pickup
         val collisionScale = 0.8f
@@ -264,7 +266,7 @@ data class GameItem(
             ),
             Vector3(
                 position.x + halfWidth * collisionScale,
-                position.y + itemType.height * collisionScale,
+                position.y + ItemSystem.UNIFIED_ITEM_HEIGHT * collisionScale,
                 position.z + halfWidth * collisionScale
             )
         )
@@ -317,33 +319,32 @@ enum class ItemType(
     val displayName: String,
     val texturePath: String,
     val width: Float,
-    val height: Float,
     val value: Int = 1, // For future scoring/inventory system
     val correspondingWeapon: WeaponType? = null
 ) {
     // Non-weapon items
-    MONEY_STACK("Money Stack", "textures/objects/items/money_stack.png", 2f, 2f, 10),
+    MONEY_STACK("Money Stack", "textures/objects/items/money_stack.png", 2f, 10),
 
     // Melee weapon
-    BASEBALL_BAT("Baseball Bat", "textures/objects/items/weapons/baseball_bat.png", 2f, 1.5f, 15, WeaponType.BASEBALL_BAT),
+    BASEBALL_BAT("Baseball Bat", "textures/objects/items/weapons/baseball_bat.png", 2f, 15, WeaponType.BASEBALL_BAT),
 
     // Weapons
-    REVOLVER("Revolver", "textures/objects/items/weapons/revolver.png", 2f, 1.5f, 15, WeaponType.PISTOL),
-    REVOLVER_LIGHT("Light Revolver", "textures/objects/items/weapons/revolver_light.png", 2f, 1.5f, 12, WeaponType.PISTOL),
-    SMALLER_REVOLVER("Small Revolver", "textures/objects/items/weapons/smaller_revolver.png", 1.8f, 1.2f, 12, WeaponType.PISTOL),
+    REVOLVER("Revolver", "textures/objects/items/weapons/revolver.png", 2f, 15, WeaponType.PISTOL),
+    REVOLVER_LIGHT("Light Revolver", "textures/objects/items/weapons/revolver_light.png", 2f, 12, WeaponType.PISTOL),
+    SMALLER_REVOLVER("Small Revolver", "textures/objects/items/weapons/smaller_revolver.png", 1.8f, 12, WeaponType.PISTOL),
 
-    SHOTGUN("Shotgun", "textures/objects/items/weapons/shotgun.png", 3f, 1.5f, 25),
-    SHOTGUN_LIGHT("Light Shotgun", "textures/objects/items/weapons/shotgun_light.png", 3f, 1.5f, 22),
-    SMALL_SHOTGUN("Small Shotgun", "textures/objects/items/weapons/small_shotgun.png", 2.5f, 1f, 20),
+    SHOTGUN("Shotgun", "textures/objects/items/weapons/shotgun.png", 3f, 25),
+    SHOTGUN_LIGHT("Light Shotgun", "textures/objects/items/weapons/shotgun_light.png", 3f, 22),
+    SMALL_SHOTGUN("Small Shotgun", "textures/objects/items/weapons/small_shotgun.png", 2.5f, 20),
 
-    MACHINE_GUN("Machine Gun", "textures/objects/items/weapons/machine_gun.png", 3.5f, 1.8f, 40, WeaponType.MACHINE_GUN),
+    MACHINE_GUN("Machine Gun", "textures/objects/items/weapons/machine_gun.png", 3.5f, 40, WeaponType.MACHINE_GUN),
 
-    TOMMY_GUN("Tommy Gun", "textures/objects/items/weapons/tommy_gun.png", 3.5f, 1.5f, 35, WeaponType.TOMMY_GUN),
-    TOMMY_GUN_LIGHT("Light Tommy Gun", "textures/objects/items/weapons/tommy_gun_light.png", 3.5f, 1.5f, 32, WeaponType.TOMMY_GUN),
+    TOMMY_GUN("Tommy Gun", "textures/objects/items/weapons/tommy_gun.png", 3.5f, 35, WeaponType.TOMMY_GUN),
+    TOMMY_GUN_LIGHT("Light Tommy Gun", "textures/objects/items/weapons/tommy_gun_light.png", 3.5f, 32, WeaponType.TOMMY_GUN),
 
-    KNIFE("Knife", "textures/objects/items/weapons/knife.png", 1.5f, 0.8f, 8, WeaponType.KNIFE),
+    KNIFE("Knife", "textures/objects/items/weapons/knife.png", 1.5f, 8, WeaponType.KNIFE),
 
     // Explosives
-    DYNAMITE("Dynamite", "textures/objects/items/weapons/dynamite.png", 2f, 3f, 10, WeaponType.DYNAMITE),
-    MOLOTOV("Molotov", "textures/objects/items/weapons/molotov.png", 1.5f, 3f, 10, WeaponType.MOLOTOV),
+    DYNAMITE("Dynamite", "textures/objects/items/weapons/dynamite.png", 2f, 10, WeaponType.DYNAMITE),
+    MOLOTOV("Molotov", "textures/objects/items/weapons/molotov.png", 1.5f, 10, WeaponType.MOLOTOV);
 }

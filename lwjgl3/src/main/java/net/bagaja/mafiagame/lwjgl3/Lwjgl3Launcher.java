@@ -51,7 +51,6 @@ public class Lwjgl3Launcher {
 // room/open world transition effect being slower and smoother transition itself
 
 // showing tp point text only if near the y position and or collide with it
-// items have the same height but different width
 // working collisions for ramp, pillar and corner
 // npcs and enemies been able to move on blocks
 // maybe adding player hiding tp point text behind it
