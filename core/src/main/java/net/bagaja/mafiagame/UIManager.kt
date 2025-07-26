@@ -870,34 +870,36 @@ class UIManager(
                 val customFont = BitmapFont(Gdx.files.internal("ui/default.fnt"), false)
                 loadedSkin.add("default-font", customFont, BitmapFont::class.java)
 
-                // Update existing styles to use the new font
+                // Labels and Buttons
                 loadedSkin.get(Label.LabelStyle::class.java).font = customFont
 
                 // Only update TextButton style if it exists
                 try {
                     loadedSkin.get(TextButton.TextButtonStyle::class.java).font = customFont
                 } catch (e: Exception) {
-                    // TextButton style might not exist
+                    // TextButton style might not exist in a minimal skin
                 }
 
-                // Update the style for text input fields
+                // TextFields
                 try {
-                    loadedSkin.get(TextField.TextFieldStyle::class.java).font = customFont
-                    loadedSkin.get(TextField.TextFieldStyle::class.java).fontColor = Color.WHITE // Optional: ensure text is visible
+                    val textFieldStyle = loadedSkin.get(TextField.TextFieldStyle::class.java)
+                    textFieldStyle.font = customFont
+                    textFieldStyle.messageFont = customFont // Fixes placeholder/hint text
+                    textFieldStyle.fontColor = Color.WHITE
                 } catch (e: Exception) {
                     println("Could not update TextFieldStyle: ${e.message}")
                 }
 
-                // Update the style for dropdown menus (SelectBox)
+                // SelectBoxes
                 try {
                     val selectBoxStyle = loadedSkin.get(SelectBox.SelectBoxStyle::class.java)
-                    selectBoxStyle.font = customFont
-                    selectBoxStyle.listStyle.font = customFont // This is crucial for the items in the list
-                    selectBoxStyle.fontColor = Color.WHITE // Optional: ensure text is visible
+                    selectBoxStyle.font = customFont // Font for the selected item
+                    selectBoxStyle.listStyle.font = customFont // Font for items in the dropdown list
                 } catch (e: Exception) {
                     println("Could not update SelectBoxStyle: ${e.message}")
                 }
 
+                // Window/Dialog Titles
                 try {
                     // Dialogs use a WindowStyle for their appearance
                     loadedSkin.get(Window.WindowStyle::class.java).titleFont = customFont
@@ -905,8 +907,18 @@ class UIManager(
                     println("Could not update WindowStyle (for Dialog titles): ${e.message}")
                 }
 
+                // CheckBoxes
+                try {
+                    loadedSkin.get(CheckBox.CheckBoxStyle::class.java).font = customFont
+                } catch (e: Exception) {
+                    println("Could not update CheckBoxStyle: ${e.message}")
+                }
+
+
+                // Finally, apply your custom enhanced label styles
                 addEnhancedLabelStyles(loadedSkin, customFont)
-                println("Custom font loaded successfully from ui/default.fnt")
+                println("Custom font loaded and all styles patched successfully.")
+
             } catch (e: Exception) {
                 println("Could not load custom font: ${e.message}")
                 addEnhancedLabelStyles(loadedSkin, loadedSkin.get(BitmapFont::class.java))
