@@ -51,7 +51,6 @@ public class Lwjgl3Launcher {
 // room/open world transition effect being slower and smoother transition itself
 
 // showing tp point text only if near the y position and or collide with it
-// water being bigger than normal blocks
 // items have the same height but different width
 // working collisions for ramp, pillar and corner
 // npcs and enemies been able to move on blocks
@@ -73,7 +72,6 @@ public class Lwjgl3Launcher {
 // character dies, blood pool will spawn and get bigger over time
 // player wipe is switching to vertical when pressing W or S
 // only new wipes rotating with players direction not old ones too
-// maybe water blocks
 // south park like animation
 // npc and enemy ui option for choosing death level
 // improve performance for rooms (camera starting shaking)

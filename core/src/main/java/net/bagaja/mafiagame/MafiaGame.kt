@@ -1174,9 +1174,16 @@ class MafiaGame : ApplicationAdapter() {
         val blockHeight = blockSize * blockType.height
 
         // Calculate position, adjusting Y for certain shapes so they place correctly on the grid.
-        val position = when(shape) {
-            BlockShape.SLAB_BOTTOM -> Vector3(x + blockSize / 2, y + blockHeight / 4, z + blockSize / 2)
-            BlockShape.SLAB_TOP -> Vector3(x + blockSize / 2, y + (blockHeight * 0.75f), z + blockSize / 2)
+        val position = when { // <-- Change 'when(shape)' to 'when'
+            // --- ADD THIS NEW CASE AT THE TOP ---
+            blockType == BlockType.WATER -> {
+                // Water is a flat plane, so we place its center at the top of its volume.
+                // This puts the visible surface exactly where the top of a 0.8-height block would be.
+                Vector3(x + blockSize / 2, y + blockHeight, z + blockSize / 2)
+            }
+            // --- END OF NEW CASE ---
+            shape == BlockShape.SLAB_BOTTOM -> Vector3(x + blockSize / 2, y + blockHeight / 4, z + blockSize / 2)
+            shape == BlockShape.SLAB_TOP -> Vector3(x + blockSize / 2, y + (blockHeight * 0.75f), z + blockSize / 2)
             else -> Vector3(x + blockSize / 2, y + blockHeight / 2, z + blockSize / 2)
         }
 

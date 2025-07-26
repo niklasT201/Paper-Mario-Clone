@@ -227,6 +227,7 @@ enum class BlockType(
     // NATURAL
     GRASS("Grass", "textures/objects/grass.png", 1.0f, BlockCategory.NATURAL),
     DIRTY_GROUND("Dirty Ground", "textures/objects/dirty_ground.png", 1.0f, BlockCategory.NATURAL),
+    WATER("Water", "textures/objects/water_tile.png", 0.8f, BlockCategory.NATURAL, hasCollision = false),
 
     // FLOORS
     ROOM_FLOOR("Room Floor", "textures/objects/room_floor_tile.png", 1.0f, BlockCategory.FLOORS),

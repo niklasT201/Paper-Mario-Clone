@@ -8,6 +8,7 @@ import com.badlogic.gdx.graphics.VertexAttributes
 import com.badlogic.gdx.graphics.g3d.Material
 import com.badlogic.gdx.graphics.g3d.Model
 import com.badlogic.gdx.graphics.g3d.ModelInstance
+import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
@@ -17,9 +18,12 @@ import com.badlogic.gdx.math.Vector3
 enum class BuildMode(val size: Int, val isWall: Boolean) {
     SINGLE(1, false),
     WALL_3x3(3, true),
-    FLOOR_3x3(3, false),
     WALL_5x5(5, true),
-    FLOOR_5x5(5, false);
+    FLOOR_3x3(3, false),
+    FLOOR_4x4(4, false),
+    FLOOR_5x5(5, false),
+    FLOOR_8x8(8, false),
+    FLOOR_16x16(16, false);
 
     fun getDisplayName(): String {
         return when(this) {
@@ -27,7 +31,10 @@ enum class BuildMode(val size: Int, val isWall: Boolean) {
             WALL_3x3 -> "3x3 Wall"
             FLOOR_3x3 -> "3x3 Floor"
             WALL_5x5 -> "5x5 Wall"
+            FLOOR_4x4 -> "5x5 Floor"
             FLOOR_5x5 -> "5x5 Floor"
+            FLOOR_8x8 -> "8x8 Floor"
+            FLOOR_16x16 -> "16x16 Floor"
         }
     }
 }
@@ -37,6 +44,7 @@ class BlockSystem {
     // Caches for the two different model types
     private val blockFaceModels = mutableMapOf<BlockType, Map<BlockFace, Map<Float, Model>>>()
     private val customShapeModels = mutableMapOf<Triple<BlockType, BlockShape, Pair<Float, Float>>, Model>()
+    private val waterModels = mutableMapOf<BlockType, Model>()
 
     private val blockTextures = mutableMapOf<BlockType, Texture>()
     var currentSelectedBlock = BlockType.GRASS
@@ -86,6 +94,27 @@ class BlockSystem {
     }
 
     fun createGameBlock(type: BlockType, shape: BlockShape, position: Vector3, geometryRotation: Float, textureRotation: Float, topTextureRotation: Float): GameBlock {
+        if (type == BlockType.WATER) {
+            // Water ignores selected shape and always uses a single top plane
+            val material = Material(
+                TextureAttribute.createDiffuse(blockTextures[type]),
+                BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.7f)
+            )
+            val waterModel = getOrCreateWaterModel(type, material)
+            val modelInstance = ModelInstance(waterModel!!)
+
+            // return a block with a modelInstance, not faceInstances
+            return GameBlock(
+                type,
+                BlockShape.SLAB_BOTTOM, // Using a non-FULL_BLOCK shape ensures the correct render path
+                position,
+                rotationY = geometryRotation,
+                textureRotationY = textureRotation,
+                topTextureRotationY = topTextureRotation,
+                modelInstance = modelInstance
+            )
+        }
+
         return if (shape == BlockShape.FULL_BLOCK) {
             // Pass the new top rotation to face instance creation
             val faceInstances = createFaceInstances(type, textureRotation, topTextureRotation)!!
@@ -113,9 +142,16 @@ class BlockSystem {
     }
 
     private fun createFaceModelsForBlockType(blockType: BlockType, blockSize: Float) {
-        val material = blockTextures[blockType]?.let {
-            Material(TextureAttribute.createDiffuse(it))
-        } ?: Material(ColorAttribute.createDiffuse(Color.MAGENTA))
+        val material: Material = if (blockType == BlockType.WATER) {
+            Material(
+                TextureAttribute.createDiffuse(blockTextures[blockType]),
+                BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.7f) // 0.7f opacity
+            )
+        } else {
+            blockTextures[blockType]?.let {
+                Material(TextureAttribute.createDiffuse(it))
+            } ?: Material(ColorAttribute.createDiffuse(Color.MAGENTA))
+        }
 
         val modelsForBlock = mutableMapOf<BlockFace, Map<Float, Model>>()
         val rotations = listOf(0f, 90f, 180f, 270f)
@@ -431,6 +467,39 @@ class BlockSystem {
                 modelBuilder.end()
             }
         }
+    }
+
+    private fun getOrCreateWaterModel(blockType: BlockType, material: Material): Model? {
+        if (!waterModels.containsKey(blockType)) {
+            modelBuilder.begin()
+            val partBuilder = modelBuilder.part(
+                "water_top",
+                GL20.GL_TRIANGLES,
+                (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong(),
+                material
+            )
+
+            val halfSize = internalBlockSize / 2f
+            val corner1 = Vector3(-halfSize, 0f, -halfSize) // Front-left
+            val corner2 = Vector3(halfSize, 0f, -halfSize)  // Front-right
+            val corner3 = Vector3(halfSize, 0f, halfSize)   // Back-right
+            val corner4 = Vector3(-halfSize, 0f, halfSize)  // Back-left
+
+            // The normal vector points straight up (0, 1, 0)
+            val normal = Vector3(0f, 1f, 0f)
+
+            // UV coordinates for the texture
+            val uv1 = Vector2(0f, 0f)
+            val uv2 = Vector2(1f, 0f)
+            val uv3 = Vector2(1f, 1f)
+            val uv4 = Vector2(0f, 1f)
+
+            // Build the rectangle from two triangles
+            partBuilder.rect(corner1, corner4, corner3, corner2, normal)
+
+            waterModels[blockType] = modelBuilder.end()
+        }
+        return waterModels[blockType]
     }
 
     fun rotateCurrentBlock() {
