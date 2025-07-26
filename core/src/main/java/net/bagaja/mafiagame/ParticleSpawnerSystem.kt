@@ -11,7 +11,7 @@ import kotlin.random.Random
 data class GameParticleSpawner(
     val id: String = UUID.randomUUID().toString(),
     var position: Vector3,
-    var particleEffectType: ParticleEffectType = ParticleEffectType.RISING_SMOKE,
+    var particleEffectType: ParticleEffectType = ParticleEffectType.SMOKE_FRAME_1,
     var minParticles: Int = 1,
     var maxParticles: Int = 3,
     var spawnInterval: Float = 1.0f, // Time in seconds between spawns
@@ -45,10 +45,10 @@ class ParticleSpawnerSystem {
                     // For rising smoke, chimney smoke etc., the base direction should be UP.
                     // For other effects, a null direction lets the particle system handle randomization.
                     val baseDirection = when (spawner.particleEffectType) {
-                        ParticleEffectType.RISING_SMOKE,
-                        ParticleEffectType.PUFFING_SMOKE,
-                        ParticleEffectType.CHIMNEY_SMOKE,
-                        ParticleEffectType.THICK_SMOKE_PUFF,
+                        ParticleEffectType.SMOKE_FRAME_1,
+                        ParticleEffectType.SMOKE_FRAME_2,
+                        ParticleEffectType.FACTORY_SMOKE_INITIAL,
+                        ParticleEffectType.FACTORY_SMOKE_THICK,
                         ParticleEffectType.FIRE_FLAME -> Vector3.Y.cpy()
                         else -> null
                     }

@@ -67,117 +67,205 @@ enum class ParticleEffectType(
         particleCount = 5..10, initialSpeed = 5f, speedVariance = 3f, gravity = -20f,
         scale = 0.5f, scaleVariance = 0.2f
     ),
-    DUST_CLOUD(
-        "Dust Cloud",
-        arrayOf(
-            "textures/particles/dust/smoke_1.png",
-            "textures/particles/dust/smoke_3.png" // Skips frame 2 as requested
-        ),
-        frameDuration = 0.15f, isLooping = false, particleLifetime = 1.5f,
+
+    // DUST PARTICLES
+    DUST_SMOKE_LIGHT(
+        "Light Dust Smoke",
+        arrayOf("textures/particles/dust/smoke_1.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 1.5f,
         particleCount = 2..4, initialSpeed = 1.5f, speedVariance = 1f, gravity = 0.5f,
         scale = 1.0f, scaleVariance = 0.5f, fadeOut = 1.0f
     ),
-    DUST_IMPACT(
-        "Dust Impact",
-        arrayOf("textures/particles/dust/smoke_2.png"), // Uses only frame 2 as a static image
+    DUST_SMOKE_MEDIUM(
+        "Medium Dust Smoke",
+        arrayOf("textures/particles/dust/smoke_2.png"),
         frameDuration = 0.1f, isLooping = false, particleLifetime = 2.0f,
-        particleCount = 1..1, initialSpeed = 0.2f, speedVariance = 0.1f, gravity = 0.2f, // Slower, hangs in air
+        particleCount = 1..1, initialSpeed = 0.2f, speedVariance = 0.1f, gravity = 0.2f,
         scale = 0.9f, scaleVariance = 0.3f, fadeOut = 1.8f
     ),
-    GUN_SMOKE_PLUME(
-        "Gun Smoke Plume",
-        arrayOf(
-            "textures/particles/gun_smoke/gun_smoke.png",
-            "textures/particles/gun_smoke/gun_smoke_2.png",
-            "textures/particles/gun_smoke/gun_smoke_4.png",
-            "textures/particles/gun_smoke/gun_smoke_6.png",
-            "textures/particles/gun_smoke/gun_smoke_7.png",
-            "textures/particles/gun_smoke/gun_smoke_8.png"
-        ),
-        frameDuration = 0.08f, isLooping = false, particleLifetime = 1.2f,
+    DUST_SMOKE_HEAVY(
+        "Heavy Dust Smoke",
+        arrayOf("textures/particles/dust/smoke_3.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 1.8f,
+        particleCount = 1..2, initialSpeed = 1.0f, speedVariance = 0.8f, gravity = 0.3f,
+        scale = 1.2f, scaleVariance = 0.4f, fadeOut = 1.2f
+    ),
+
+    // GUN SMOKE PARTICLES
+    GUN_SMOKE_INITIAL(
+        "Gun Smoke Initial",
+        arrayOf("textures/particles/gun_smoke/gun_smoke.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 1.2f,
         particleCount = 1..1, initialSpeed = 6f, speedVariance = 2f, gravity = 2f,
         scale = 1.5f, scaleVariance = 0.3f, fadeIn = 0.0f, fadeOut = 0.5f
     ),
-    GUN_SMOKE_BURST(
-        "Gun Smoke Burst",
-        arrayOf(
-            "textures/particles/gun_smoke/gun_smoke_1.png",
-            "textures/particles/gun_smoke/gun_smoke_3.png",
-            "textures/particles/gun_smoke/gun_smoke_5.png",
-            "textures/particles/gun_smoke/gun_smoke_6.png"
-        ),
-        frameDuration = 0.05f, isLooping = false, particleLifetime = 0.5f,
-        particleCount = 1..1, initialSpeed = 10f, speedVariance = 1f, gravity = 1f,
-        scale = 1.2f, scaleVariance = 0.2f, fadeIn = 0.0f, fadeOut = 0.25f
+    GUN_SMOKE_BURST_1(
+        "Gun Smoke Burst 1",
+        arrayOf("textures/particles/gun_smoke/gun_smoke_1.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 0.8f,
+        particleCount = 1..1, initialSpeed = 8f, speedVariance = 1f, gravity = 1.5f,
+        scale = 1.3f, scaleVariance = 0.2f, fadeIn = 0.0f, fadeOut = 0.4f
     ),
-    RISING_SMOKE(
-        "Rising Smoke",
-        arrayOf(
-            "textures/particles/snoke/smoke_frame.png",
-            "textures/particles/snoke/smoke_frame_3.png",
-            "textures/particles/snoke/smoke_frame_5.png",
-            "textures/particles/snoke/smoke_frame_7.png",
-            "textures/particles/snoke/smoke_frame_9.png"
-        ),
-        frameDuration = 0.18f, // Slowed down for a smooth, rising feel
-        isLooping = true,      // Smoke should loop
-        particleLifetime = 4.0f,
-        particleCount = 1..1, initialSpeed = 1f, speedVariance = 0.5f, gravity = 1.5f, // Rises gently
+    GUN_SMOKE_DENSE(
+        "Gun Smoke Dense",
+        arrayOf("textures/particles/gun_smoke/gun_smoke_2.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 1.0f,
+        particleCount = 1..1, initialSpeed = 7f, speedVariance = 1.5f, gravity = 1.8f,
+        scale = 1.4f, scaleVariance = 0.25f, fadeIn = 0.0f, fadeOut = 0.45f
+    ),
+    GUN_SMOKE_BURST_2(
+        "Gun Smoke Burst 2",
+        arrayOf("textures/particles/gun_smoke/gun_smoke_3.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 0.6f,
+        particleCount = 1..1, initialSpeed = 9f, speedVariance = 1f, gravity = 1.2f,
+        scale = 1.2f, scaleVariance = 0.2f, fadeIn = 0.0f, fadeOut = 0.3f
+    ),
+    GUN_SMOKE_WISPY(
+        "Gun Smoke Wispy",
+        arrayOf("textures/particles/gun_smoke/gun_smoke_4.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 1.5f,
+        particleCount = 1..1, initialSpeed = 5f, speedVariance = 2f, gravity = 2.5f,
+        scale = 1.6f, scaleVariance = 0.4f, fadeIn = 0.0f, fadeOut = 0.7f
+    ),
+    GUN_SMOKE_BURST_3(
+        "Gun Smoke Burst 3",
+        arrayOf("textures/particles/gun_smoke/gun_smoke_5.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 0.7f,
+        particleCount = 1..1, initialSpeed = 8.5f, speedVariance = 1.2f, gravity = 1.4f,
+        scale = 1.25f, scaleVariance = 0.2f, fadeIn = 0.0f, fadeOut = 0.35f
+    ),
+    GUN_SMOKE_FINAL(
+        "Gun Smoke Final",
+        arrayOf("textures/particles/gun_smoke/gun_smoke_6.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 1.8f,
+        particleCount = 1..1, initialSpeed = 4f, speedVariance = 2f, gravity = 3f,
+        scale = 1.7f, scaleVariance = 0.3f, fadeIn = 0.0f, fadeOut = 0.8f
+    ),
+    GUN_SMOKE_DISSIPATING(
+        "Gun Smoke Dissipating",
+        arrayOf("textures/particles/gun_smoke/gun_smoke_7.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 2.0f,
+        particleCount = 1..1, initialSpeed = 3f, speedVariance = 1.5f, gravity = 3.5f,
+        scale = 1.8f, scaleVariance = 0.4f, fadeIn = 0.0f, fadeOut = 1.0f
+    ),
+    GUN_SMOKE_THIN(
+        "Gun Smoke Thin",
+        arrayOf("textures/particles/gun_smoke/gun_smoke_8.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 2.2f,
+        particleCount = 1..1, initialSpeed = 2.5f, speedVariance = 1f, gravity = 4f,
+        scale = 1.9f, scaleVariance = 0.5f, fadeIn = 0.0f, fadeOut = 1.2f
+    ),
+
+    // REGULAR SMOKE PARTICLES - Separated from animated versions
+    SMOKE_FRAME_1(
+        "Rising Smoke 1",
+        arrayOf("textures/particles/snoke/smoke_frame.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 4.0f,
+        particleCount = 1..1, initialSpeed = 1f, speedVariance = 0.5f, gravity = 1.5f,
         scale = 2.0f, scaleVariance = 0.5f, fadeIn = 0.5f, fadeOut = 2.0f
     ),
-    PUFFING_SMOKE(
-        "Puffing Smoke",
-        arrayOf(
-            "textures/particles/snoke/smoke_frame_2.png",
-            "textures/particles/snoke/smoke_frame_4.png",
-            "textures/particles/snoke/smoke_frame_6.png",
-            "textures/particles/snoke/smoke_frame_8.png"
-        ),
-        frameDuration = 0.15f, // Slightly faster to feel like "puffs"
-        isLooping = true,
-        particleLifetime = 3.5f,
+    SMOKE_FRAME_2(
+        "Puffing Smoke 1",
+        arrayOf("textures/particles/snoke/smoke_frame_2.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 3.5f,
         particleCount = 1..1, initialSpeed = 1.2f, speedVariance = 0.6f, gravity = 1.8f,
         scale = 1.8f, scaleVariance = 0.4f, fadeIn = 0.4f, fadeOut = 1.5f
     ),
-    CHIMNEY_SMOKE(
-        "Chimney Smoke",
-        arrayOf(
-            "textures/particles/factory_smoke/factory_smoke.png",
-            "textures/particles/factory_smoke/factory_smoke_1.png",
-            "textures/particles/factory_smoke/factory_smoke_2.png",
-            "textures/particles/factory_smoke/factory_smoke_3.png",
-            "textures/particles/factory_smoke/factory_smoke_4.png",
-            "textures/particles/factory_smoke/factory_smoke_5.png"
-        ),
-        frameDuration = 0.2f, // Very slow for a billowing effect
-        isLooping = true,
-        particleLifetime = 6.0f,
-        particleCount = 1..1, initialSpeed = 2f, speedVariance = 0.5f, gravity = 3f, // Rises steadily
+    SMOKE_FRAME_3(
+        "Rising Smoke 2",
+        arrayOf("textures/particles/snoke/smoke_frame_3.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 4.2f,
+        particleCount = 1..1, initialSpeed = 0.9f, speedVariance = 0.4f, gravity = 1.6f,
+        scale = 2.1f, scaleVariance = 0.6f, fadeIn = 0.6f, fadeOut = 2.1f
+    ),
+    SMOKE_FRAME_4(
+        "Puffing Smoke 2",
+        arrayOf("textures/particles/snoke/smoke_frame_4.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 3.3f,
+        particleCount = 1..1, initialSpeed = 1.3f, speedVariance = 0.7f, gravity = 1.9f,
+        scale = 1.7f, scaleVariance = 0.4f, fadeIn = 0.3f, fadeOut = 1.4f
+    ),
+    SMOKE_FRAME_5(
+        "Rising Smoke 3",
+        arrayOf("textures/particles/snoke/smoke_frame_5.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 4.1f,
+        particleCount = 1..1, initialSpeed = 0.8f, speedVariance = 0.3f, gravity = 1.4f,
+        scale = 2.2f, scaleVariance = 0.7f, fadeIn = 0.7f, fadeOut = 2.2f
+    ),
+    SMOKE_FRAME_6(
+        "Puffing Smoke 3",
+        arrayOf("textures/particles/snoke/smoke_frame_6.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 3.4f,
+        particleCount = 1..1, initialSpeed = 1.1f, speedVariance = 0.5f, gravity = 2.0f,
+        scale = 1.9f, scaleVariance = 0.5f, fadeIn = 0.4f, fadeOut = 1.6f
+    ),
+    SMOKE_FRAME_7(
+        "Rising Smoke 4",
+        arrayOf("textures/particles/snoke/smoke_frame_7.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 3.9f,
+        particleCount = 1..1, initialSpeed = 1.0f, speedVariance = 0.4f, gravity = 1.7f,
+        scale = 2.0f, scaleVariance = 0.6f, fadeIn = 0.5f, fadeOut = 1.9f
+    ),
+    SMOKE_FRAME_8(
+        "Puffing Smoke 4",
+        arrayOf("textures/particles/snoke/smoke_frame_8.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 3.6f,
+        particleCount = 1..1, initialSpeed = 1.4f, speedVariance = 0.8f, gravity = 2.1f,
+        scale = 1.8f, scaleVariance = 0.4f, fadeIn = 0.3f, fadeOut = 1.7f
+    ),
+    SMOKE_FRAME_9(
+        "Rising Smoke 5",
+        arrayOf("textures/particles/snoke/smoke_frame_9.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 4.3f,
+        particleCount = 1..1, initialSpeed = 0.7f, speedVariance = 0.3f, gravity = 1.3f,
+        scale = 2.3f, scaleVariance = 0.8f, fadeIn = 0.8f, fadeOut = 2.3f
+    ),
+
+    // FACTORY SMOKE PARTICLES - Separated from animated versions
+    FACTORY_SMOKE_INITIAL(
+        "Chimney Smoke Initial",
+        arrayOf("textures/particles/factory_smoke/factory_smoke.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 6.0f,
+        particleCount = 1..1, initialSpeed = 2f, speedVariance = 0.5f, gravity = 3f,
         scale = 4.0f, scaleVariance = 1.0f, fadeIn = 1.0f, fadeOut = 2.5f
     ),
-    THICK_SMOKE_PUFF(
-        "Thick Smoke Puff",
-        arrayOf(
-            "textures/particles/factory_smoke/factory_smoke_3.png",
-            "textures/particles/factory_smoke/factory_smoke.png",
-            "textures/particles/factory_smoke/factory_smoke_1.png",
-        ),
-        frameDuration = 0.15f, isLooping = false, // A single puff
-        particleLifetime = 2.5f, particleCount = 1..1,
-        initialSpeed = 2.5f, speedVariance = 0.5f, gravity = 3.5f,
-        scale = 3.0f, scaleVariance = 0.5f, fadeIn = 0.2f, fadeOut = 1.5f
+    FACTORY_SMOKE_BUILDING(
+        "Chimney Smoke Building",
+        arrayOf("textures/particles/factory_smoke/factory_smoke_1.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 5.5f,
+        particleCount = 1..1, initialSpeed = 2.2f, speedVariance = 0.6f, gravity = 3.2f,
+        scale = 3.8f, scaleVariance = 0.9f, fadeIn = 0.9f, fadeOut = 2.3f
     ),
-    WISPY_SMOKE(
-        "Wispy Smoke",
-        arrayOf(
-            "textures/particles/factory_smoke/factory_smoke_2.png",
-            "textures/particles/factory_smoke/factory_smoke_5.png"
-        ),
-        frameDuration = 0.25f, isLooping = true, // A gentle, looping wisp
-        particleLifetime = 5.0f, particleCount = 1..1,
-        initialSpeed = 1.0f, speedVariance = 0.3f, gravity = 1.0f,
+    FACTORY_SMOKE_WISPY(
+        "Wispy Factory Smoke",
+        arrayOf("textures/particles/factory_smoke/factory_smoke_2.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 5.0f,
+        particleCount = 1..1, initialSpeed = 1.0f, speedVariance = 0.3f, gravity = 1.0f,
         scale = 2.8f, scaleVariance = 0.4f, fadeIn = 1.0f, fadeOut = 2.0f
     ),
+    FACTORY_SMOKE_THICK(
+        "Thick Factory Smoke",
+        arrayOf("textures/particles/factory_smoke/factory_smoke_3.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 2.5f,
+        particleCount = 1..1, initialSpeed = 2.5f, speedVariance = 0.5f, gravity = 3.5f,
+        scale = 3.0f, scaleVariance = 0.5f, fadeIn = 0.2f, fadeOut = 1.5f
+    ),
+    FACTORY_SMOKE_DENSE(
+        "Dense Factory Smoke",
+        arrayOf("textures/particles/factory_smoke/factory_smoke_4.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 5.8f,
+        particleCount = 1..1, initialSpeed = 1.8f, speedVariance = 0.4f, gravity = 2.8f,
+        scale = 3.9f, scaleVariance = 0.8f, fadeIn = 0.8f, fadeOut = 2.4f
+    ),
+    FACTORY_SMOKE_DISSIPATING(
+        "Dissipating Factory Smoke",
+        arrayOf("textures/particles/factory_smoke/factory_smoke_5.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 4.5f,
+        particleCount = 1..1, initialSpeed = 1.2f, speedVariance = 0.4f, gravity = 1.2f,
+        scale = 3.2f, scaleVariance = 0.6f, fadeIn = 1.2f, fadeOut = 2.2f
+    ),
+
+    // NON-SMOKE PARTICLES
     EXPLOSION(
         "Explosion",
         arrayOf("textures/particles/explosion_effect.png"),

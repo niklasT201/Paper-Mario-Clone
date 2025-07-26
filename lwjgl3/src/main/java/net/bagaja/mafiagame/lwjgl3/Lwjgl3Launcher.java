@@ -50,6 +50,7 @@ public class Lwjgl3Launcher {
 // occlusion optional
 // room/open world transition effect being slower and smoother transition itself
 
+// light settings wrong font
 // water being bigger than normal blocks
 // items have the same height but different width
 // working collisions for ramp, pillar and corner
@@ -70,7 +71,6 @@ public class Lwjgl3Launcher {
 // player stabbing with knife
 // car explosion when getting shot at
 // character dies, blood pool will spawn and get bigger over time
-// separate particle clouds
 // player wipe is switching to vertical when pressing W or S
 // only new wipes rotating with players direction not old ones too
 // maybe water blocks

@@ -1533,7 +1533,15 @@ class MafiaGame : ApplicationAdapter() {
         // Spawn the effect if we found a point
         hitPoint?.let { pos ->
             val effectType = particleSystem.currentSelectedEffect
-            val isGunSmokeEffect = effectType == ParticleEffectType.GUN_SMOKE_PLUME || effectType == ParticleEffectType.GUN_SMOKE_BURST
+            val isGunSmokeEffect = effectType == ParticleEffectType.GUN_SMOKE_INITIAL ||
+                effectType == ParticleEffectType.GUN_SMOKE_BURST_1 ||
+                effectType == ParticleEffectType.GUN_SMOKE_BURST_2 ||
+                effectType == ParticleEffectType.GUN_SMOKE_BURST_3 ||
+                effectType == ParticleEffectType.GUN_SMOKE_DENSE ||
+                effectType == ParticleEffectType.GUN_SMOKE_WISPY ||
+                effectType == ParticleEffectType.GUN_SMOKE_FINAL ||
+                effectType == ParticleEffectType.GUN_SMOKE_DISSIPATING ||
+                effectType == ParticleEffectType.GUN_SMOKE_THIN
             val direction = if (isGunSmokeEffect) ray.direction else hitNormal
 
             // Pass the surface normal for ground-oriented effects

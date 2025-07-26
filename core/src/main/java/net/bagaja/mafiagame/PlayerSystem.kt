@@ -1133,7 +1133,7 @@ class PlayerSystem {
                 when (collisionResult.type) {
                     HitObjectType.BLOCK, HitObjectType.INTERIOR, HitObjectType.CAR -> {
                         // Spawn dust/sparks for static objects
-                        particleSystem.spawnEffect(ParticleEffectType.DUST_IMPACT, particleSpawnPos)
+                        particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_MEDIUM, particleSpawnPos)
                     }
 
                     HitObjectType.OBJECT,
