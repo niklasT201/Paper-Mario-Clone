@@ -50,7 +50,6 @@ public class Lwjgl3Launcher {
 // occlusion optional
 // room/open world transition effect being slower and smoother transition itself
 
-// light settings wrong font
 // showing tp point text only if near the y position and or collide with it
 // water being bigger than normal blocks
 // items have the same height but different width

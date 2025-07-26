@@ -880,6 +880,31 @@ class UIManager(
                     // TextButton style might not exist
                 }
 
+                // Update the style for text input fields
+                try {
+                    loadedSkin.get(TextField.TextFieldStyle::class.java).font = customFont
+                    loadedSkin.get(TextField.TextFieldStyle::class.java).fontColor = Color.WHITE // Optional: ensure text is visible
+                } catch (e: Exception) {
+                    println("Could not update TextFieldStyle: ${e.message}")
+                }
+
+                // Update the style for dropdown menus (SelectBox)
+                try {
+                    val selectBoxStyle = loadedSkin.get(SelectBox.SelectBoxStyle::class.java)
+                    selectBoxStyle.font = customFont
+                    selectBoxStyle.listStyle.font = customFont // This is crucial for the items in the list
+                    selectBoxStyle.fontColor = Color.WHITE // Optional: ensure text is visible
+                } catch (e: Exception) {
+                    println("Could not update SelectBoxStyle: ${e.message}")
+                }
+
+                try {
+                    // Dialogs use a WindowStyle for their appearance
+                    loadedSkin.get(Window.WindowStyle::class.java).titleFont = customFont
+                } catch (e: Exception) {
+                    println("Could not update WindowStyle (for Dialog titles): ${e.message}")
+                }
+
                 addEnhancedLabelStyles(loadedSkin, customFont)
                 println("Custom font loaded successfully from ui/default.fnt")
             } catch (e: Exception) {
