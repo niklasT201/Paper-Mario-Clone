@@ -145,7 +145,7 @@ class TeleporterSystem(
                 val transformMatrix = Matrix4()
                 transformMatrix.setToTranslation(textWorldPos)
 
-                val scale = 0.45f
+                val scale = 0.045f
                 transformMatrix.scl(scale)
 
                 // DRAWING
