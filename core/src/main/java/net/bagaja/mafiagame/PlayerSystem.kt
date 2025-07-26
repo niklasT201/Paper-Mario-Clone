@@ -66,6 +66,7 @@ class PlayerSystem {
     private var lastMovementDirection = 0f
     private lateinit var playerBackTexture: Texture
     private var isPressingW = false
+    private var isHoldingShootButton = false
     private val isRotating: Boolean
         get() {
             return kotlin.math.abs(playerCurrentRotationY - playerTargetRotationY) > 1f
@@ -268,6 +269,9 @@ class PlayerSystem {
     }
 
     private fun handleWeaponInput(deltaTime: Float) {
+        isHoldingShootButton = Gdx.input.isButtonPressed(Input.Buttons.LEFT) &&
+            equippedWeapon.actionType == WeaponActionType.SHOOTING
+
         fireRateTimer -= deltaTime
         attackTimer -= deltaTime
 
@@ -336,7 +340,7 @@ class PlayerSystem {
 
                 // Check if the button was released
                 if (!Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
-                    // MODIFIED: Check if the button was held long enough to be a valid throw
+                    //  Check if the button was held long enough to be a valid throw
                     if (throwChargeTime >= MIN_THROW_CHARGE_TIME) {
                         spawnThrowable() // Execute the throw
                         fireRateTimer = equippedWeapon.fireCooldown
@@ -1096,17 +1100,26 @@ class PlayerSystem {
 
         // Update player texture if it changed
         val finalTexture: Texture? = when {
-            state == PlayerState.ATTACKING -> {
-                if (equippedWeapon.actionType == WeaponActionType.MELEE) {
-                    animationSystem.getCurrentTexture() // Use the melee animation
-                } else {
-                    poseTextures[equippedWeapon.playerPoseTexturePath] // Use the shooting pose
-                }
+            (state == PlayerState.ATTACKING && equippedWeapon.actionType == WeaponActionType.MELEE) ||
+                state == PlayerState.CHARGING_THROW -> {
+                animationSystem.getCurrentTexture() ?: poseTextures[equippedWeapon.playerPoseTexturePath] // Use the melee animation
             }
-            state == PlayerState.CHARGING_THROW -> poseTextures[equippedWeapon.playerPoseTexturePath]
-            isPressingW -> playerBackTexture
-            equippedWeapon != WeaponType.UNARMED -> poseTextures[equippedWeapon.playerPoseTexturePath]
-            else -> animationSystem.getCurrentTexture() // Standard idle/walking
+
+            isHoldingShootButton -> {
+                poseTextures[equippedWeapon.playerPoseTexturePath]  // Use the shooting pose
+            }
+
+            isPressingW -> {
+                playerBackTexture
+            }
+
+            equippedWeapon != WeaponType.UNARMED -> {
+                poseTextures[equippedWeapon.playerPoseTexturePath]
+            }
+
+            else -> {
+                animationSystem.getCurrentTexture() // Standard idle/walking
+            }
         }
 
         // Update the player's texture
