@@ -315,29 +315,42 @@ object ShaderDefinitions {
         vec4 originalColor = texture2D(u_texture, v_texCoord);
 
         // --- Step 1: Create the gentle, film-noir grayscale base ---
-        // This is working perfectly for the player, so we keep it.
+        // This is working perfectly for the player's overall tone.
         float luminance = dot(originalColor.rgb, vec3(0.299, 0.587, 0.114));
         vec3 grayColor = vec3(pow(luminance, 1.2));
 
-        // --- Step 2: The Definitive Color Restoration Rule using Chroma ---
+        // --- Step 2: Define two VERY specific, independent rules for restoring color ---
 
-        // Find the strongest and weakest color channels.
+        // **RULE A: THE "BLOOD" RULE**
+        // This rule is now highly specific to "blood red". A color must:
+        // 1. Be clearly red-dominant.
+        // 2. Have a very low green component (this is what excludes sunsets and oranges).
+        // 3. Not be too bright (this excludes bright pinks).
+        float redDominance = originalColor.r - max(originalColor.g, originalColor.b);
+        float isRedEnough = smoothstep(0.25, 0.4, redDominance);
+        float greenIsLow = 1.0 - smoothstep(0.1, 0.3, originalColor.g); // Crucial check for sunset
+        float isNotTooBright = 1.0 - smoothstep(0.7, 0.85, luminance);
+        float bloodRestoreFactor = isRedEnough * greenIsLow * isNotTooBright;
+
+        // **RULE B: THE "ARTIFICIAL LIGHT" RULE**
+        // This rule identifies pure, vibrant colors that are not red.
+        // It checks for high purity (chroma) and that the color isn't red-dominant.
+        // This correctly restores blue, purple, yellow lights, etc.
         float maxComp = max(originalColor.r, max(originalColor.g, originalColor.b));
         float minComp = min(originalColor.r, min(originalColor.g, originalColor.b));
-
-        // Chroma is the difference. High chroma = pure, vibrant color. Low chroma = grayish/pastel color.
         float chroma = maxComp - minComp;
+        float isNotRedDominant = 1.0 - isRedEnough; // Only apply if it didn't pass the red check
+        float isVeryPure = smoothstep(0.7, 0.9, chroma); // Must be a very pure color
+        float lightRestoreFactor = isVeryPure * isNotRedDominant;
 
-        // **THE KEY FIX:** We set a very high threshold for chroma.
-        // A color must be extremely pure (like a light source or blood) to pass this test.
-        // Washed-out colors like the sky or a pink nose have low chroma and will be filtered out.
-        // We use a high threshold like 0.7 to be very strict.
-        float finalRestoreFactor = smoothstep(0.7, 0.9, chroma);
+        // --- Step 3: Combine the factors ---
+        // Color is restored if a pixel passes EITHER the blood rule OR the light rule.
+        float finalRestoreFactor = max(bloodRestoreFactor, lightRestoreFactor);
 
-        // --- Step 3: Blend from our grayscale base to the ORIGINAL color ---
+        // --- Step 4: Blend from our grayscale base to the ORIGINAL color ---
         vec3 finalColor = mix(grayColor, originalColor.rgb, finalRestoreFactor);
 
-        // --- Step 4: Add classic film effects ---
+        // --- Step 5: Add classic film effects ---
         float grain = fract(sin(dot(v_texCoord + u_time * 0.01, vec2(12.9898, 78.233))) * 43758.5453);
         finalColor += (grain - 0.5) * 0.1;
 

@@ -59,7 +59,6 @@ public class Lwjgl3Launcher {
 // dynamite explodes and deals damage
 // missing knife, baseball bat and fist animations
 // player falling too early and being then stuck in blocks
-// blood particles colorful in sin city shader
 // add player with revolver image
 // add player with shotgun image
 // add player with pistol image
