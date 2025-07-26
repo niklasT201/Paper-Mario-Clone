@@ -903,6 +903,7 @@ class UIManager(
                 try {
                     // Dialogs use a WindowStyle for their appearance
                     loadedSkin.get(Window.WindowStyle::class.java).titleFont = customFont
+                    loadedSkin.get("dialog", Window.WindowStyle::class.java).titleFont = customFont
                 } catch (e: Exception) {
                     println("Could not update WindowStyle (for Dialog titles): ${e.message}")
                 }
