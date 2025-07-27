@@ -238,13 +238,13 @@ class LightingManager {
     }
 
     fun renderLightInstances(modelBatch: ModelBatch, environment: Environment, debugMode: Boolean) {
+        if (!debugMode) {
+            return
+        }
+
         for ((lightId, instances) in lightInstances) {
             val (invisibleInstance, debugInstance) = instances
-            if (debugMode) {
-                modelBatch.render(debugInstance, environment)
-            } else {
-                modelBatch.render(invisibleInstance, environment)
-            }
+            modelBatch.render(debugInstance, environment)
         }
     }
 
