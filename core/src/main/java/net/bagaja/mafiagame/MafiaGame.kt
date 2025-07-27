@@ -643,6 +643,27 @@ class MafiaGame : ApplicationAdapter() {
                 }
                 println("Moved Object to ${instance.position}")
             }
+            is GameFire -> {
+                // Move the fire's underlying GameObject
+                instance.gameObject.position.add(deltaX, deltaY, deltaZ)
+                instance.gameObject.modelInstance.transform.setTranslation(instance.gameObject.position)
+
+                // Also move the fire's associated light source
+                instance.gameObject.associatedLightId?.let { lightId ->
+                    val lightSource = lightingManager.getLightSources()[lightId]
+                    if (lightSource != null) {
+                        val objectType = instance.gameObject.objectType
+                        lightSource.position.set(
+                            instance.gameObject.position.x,
+                            instance.gameObject.position.y + objectType.lightOffsetY,
+                            instance.gameObject.position.z
+                        )
+                        lightSource.updateTransform()
+                        lightSource.updatePointLight()
+                    }
+                }
+                println("Moved Fire to ${instance.gameObject.position}")
+            }
             is LightSource -> {
                 // Use lighting manager for movement
                 val moved = lightingManager.moveLightSource(instance.id, deltaX, deltaY, deltaZ)
@@ -1607,6 +1628,7 @@ class MafiaGame : ApplicationAdapter() {
             val newFire = fireSystem.addFire(firePosition, objectSystem, lightingManager)
             if (newFire != null) {
                 sceneManager.activeObjects.add(newFire.gameObject)
+                lastPlacedInstance = newFire
                 println("Placed Spreading Fire object.")
             }
         }
