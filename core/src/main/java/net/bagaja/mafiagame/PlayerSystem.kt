@@ -272,6 +272,11 @@ class PlayerSystem {
         isHoldingShootButton = Gdx.input.isButtonPressed(Input.Buttons.LEFT) &&
             equippedWeapon.actionType == WeaponActionType.SHOOTING
 
+        if (isHoldingShootButton) {
+            chargeTime += deltaTime
+        }
+
+        // Timers
         fireRateTimer -= deltaTime
         attackTimer -= deltaTime
 
@@ -1109,7 +1114,7 @@ class PlayerSystem {
                 poseTextures[equippedWeapon.playerPoseTexturePath]  // Use the shooting pose
             }
 
-            isPressingW -> {
+            isPressingW && !(fireRateTimer > 0 && equippedWeapon.actionType == WeaponActionType.MELEE) -> {
                 playerBackTexture
             }
 
