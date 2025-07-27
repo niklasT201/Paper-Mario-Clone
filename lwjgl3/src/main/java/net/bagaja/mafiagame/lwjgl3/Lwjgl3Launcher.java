@@ -50,8 +50,10 @@ public class Lwjgl3Launcher {
 // occlusion optional
 // room/open world transition effect being slower and smoother transition itself
 
+// fps display
 // maybe improving billboard shader
-// placing 5 light sources creates room filling light visually, not actually
+// placing 5 light sources creates room filling light visually, not actually. probably existing bc the area light disappears
+// molotoves and dynamite having improved collisions
 // weapon images fixing
 // visible border of light sources
 // showing tp point text only if near the y position and or collide with it
@@ -59,7 +61,7 @@ public class Lwjgl3Launcher {
 // npcs and enemies been able to move on blocks
 // maybe adding player hiding tp point text behind it
 // visual reload/charging bar
-// molotov spreads fire and deals damage in this fire zome
+// molotov deals damage in this fire zome
 // dynamite explodes and deals damage
 // missing knife, baseball bat and fist animations
 // player falling too early and being then stuck in blocks

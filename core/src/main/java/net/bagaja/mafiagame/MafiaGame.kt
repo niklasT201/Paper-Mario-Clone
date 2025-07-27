@@ -1150,17 +1150,16 @@ class MafiaGame : ApplicationAdapter() {
                 absY >= absX && absY >= absZ && relativePos.y > 0 -> {
                     Vector3(
                         hitBlock.position.x,
-                        hitBlock.position.y + blockSize / 2 + 1f, // 1f above the block surface
+                        hitBlock.position.y + blockSize / 2 + ItemSystem.ITEM_SURFACE_OFFSET, // 1f above the block surface
                         hitBlock.position.z
                     )
                 }
                 // Hit side faces - place item at the side but on the same level as block top
                 else -> {
                     val blockTop = hitBlock.position.y + blockSize / 2
-                    Vector3(intersection.x, blockTop + 1f, intersection.z)
+                    Vector3(intersection.x, blockTop + ItemSystem.ITEM_SURFACE_OFFSET, intersection.z)
                 }
             }
-
             addItemToScene(itemPosition)
         }
     }
@@ -1173,10 +1172,9 @@ class MafiaGame : ApplicationAdapter() {
             // Items can be placed more freely, but still need to be on top of blocks
             val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
-            val properY = calculateObjectYPosition(gridX, gridZ, 1f) // Items float 1 unit above surface
+            val properY = calculateObjectYPosition(gridX, gridZ, ItemSystem.ITEM_SURFACE_OFFSET) // Items float 1 unit above surface
 
             val itemPosition = Vector3(gridX, properY, gridZ)
-
             addItemToScene(itemPosition)
         }
     }

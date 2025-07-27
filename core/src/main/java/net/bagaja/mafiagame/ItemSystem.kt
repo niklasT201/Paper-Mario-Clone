@@ -19,6 +19,7 @@ import kotlin.math.sin
 class ItemSystem: IFinePositionable {
     companion object {
         const val UNIFIED_ITEM_HEIGHT = 2.0f // All items will now have this visual height in the game world.
+        const val ITEM_SURFACE_OFFSET = 0.3f
     }
     private val itemModels = mutableMapOf<ItemType, Model>()
     private val itemTextures = mutableMapOf<ItemType, Texture>()
@@ -177,8 +178,7 @@ class ItemSystem: IFinePositionable {
 
             // 2. Update item position if it moved vertically
             if (kotlin.math.abs(nextY - item.position.y) > 0.01f) {
-                // Since items don't move horizontally on their own, we can just set the Y.
-                item.position.y = nextY
+                item.position.y = nextY + ITEM_SURFACE_OFFSET
             }
 
             // Update item animation (rotation and bobbing)
