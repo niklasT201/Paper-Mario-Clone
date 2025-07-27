@@ -1680,7 +1680,7 @@ class MafiaGame : ApplicationAdapter() {
         handlePlayerInput()
         particleSystem.update(deltaTime)
         particleSpawnerSystem.update(deltaTime, particleSystem, sceneManager.activeParticleSpawners)
-        fireSystem.update(Gdx.graphics.deltaTime, playerSystem)
+        fireSystem.update(Gdx.graphics.deltaTime, playerSystem, particleSystem)
         playerSystem.update(deltaTime, sceneManager)
         enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
         npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
