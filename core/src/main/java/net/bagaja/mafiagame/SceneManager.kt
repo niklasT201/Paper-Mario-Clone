@@ -35,7 +35,8 @@ class SceneManager(
     private val faceCullingSystem: FaceCullingSystem,
     val teleporterSystem: TeleporterSystem,
     private val game: MafiaGame,
-    private val particleSystem: ParticleSystem
+    private val particleSystem: ParticleSystem,
+    private val fireSystem: FireSystem
 ) {
     // --- ACTIVE SCENE DATA ---
     val activeBlocks = Array<GameBlock>()
@@ -639,6 +640,48 @@ class SceneManager(
                         }
                     }
                 }
+                RoomElementType.FIRE -> {
+                    // Temporarily configure the fire system with the saved properties
+                    val originalLooping = fireSystem.nextFireIsLooping
+                    val originalFadesOut = fireSystem.nextFireFadesOut
+                    val originalLifetime = fireSystem.nextFireLifetime
+                    val originalCanBeExtinguished = fireSystem.nextFireCanBeExtinguished
+                    val originalDealsDamage = fireSystem.nextFireDealsDamage
+                    val originalDamagePerSecond = fireSystem.nextFireDamagePerSecond
+                    val originalDamageRadius = fireSystem.nextFireDamageRadius
+                    val originalMinScale = fireSystem.nextFireMinScale
+                    val originalMaxScale = fireSystem.nextFireMaxScale
+
+                    fireSystem.nextFireIsLooping = element.isLooping ?: true
+                    fireSystem.nextFireFadesOut = element.fadesOut ?: false
+                    fireSystem.nextFireLifetime = element.lifetime ?: 20f
+                    fireSystem.nextFireCanBeExtinguished = element.canBeExtinguished ?: true
+                    fireSystem.nextFireDealsDamage = element.dealsDamage ?: true
+                    fireSystem.nextFireDamagePerSecond = element.damagePerSecond ?: 10f
+                    fireSystem.nextFireDamageRadius = element.damageRadius ?: 5f
+                    // When loading, set both min and max scale to the saved value
+                    // to ensure the fire is created with the exact saved size.
+                    fireSystem.nextFireMinScale = element.scale.x
+                    fireSystem.nextFireMaxScale = element.scale.x
+
+                    // Create the fire
+                    val newFire = fireSystem.addFire(element.position.cpy(), objectSystem, game.lightingManager)
+                    if (newFire != null) {
+                        // Add its underlying game object to the list of objects for this new room state
+                        newObjects.add(newFire.gameObject)
+                    }
+
+                    // Restore the original settings to the fire system
+                    fireSystem.nextFireIsLooping = originalLooping
+                    fireSystem.nextFireFadesOut = originalFadesOut
+                    fireSystem.nextFireLifetime = originalLifetime
+                    fireSystem.nextFireCanBeExtinguished = originalCanBeExtinguished
+                    fireSystem.nextFireDealsDamage = originalDealsDamage
+                    fireSystem.nextFireDamagePerSecond = originalDamagePerSecond
+                    fireSystem.nextFireDamageRadius = originalDamageRadius
+                    fireSystem.nextFireMinScale = originalMinScale
+                    fireSystem.nextFireMaxScale = originalMaxScale
+                }
             }
         }
         // After all blocks are created, run face culling on the entire collection
@@ -758,12 +801,14 @@ class SceneManager(
 
         // Convert active objects to RoomElements
         activeObjects.forEach { obj ->
-            elements.add(RoomElement(
-                position = obj.position.cpy(),
-                elementType = RoomElementType.OBJECT,
-                objectType = obj.objectType,
-                rotation = 0f // Assuming objects don't rotate for now
-            ))
+            if (obj.objectType != ObjectType.FIRE_SPREAD) {
+                elements.add(RoomElement(
+                    position = obj.position.cpy(),
+                    elementType = RoomElementType.OBJECT,
+                    objectType = obj.objectType,
+                    rotation = 0f // Assuming objects don't rotate for now
+                ))
+            }
         }
 
         // Convert active items to RoomElements
@@ -841,6 +886,21 @@ class SceneManager(
                 teleporterId = teleporter.id,
                 linkedTeleporterId = teleporter.linkedTeleporterId,
                 teleporterName = teleporter.name
+            ))
+        }
+
+        fireSystem.activeFires.forEach { fire ->
+            elements.add(RoomElement(
+                position = fire.gameObject.position.cpy(),
+                elementType = RoomElementType.FIRE,
+                isLooping = fire.isLooping,
+                fadesOut = fire.fadesOut,
+                lifetime = fire.lifetime,
+                canBeExtinguished = fire.canBeExtinguished,
+                dealsDamage = fire.dealsDamage,
+                damagePerSecond = fire.damagePerSecond,
+                damageRadius = fire.damageRadius,
+                scale = Vector3(fire.initialScale, 1f, 1f)
             ))
         }
 
@@ -984,6 +1044,46 @@ class SceneManager(
                             tempTeleporters.add(newTeleporter) // Add to temp list first
                         }
                     }
+                }
+                RoomElementType.FIRE -> {
+                    // Temporarily configure the fire system with the saved properties
+                    val originalLooping = fireSystem.nextFireIsLooping
+                    val originalFadesOut = fireSystem.nextFireFadesOut
+                    val originalLifetime = fireSystem.nextFireLifetime
+                    val originalCanBeExtinguished = fireSystem.nextFireCanBeExtinguished
+                    val originalDealsDamage = fireSystem.nextFireDealsDamage
+                    val originalDamagePerSecond = fireSystem.nextFireDamagePerSecond
+                    val originalDamageRadius = fireSystem.nextFireDamageRadius
+                    val originalMinScale = fireSystem.nextFireMinScale
+                    val originalMaxScale = fireSystem.nextFireMaxScale
+
+                    fireSystem.nextFireIsLooping = element.isLooping ?: true
+                    fireSystem.nextFireFadesOut = element.fadesOut ?: false
+                    fireSystem.nextFireLifetime = element.lifetime ?: 20f
+                    fireSystem.nextFireCanBeExtinguished = element.canBeExtinguished ?: true
+                    fireSystem.nextFireDealsDamage = element.dealsDamage ?: true
+                    fireSystem.nextFireDamagePerSecond = element.damagePerSecond ?: 10f
+                    fireSystem.nextFireDamageRadius = element.damageRadius ?: 5f
+                    fireSystem.nextFireMinScale = element.scale.x
+                    fireSystem.nextFireMaxScale = element.scale.x
+
+                    // Create the fire
+                    val newFire = fireSystem.addFire(element.position.cpy(), objectSystem, game.lightingManager)
+                    if (newFire != null) {
+                        // Add its underlying game object to the active list for this scene
+                        activeObjects.add(newFire.gameObject)
+                    }
+
+                    // Restore the original settings to the fire system
+                    fireSystem.nextFireIsLooping = originalLooping
+                    fireSystem.nextFireFadesOut = originalFadesOut
+                    fireSystem.nextFireLifetime = originalLifetime
+                    fireSystem.nextFireCanBeExtinguished = originalCanBeExtinguished
+                    fireSystem.nextFireDealsDamage = originalDealsDamage
+                    fireSystem.nextFireDamagePerSecond = originalDamagePerSecond
+                    fireSystem.nextFireDamageRadius = originalDamageRadius
+                    fireSystem.nextFireMinScale = originalMinScale
+                    fireSystem.nextFireMaxScale = originalMaxScale
                 }
             }
         }

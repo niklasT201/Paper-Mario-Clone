@@ -36,7 +36,14 @@ data class RoomElement(
     val spawnerInterval: Float? = null,
     val teleporterId: String? = null,
     val linkedTeleporterId: String? = null,
-    val teleporterName: String? = null
+    val teleporterName: String? = null,
+    val isLooping: Boolean? = null,
+    val fadesOut: Boolean? = null,
+    val lifetime: Float? = null,
+    val canBeExtinguished: Boolean? = null,
+    val dealsDamage: Boolean? = null,
+    val damagePerSecond: Float? = null,
+    val damageRadius: Float? = null
 )
 
 enum class RoomElementType {
@@ -47,7 +54,8 @@ enum class RoomElementType {
     ENEMY,
     NPC,
     PARTICLE_SPAWNER,
-    TELEPORTER
+    TELEPORTER,
+    FIRE
 }
 
 data class RoomTemplate(
