@@ -1238,7 +1238,11 @@ class PlayerSystem {
 
             if (collisionResult != null || throwable.lifetime <= 0) {
                 // It hit something or its fuse ran out
-                handleThrowableImpact(throwable, collisionResult?.hitPoint ?: throwable.position)
+                handleThrowableImpact(
+                    throwable,
+                    collisionResult,
+                    sceneManager
+                )
                 throwableIterator.remove()
             }
         }
@@ -1246,8 +1250,14 @@ class PlayerSystem {
         updatePlayerTransform()
     }
 
-    private fun handleThrowableImpact(throwable: ThrowableEntity, impactPosition: Vector3) {
+    private fun handleThrowableImpact(
+        throwable: ThrowableEntity,
+        collisionResult: CollisionResult?,
+        sceneManager: SceneManager
+    ) {
+        val impactPosition = collisionResult?.hitPoint ?: throwable.position
         println("${throwable.weaponType.displayName} impacted at $impactPosition")
+
         when (throwable.weaponType) {
             WeaponType.DYNAMITE -> {
                 particleSystem.spawnEffect(ParticleEffectType.EXPLOSION, impactPosition)
@@ -1256,9 +1266,58 @@ class PlayerSystem {
             WeaponType.MOLOTOV -> {
                 // Spawn a lasting fire effect
                 particleSystem.spawnEffect(ParticleEffectType.FIRE_FLAME, impactPosition)
-                // TODO: Add area-of-effect damage over time logic here
+
+                val fireSystem = sceneManager.game.fireSystem
+                val objectSystem = sceneManager.game.objectSystem
+                val lightingManager = sceneManager.game.lightingManager
+
+                val baseImpactPosition = impactPosition.cpy()
+                val impactNormal = collisionResult?.surfaceNormal
+
+                if (impactNormal != null && kotlin.math.abs(impactNormal.y) < 0.5f) {
+                    val groundY = sceneManager.findHighestSupportY(impactPosition.x, impactPosition.z, impactPosition.y, 0.1f, blockSize)
+                    baseImpactPosition.y = groundY
+                }
+
+                val originalFadesOut = fireSystem.nextFireFadesOut
+                val originalLifetime = fireSystem.nextFireLifetime
+                val originalMinScale = fireSystem.nextFireMinScale
+                val originalMaxScale = fireSystem.nextFireMaxScale
+
+                fireSystem.nextFireFadesOut = true
+                fireSystem.nextFireLifetime = 15f + Random.nextFloat() * 10f
+                fireSystem.nextFireMinScale = 0.5f
+                fireSystem.nextFireMaxScale = 1.2f
+
+                val fireCount = (1..5).random()
+                val spreadRadius = 5.0f
+
+                // --- Step 3: Loop and spawn fires around the Ground Zero point ---
+                for (i in 0 until fireCount) {
+                    val offsetX = (Random.nextFloat() * 2f - 1f) * spreadRadius
+                    val offsetZ = (Random.nextFloat() * 2f - 1f) * spreadRadius
+                    val potentialX = baseImpactPosition.x + offsetX
+                    val potentialZ = baseImpactPosition.z + offsetZ
+
+                    if (sceneManager.hasSolidSupportAt(potentialX, potentialZ)) {
+                        val groundY = sceneManager.findHighestSupportY(potentialX, potentialZ, baseImpactPosition.y, 0.1f, blockSize)
+                        val firePosition = Vector3(potentialX, groundY, potentialZ)
+
+                        if (impactNormal != null && kotlin.math.abs(impactNormal.y) < 0.5f) {
+                            firePosition.mulAdd(impactNormal, 0.5f)
+                        }
+
+                        fireSystem.addFire(firePosition, objectSystem, lightingManager)
+                    }
+                }
+
+                // Restore the original FireSystem settings
+                fireSystem.nextFireFadesOut = originalFadesOut
+                fireSystem.nextFireLifetime = originalLifetime
+                fireSystem.nextFireMinScale = originalMinScale
+                fireSystem.nextFireMaxScale = originalMaxScale
             }
-            else -> {} // Other throwable types can be handled here
+            else -> {}
         }
     }
 

@@ -34,7 +34,7 @@ class SceneManager(
     private val transitionSystem: TransitionSystem,
     private val faceCullingSystem: FaceCullingSystem,
     val teleporterSystem: TeleporterSystem,
-    private val game: MafiaGame,
+    val game: MafiaGame,
     private val particleSystem: ParticleSystem,
     private val fireSystem: FireSystem
 ) {
@@ -274,6 +274,26 @@ class SceneManager(
         }
 
         return highestSupportY
+    }
+
+    fun hasSolidSupportAt(x: Float, z: Float): Boolean {
+        val tempBounds = BoundingBox()
+
+        for (block in activeBlocks) {
+            // We only care about blocks that actually have collision.
+            if (!block.blockType.hasCollision) continue
+
+            // Get the world-space bounding box for the current block.
+            val blockBounds = block.getBoundingBox(4f, tempBounds) // Assuming blockSize is 4f
+
+            if (x >= blockBounds.min.x && x <= blockBounds.max.x &&
+                z >= blockBounds.min.z && z <= blockBounds.max.z) {
+                // We found a solid block under this point!
+                return true
+            }
+        }
+
+        return false
     }
 
     fun update(deltaTime: Float) {

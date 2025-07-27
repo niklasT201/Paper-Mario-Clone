@@ -121,6 +121,7 @@ class FireSystem {
 
     fun addFire(position: Vector3, objectSystem: ObjectSystem, lightingManager: LightingManager): GameFire? {
         val fireObject = objectSystem.createGameObjectWithLight(ObjectType.FIRE_SPREAD, position, lightingManager) ?: return null
+        fireObject.modelInstance.userData = "player"
 
         // Calculate the random scale
         val randomScale = nextFireMinScale + Random.nextFloat() * (nextFireMaxScale - nextFireMinScale)
@@ -156,8 +157,10 @@ class FireSystem {
         activeFires.removeValue(fireToRemove, true)
     }
 
-    fun update(deltaTime: Float, playerSystem: PlayerSystem, particleSystem: ParticleSystem) {
+    fun update(deltaTime: Float, playerSystem: PlayerSystem, particleSystem: ParticleSystem): List<GameFire> {
+        val expiredFires = mutableListOf<GameFire>()
         val iterator = activeFires.iterator()
+
         while(iterator.hasNext()) {
             val fire = iterator.next()
             fire.update(deltaTime, particleSystem)
@@ -175,6 +178,7 @@ class FireSystem {
                 // You will need to pass objectSystem and lightingManager here to fully remove it.
                 println("Fire ${fire.id} has expired and should be removed.")
                 // iterator.remove() // We can't fully remove it without the other systems.
+                expiredFires.add(fire)
             }
 
             // Damage logic
@@ -187,6 +191,7 @@ class FireSystem {
                 }
             }
         }
+        return expiredFires
     }
 
     fun render(camera: Camera, environment: Environment) {

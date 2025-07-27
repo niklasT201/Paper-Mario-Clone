@@ -50,7 +50,9 @@ public class Lwjgl3Launcher {
 // occlusion optional
 // room/open world transition effect being slower and smoother transition itself
 
-// placing 5 light sources creates room filling light
+// maybe improving billboard shader
+// placing 5 light sources creates room filling light visually, not actually
+// weapon images fixing
 // visible border of light sources
 // showing tp point text only if near the y position and or collide with it
 // working collisions for ramp, pillar and corner

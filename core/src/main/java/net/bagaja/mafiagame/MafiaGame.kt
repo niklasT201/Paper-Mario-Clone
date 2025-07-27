@@ -29,7 +29,7 @@ class MafiaGame : ApplicationAdapter() {
 
     // Block system
     private lateinit var blockSystem: BlockSystem
-    private lateinit var objectSystem: ObjectSystem
+    lateinit var objectSystem: ObjectSystem
     private lateinit var itemSystem: ItemSystem
     private lateinit var carSystem: CarSystem
     private lateinit var sceneManager: SceneManager
@@ -70,7 +70,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var lightingManager: LightingManager
     private lateinit var particleSystem: ParticleSystem
     lateinit var teleporterSystem: TeleporterSystem
-    private lateinit var fireSystem: FireSystem
+    lateinit var fireSystem: FireSystem
 
     override fun create() {
         setupGraphics()
@@ -1703,7 +1703,14 @@ class MafiaGame : ApplicationAdapter() {
         handlePlayerInput()
         particleSystem.update(deltaTime)
         particleSpawnerSystem.update(deltaTime, particleSystem, sceneManager.activeParticleSpawners)
-        fireSystem.update(Gdx.graphics.deltaTime, playerSystem, particleSystem)
+        val expiredFires = fireSystem.update(Gdx.graphics.deltaTime, playerSystem, particleSystem)
+        if (expiredFires.isNotEmpty()) {
+            for (fireToRemove in expiredFires) {
+                sceneManager.activeObjects.removeValue(fireToRemove.gameObject, true)
+                fireSystem.removeFire(fireToRemove, objectSystem, lightingManager)
+            }
+        }
+
         playerSystem.update(deltaTime, sceneManager)
         enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
         npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
