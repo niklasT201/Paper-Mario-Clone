@@ -48,9 +48,9 @@ public class Lwjgl3Launcher {
 // more animations adding
 
 // occlusion optional
-// room/open world transition effect being slower and smoother transition itself
 
 // fps display
+// changing room transition effect colors
 // maybe improving billboard shader
 // placing 5 light sources creates room filling light visually, not actually. probably existing bc the area light disappears
 // molotoves and dynamite having improved collisions

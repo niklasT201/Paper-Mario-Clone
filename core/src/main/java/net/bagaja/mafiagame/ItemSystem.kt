@@ -19,7 +19,7 @@ import kotlin.math.sin
 class ItemSystem: IFinePositionable {
     companion object {
         const val UNIFIED_ITEM_HEIGHT = 2.0f // All items will now have this visual height in the game world.
-        const val ITEM_SURFACE_OFFSET = 0.3f
+        const val ITEM_SURFACE_OFFSET = 0.35f
     }
     private val itemModels = mutableMapOf<ItemType, Model>()
     private val itemTextures = mutableMapOf<ItemType, Texture>()

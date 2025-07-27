@@ -321,7 +321,7 @@ class SceneManager(
         saveWorldState()
         pendingHouse = house
         currentScene = SceneType.TRANSITIONING_TO_INTERIOR
-        transitionSystem.start(duration = 0.7f)
+        transitionSystem.startOutTransition(duration = 0.7f)
     }
 
     fun transitionToWorld() {
@@ -330,7 +330,7 @@ class SceneManager(
         println("Starting transition back to world...")
         saveCurrentInteriorState() // Save any changes made to the live interior
         currentScene = SceneType.TRANSITIONING_TO_WORLD
-        transitionSystem.start(duration = 0.7f) // Start the 0.7 second animation
+        transitionSystem.startOutTransition(duration = 0.7f) // Start the 0.7 second animation
     }
 
     private fun completeTransitionToInterior() {
