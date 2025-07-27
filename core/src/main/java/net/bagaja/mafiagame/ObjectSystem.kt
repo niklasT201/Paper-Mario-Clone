@@ -393,6 +393,12 @@ data class GameObject(
     var associatedLightId: Int? = null, // Link to light source if this object has one
     var isBroken: Boolean = false // For future lantern breaking functionality
 ) {
+    init {
+        // Apply initial transform to the model instance(s)
+        modelInstance.transform.setTranslation(position)
+        debugInstance?.transform?.setTranslation(position)
+    }
+
     // Get bounding box for collision detection
     fun getBoundingBox(): BoundingBox {
         val bounds = BoundingBox()
@@ -472,6 +478,15 @@ enum class ObjectType(
     IRON_FENCE("Iron Fence", "textures/objects/models/iron_fence.png", 10f, 5f, isSinglePlane = true),
     GRAFITI_MOTH("Moth Graffiti", "textures/objects/models/grafity_moth.png", 5f, 5f,
         isSinglePlane = true
+    ),
+
+    FIRE_SPREAD("Spreading Fire", "textures/particles/fire_spread/fire_spread_frame_one.png", 8f, 8f,
+        isSinglePlane = true,
+        hasLightSource = true, // Fire should emit light!
+        lightIntensity = 60f,
+        lightRange = 25f,
+        lightColorR = 1.0f, lightColorG = 0.5f, lightColorB = 0.1f, // Orange glow
+        lightOffsetY = 2f
     ),
 
     LANTERN("Lantern", "textures/objects/models/lantern.png", 3f, 11f,

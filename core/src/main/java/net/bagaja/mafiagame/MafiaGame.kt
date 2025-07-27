@@ -70,6 +70,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var lightingManager: LightingManager
     private lateinit var particleSystem: ParticleSystem
     lateinit var teleporterSystem: TeleporterSystem
+    private lateinit var fireSystem: FireSystem
 
     override fun create() {
         setupGraphics()
@@ -80,6 +81,8 @@ class MafiaGame : ApplicationAdapter() {
         faceCullingSystem = FaceCullingSystem(blockSize)
         //occlusionSystem = OcclusionSystem(blockSize)
         setupObjectSystem()
+        fireSystem = FireSystem()
+        fireSystem.initialize()
         setupItemSystem()
         setupCarSystem()
         lockIndicatorSystem = LockIndicatorSystem()
@@ -442,7 +445,9 @@ class MafiaGame : ApplicationAdapter() {
             UIManager.Tool.BLOCK -> placeBlock(ray)
             UIManager.Tool.PLAYER -> placePlayer(ray)
             UIManager.Tool.OBJECT -> {
-                if (objectSystem.currentSelectedObject == ObjectType.TELEPORTER) {
+                if (objectSystem.currentSelectedObject == ObjectType.FIRE_SPREAD) {
+                    placeFire(ray)
+                } else if (objectSystem.currentSelectedObject == ObjectType.TELEPORTER) {
                     placeTeleporter(ray)
                 } else if (objectSystem.currentSelectedObject == ObjectType.PARTICLE_SPAWNER) {
                     placeParticleSpawner(ray)
@@ -488,6 +493,15 @@ class MafiaGame : ApplicationAdapter() {
                 }
             }
             UIManager.Tool.OBJECT -> {
+                val fireToRemove = fireSystem.activeFires.find { fire ->
+                    raycastSystem.getObjectAtRay(ray, Array(arrayOf(fire.gameObject))) != null
+                }
+                if (fireToRemove != null) {
+                    sceneManager.activeObjects.removeValue(fireToRemove.gameObject, true)
+                    fireSystem.removeFire(fireToRemove, objectSystem, lightingManager)
+                    return true
+                }
+
                 // Check for teleporter removal
                 val teleporterGameObjects = Array(teleporterSystem.activeTeleporters.map { it.gameObject }.toTypedArray())
                 val teleporterToRemove = raycastSystem.getObjectAtRay(ray, teleporterGameObjects)
@@ -1583,6 +1597,21 @@ class MafiaGame : ApplicationAdapter() {
         println("Removed Particle Spawner at ${spawner.position}")
     }
 
+    private fun placeFire(ray: Ray) {
+        val intersection = Vector3()
+        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            val surfaceY = findHighestSurfaceYAt(intersection.x, intersection.z)
+            val firePosition = Vector3(intersection.x, surfaceY, intersection.z)
+
+            val newFire = fireSystem.addFire(firePosition, objectSystem, lightingManager)
+            if (newFire != null) {
+                sceneManager.activeObjects.add(newFire.gameObject)
+                println("Placed Spreading Fire object.")
+            }
+        }
+    }
+
     private fun placeTeleporter(ray: Ray) {
         val intersection = Vector3()
         val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
@@ -1651,6 +1680,7 @@ class MafiaGame : ApplicationAdapter() {
         handlePlayerInput()
         particleSystem.update(deltaTime)
         particleSpawnerSystem.update(deltaTime, particleSystem, sceneManager.activeParticleSpawners)
+        fireSystem.update(Gdx.graphics.deltaTime, playerSystem)
         playerSystem.update(deltaTime, sceneManager)
         enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
         npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
@@ -1859,6 +1889,7 @@ class MafiaGame : ApplicationAdapter() {
         enemySystem.dispose()
         npcSystem.dispose()
         particleSystem.dispose()
+        fireSystem.dispose()
 
         // Dispose shader effect manager
         shaderEffectManager.dispose()

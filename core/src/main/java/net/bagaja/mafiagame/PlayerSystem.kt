@@ -51,6 +51,21 @@ class PlayerSystem {
     private lateinit var billboardShaderProvider: BillboardShaderProvider
     private lateinit var billboardModelBatch: ModelBatch
 
+    var health: Float = 100f
+    private val maxHealth: Float = 100f
+
+    fun takeDamage(amount: Float) {
+        if (health > 0) {
+            health -= amount
+            println("Player took damage! Health is now: ${health.toInt()}")
+            if (health <= 0) {
+                health = 0f
+                println("Player has been defeated!")
+                // You can add logic here for player death/respawn
+            }
+        }
+    }
+
     // Player position and movement
     private val FALL_SPEED = 25f
     private val MAX_STEP_HEIGHT = 4.0f
