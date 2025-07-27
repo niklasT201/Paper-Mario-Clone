@@ -1105,9 +1105,12 @@ class PlayerSystem {
 
         // Update player texture if it changed
         val finalTexture: Texture? = when {
-            (state == PlayerState.ATTACKING && equippedWeapon.actionType == WeaponActionType.MELEE) ||
-                state == PlayerState.CHARGING_THROW -> {
-                animationSystem.getCurrentTexture() ?: poseTextures[equippedWeapon.playerPoseTexturePath] // Use the melee animation
+            state == PlayerState.ATTACKING && equippedWeapon.actionType == WeaponActionType.MELEE -> {
+                animationSystem.getCurrentTexture() // Use the melee animation
+            }
+
+            state == PlayerState.CHARGING_THROW -> {
+                poseTextures[equippedWeapon.playerPoseTexturePath]
             }
 
             isHoldingShootButton -> {
