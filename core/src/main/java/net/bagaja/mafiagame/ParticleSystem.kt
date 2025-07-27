@@ -280,6 +280,19 @@ enum class ParticleEffectType(
         particleCount = 1..1, initialSpeed = 0.5f, speedVariance = 0.2f, gravity = 2f, // Flames go up
         scale = 1.5f, scaleVariance = 0.3f, fadeOut = 1.0f
     ),
+    FIRE_SPREAD(
+        displayName = "Spreading Fire",
+        texturePaths = arrayOf(
+            "textures/particles/fire_spread/fire_spread_frame_one.png",
+            "textures/particles/fire_spread/fire_spread_frame_two.png",
+            "textures/particles/fire_spread/fire_spread_frame_three.png",
+            "textures/particles/fire_spread/fire_spread_frame_fourth.png",
+            "textures/particles/fire_spread/fire_spread_frame_five.png"
+        ),
+        frameDuration = 0.15f, isLooping = true, particleLifetime = 10f,
+        particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
+        scale = 10.0f, scaleVariance = 1.5f, fadeIn = 0.2f, fadeOut = 1.5f
+    ),
     FIRED_SHOT(
         "Shot",
         arrayOf("textures/particles/gun_smoke/gun_smoke_6.png"), // Can be made into an animation if you have more frames
