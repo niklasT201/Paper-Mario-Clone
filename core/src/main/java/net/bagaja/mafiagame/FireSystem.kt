@@ -86,12 +86,11 @@ class FireSystem {
 
     // Configurable properties for the NEXT fire to be placed
     var nextFireIsLooping = true
-    var nextFireStaysBurning = true
     var nextFireDealsDamage = true
     var nextFireDamagePerSecond = 10f
     var nextFireDamageRadius = 5f
-    var nextFireBaseScale = 8.0f
-    var nextFireScaleVariance = 2.0f
+    var nextFireMinScale = 0.2f // The smallest possible fire size
+    var nextFireMaxScale = 1.0f // The largest possible fire size
     var nextFireFadesOut = false
     var nextFireLifetime = 20f
     var nextFireCanBeExtinguished = true // By default, fire can be put out
@@ -112,8 +111,7 @@ class FireSystem {
         val fireObject = objectSystem.createGameObjectWithLight(ObjectType.FIRE_SPREAD, position, lightingManager) ?: return null
 
         // Calculate the random scale
-        val scaleVariance = (Random.nextFloat() - 0.5f) * 2f * nextFireScaleVariance
-        val initialScale = (nextFireBaseScale + scaleVariance).coerceAtLeast(1.0f)
+        val randomScale = nextFireMinScale + Random.nextFloat() * (nextFireMaxScale - nextFireMinScale)
 
         val newFire = GameFire(
             gameObject = fireObject,
@@ -121,14 +119,14 @@ class FireSystem {
             dealsDamage = nextFireDealsDamage,
             damagePerSecond = nextFireDamagePerSecond,
             damageRadius = nextFireDamageRadius,
-            initialScale = initialScale,
+            initialScale = randomScale,
             canBeExtinguished = nextFireCanBeExtinguished,
             fadesOut = nextFireFadesOut,
             lifetime = nextFireLifetime
         )
 
         // Apply the initial scale to the transform immediately
-        newFire.gameObject.modelInstance.transform.scale(initialScale, initialScale, initialScale)
+        newFire.gameObject.modelInstance.transform.scale(randomScale, randomScale, randomScale)
 
         // Create the animation using our pre-loaded textures
         val animationFrames = Array(frameTextures.map { AnimationFrame(it, 0.15f) }.toTypedArray())
@@ -141,7 +139,7 @@ class FireSystem {
     }
 
     fun removeFire(fireToRemove: GameFire, objectSystem: ObjectSystem, lightingManager: LightingManager) {
-        // Important: remove the associated light source!
+        // remove the associated light source
         objectSystem.removeGameObjectWithLight(fireToRemove.gameObject, lightingManager)
         activeFires.removeValue(fireToRemove, true)
     }
