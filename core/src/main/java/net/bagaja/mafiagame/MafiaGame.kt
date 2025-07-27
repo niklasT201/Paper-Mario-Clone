@@ -1783,8 +1783,10 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render all objects
         for (gameObject in sceneManager.activeObjects) {
-            gameObject.getRenderInstance(objectSystem.debugMode)?.let {
-                modelBatch.render(it, environment)
+            if (gameObject.objectType != ObjectType.FIRE_SPREAD) {
+                gameObject.getRenderInstance(objectSystem.debugMode)?.let {
+                    modelBatch.render(it, environment)
+                }
             }
         }
 
@@ -1829,6 +1831,9 @@ class MafiaGame : ApplicationAdapter() {
         npcSystem.renderNPCs(cameraManager.camera, environment, sceneManager.activeNPCs)
         carSystem.render(cameraManager.camera, environment, sceneManager.activeCars)
         lockIndicatorSystem.render(cameraManager.camera, environment)
+
+        fireSystem.render(cameraManager.camera, environment)
+
 
         // Render particles
         particleSystem.render(cameraManager.camera, environment)

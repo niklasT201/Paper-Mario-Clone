@@ -1,7 +1,10 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.Texture
+import com.badlogic.gdx.graphics.g3d.Environment
+import com.badlogic.gdx.graphics.g3d.ModelBatch
 import kotlin.random.Random
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
@@ -83,6 +86,8 @@ class FireSystem {
     val activeFires = Array<GameFire>()
     private lateinit var fireAnimationFrames: kotlin.Array<String>
     private lateinit var frameTextures: List<Texture>
+    private lateinit var billboardModelBatch: ModelBatch
+    private lateinit var billboardShaderProvider: BillboardShaderProvider
 
     // Configurable properties for the NEXT fire to be placed
     var nextFireIsLooping = true
@@ -105,6 +110,13 @@ class FireSystem {
         )
         // Pre-load textures to avoid lag
         frameTextures = fireAnimationFrames.map { Texture(Gdx.files.internal(it)) }
+
+        // Initialize the rendering tools
+        billboardShaderProvider = BillboardShaderProvider().apply {
+            setBillboardLightingStrength(0.9f)
+            setMinLightLevel(0.4f) // Fire should be visible in the dark
+        }
+        billboardModelBatch = ModelBatch(billboardShaderProvider)
     }
 
     fun addFire(position: Vector3, objectSystem: ObjectSystem, lightingManager: LightingManager): GameFire? {
@@ -177,7 +189,22 @@ class FireSystem {
         }
     }
 
+    fun render(camera: Camera, environment: Environment) {
+        if (activeFires.isEmpty) return
+
+        billboardShaderProvider.setEnvironment(environment)
+        billboardModelBatch.begin(camera)
+        for (fire in activeFires) {
+            // The fire's update logic already sets its transform correctly
+            billboardModelBatch.render(fire.gameObject.modelInstance, environment)
+        }
+        billboardModelBatch.end()
+    }
+
     fun dispose() {
         frameTextures.forEach { it.dispose() }
+        // ADDED: Dispose of the new rendering tools
+        billboardModelBatch.dispose()
+        billboardShaderProvider.dispose()
     }
 }

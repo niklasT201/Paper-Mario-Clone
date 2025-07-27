@@ -90,7 +90,7 @@ data class LightSource(
     /**
      * Updates the PointLight with current properties
      */
-    fun updatePointLight(light: PointLight? = pointLight) {
+    fun updatePointLight(light: RangePointLight? = pointLight) {
         val calculatedIntensity = (range * range * 0.2f)
         val finalIntensity = calculatedIntensity * (this.intensity / 50f)
 
@@ -102,6 +102,7 @@ data class LightSource(
             position.z,
             if (isEnabled && this.intensity > 0) finalIntensity else 0f
         )
+        light?.range = this.range
     }
 
     /**

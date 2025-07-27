@@ -292,20 +292,21 @@ class BlockShader : BaseShader() {
             }
         }
 
-        val numPointLights = pointLightsArray.size.coerceAtMost(16)
+        val numPointLights = pointLightsArray.size.coerceAtMost(128)
         set(u_numPointLights, numPointLights)
         //println("BlockShader: NumPointLights being sent to GLSL: $numPointLights")
 
-        for (i in 0 until 16) {
+        for (i in 0 until 128) {
             if (i < numPointLights) {
                 val light = pointLightsArray[i]
                 set(u_pointLightPositions[i], light.position)
                 set(u_pointLightColors[i], light.color.r, light.color.g, light.color.b)
-                set(u_pointLightIntensities[i], light.intensity)
 
-                // DEBUG: Print info for the first light
-                if (i == 0) {
-                    println("BlockShader: Light 0 data: Pos=${light.position}, Color=${light.color}, Range(Intensity)=${light.intensity}")
+                if (light is RangePointLight) {
+                    set(u_pointLightIntensities[i], light.range)
+                } else {
+                    // Fallback for standard PointLights that don't have a range
+                    set(u_pointLightIntensities[i], 50f)
                 }
             } else {
                 // Zero out unused light uniforms
