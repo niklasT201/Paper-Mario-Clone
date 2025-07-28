@@ -1877,6 +1877,7 @@ class MafiaGame : ApplicationAdapter() {
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
 
         // Render UI using UIManager
+        uiManager.updateFps()
         uiManager.render()
 
         // Render the transition animation ON TOP of everything else.

@@ -61,6 +61,8 @@ class UIManager(
     private lateinit var statsLabels: MutableMap<String, Label>
     private lateinit var placementInfoLabel: Label
     private lateinit var persistentMessageLabel: Label
+    private lateinit var fpsLabel: Label
+    private lateinit var fpsTable: Table
 
     var isUIVisible = false
         private set
@@ -84,6 +86,19 @@ class UIManager(
     fun initialize() {
         stage = Stage(ScreenViewport())
         skin = createSkin()
+
+        // --- FPS Counter Setup ---
+        fpsTable = Table()
+        fpsTable.setFillParent(true) // Makes it easy to align to screen corners
+        fpsTable.top().right()       // Align to the top-right
+        fpsTable.pad(15f)
+
+        fpsLabel = Label("FPS: 0", skin) // This automatically uses your default font from the skin
+        fpsLabel.color = Color.GREEN    // Make it stand out
+
+        fpsTable.add(fpsLabel)
+        stage.addActor(fpsTable)
+        fpsTable.isVisible = false
 
         setupMainUI()
 
@@ -1503,6 +1518,16 @@ class UIManager(
         dialog.key(com.badlogic.gdx.Input.Keys.ESCAPE, false)
         dialog.show(stage)
         stage.keyboardFocus = nameField
+    }
+
+    fun toggleFpsLabel() {
+        fpsTable.isVisible = !fpsTable.isVisible
+    }
+
+    fun updateFps() {
+        if (fpsTable.isVisible) {
+            fpsLabel.setText("FPS: ${Gdx.graphics.framesPerSecond}")
+        }
     }
 
     fun getStage(): Stage = stage

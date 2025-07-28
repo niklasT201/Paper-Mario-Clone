@@ -321,6 +321,10 @@ class InputHandler(
                         uiManager.updatePlacementInfo("Build Mode Brightness: $status")
                         return true
                     }
+                    Input.Keys.F11 -> {
+                        uiManager.toggleFpsLabel()
+                        return true
+                    }
                     Input.Keys.K -> {
                         uiManager.toggleSkyCustomizationUI()
                         return true
