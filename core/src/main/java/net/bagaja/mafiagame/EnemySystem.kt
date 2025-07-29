@@ -326,7 +326,7 @@ class EnemySystem : IFinePositionable {
     }
 
     private fun findNearestOccluder(position: Vector3, sceneManager: SceneManager): Vector3? {
-        val nearbyBlocks = sceneManager.activeBlocks.filter { it.position.dst(position) < hideSearchRadius }
+        val nearbyBlocks = sceneManager.activeChunkManager.getAllBlocks().filter { it.position.dst(position) < hideSearchRadius }
         val nearbyHouses = sceneManager.activeHouses.filter { it.position.dst(position) < hideSearchRadius }
 
         val closestBlockPos = nearbyBlocks.minByOrNull { it.position.dst2(position) }?.position
@@ -342,7 +342,6 @@ class EnemySystem : IFinePositionable {
         }
     }
 
-
     private fun canEnemyMoveTo(newPosition: Vector3, enemy: GameEnemy, sceneManager: SceneManager): Boolean {
         // Create the enemy's bounding box at the potential new position
         val enemyBounds = enemy.getBoundingBox()
@@ -352,7 +351,7 @@ class EnemySystem : IFinePositionable {
         )
 
         // 1. Check against blocks
-        sceneManager.activeBlocks.forEach { block ->
+        sceneManager.activeChunkManager.getAllBlocks().forEach { block ->
             // Use the block's accurate collision check
             if (block.blockType.hasCollision && block.collidesWith(enemyBounds)) {
                 return false

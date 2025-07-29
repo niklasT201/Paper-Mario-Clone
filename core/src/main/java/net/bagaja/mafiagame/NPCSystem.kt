@@ -471,7 +471,8 @@ class NPCSystem : IFinePositionable {
             npcBounds.min.set(newPosition.x - npc.npcType.width / 2f, newPosition.y - npc.npcType.height / 2f, newPosition.z - npc.npcType.width / 2f),
             npcBounds.max.set(newPosition.x + npc.npcType.width / 2f, newPosition.y + npc.npcType.height / 2f, newPosition.z + npc.npcType.width / 2f)
         )
-        sceneManager.activeBlocks.forEach { block ->
+
+        sceneManager.activeChunkManager.getAllBlocks().forEach { block ->
             // Use the block's accurate collision check
             if (block.blockType.hasCollision && block.collidesWith(npcBounds)) return false
         }

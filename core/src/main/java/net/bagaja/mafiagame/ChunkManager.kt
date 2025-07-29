@@ -24,34 +24,49 @@ class ChunkManager(private val faceCullingSystem: FaceCullingSystem, private val
         markDirty(chunk, block.position)
     }
 
-    fun removeBlock(block: GameBlock) {
+    fun removeBlock(block: GameBlock): GameBlock? {
         val chunkPos = worldToChunkPosition(block.position)
-        chunks[chunkPos]?.removeBlock(block)?.also {
-            markDirty(chunks[chunkPos]!!, block.position)
+        val chunk = chunks[chunkPos] ?: return null
+        val removedBlock = chunk.removeBlock(block)
+        if (removedBlock != null) {
+            markDirty(chunk, block.position)
         }
+        return removedBlock
     }
 
-    fun getBlockAt(worldPos: Vector3): GameBlock? {
+    fun getBlockAtWorld(worldPos: Vector3): GameBlock? {
         val chunkPos = worldToChunkPosition(worldPos)
         return chunks[chunkPos]?.getBlockAtWorld(worldPos)
     }
 
-    fun getBlocksInRadius(center: Vector3, radius: Float): Array<GameBlock> {
-        val result = Array<GameBlock>()
-        val checkRadiusInChunks = (radius / (Chunk.CHUNK_SIZE * blockSize)).toInt() + 1
-        val centerChunk = worldToChunkPosition(center)
+    fun getBlocksInColumn(x: Float, z: Float): List<GameBlock> {
+        val results = mutableListOf<GameBlock>()
+        val chunkX = floor(x / (Chunk.CHUNK_SIZE * blockSize)).toInt()
+        val chunkZ = floor(z / (Chunk.CHUNK_SIZE * blockSize)).toInt()
+        val halfBlock = blockSize / 2f
 
-        for (cx in (centerChunk.x - checkRadiusInChunks)..(centerChunk.x + checkRadiusInChunks)) {
-            for (cy in (centerChunk.y - checkRadiusInChunks)..(centerChunk.y + checkRadiusInChunks)) {
-                for (cz in (centerChunk.z - checkRadiusInChunks)..(centerChunk.z + checkRadiusInChunks)) {
-                    chunks[ChunkPosition(cx, cy, cz)]?.let { chunk ->
-                        // FIXED: Use the spread operator (*) to pass the Kotlin Array to the vararg function
-                        result.addAll(*chunk.blocks.values.toTypedArray())
+        for ((pos, chunk) in chunks) {
+            if (pos.x == chunkX && pos.z == chunkZ) {
+                for (block in chunk.blocks.values) {
+                    val blockMinX = block.position.x - halfBlock
+                    val blockMaxX = block.position.x + halfBlock
+                    val blockMinZ = block.position.z - halfBlock
+                    val blockMaxZ = block.position.z + halfBlock
+                    if (x in blockMinX..blockMaxX && z in blockMinZ..blockMaxZ) {
+                        results.add(block)
                     }
                 }
             }
         }
-        return result
+        return results
+    }
+
+    fun getAllBlocks(): Array<GameBlock> {
+        val allBlocks = Array<GameBlock>()
+        chunks.values.forEach { chunk ->
+            allBlocks.addAll(*chunk.blocks.values.toTypedArray())
+        }
+        return allBlocks
     }
 
     fun processDirtyChunks() {
@@ -73,7 +88,7 @@ class ChunkManager(private val faceCullingSystem: FaceCullingSystem, private val
         modelBuilder.begin()
         val meshPartBuilders = mutableMapOf<Material, com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder>()
 
-        //faceCullingSystem.updateFacesForChunk(chunk, this)
+        faceCullingSystem.updateFacesForChunk(chunk, this)
 
         for (block in chunk.blocks.values) {
             if (!block.blockType.isVisible) continue
@@ -100,29 +115,21 @@ class ChunkManager(private val faceCullingSystem: FaceCullingSystem, private val
                     )
                 }
 
-                // --- THIS IS THE CORRECTED LOGIC ---
-                // 1. Create a copy of the mesh to avoid modifying the original cached model.
+                // Copy the mesh to avoid modifying the original cached model
                 val meshCopy = mesh.copy(true)
 
-                // 2. Determine the correct world-space transform for this part.
-                val transform = if (block.shape == BlockShape.FULL_BLOCK) {
-                    Matrix4().setToTranslation(block.position)
-                } else {
-                    instance.transform
-                }
-
-                // 3. Transform the vertices of the COPY, not the original.
+                val transform = instance.transform // This already contains the block's world position and rotation
                 meshCopy.transform(transform)
 
-                // 4. Add the entire transformed mesh copy to the builder. LibGDX handles the indices.
+                // 4. Add the entire transformed mesh copy to the builder
                 builder.addMesh(meshCopy)
-                // The meshCopy is a temporary object and will be garbage collected.
             }
         }
 
         if (meshPartBuilders.isNotEmpty()) {
             chunk.model = modelBuilder.end()
             chunk.modelInstance = ModelInstance(chunk.model)
+            chunk.modelInstance?.transform?.idt()
         }
     }
 
@@ -167,10 +174,12 @@ class ChunkManager(private val faceCullingSystem: FaceCullingSystem, private val
         }
         // Mark all chunks as dirty so they build their mesh on the first frame
         dirtyChunks.addAll(chunks.values)
+        faceCullingSystem.recalculateAllFaces(getAllBlocks())
     }
 
     fun dispose() {
         chunks.values.forEach { it.dispose() }
         chunks.clear()
+        dirtyChunks.clear()
     }
 }

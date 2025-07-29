@@ -39,7 +39,9 @@ class SceneManager(
     private val fireSystem: FireSystem
 ) {
     // --- ACTIVE SCENE DATA ---
-    val activeBlocks = Array<GameBlock>()
+    private lateinit var worldChunkManager: ChunkManager
+    private val interiorChunkManagers = mutableMapOf<String, ChunkManager>()
+    lateinit var activeChunkManager: ChunkManager
     val activeObjects = Array<GameObject>()
     val activeCars = Array<GameCar>()
     val activeHouses = Array<GameHouse>()
@@ -49,15 +51,15 @@ class SceneManager(
     val activeNPCs = Array<GameNPC>()
     val activeParticleSpawners = Array<GameParticleSpawner>()
 
-    // --- STATE MANAGEMENT ---
+    // State Management
     var currentScene: SceneType = SceneType.WORLD
         private set
     private var worldState: WorldState? = null
     private val interiorStates = mutableMapOf<String, InteriorState>()
     private var currentInteriorId: String? = null
     private var pendingHouse: GameHouse? = null
-    private val supportRay = Ray()
-    private val supportIntersection = Vector3()
+
+    // Helper objects for physics/raycasting
     private val tempBlockBounds = BoundingBox()
 
     // --- INITIALIZATION ---
@@ -70,7 +72,10 @@ class SceneManager(
         initialEnemies: Array<GameEnemy>,
         initialNPCs: Array<GameNPC>,
     ) {
-        activeBlocks.addAll(initialBlocks)
+        worldChunkManager = ChunkManager(faceCullingSystem, game.blockSize)
+        worldChunkManager.loadInitialBlocks(initialBlocks)
+        activeChunkManager = worldChunkManager
+
         activeObjects.addAll(initialObjects)
         activeCars.addAll(initialCars)
         activeHouses.addAll(initialHouses)
@@ -78,38 +83,38 @@ class SceneManager(
         activeEnemies.addAll(initialEnemies)
         activeNPCs.addAll(initialNPCs)
 
-        // Initial face culling for the entire world on startup
-        recalculateAllFacesInCollection(activeBlocks)
-
         currentScene = SceneType.WORLD
 
         // Synchronize the ItemSystem with the initial world items
         itemSystem.setActiveItems(activeItems)
-        println("SceneManager initialized. World scene is active.")
+        println("SceneManager initialized. World scene is active with ChunkManager.")
+    }
+
+    fun addBlock(block: GameBlock) {
+        activeChunkManager.addBlock(block)
+    }
+
+    fun removeBlock(block: GameBlock) {
+        activeChunkManager.removeBlock(block)
     }
 
     fun findHighestSupportY(x: Float, z: Float, currentY: Float, checkRadius: Float, blockSize: Float): Float {
         var highestSupportY = 0f // Default to ground level
-        val playerHeight = playerSystem.getPlayerBounds().getHeight() // Get player height for accurate checks
 
-        // Tolerance to allow player's feet to be slightly above the surface
-        val underfootTolerance = 1.0f
+        // This uses the player's dimensions, which is okay since SceneManager has a reference to playerSystem.
+        val entityFootY = currentY - (playerSystem.playerSize.y / 2f)
 
-        // Check against all active blocks
-        for (block in activeBlocks) {
+        // 1. Check Blocks using the efficient column query
+        val blocksInColumn = activeChunkManager.getBlocksInColumn(x, z)
+        for (block in blocksInColumn) {
             if (!block.blockType.hasCollision) continue
 
             val blockBounds = block.getBoundingBox(blockSize, tempBlockBounds)
-            // Check for horizontal overlap
-            val isDirectlyOverBlock = (x >= blockBounds.min.x && x <= blockBounds.max.x) &&
-                (z >= blockBounds.min.z && z <= blockBounds.max.z)
+            val blockTop = blockBounds.max.y
 
-            if (isDirectlyOverBlock) {
-                val blockTop = blockBounds.max.y
-                // Only consider this block as support if it's at or below the player's feet.
-                if (blockTop <= currentY + underfootTolerance && blockTop > highestSupportY) {
-                    highestSupportY = blockTop
-                }
+            // NOW THIS LINE WILL WORK, because MAX_STEP_HEIGHT is in the companion object.
+            if (blockTop <= entityFootY + PlayerSystem.MAX_STEP_HEIGHT && blockTop > highestSupportY) {
+                highestSupportY = blockTop
             }
         }
 
@@ -117,12 +122,11 @@ class SceneManager(
         for (house in activeHouses) {
             // NEW STAIR LOGIC (from old PlayerSystem)
             if (house.houseType == HouseType.STAIR) {
-                val playerFootY = currentY - playerHeight / 2f
+                val playerHeight = playerSystem.playerSize.y
 
                 // Create test bounds at the potential new position
-                val testBounds = BoundingBox()
-                testBounds.set(
-                    Vector3(x - checkRadius, playerFootY, z - checkRadius),
+                val testBounds = BoundingBox(
+                    Vector3(x - checkRadius, entityFootY, z - checkRadius),
                     Vector3(x + checkRadius, currentY + playerHeight / 2f, z + checkRadius)
                 )
 
@@ -147,7 +151,7 @@ class SceneManager(
 
                 if(horizontalOverlap) {
                     val houseTop = houseBounds.max.y
-                    if (houseTop <= currentY + underfootTolerance && houseTop > highestSupportY) {
+                    if (houseTop <= entityFootY + PlayerSystem.MAX_STEP_HEIGHT && houseTop > highestSupportY) {
                         highestSupportY = houseTop
                     }
                 }
@@ -158,6 +162,8 @@ class SceneManager(
         for (interior in activeInteriors) {
             if (!interior.interiorType.is3D || !interior.interiorType.hasCollision) continue
 
+            val supportRay = Ray()
+            val supportIntersection = Vector3()
             val rayDirection = Vector3.Y.cpy().scl(-1f)
             val checkPoints = arrayOf(
                 Vector3(x, 1000f, z), Vector3(x - checkRadius * 0.9f, 1000f, z - checkRadius * 0.9f),
@@ -178,7 +184,7 @@ class SceneManager(
 
             if (wasHit) {
                 // Only consider this interior as support if it's at or below the player's feet.
-                if (maxHitY <= currentY + underfootTolerance && maxHitY > highestSupportY) {
+                if (maxHitY <= entityFootY + PlayerSystem.MAX_STEP_HEIGHT && maxHitY > highestSupportY) {
                     highestSupportY = maxHitY
                 }
             }
@@ -246,7 +252,8 @@ class SceneManager(
         var highestSupportY = 0f // Default to ground level
 
         // Check against all active blocks
-        for (block in activeBlocks) {
+        val blocksInColumn = activeChunkManager.getBlocksInColumn(x, z)
+        for (block in blocksInColumn) {
             if (!block.blockType.hasCollision) {
                 continue
             }
@@ -279,7 +286,8 @@ class SceneManager(
     fun hasSolidSupportAt(x: Float, z: Float): Boolean {
         val tempBounds = BoundingBox()
 
-        for (block in activeBlocks) {
+        val blocksInColumn = activeChunkManager.getBlocksInColumn(x, z)
+        for (block in blocksInColumn) {
             // We only care about blocks that actually have collision.
             if (!block.blockType.hasCollision) continue
 
@@ -335,10 +343,17 @@ class SceneManager(
 
     private fun completeTransitionToInterior() {
         val house = pendingHouse ?: return
-        var interior: InteriorState? = interiorStates[house.id]
+        val interiorCm = interiorChunkManagers.getOrPut(house.id) {
+            println("Creating new ChunkManager for house ID: ${house.id}")
+            ChunkManager(faceCullingSystem, game.blockSize)
+        }
+
+        // This will hold the state of the interior we are about to load.
+        val interiorState: InteriorState
         var foundExitDoorId: String? = null // To store the ID from the template
 
-        if (interior == null) {
+        // 2. Check if we have already created and stored a state for this interior.
+        if (!interiorStates.containsKey(house.id)) {
             println("No saved state for this house instance. Generating new interior from template.")
             val templateId = house.assignedRoomTemplateId
             if (templateId != null) {
@@ -346,35 +361,36 @@ class SceneManager(
                 if (template != null) {
                     // Call the modified function and get the Pair result
                     val (newInteriorState, exitDoorId) = createInteriorFromTemplate(house, template)
-                    interior = newInteriorState
+                    interiorState = newInteriorState
                     foundExitDoorId = exitDoorId // Store the found ID
 
-                    interiorStates[house.id] = interior
+                    interiorCm.loadInitialBlocks(interiorState.blocks)
                 } else {
                     println("Warning: House has template ID '$templateId' but template was not found. Creating empty room.")
-                    interior = createNewEmptyInteriorFor(house)
-                    interiorStates[house.id] = interior
+                    interiorState = createNewEmptyInteriorFor(house)
                 }
             } else {
                 println("Warning: Unlocked house has no assigned room template. Creating empty room.")
-                interior = createNewEmptyInteriorFor(house)
-                interiorStates[house.id] = interior
+                interiorState = createNewEmptyInteriorFor(house)
             }
+            // Store the newly created state so we can return to it later.
+            interiorStates[house.id] = interiorState
+
+        } else {
+            println("Loading existing state for house ID: ${house.id}")
+            interiorState = interiorStates[house.id]!!
         }
 
-        val loadedInterior = interiorStates[house.id]!!
+        activeChunkManager = interiorCm
+        loadInteriorState(interiorState)
 
-        if (loadedInterior.isTimeFixed) {
-            println("Room has fixed time. Overriding visual time.")
-            // Tell the lighting manager to USE the fixed time for visuals.
-            game.lightingManager.overrideTime(loadedInterior.fixedTimeProgress)
+        if (interiorState.isTimeFixed) {
+            game.lightingManager.overrideTime(interiorState.fixedTimeProgress)
         } else {
-            println("Room has dynamic time. Clearing any visual time override.")
             // Make sure the lighting manager is using the LIVE clock.
             game.lightingManager.clearTimeOverride()
         }
-
-        game.shaderEffectManager.setRoomOverride(loadedInterior.savedShaderEffect)
+        game.shaderEffectManager.setRoomOverride(interiorState.savedShaderEffect)
 
         // If we generated a new interior from a template and found an exit door
         if (foundExitDoorId != null) {
@@ -382,19 +398,28 @@ class SceneManager(
             println("Assigned exit door ID '${house.exitDoorId}' to house '${house.id}' from template.")
         }
 
-        loadInteriorState(loadedInterior)
-
+        // 7. Finalize the transition
         particleSystem.clearAllParticles()
 
         currentInteriorId = house.id
         currentScene = SceneType.HOUSE_INTERIOR
-        playerSystem.setPosition(interior.playerPosition)
-        cameraManager.resetAndSnapToPlayer(interior.playerPosition, false)
+        playerSystem.setPosition(interiorState.playerPosition)
+        cameraManager.resetAndSnapToPlayer(interiorState.playerPosition, false)
         pendingHouse = null
 
         if (house.exitDoorId == null) {
             game.enterExitDoorPlacementMode(house)
         }
+
+        // Start fading back in to reveal the room.
+        transitionSystem.startInTransition()
+    }
+
+    private fun getInteriorStateFor(houseId: String): InteriorState {
+        return InteriorState(
+            houseId = houseId,
+            playerPosition = Vector3(0f, 2f, 0f) // Default spawn point
+        )
     }
 
     fun getCurrentHouse(): GameHouse? {
@@ -442,7 +467,6 @@ class SceneManager(
         println("Saving world state...")
         // We create NEW arrays to snapshot the state, not just reference the active ones.
         worldState = WorldState(
-            blocks = Array(activeBlocks),
             objects = Array(activeObjects),
             cars = Array(activeCars),
             houses = Array(activeHouses),
@@ -450,20 +474,25 @@ class SceneManager(
             enemies = Array(activeEnemies),
             npcs = Array(activeNPCs),
             particleSpawners = Array(activeParticleSpawners),
-            playerPosition = playerSystem.getPosition(), // Save player pos just outside door
-            cameraPosition = Vector3(), // You would save camera state here too if needed
+            playerPosition = playerSystem.getPosition(),
+            cameraPosition = Vector3(),
             lights = game.lightingManager.getLightSources()
         )
         println("World state saved. Player at ${worldState!!.playerPosition}")
     }
 
     private fun restoreWorldState() {
-        val state = worldState ?: return
+        val state = worldState
+        if (state == null) {
+            println("ERROR: Cannot restore world state because it was never saved.")
+            return
+        }
+
         println("Restoring world state...")
 
         // Clear active data and load from the saved state
         clearActiveScene()
-        activeBlocks.addAll(state.blocks)
+
         activeObjects.addAll(state.objects)
         activeCars.addAll(state.cars)
         activeHouses.addAll(state.houses)
@@ -481,10 +510,9 @@ class SceneManager(
 
     private fun saveCurrentInteriorState() {
         val id = currentInteriorId ?: return
-        val currentState = interiorStates[id] ?: return
+        val currentState = getInteriorStateFor(id)
         println("Saving state for interior instance: $id")
 
-        currentState.blocks.clear(); currentState.blocks.addAll(activeBlocks)
         currentState.objects.clear(); currentState.objects.addAll(activeObjects)
         currentState.items.clear(); currentState.items.addAll(activeItems)
         currentState.interiors.clear(); currentState.interiors.addAll(activeInteriors)
@@ -501,7 +529,7 @@ class SceneManager(
     private fun loadInteriorState(state: InteriorState) {
         println("Loading state for interior instance: ${state.houseId}")
         clearActiveScene()
-        activeBlocks.addAll(state.blocks)
+
         activeObjects.addAll(state.objects)
         activeItems.addAll(state.items)
         activeInteriors.addAll(state.interiors)
@@ -705,11 +733,11 @@ class SceneManager(
             }
         }
         // After all blocks are created, run face culling on the entire collection
-        recalculateAllFacesInCollection(newBlocks)
+        faceCullingSystem.recalculateAllFaces(newBlocks)
 
         var foundExitDoorId: String? = null
         // Check if the template has a valid saved door position.
-        if (template.exitDoorPosition.len2() > 0) {
+        if (template.exitDoorPosition.len2() > 0.1f) { // Use len2 for efficiency, check > 0.1f to avoid floating point issues
             // Find the door in the newly created interiors that is closest to the saved position.
             val closestDoor = newInteriors
                 .filter { it.interiorType == InteriorType.DOOR_INTERIOR }
@@ -731,7 +759,7 @@ class SceneManager(
 
         val interiorState = InteriorState(
             houseId = house.id,
-            blocks = newBlocks,
+            blocks = newBlocks, // This list will be loaded into the chunk manager
             objects = newObjects,
             items = newItems,
             interiors = newInteriors,
@@ -743,7 +771,8 @@ class SceneManager(
             isTimeFixed = template.isTimeFixed,
             fixedTimeProgress = template.fixedTimeProgress,
             lights = newLights,
-            savedShaderEffect = template.savedShaderEffect
+            savedShaderEffect = template.savedShaderEffect,
+            sourceTemplateId = template.id
         )
         interiorState.sourceTemplateId = template.id
 
@@ -807,7 +836,7 @@ class SceneManager(
         val elements = mutableListOf<RoomElement>()
 
         // Convert active blocks to RoomElements
-        activeBlocks.forEach { block ->
+        activeChunkManager.getAllBlocks().forEach { block ->
             elements.add(RoomElement(
                 position = block.position.cpy(),
                 elementType = RoomElementType.BLOCK,
@@ -962,6 +991,10 @@ class SceneManager(
 
         println("Loading template '$templateId' into current room...")
         clearActiveScene()
+
+        activeChunkManager.dispose()
+
+        val newBlocksForChunkManager = Array<GameBlock>()
         val tempTeleporters = Array<GameTeleporter>()
 
         // Build the scene from the template's elements
@@ -977,7 +1010,7 @@ class SceneManager(
                             textureRotation = element.textureRotation,
                             topTextureRotation = element.topTextureRotation
                         )
-                        activeBlocks.add(gameBlock)
+                        newBlocksForChunkManager.add(gameBlock)
                     }
                 }
                 RoomElementType.OBJECT -> {
@@ -1116,7 +1149,7 @@ class SceneManager(
         teleporterSystem.activeTeleporters.addAll(tempTeleporters)
 
         // After loading all blocks, run face culling on the entire active collection
-        recalculateAllFacesInCollection(activeBlocks)
+        activeChunkManager.loadInitialBlocks(newBlocksForChunkManager)
 
         itemSystem.setActiveItems(activeItems)
 
@@ -1125,17 +1158,12 @@ class SceneManager(
         cameraManager.resetAndSnapToPlayer(template.entrancePosition, false)
     }
 
-    private fun recalculateAllFacesInCollection(blocks: Array<GameBlock>) {
-        faceCullingSystem.recalculateAllFaces(blocks)
-    }
-
     fun getCurrentInteriorState(): InteriorState? {
         val id = currentInteriorId ?: return null
         return interiorStates[id]
     }
 
     private fun clearActiveScene() {
-        activeBlocks.clear()
         activeObjects.clear()
         activeCars.clear()
         activeHouses.clear()
@@ -1145,11 +1173,14 @@ class SceneManager(
         activeNPCs.clear()
         activeParticleSpawners.clear()
         teleporterSystem.activeTeleporters.clear()
+
+        // Also clear any active lights from the lighting manager
+        val currentLightIds = game.lightingManager.getLightSources().keys.toList()
+        currentLightIds.forEach { game.lightingManager.removeLightSource(it) }
     }
 }
 
 data class WorldState(
-    val blocks: Array<GameBlock>,
     val objects: Array<GameObject>,
     val cars: Array<GameCar>,
     val houses: Array<GameHouse>,

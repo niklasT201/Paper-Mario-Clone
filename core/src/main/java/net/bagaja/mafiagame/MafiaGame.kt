@@ -65,7 +65,7 @@ class MafiaGame : ApplicationAdapter() {
     private var showInvisibleBlockOutlines = false
 
     // Block size
-    private val blockSize = 4f
+    val blockSize = 4f
 
     lateinit var lightingManager: LightingManager
     private lateinit var particleSystem: ParticleSystem
@@ -264,12 +264,12 @@ class MafiaGame : ApplicationAdapter() {
             cameraManager.handleInput(deltaTime)
         } else {
             // Handle player movement through PlayerSystem
+            val allBlocks = sceneManager.activeChunkManager.getAllBlocks()
+
+            // Now, call the function with the list it expects
             val moved = playerSystem.handleMovement(
                 deltaTime,
                 sceneManager,
-                sceneManager.activeBlocks,
-                sceneManager.activeHouses,
-                sceneManager.activeInteriors,
                 sceneManager.activeCars,
                 particleSystem
             )
@@ -297,7 +297,12 @@ class MafiaGame : ApplicationAdapter() {
         if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
             // If the player is currently driving
             if (playerSystem.isDriving) {
-                playerSystem.exitCar(sceneManager.activeBlocks, sceneManager.activeHouses, sceneManager.activeInteriors)
+
+                // Get all blocks from the chunk manager first
+                val allBlocks = sceneManager.activeChunkManager.getAllBlocks()
+
+                // Now, call the function with the list it expects
+                playerSystem.exitCar(sceneManager)
                 return
             }
 
@@ -487,7 +492,7 @@ class MafiaGame : ApplicationAdapter() {
 
         when (uiManager.selectedTool) {
             UIManager.Tool.BLOCK -> {
-                val blockToRemove = raycastSystem.getBlockAtRay(ray, sceneManager.activeBlocks)
+                val blockToRemove = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
                 if (blockToRemove != null) {
                     removeBlockArea(blockToRemove)
                     return true
@@ -724,7 +729,7 @@ class MafiaGame : ApplicationAdapter() {
         // Find the highest block at the given X,Z position
         var highestBlockY = 0f // Ground level
 
-        for (gameBlock in sceneManager.activeBlocks) {
+        for (gameBlock in sceneManager.activeChunkManager.getBlocksInColumn(x, z)) {
             // Ignore blocks that don't have collision for height calculation
             if (!gameBlock.blockType.hasCollision) continue
 
@@ -750,24 +755,20 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun findHighestSurfaceYAt(x: Float, z: Float): Float {
+        val blocksInColumn = sceneManager.activeChunkManager.getBlocksInColumn(x, z)
         var highestY = 0f // Default to ground level
         val tempBounds = BoundingBox() // Re-use this to avoid creating new objects in the loop
 
-        for (gameBlock in sceneManager.activeBlocks) {
+        for (gameBlock in blocksInColumn) {
             // Skip blocks that don't have collision
             if (!gameBlock.blockType.hasCollision) continue
 
             // Get the world-space bounding box for the block
-            val blockBounds = gameBlock.getBoundingBox(blockSize, tempBounds)
+            val blockBounds = gameBlock.getBoundingBox(blockSize, BoundingBox())
 
-            // Check if the given (x, z) point is within the block's footprint
-            if (x >= blockBounds.min.x && x <= blockBounds.max.x &&
-                z >= blockBounds.min.z && z <= blockBounds.max.z) {
-
-                // If it is, check if this block's top surface is the highest we've found so far
-                if (blockBounds.max.y > highestY) {
-                    highestY = blockBounds.max.y
-                }
+            // If it is, check if this block's top surface is the highest we've found so far
+            if (blockBounds.max.y > highestY) {
+                highestY = blockBounds.max.y
             }
         }
         return highestY
@@ -782,7 +783,7 @@ class MafiaGame : ApplicationAdapter() {
         if (size == 1) {
             val position = Vector3(cornerX + blockSize / 2, cornerY + (blockSize * blockType.height) / 2, cornerZ + blockSize / 2)
             // Check if block already exists at this position
-            val existingBlock = sceneManager.activeBlocks.find { gameBlock ->
+            val existingBlock = sceneManager.activeChunkManager.getAllBlocks().find { gameBlock ->
                 // This check might need to be more robust for different shapes and sizes
                 gameBlock.position.dst(position) < 0.1f
             }
@@ -826,7 +827,7 @@ class MafiaGame : ApplicationAdapter() {
                 )
 
                 // Check if a block already exists at this position
-                val existingBlock = sceneManager.activeBlocks.find { gameBlock ->
+                val existingBlock = sceneManager.activeChunkManager.getAllBlocks().find { gameBlock ->
                     gameBlock.position.dst(checkPosition) < 0.1f
                 }
 
@@ -841,7 +842,7 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeBlock(ray: Ray) {
-        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeBlocks)
+        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
 
         if (hitBlock != null) {
             // We hit an existing block, place new block adjacent to it
@@ -899,12 +900,8 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun removeBlock(blockToRemove: GameBlock) {
-        val position = Vector3(blockToRemove.position)
-        sceneManager.activeBlocks.removeValue(blockToRemove, true)
+        sceneManager.removeBlock(blockToRemove)
         println("${blockToRemove.blockType.displayName} block removed at: ${blockToRemove.position}")
-
-        // Use the centralized system
-        faceCullingSystem.updateFacesAround(position, sceneManager.activeBlocks)
     }
 
     private fun removeBlockArea(centerBlock: GameBlock) {
@@ -944,7 +941,7 @@ class MafiaGame : ApplicationAdapter() {
                 val targetPos = Vector3(targetX, targetY, targetZ)
 
                 // Find if a block exists at this target position
-                val blockFound = sceneManager.activeBlocks.find { it.position.epsilonEquals(targetPos, 0.1f) }
+                val blockFound = sceneManager.activeChunkManager.getBlockAtWorld(targetPos)
                 if (blockFound != null) {
                     blocksToRemoveList.add(blockFound)
                 }
@@ -952,14 +949,8 @@ class MafiaGame : ApplicationAdapter() {
         }
 
         if (blocksToRemoveList.isNotEmpty()) {
-            val positionsToUpdate = blocksToRemoveList.map { it.position }
-
-            val gdxArrayToRemove = Array(blocksToRemoveList.toTypedArray())
-            sceneManager.activeBlocks.removeAll(gdxArrayToRemove, true)
-
-            // Update face culling for all affected areas
-            for (pos in positionsToUpdate) {
-                faceCullingSystem.updateFacesAround(pos, sceneManager.activeBlocks)
+            for (blockToRemove in blocksToRemoveList) {
+                removeBlock(blockToRemove)
             }
             println("Removed ${blocksToRemoveList.size} blocks in a $size x $size area.")
         }
@@ -973,12 +964,12 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placePlayer(ray: Ray) {
-        playerSystem.placePlayer(ray, sceneManager.activeBlocks, sceneManager.activeHouses, sceneManager.activeInteriors)
+        playerSystem.placePlayer(ray, sceneManager)
     }
 
     private fun placeObject(ray: Ray) {
         // First try to hit existing blocks
-        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeBlocks)
+        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
 
         if (hitBlock != null) {
             placeObjectOnBlock(ray, hitBlock)
@@ -1109,7 +1100,7 @@ class MafiaGame : ApplicationAdapter() {
 
     // New function to place items
     private fun placeItem(ray: Ray) {
-        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeBlocks)
+        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
         if (hitBlock != null) {
             // We hit a block directly - place item on top of it
             placeItemOnBlock(ray, hitBlock)
@@ -1200,43 +1191,27 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun addBlock(x: Float, y: Float, z: Float, blockType: BlockType) {
-        addBlockToCollection(x, y, z, blockType, sceneManager.activeBlocks)
-    }
-
-    private fun addBlockToCollection(x: Float, y: Float, z: Float, blockType: BlockType, collection: Array<GameBlock>) {
         val shape = blockSystem.currentSelectedShape
         val blockHeight = blockSize * blockType.height
 
-        // Calculate position
         val position = when {
-            blockType == BlockType.WATER -> {
-                Vector3(x + blockSize / 2, y + blockHeight, z + blockSize / 2)
-            }
+            blockType == BlockType.WATER -> Vector3(x + blockSize / 2, y + blockHeight, z + blockSize / 2)
             shape == BlockShape.SLAB_BOTTOM -> Vector3(x + blockSize / 2, y + blockHeight / 4, z + blockSize / 2)
             shape == BlockShape.SLAB_TOP -> Vector3(x + blockSize / 2, y + (blockHeight * 0.75f), z + blockSize / 2)
             else -> Vector3(x + blockSize / 2, y + blockHeight / 2, z + blockSize / 2)
         }
 
-        // Create the block using the new factory method
-        val geometryRotation = blockSystem.currentGeometryRotation
-        val textureRotation = blockSystem.currentTextureRotation
-        val topTextureRotation = blockSystem.currentTopTextureRotation
-
-        // Create the block using the new, explicit factory method
         val gameBlock = blockSystem.createGameBlock(
             type = blockType,
             shape = shape,
             position = position,
-            geometryRotation = geometryRotation,
-            textureRotation = textureRotation,
-            topTextureRotation = topTextureRotation
+            geometryRotation = blockSystem.currentGeometryRotation,
+            textureRotation = blockSystem.currentTextureRotation,
+            topTextureRotation = blockSystem.currentTopTextureRotation
         )
-        collection.add(gameBlock)
 
-        // Use the centralized system
-        if (gameBlock.shape == BlockShape.FULL_BLOCK) {
-            faceCullingSystem.updateFacesAround(gameBlock.position, collection)
-        }
+        // The only call needed now
+        sceneManager.addBlock(gameBlock)
     }
 
     private fun addHouseToCollection(x: Float, y: Float, z: Float, houseType: HouseType, collection: Array<GameHouse>) {
@@ -1540,7 +1515,7 @@ class MafiaGame : ApplicationAdapter() {
         var hitPoint: Vector3? = null
         var hitNormal: Vector3? = null // To orient effects like impacts
 
-        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeBlocks)
+        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
         if (hitBlock != null) {
             val blockBounds = hitBlock.getBoundingBox(blockSize, BoundingBox())
             if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, blockBounds, intersection)) {
@@ -1719,12 +1694,14 @@ class MafiaGame : ApplicationAdapter() {
         // Update item system (animations, collisions, etc.)
         itemSystem.update(deltaTime, cameraManager.camera, playerSystem, sceneManager)
 
+        sceneManager.activeChunkManager.processDirtyChunks()
+
         // Update highlight system
         highlightSystem.update(
             cameraManager,
             uiManager,
             blockSystem,
-            sceneManager.activeBlocks,
+            sceneManager.activeChunkManager.getAllBlocks(),
             sceneManager.activeObjects,
             sceneManager.activeParticleSpawners,
             sceneManager.activeCars,
@@ -1765,26 +1742,7 @@ class MafiaGame : ApplicationAdapter() {
         parallaxBackgroundSystem.render(modelBatch, cameraManager.camera, environment)
 
         // Render all blocks
-        for (gameBlock in sceneManager.activeBlocks) {
-            if (!gameBlock.blockType.isVisible) {
-                continue
-            }
-            if (gameBlock.shape == BlockShape.FULL_BLOCK) {
-                // Render a standard block using face culling
-                gameBlock.faceInstances?.let { faces ->
-                    for (face in gameBlock.visibleFaces) {
-                        faces[face]?.let { instance ->
-                            modelBatch.render(instance, environment)
-                        }
-                    }
-                }
-            } else {
-                // Render a custom shape block
-                gameBlock.modelInstance?.let { instance ->
-                    modelBatch.render(instance, environment)
-                }
-            }
-        }
+        sceneManager.activeChunkManager.render(modelBatch, environment, cameraManager.camera)
 
         // Render all objects
         for (gameObject in sceneManager.activeObjects) {
@@ -1865,7 +1823,7 @@ class MafiaGame : ApplicationAdapter() {
                 modelBatch,
                 environment,
                 cameraManager.camera,
-                sceneManager.activeBlocks
+                sceneManager.activeChunkManager.getAllBlocks()
             )
         }
 

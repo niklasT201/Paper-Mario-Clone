@@ -50,6 +50,8 @@ public class Lwjgl3Launcher {
 // occlusion optional
 
 // implement chunk system
+// not full blocks sides hiding full blocks
+// wrong blocks being used in rooms
 // changing room transition effect colors
 // maybe improving billboard shader
 // placing 5 light sources creates room filling light visually, not actually. probably existing bc the area light disappears
