@@ -823,13 +823,6 @@ class PlayerSystem {
             wipeEffectTimer = WIPE_EFFECT_INTERVAL
         }
 
-        if(moved) {
-            println("DEBUG: Final Position: (${"%.2f".format(playerPosition.x)}, ${"%.2f".format(playerPosition.y)}, ${"%.2f".format(playerPosition.z)})")
-        }
-        if (deltaX != 0f || deltaZ != 0f || moved) {
-            println("--- FRAME END ---\n")
-        }
-
         // Handle animation and rotation
         if (isMoving && !lastIsMoving) {
             // No need for a separate animation, just update the texture directly

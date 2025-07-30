@@ -86,7 +86,8 @@ class ChunkManager(private val faceCullingSystem: FaceCullingSystem, private val
 
         val modelBuilder = ModelBuilder()
         modelBuilder.begin()
-        val meshPartBuilders = mutableMapOf<Material, com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder>()
+
+        var hasGeometry = false
 
         faceCullingSystem.updateFacesForChunk(chunk, this)
 
@@ -106,27 +107,25 @@ class ChunkManager(private val faceCullingSystem: FaceCullingSystem, private val
                 val mesh = instance.model.meshes.first()
                 val material = instance.materials.first()
 
-                val builder = meshPartBuilders.getOrPut(material) {
-                    modelBuilder.part(
-                        "chunk_part_${material.hashCode()}",
-                        GL20.GL_TRIANGLES,
-                        (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong(),
-                        material
-                    )
-                }
+                val builder = modelBuilder.part(
+                    "chunk_part_${instance.hashCode()}",
+                    GL20.GL_TRIANGLES,
+                    (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong(),
+                    Material(material) // Create a COPY of the material to be safe
+                )
 
                 // Copy the mesh to avoid modifying the original cached model
                 val meshCopy = mesh.copy(true)
-
-                val transform = instance.transform // This already contains the block's world position and rotation
+                val transform = instance.transform
                 meshCopy.transform(transform)
 
                 // 4. Add the entire transformed mesh copy to the builder
                 builder.addMesh(meshCopy)
+                hasGeometry = true
             }
         }
 
-        if (meshPartBuilders.isNotEmpty()) {
+        if (hasGeometry) {
             chunk.model = modelBuilder.end()
             chunk.modelInstance = ModelInstance(chunk.model)
             chunk.modelInstance?.transform?.idt()
