@@ -350,22 +350,35 @@ class EnemySystem : IFinePositionable {
             enemyBounds.max.set(newPosition.x + enemy.enemyType.width / 2f, newPosition.y + enemy.enemyType.height / 2f, newPosition.z + enemy.enemyType.width / 2f)
         )
 
-        // 1. Check against blocks
+        // Check against blocks with step-up logic
         sceneManager.activeChunkManager.getAllBlocks().forEach { block ->
-            // Use the block's accurate collision check
-            if (block.blockType.hasCollision && block.collidesWith(enemyBounds)) {
+            if (!block.blockType.hasCollision) return@forEach // Skips this block in the loop
+
+            val blockBounds = block.getBoundingBox(4f, tempBlockBounds) // Use 4f as blockSize
+
+            if (enemyBounds.intersects(blockBounds)) {
+                // A collision occurred. Check if it's a step or a wall.
+                val enemyBottomY = enemyBounds.min.y
+                val blockTopY = blockBounds.max.y
+
+                // If the enemy's bottom is above or very close to the block's top, it's a valid surface, not a wall.
+                if (enemyBottomY >= blockTopY - 0.5f) { // 0.5f tolerance
+                    return@forEach // Continue to the next block
+                }
+
+                // It's a real side collision with a wall.
                 return false
             }
         }
 
-        // 2. Check against houses
+        // Check against houses
         sceneManager.activeHouses.forEach {
             if (it.collidesWithMesh(enemyBounds)) {
                 return false
             }
         }
 
-        // 3. Check against solid interior objects
+        // Check against solid interior objects
         sceneManager.activeInteriors.forEach { interior ->
             if (interior.interiorType.hasCollision && interior.collidesWithMesh(enemyBounds)) {
                 return false

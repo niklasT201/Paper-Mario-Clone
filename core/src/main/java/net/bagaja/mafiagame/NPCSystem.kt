@@ -472,18 +472,42 @@ class NPCSystem : IFinePositionable {
             npcBounds.max.set(newPosition.x + npc.npcType.width / 2f, newPosition.y + npc.npcType.height / 2f, newPosition.z + npc.npcType.width / 2f)
         )
 
+        // Check against blocks with step-up logic
         sceneManager.activeChunkManager.getAllBlocks().forEach { block ->
-            // Use the block's accurate collision check
-            if (block.blockType.hasCollision && block.collidesWith(npcBounds)) return false
+            if (!block.blockType.hasCollision) return@forEach // Skips this block in the loop
+
+            val blockBounds = block.getBoundingBox(4f, tempBlockBounds) // Use 4f as blockSize
+
+            if (npcBounds.intersects(blockBounds)) {
+                // A collision occurred. Check if it's a step or a wall.
+                val npcBottomY = npcBounds.min.y
+                val blockTopY = blockBounds.max.y
+
+                // If the NPC's bottom is above or very close to the block's top, it's a valid surface, not a wall
+                if (npcBottomY >= blockTopY - 0.5f) { // 0.5f tolerance
+                    return@forEach // Continue to the next block
+                }
+
+                // It's a real side collision with a wall.
+                return false
+            }
         }
+
+        // Check against houses
         sceneManager.activeHouses.forEach {
-            if (it.collidesWithMesh(npcBounds)) return false
+            if (it.collidesWithMesh(npcBounds)) {
+                return false
+            }
         }
+
+        // Check against solid interior objects
         sceneManager.activeInteriors.forEach { interior ->
             if (interior.interiorType.hasCollision && interior.collidesWithMesh(npcBounds)) {
                 return false
             }
         }
+
+        // If we passed all checks, the move is valid
         return true
     }
 

@@ -53,13 +53,11 @@ public class Lwjgl3Launcher {
 // step up for street blocks and cars can move up a full block
 // maybe improving billboard shader
 // step up for streets
-// face culling for streets working right
 // placing 5 light sources creates room filling light visually, not actually. probably existing bc the area light disappears
 // molotoves and dynamite having improved collisions
 // visible border of light sources
 // showing tp point text only if near the y position and or collide with it
 // working collisions for ramp, pillar and corner
-// npcs and enemies been able to move on blocks
 // maybe adding player hiding tp point text behind it
 // visual reload/charging bar
 // molotov deals damage in this fire zome
@@ -79,13 +77,10 @@ public class Lwjgl3Launcher {
 // only new wipes rotating with players direction not old ones too
 // south park like animation
 // npc and enemy ui option for choosing death level
-// improve performance for rooms (camera starting shaking)
 // map saving
 // dialog system
 // mission starting, saving and ending
-// enemies work in rooms
 // option for choosing door enter
-// fix car and player falling bug
 // blood system
 // black bars top/bottom or left/right
 // when shooting flickering light gets spawned
