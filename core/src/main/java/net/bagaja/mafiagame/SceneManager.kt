@@ -437,6 +437,8 @@ class SceneManager(
 
         restoreWorldState()
 
+        activeChunkManager = worldChunkManager
+
         currentScene = SceneType.WORLD
         currentInteriorId = null
 
@@ -447,6 +449,9 @@ class SceneManager(
         }
 
         particleSystem.clearAllParticles()
+
+        // Tell the transition system to fade back IN to the world scene
+        transitionSystem.startInTransition()
     }
 
     private fun setSceneLights(lights: Map<Int, LightSource>) {

@@ -49,7 +49,6 @@ public class Lwjgl3Launcher {
 
 // occlusion optional
 
-// implement chunk system
 // not full blocks sides hiding full blocks
 // wrong blocks being used in rooms
 // changing room transition effect colors
