@@ -649,6 +649,7 @@ class PlayerSystem {
 
     private fun handleCarMovement(deltaTime: Float, sceneManager: SceneManager, allCars: Array<GameCar>): Boolean {
         val car = drivingCar ?: return false
+        val originalPosition = car.position.cpy() // Store original position
         var moved = false
 
         val moveAmount = carSpeed * deltaTime
@@ -668,26 +669,52 @@ class PlayerSystem {
         car.setDrivingAnimationState(deltaX != 0f || deltaZ != 0f)
 
         // 2. Determine potential next position and apply physics
-        val nextX = car.position.x + deltaX
-        val nextZ = car.position.z + deltaZ
-        val supportY = sceneManager.findHighestSupportYForCar(nextX, nextZ, car.carType.width / 2f, blockSize)
-
-        val carBottomY = car.position.y
-        val effectiveSupportY = if (supportY - carBottomY <= MAX_STEP_HEIGHT) supportY else carBottomY
-        val fallY = car.position.y - FALL_SPEED * deltaTime
-        val nextY = kotlin.math.max(effectiveSupportY, fallY)
-
-        // 3. Check for collisions and finalize movement
-        if (deltaX != 0f || deltaZ != 0f || kotlin.math.abs(nextY - car.position.y) > 0.01f) {
-            val newPos = Vector3(nextX, nextY, nextZ)
-            if (canCarMoveTo(newPos, car, sceneManager, allCars)) {
-                car.position.set(newPos)
-                moved = true
+        if (deltaX != 0f) {
+            val nextX = car.position.x + deltaX
+            // Check for ground support and step height before checking for collision
+            val supportY = sceneManager.findHighestSupportYForCar(nextX, car.position.z, car.carType.width / 2f, blockSize)
+            if (supportY - car.position.y <= MAX_STEP_HEIGHT) {
+                // Check for collision at the current height
+                val potentialPos = Vector3(nextX, car.position.y, car.position.z)
+                if (canCarMoveTo(potentialPos, car, sceneManager, allCars)) {
+                    car.position.x = nextX // If clear, apply the X movement
+                }
             }
         }
 
-        // 4. Update the car's 3D model transform (this now includes flip animation)
-        car.updateTransform()
+        // 3. Resolve Z-axis movement second
+        if (deltaZ != 0f) {
+            // Use the *potentially updated* X position from the previous step
+            val nextZ = car.position.z + deltaZ
+            val supportY = sceneManager.findHighestSupportYForCar(car.position.x, nextZ, car.carType.width / 2f, blockSize)
+            if (supportY - car.position.y <= MAX_STEP_HEIGHT) {
+                val potentialPos = Vector3(car.position.x, car.position.y, nextZ)
+                if (canCarMoveTo(potentialPos, car, sceneManager, allCars)) {
+                    car.position.z = nextZ // If clear, apply the Z movement
+                }
+            }
+        }
+
+        // 4. Resolve Y-axis movement (Gravity and Grounding)
+        val finalSupportY = sceneManager.findHighestSupportYForCar(car.position.x, car.position.z, car.carType.width / 2f, blockSize)
+
+        // Use the original Y position to check step height to prevent "snapping" up high walls
+        val effectiveSupportY = if (finalSupportY - originalPosition.y <= MAX_STEP_HEIGHT) {
+            finalSupportY
+        } else {
+            // If step is too high, find support at the original location to prevent floating
+            sceneManager.findHighestSupportYForCar(originalPosition.x, originalPosition.z, car.carType.width / 2f, blockSize)
+        }
+
+        // Apply gravity
+        val fallY = car.position.y - FALL_SPEED * deltaTime
+        car.position.y = kotlin.math.max(effectiveSupportY, fallY)
+
+        // 5. Finalize and update visuals
+        moved = !car.position.epsilonEquals(originalPosition, 0.001f)
+        if (moved) {
+            car.updateTransform()
+        }
 
         return moved
     }
