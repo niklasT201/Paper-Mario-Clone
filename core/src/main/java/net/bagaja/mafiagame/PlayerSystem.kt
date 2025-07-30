@@ -68,7 +68,7 @@ class PlayerSystem {
 
     companion object {
         const val FALL_SPEED = 25f
-        const val MAX_STEP_HEIGHT = 4.0f
+        const val MAX_STEP_HEIGHT = 1.0f
     }
 
     // Player position and movement

@@ -50,6 +50,7 @@ public class Lwjgl3Launcher {
 // occlusion optional
 
 // changing room transition effect colors
+// improve car movement
 // maybe improving billboard shader
 // step up for streets
 // face culling for streets working right
