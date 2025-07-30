@@ -292,6 +292,8 @@ class PlayerSystem {
 
         if (isHoldingShootButton) {
             chargeTime += deltaTime
+        } else {
+            chargeTime = 0f
         }
 
         // Timers
