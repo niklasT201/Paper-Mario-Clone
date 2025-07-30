@@ -225,19 +225,29 @@ class EnemySystem : IFinePositionable {
     }
 
     private fun applyPhysics(enemy: GameEnemy, deltaTime: Float, sceneManager: SceneManager, blockSize: Float) {
-        val enemyFootY = enemy.position.y - (enemy.enemyType.height / 2f)
-        val supportY = sceneManager.findHighestSupportY(enemy.position.x, enemy.position.z, enemyFootY, enemy.enemyType.width / 2f, blockSize)
-        val effectiveSupportY = if (supportY - enemyFootY <= MAX_STEP_HEIGHT) supportY else enemyFootY
-        val targetY = effectiveSupportY + (enemy.enemyType.height / 2f)
-        val fallY = enemy.position.y - FALL_SPEED * deltaTime
+        // 1. Find the highest solid ground directly beneath the enemy.
+        var highestSupportY = 0f // Default to ground level at Y=0
+        val blocksBeneath = sceneManager.activeChunkManager.getBlocksInColumn(enemy.position.x, enemy.position.z)
 
-        val newY = max(targetY, fallY)
-        val tolerance = 0.01f // A small dead zone
+        for (block in blocksBeneath) {
+            if (!block.blockType.hasCollision) continue
 
-        // Only apply the change if it's significant enough to avoid jitter
-        if (kotlin.math.abs(enemy.position.y - newY) > tolerance) {
-            enemy.position.y = newY
+            val blockTop = block.getBoundingBox(blockSize, tempBlockBounds).max.y
+
+            // We only care about surfaces that are actually below the enemy's feet.
+            if (blockTop <= enemy.position.y - (enemy.enemyType.height / 2f) + MAX_STEP_HEIGHT) {
+                if (blockTop > highestSupportY) {
+                    highestSupportY = blockTop
+                }
+            }
         }
+
+        // 2. Determine the target Y position (where the enemy's center should be).
+        val targetY = highestSupportY + (enemy.enemyType.height / 2f)
+
+        // 3. Apply gravity.
+        val fallY = enemy.position.y - FALL_SPEED * deltaTime
+        enemy.position.y = max(targetY, fallY)
     }
 
     private fun updateAI(enemy: GameEnemy, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {

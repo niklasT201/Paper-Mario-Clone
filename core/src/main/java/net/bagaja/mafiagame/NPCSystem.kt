@@ -440,19 +440,29 @@ class NPCSystem : IFinePositionable {
 
     // The following methods are adapted from your EnemySystem
     private fun applyPhysics(npc: GameNPC, deltaTime: Float, sceneManager: SceneManager, blockSize: Float) {
-        val npcFootY = npc.position.y - (npc.npcType.height / 2f)
-        val supportY = sceneManager.findHighestSupportY(npc.position.x, npc.position.z, npcFootY, npc.npcType.width / 2f, blockSize)
-        val effectiveSupportY = if (supportY - npcFootY <= MAX_STEP_HEIGHT) supportY else npcFootY
-        val targetY = effectiveSupportY + (npc.npcType.height / 2f)
-        val fallY = npc.position.y - FALL_SPEED * deltaTime
+        // 1. Find the highest solid ground directly beneath the NPC.
+        var highestSupportY = 0f // Default to ground level at Y=0
+        val blocksBeneath = sceneManager.activeChunkManager.getBlocksInColumn(npc.position.x, npc.position.z)
 
-        val newY = max(targetY, fallY)
-        val tolerance = 0.01f // A small dead zone
+        for (block in blocksBeneath) {
+            if (!block.blockType.hasCollision) continue
 
-        // Only apply the change if it's significant enough to avoid jitter
-        if (kotlin.math.abs(npc.position.y - newY) > tolerance) {
-            npc.position.y = newY
+            val blockTop = block.getBoundingBox(blockSize, tempBlockBounds).max.y
+
+            // We only care about surfaces that are actually below the NPC's feet.
+            if (blockTop <= npc.position.y - (npc.npcType.height / 2f) + MAX_STEP_HEIGHT) {
+                if (blockTop > highestSupportY) {
+                    highestSupportY = blockTop
+                }
+            }
         }
+
+        // 2. Determine the target Y position (where the NPC's center should be).
+        val targetY = highestSupportY + (npc.npcType.height / 2f)
+
+        // 3. Apply gravity.
+        val fallY = npc.position.y - FALL_SPEED * deltaTime
+        npc.position.y = max(targetY, fallY)
     }
 
     private fun moveTowards(npc: GameNPC, target: Vector3, deltaTime: Float, sceneManager: SceneManager) {
