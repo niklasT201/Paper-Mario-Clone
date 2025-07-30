@@ -49,9 +49,10 @@ public class Lwjgl3Launcher {
 
 // occlusion optional
 
-// not full blocks sides hiding full blocks
 // changing room transition effect colors
 // maybe improving billboard shader
+// step up for streets
+// face culling for streets working right
 // placing 5 light sources creates room filling light visually, not actually. probably existing bc the area light disappears
 // molotoves and dynamite having improved collisions
 // visible border of light sources
