@@ -59,7 +59,6 @@ public class Lwjgl3Launcher {
 // working collisions for ramp, pillar and corner
 // maybe adding player hiding tp point text behind it
 // visual reload/charging bar
-// molotov deals damage in this fire zome
 // dynamite explodes and deals damage
 // missing knife, baseball bat and fist animations
 // player falling too early and being then stuck in blocks

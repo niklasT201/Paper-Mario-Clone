@@ -1806,7 +1806,7 @@ class MafiaGame : ApplicationAdapter() {
 
         modelBatch.end()
 
-        teleporterSystem.renderNameplates(cameraManager.camera)
+        teleporterSystem.renderNameplates(cameraManager.camera, playerSystem)
         interiorSystem.renderBillboards(cameraManager.camera, environment, sceneManager.activeInteriors)
 
         // Render highlight using HighlightSystem

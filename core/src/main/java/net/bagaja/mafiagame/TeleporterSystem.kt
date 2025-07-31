@@ -7,8 +7,10 @@ import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
+import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
 
 class TeleporterSystem(
@@ -20,6 +22,8 @@ class TeleporterSystem(
     private val font: BitmapFont by lazy { uiManager.skin.getFont("default-font") }
     private val tempVec3 = Vector3()
     private val glyphLayout = GlyphLayout()
+    private val tempRay = Ray()
+    private val tempIntersection = Vector3()
 
     // --- Linking State ---
     var isLinkingMode = false
@@ -124,7 +128,7 @@ class TeleporterSystem(
         }
     }
 
-    fun renderNameplates(camera: Camera) {
+    fun renderNameplates(camera: Camera, playerSystem: PlayerSystem) {
         // SETUP FOR 3D SPRITEBATCH RENDERING
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glEnable(GL20.GL_BLEND)
@@ -134,26 +138,42 @@ class TeleporterSystem(
         spriteBatch.begin()
 
         val renderDistanceSq = 30f * 30f
+        val playerBounds = playerSystem.getPlayerBounds()
 
         for (teleporter in activeTeleporters) {
-            val teleporterPos = teleporter.gameObject.position
-            val textWorldPos = tempVec3.set(teleporterPos).add(0f, 2.5f, 0f)
+            val textWorldPos = tempVec3.set(teleporter.gameObject.position).add(0f, 2.5f, 0f)
+            val textDistanceSq = camera.position.dst2(textWorldPos)
 
-            if (camera.position.dst2(textWorldPos) < renderDistanceSq && camera.frustum.pointInFrustum(textWorldPos)) {
+            if (textDistanceSq < renderDistanceSq && camera.frustum.pointInFrustum(textWorldPos)) {
+                var isOccluded = false
 
-                // STATIC 3D TRANSFORMATION
-                val transformMatrix = Matrix4()
-                transformMatrix.setToTranslation(textWorldPos)
+                // 1. Create a ray from the camera to the text's position.
+                tempRay.set(camera.position, textWorldPos.cpy().sub(camera.position).nor())
 
-                val scale = 0.045f
-                transformMatrix.scl(scale)
+                // 2. Check if this ray intersects the player's bounding box.
+                if (Intersector.intersectRayBounds(tempRay, playerBounds, tempIntersection)) {
+                    // 3. An intersection occurred. Now, check if the player is actually BETWEEN the camera and the text.
+                    val hitDistanceSq = camera.position.dst2(tempIntersection)
+                    if (hitDistanceSq < textDistanceSq) {
+                        isOccluded = true // The player is in the way.
+                    }
+                }
 
-                // DRAWING
-                spriteBatch.transformMatrix = transformMatrix
-                font.data.setScale(1.0f)
-                font.color = Color.WHITE
-                glyphLayout.setText(font, teleporter.name)
-                font.draw(spriteBatch, glyphLayout, -glyphLayout.width / 2, glyphLayout.height / 2)
+                // 4. Only draw the text if it is not occluded by the player.
+                if (!isOccluded) {
+                    val transformMatrix = Matrix4()
+                    transformMatrix.setToTranslation(textWorldPos)
+
+                    val scale = 0.045f
+                    transformMatrix.scl(scale)
+
+                    // DRAWING
+                    spriteBatch.transformMatrix = transformMatrix
+                    font.data.setScale(1.0f)
+                    font.color = Color.WHITE
+                    glyphLayout.setText(font, teleporter.name)
+                    font.draw(spriteBatch, glyphLayout, -glyphLayout.width / 2, glyphLayout.height / 2)
+                }
             }
         }
 
