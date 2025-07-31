@@ -292,7 +292,7 @@ class SceneManager(
             if (!block.blockType.hasCollision) continue
 
             // Get the world-space bounding box for the current block.
-            val blockBounds = block.getBoundingBox(4f, tempBounds) // Assuming blockSize is 4f
+            val blockBounds = block.getBoundingBox(game.blockSize, tempBounds)
 
             if (x >= blockBounds.min.x && x <= blockBounds.max.x &&
                 z >= blockBounds.min.z && z <= blockBounds.max.z) {

@@ -1097,14 +1097,27 @@ class PlayerSystem {
                 val objectSystem = sceneManager.game.objectSystem
                 val lightingManager = sceneManager.game.lightingManager
 
-                val baseImpactPosition = impactPosition.cpy()
-                val impactNormal = collisionResult?.surfaceNormal
+               // Step 1: Determine the "Ground Zero" for the fire spread.
+                val groundZeroPosition: Vector3
+                val FIRE_OFFSET_FROM_WALL = 1.0f // How far the fire spawns away from the wall
 
-                if (impactNormal != null && kotlin.math.abs(impactNormal.y) < 0.5f) {
+                // Case A: The molotov hit a wall or very steep slope.
+                if (collisionResult != null && kotlin.math.abs(collisionResult.surfaceNormal.y) < 0.7f) {
+                    // Calculate the new X,Z position by moving from the impact point along the normal.
+                    val offsetPosition = impactPosition.cpy().mulAdd(collisionResult.surfaceNormal, FIRE_OFFSET_FROM_WALL)
+
+                    // Now, find the highest ground level at this NEW, offset position.
+                    val groundY = sceneManager.findHighestSupportY(offsetPosition.x, offsetPosition.z, impactPosition.y, 0.1f, blockSize)
+
+                    groundZeroPosition = Vector3(offsetPosition.x, groundY, offsetPosition.z)
+
+                } else {
+                    // Case B: The molotov hit a flat surface (ground, roof) or exploded in mid-air
                     val groundY = sceneManager.findHighestSupportY(impactPosition.x, impactPosition.z, impactPosition.y, 0.1f, blockSize)
-                    baseImpactPosition.y = groundY
+                    groundZeroPosition = Vector3(impactPosition.x, groundY, impactPosition.z)
                 }
 
+                // Step 2: Configure the fire system for this molotov burst
                 val originalFadesOut = fireSystem.nextFireFadesOut
                 val originalLifetime = fireSystem.nextFireLifetime
                 val originalMinScale = fireSystem.nextFireMinScale
@@ -1115,24 +1128,22 @@ class PlayerSystem {
                 fireSystem.nextFireMinScale = 0.5f
                 fireSystem.nextFireMaxScale = 1.2f
 
-                val fireCount = (1..5).random()
+                // Step 3: Spawn multiple fires, ensuring each one finds its own ground level.
+                val fireCount = (3..6).random()
                 val spreadRadius = 5.0f
 
-                // --- Step 3: Loop and spawn fires around the Ground Zero point ---
-                for (i in 0 until fireCount) {
-                    val offsetX = (Random.nextFloat() * 2f - 1f) * spreadRadius
-                    val offsetZ = (Random.nextFloat() * 2f - 1f) * spreadRadius
-                    val potentialX = baseImpactPosition.x + offsetX
-                    val potentialZ = baseImpactPosition.z + offsetZ
+                // Spawn the first fire exactly at ground zero to ensure it's placed correctly relative to the impact
+                fireSystem.addFire(groundZeroPosition, objectSystem, lightingManager)
 
-                    if (sceneManager.hasSolidSupportAt(potentialX, potentialZ)) {
-                        val groundY = sceneManager.findHighestSupportY(potentialX, potentialZ, baseImpactPosition.y, 0.1f, blockSize)
-                        val firePosition = Vector3(potentialX, groundY, potentialZ)
+                // Spawn the rest of the fires spread out randomly
+                for (i in 1 until fireCount) {
+                    val finalX = groundZeroPosition.x + (Random.nextFloat() * 2f - 1f) * spreadRadius
+                    val finalZ = groundZeroPosition.z + (Random.nextFloat() * 2f - 1f) * spreadRadius
 
-                        if (impactNormal != null && kotlin.math.abs(impactNormal.y) < 0.5f) {
-                            firePosition.mulAdd(impactNormal, 0.5f)
-                        }
-
+                    // Check if there's solid ground at the new (X, Z) before trying to find its height.
+                    if (sceneManager.hasSolidSupportAt(finalX, finalZ)) {
+                        val groundY = sceneManager.findHighestSupportY(finalX, finalZ, groundZeroPosition.y + 2f, 0.1f, blockSize)
+                        val firePosition = Vector3(finalX, groundY, finalZ)
                         fireSystem.addFire(firePosition, objectSystem, lightingManager)
                     }
                 }
