@@ -304,6 +304,32 @@ class SceneManager(
         return false
     }
 
+    fun isPositionValidForFire(position: Vector3): Boolean {
+        // Define the collision volume for a fire
+        val fireVisualWidth = ObjectType.FIRE_SPREAD.width
+        val fireHalfWidth = fireVisualWidth / 2f
+        val fireCollisionHeight = 1.0f // A small height is sufficient for the check
+
+        val fireBounds = BoundingBox()
+        fireBounds.set(
+            position.cpy().sub(fireHalfWidth, 0f, fireHalfWidth), // Check from the ground up
+            position.cpy().add(fireHalfWidth, fireCollisionHeight, fireHalfWidth)
+        )
+
+        // Efficiently check only against blocks in the relevant column
+        val blocksInColumn = activeChunkManager.getBlocksInColumn(position.x, position.z)
+        for (block in blocksInColumn) {
+            if (!block.blockType.hasCollision) continue
+
+            val blockBounds = block.getBoundingBox(game.blockSize, tempBlockBounds)
+            if (fireBounds.intersects(blockBounds)) {
+                // Collision detected! This is an invalid spot.
+                return false
+            }
+        }
+        return true
+    }
+
     fun update(deltaTime: Float) {
         // Checks if an animation has finished
         if (transitionSystem.isFinished()) {

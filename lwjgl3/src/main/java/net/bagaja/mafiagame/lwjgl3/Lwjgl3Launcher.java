@@ -54,7 +54,6 @@ public class Lwjgl3Launcher {
 // maybe improving billboard shader
 // step up for streets
 // placing 5 light sources creates room filling light visually, not actually. probably existing bc the area light disappears
-// molotoves and dynamite having improved collisions
 // visible border of light sources
 // showing tp point text only if near the y position and or collide with it
 // working collisions for ramp, pillar and corner
