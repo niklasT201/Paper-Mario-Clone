@@ -1085,21 +1085,27 @@ class PlayerSystem {
 
         // Case A: The throwable hit a vertical face of a specific block
         if (collisionResult != null && kotlin.math.abs(collisionResult.surfaceNormal.y) < 0.7f && impactedBlock != null) {
-            val effectHalfWidth = 2.0f // A reasonable average size for an effect's origin.
+            val effectHalfWidth = 2.0f
             val blockHalfWidth = blockSize / 2f
-            val totalOffset = blockHalfWidth + effectHalfWidth + 0.1f // Add a small visual gap
+            val totalOffset = blockHalfWidth + effectHalfWidth + 0.1f
 
             val adjacentPosition = impactedBlock.position.cpy().mulAdd(collisionResult.surfaceNormal, totalOffset)
 
-            // Find the ground Y-coordinate at this new, safe position.
-            val groundY = sceneManager.findHighestSupportY(adjacentPosition.x, adjacentPosition.z, initialImpactPosition.y, 0.1f, blockSize)
+            // Find the ground Y-coordinate at this new, safe position
+            val groundY = sceneManager.findHighestSupportY(adjacentPosition.x, adjacentPosition.z, 1000f, 0.1f, blockSize)
 
             return Vector3(adjacentPosition.x, groundY, adjacentPosition.z)
         }
 
         // Case B: The throwable hit a flat surface, a non-block object, or exploded in mid-air
         else {
-            val groundY = sceneManager.findHighestSupportY(initialImpactPosition.x, initialImpactPosition.z, initialImpactPosition.y, 0.1f, blockSize)
+            val groundY = sceneManager.findHighestSupportY(
+                initialImpactPosition.x,
+                initialImpactPosition.z,
+                1000f, // Use a very high starting point for the search
+                0.1f,
+                blockSize
+            )
             return Vector3(initialImpactPosition.x, groundY, initialImpactPosition.z)
         }
     }
@@ -1109,23 +1115,25 @@ class PlayerSystem {
         collisionResult: CollisionResult?,
         sceneManager: SceneManager
     ) {
-        // Step 1: Get a single, valid ground position for the effect
-        val validGroundPosition = getValidGroundImpactPosition(
-            collisionResult,
-            sceneManager,
-            throwable.position // Pass the throwable's final position as the initial impact point
-        )
-
-        println("${throwable.weaponType.displayName} effect originating at $validGroundPosition")
-
-        // Step 2: Trigger the weapon-specific effect at that valid position
         when (throwable.weaponType) {
             WeaponType.DYNAMITE -> {
                 // Now the explosion correctly happens on the ground next to a wall, not in mid-air!
+                val validGroundPosition = getValidGroundImpactPosition(collisionResult, sceneManager, throwable.position)
                 particleSystem.spawnEffect(ParticleEffectType.EXPLOSION, validGroundPosition)
-                // TODO: Add area-of-effect damage logic here, originating from validGroundPosition
+                println("Dynamite effect originating at $validGroundPosition")
+                // TODO: Add area-of-effect damage logic here.
             }
             WeaponType.MOLOTOV -> {
+                // If the Molotov's lifetime ended without hitting anything, do nothing
+                if (collisionResult == null) {
+                    println("Molotov fizzled out mid-air. No fire spawned.")
+                    return // Exit the function immediately.
+                }
+
+                // If we are here, the Molotov DID hit something. Proceed with spawning fire.
+                val validGroundPosition = getValidGroundImpactPosition(collisionResult, sceneManager, throwable.position)
+                println("Molotov fire originating at $validGroundPosition")
+
                 val fireSystem = sceneManager.game.fireSystem
                 val objectSystem = sceneManager.game.objectSystem
                 val lightingManager = sceneManager.game.lightingManager
