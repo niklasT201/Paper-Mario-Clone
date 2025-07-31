@@ -1076,73 +1076,86 @@ class PlayerSystem {
         updatePlayerTransform()
     }
 
+    private fun getValidGroundImpactPosition(
+        collisionResult: CollisionResult?,
+        sceneManager: SceneManager,
+        initialImpactPosition: Vector3
+    ): Vector3 {
+        val impactedBlock = collisionResult?.hitObject as? GameBlock
+
+        // Case A: The throwable hit a vertical face of a specific block
+        if (collisionResult != null && kotlin.math.abs(collisionResult.surfaceNormal.y) < 0.7f && impactedBlock != null) {
+            val effectHalfWidth = 2.0f // A reasonable average size for an effect's origin.
+            val blockHalfWidth = blockSize / 2f
+            val totalOffset = blockHalfWidth + effectHalfWidth + 0.1f // Add a small visual gap
+
+            val adjacentPosition = impactedBlock.position.cpy().mulAdd(collisionResult.surfaceNormal, totalOffset)
+
+            // Find the ground Y-coordinate at this new, safe position.
+            val groundY = sceneManager.findHighestSupportY(adjacentPosition.x, adjacentPosition.z, initialImpactPosition.y, 0.1f, blockSize)
+
+            return Vector3(adjacentPosition.x, groundY, adjacentPosition.z)
+        }
+
+        // Case B: The throwable hit a flat surface, a non-block object, or exploded in mid-air
+        else {
+            val groundY = sceneManager.findHighestSupportY(initialImpactPosition.x, initialImpactPosition.z, initialImpactPosition.y, 0.1f, blockSize)
+            return Vector3(initialImpactPosition.x, groundY, initialImpactPosition.z)
+        }
+    }
+
     private fun handleThrowableImpact(
         throwable: ThrowableEntity,
         collisionResult: CollisionResult?,
         sceneManager: SceneManager
     ) {
-        val impactPosition = collisionResult?.hitPoint ?: throwable.position
-        println("${throwable.weaponType.displayName} impacted at $impactPosition")
+        // Step 1: Get a single, valid ground position for the effect
+        val validGroundPosition = getValidGroundImpactPosition(
+            collisionResult,
+            sceneManager,
+            throwable.position // Pass the throwable's final position as the initial impact point
+        )
 
+        println("${throwable.weaponType.displayName} effect originating at $validGroundPosition")
+
+        // Step 2: Trigger the weapon-specific effect at that valid position
         when (throwable.weaponType) {
             WeaponType.DYNAMITE -> {
-                particleSystem.spawnEffect(ParticleEffectType.EXPLOSION, impactPosition)
-                // TODO: Add area-of-effect damage logic here
+                // Now the explosion correctly happens on the ground next to a wall, not in mid-air!
+                particleSystem.spawnEffect(ParticleEffectType.EXPLOSION, validGroundPosition)
+                // TODO: Add area-of-effect damage logic here, originating from validGroundPosition
             }
             WeaponType.MOLOTOV -> {
-                // Spawn a lasting fire effect
-                particleSystem.spawnEffect(ParticleEffectType.FIRE_FLAME, impactPosition)
-
                 val fireSystem = sceneManager.game.fireSystem
                 val objectSystem = sceneManager.game.objectSystem
                 val lightingManager = sceneManager.game.lightingManager
-
-               // Step 1: Determine the "Ground Zero" for the fire spread.
-                val groundZeroPosition: Vector3
-                val impactedBlock = collisionResult?.hitObject as? GameBlock
-
-                if (collisionResult != null && kotlin.math.abs(collisionResult.surfaceNormal.y) < 0.7f && impactedBlock != null) {
-                    // Case A: Hit a vertical face.
-                    val fireVisualWidth = ObjectType.FIRE_SPREAD.width
-                    val totalOffset = (blockSize / 2f) + (fireVisualWidth / 2f) + 0.1f
-                    val adjacentPosition = impactedBlock.position.cpy().mulAdd(collisionResult.surfaceNormal, totalOffset)
-                    val groundY = sceneManager.findHighestSupportY(adjacentPosition.x, adjacentPosition.z, impactPosition.y, 0.1f, blockSize)
-                    groundZeroPosition = Vector3(adjacentPosition.x, groundY, adjacentPosition.z)
-                } else {
-                    // Case B: Hit a flat surface or exploded mid-air.
-                    val groundY = sceneManager.findHighestSupportY(impactPosition.x, impactPosition.z, impactPosition.y, 0.1f, blockSize)
-                    groundZeroPosition = Vector3(impactPosition.x, groundY, impactPosition.z)
-                }
 
                 // Configure fire system settings
                 val originalFadesOut = fireSystem.nextFireFadesOut
                 val originalLifetime = fireSystem.nextFireLifetime
                 val originalMinScale = fireSystem.nextFireMinScale
                 val originalMaxScale = fireSystem.nextFireMaxScale
-
                 fireSystem.nextFireFadesOut = true
                 fireSystem.nextFireLifetime = 15f + Random.nextFloat() * 10f
                 fireSystem.nextFireMinScale = 0.5f
                 fireSystem.nextFireMaxScale = 1.2f
 
-                // --- Spawn fires with robust collision checking ---
+                // Spawn fires with robust collision checking, starting from our valid position.
                 val fireCount = (5..8).random()
                 val spreadRadius = 7.0f
                 var spawnedCount = 0
 
-                // First, try to spawn at the calculated ground zero point
-                if (sceneManager.isPositionValidForFire(groundZeroPosition)) {
-                    fireSystem.addFire(groundZeroPosition, objectSystem, lightingManager)
+                // The groundZeroPosition is now the already-calculated validGroundPosition
+                if (sceneManager.isPositionValidForFire(validGroundPosition)) {
+                    fireSystem.addFire(validGroundPosition, objectSystem, lightingManager)
                     spawnedCount++
                 }
 
-                // Spawn the rest of the fires spread out randomly
-                for (i in 0 until fireCount) {
-                    val finalX = groundZeroPosition.x + (Random.nextFloat() * 2f - 1f) * spreadRadius
-                    val finalZ = groundZeroPosition.z + (Random.nextFloat() * 2f - 1f) * spreadRadius
+                for (i in 1 until fireCount) {
+                    val finalX = validGroundPosition.x + (Random.nextFloat() * 2f - 1f) * spreadRadius
+                    val finalZ = validGroundPosition.z + (Random.nextFloat() * 2f - 1f) * spreadRadius
 
-                    // Find the ground height at the potential spread location.
-                    val potentialGroundY = sceneManager.findHighestSupportY(finalX, finalZ, groundZeroPosition.y + 2f, 0.1f, blockSize)
+                    val potentialGroundY = sceneManager.findHighestSupportY(finalX, finalZ, validGroundPosition.y + 2f, 0.1f, blockSize)
                     val firePosition = Vector3(finalX, potentialGroundY, finalZ)
 
                     // Only spawn the fire if the position is not inside a block.
@@ -1151,6 +1164,7 @@ class PlayerSystem {
                         spawnedCount++
                     }
                 }
+                println("Molotov spawned $spawnedCount valid fires.")
 
                 // Restore the original FireSystem settings
                 fireSystem.nextFireFadesOut = originalFadesOut

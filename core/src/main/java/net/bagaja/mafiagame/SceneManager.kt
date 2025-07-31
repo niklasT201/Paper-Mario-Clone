@@ -305,7 +305,7 @@ class SceneManager(
     }
 
     fun isPositionValidForFire(position: Vector3): Boolean {
-        // Define the collision volume for a fire
+        // Define the collision volume for a fire. It's a small box at its base.
         val fireVisualWidth = ObjectType.FIRE_SPREAD.width
         val fireHalfWidth = fireVisualWidth / 2f
         val fireCollisionHeight = 1.0f // A small height is sufficient for the check
@@ -323,10 +323,18 @@ class SceneManager(
 
             val blockBounds = block.getBoundingBox(game.blockSize, tempBlockBounds)
             if (fireBounds.intersects(blockBounds)) {
-                // Collision detected! This is an invalid spot.
-                return false
+                val fireIsOnTop = fireBounds.min.y >= blockBounds.max.y - 0.1f // Use a small tolerance
+
+                if (fireIsOnTop) {
+                    continue
+                } else {
+                    // Collision detected! This is an invalid spot.
+                    return false
+                }
             }
         }
+
+        // If we looped through all blocks and found no invalid collisions, the spot is valid.
         return true
     }
 
