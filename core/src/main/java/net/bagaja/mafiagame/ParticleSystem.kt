@@ -327,9 +327,17 @@ enum class ParticleEffectType(
             "textures/particles/car_explosion/car_explosion_start.png",
             "textures/particles/car_explosion/car_explosion.png"
         ),
-        frameDuration = 0.15f, isLooping = false, particleLifetime = 0.4f, // Short and punchy
-        particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
-        scale = 12f, scaleVariance = 2f, fadeIn = 0.0f, fadeOut = 0.1f // Fades out quickly after animation
+        frameDuration = 0.2f,
+        isLooping = false,
+        particleLifetime = 0.6f, // The effect will last 1.2 seconds total
+        particleCount = 1..1,
+        initialSpeed = 0f,
+        speedVariance = 0f,
+        gravity = 0f,
+        scale = 15f,
+        scaleVariance = 2f,
+        fadeIn = 0.2f,
+        fadeOut = 0.1f // A quick fade at the very end
     );
 
     val isAnimated: Boolean get() = texturePaths.size > 1

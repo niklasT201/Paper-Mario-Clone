@@ -1700,11 +1700,16 @@ class MafiaGame : ApplicationAdapter() {
                     playerSystem.exitCar(sceneManager)
                 }
                 // Trigger the destruction sequence
-                car.destroy(particleSystem, carSystem.getWreckedTexture())
+                car.destroy(particleSystem)
             }
 
-            // 2. Check if a faded-out car should be removed from the game
+            // 2. Check if a faded-out car should be removed
             if (car.isReadyForRemoval) {
+                // If player is inside car
+                if (playerSystem.isDriving && playerSystem.getControlledEntityPosition() == car.position) {
+                    playerSystem.exitCar(sceneManager)
+                }
+
                 carIterator.remove()
                 println("Removed wrecked car from scene: ${car.carType.displayName}")
             }

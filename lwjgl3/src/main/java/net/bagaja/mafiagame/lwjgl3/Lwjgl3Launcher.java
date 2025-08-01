@@ -50,6 +50,9 @@ public class Lwjgl3Launcher {
 // occlusion optional
 
 // changing room transition effect colors
+// car burned image immediatly spawning
+// car exploding spawning small fire flames
+// removing flame from burned car image
 // dynamite explosion image
 // car explosion image
 // visual throwing and explosion range

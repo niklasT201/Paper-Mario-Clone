@@ -580,12 +580,6 @@ class PlayerSystem {
     fun enterCar(car: GameCar) {
         if (isDriving) return // Already driving, can't enter another car
 
-        // Check if the car is already destroyed
-        if (car.isDestroyed) {
-            println("This car is a wreck and cannot be driven.")
-            return
-        }
-
         // Check if the car is locked before entering
         if (car.isLocked) {
             println("This car is locked.")
@@ -597,9 +591,15 @@ class PlayerSystem {
         drivingCar = car
         car.modelInstance.userData = "player"
 
+        // If entering a wrecked car
+        if (car.isDestroyed) {
+            println("Player entered a wrecked car.")
+        } else {
+            println("Player entered car ${car.carType.displayName}")
+        }
+
         // Hide the player by setting its position to the car's position
         playerPosition.set(car.position)
-        println("Player entered car ${car.carType.displayName}")
     }
 
     fun exitCar(sceneManager: SceneManager) {
@@ -704,6 +704,13 @@ class PlayerSystem {
 
     private fun handleCarMovement(deltaTime: Float, sceneManager: SceneManager, allCars: Array<GameCar>): Boolean {
         val car = drivingCar ?: return false
+
+        // If car is destroyed, do not process any movement
+        if (car.isDestroyed) {
+            car.setDrivingAnimationState(false) // Ensure it doesn't play driving animations
+            return false // Return false to indicate no movement occurred
+        }
+
         val originalPosition = car.position.cpy() // Store original position
         var moved = false
 
@@ -1235,7 +1242,7 @@ class PlayerSystem {
                 fireSystem.nextFireMaxScale = 1.2f
 
                 // Spawn fires with robust collision checking, starting from our valid position.
-                val fireCount = (5..8).random()
+                val fireCount = (1..5).random()
                 val spreadRadius = 7.0f
                 var spawnedCount = 0
 
