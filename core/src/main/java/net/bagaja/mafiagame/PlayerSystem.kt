@@ -286,7 +286,7 @@ class PlayerSystem {
         }
     }
 
-    private fun handleWeaponInput(deltaTime: Float) {
+    private fun handleWeaponInput(deltaTime: Float, sceneManager: SceneManager) {
         isHoldingShootButton = Gdx.input.isButtonPressed(Input.Buttons.LEFT) &&
             equippedWeapon.actionType == WeaponActionType.SHOOTING
 
@@ -339,9 +339,7 @@ class PlayerSystem {
                                     attackTimer = animationSystem.currentAnimation?.getTotalDuration() ?: 0.3f
                                     fireRateTimer = equippedWeapon.fireCooldown
 
-                                    // TODO: Implement melee attack logic here.
-                                    // This is the point where you would check for nearby enemies
-                                    // and apply damage to them.
+                                    performMeleeAttack(sceneManager)
                                 }
                             }
                         }
@@ -376,6 +374,55 @@ class PlayerSystem {
                     // Always return to idle after releasing the button
                     state = PlayerState.IDLE
                 }
+            }
+        }
+    }
+
+    private fun performMeleeAttack(sceneManager: SceneManager) {
+        val attackRange = 4f  // How far the melee attack reaches
+        val attackWidth = 3f  // How wide the attack is
+
+        // Determine direction
+        val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
+
+        // Create a hitbox in front of the player
+        val hitBoxCenter = playerPosition.cpy().add(directionX * (attackRange / 2f), 0f, 0f)
+        val hitBox = BoundingBox(
+            Vector3(hitBoxCenter.x - (attackRange / 2f), hitBoxCenter.y - (playerSize.y / 2f), hitBoxCenter.z - (attackWidth / 2f)),
+            Vector3(hitBoxCenter.x + (attackRange / 2f), hitBoxCenter.y + (playerSize.y / 2f), hitBoxCenter.z + (attackWidth / 2f))
+        )
+
+        // Check against enemies
+        val enemyIterator = sceneManager.activeEnemies.iterator()
+        while(enemyIterator.hasNext()) {
+            val enemy = enemyIterator.next()
+            if (hitBox.intersects(enemy.getBoundingBox())) {
+                println("Melee hit on enemy: ${enemy.enemyType.displayName}")
+                if (enemy.takeDamage(equippedWeapon.damage)) {
+                    enemyIterator.remove()
+                }
+            }
+        }
+
+        // Check against NPCs
+        val npcIterator = sceneManager.activeNPCs.iterator()
+        while(npcIterator.hasNext()) {
+            val npc = npcIterator.next()
+            if (hitBox.intersects(npc.getBoundingBox())) {
+                println("Melee hit on NPC: ${npc.npcType.displayName}")
+                if (npc.takeDamage(equippedWeapon.damage)) {
+                    npcIterator.remove()
+                }
+            }
+        }
+
+        // Check against cars
+        val carIterator = sceneManager.activeCars.iterator()
+        while (carIterator.hasNext()) {
+            val car = carIterator.next()
+            if (hitBox.intersects(car.getBoundingBox())) {
+                println("Melee hit on car: ${car.carType.displayName}")
+                car.takeDamage(equippedWeapon.damage)
             }
         }
     }
@@ -532,6 +579,12 @@ class PlayerSystem {
 
     fun enterCar(car: GameCar) {
         if (isDriving) return // Already driving, can't enter another car
+
+        // Check if the car is already destroyed
+        if (car.isDestroyed) {
+            println("This car is a wreck and cannot be driven.")
+            return
+        }
 
         // Check if the car is locked before entering
         if (car.isLocked) {
@@ -939,7 +992,7 @@ class PlayerSystem {
         if (teleportCooldown > 0f) {
             teleportCooldown -= deltaTime
         }
-        handleWeaponInput(deltaTime)
+        handleWeaponInput(deltaTime, sceneManager)
 
         // Update animation system
         animationSystem.update(deltaTime)
@@ -993,8 +1046,15 @@ class PlayerSystem {
                 val particleSpawnPos = collisionResult.hitPoint.cpy().mulAdd(collisionResult.surfaceNormal, PARTICLE_IMPACT_OFFSET)
 
                 when (collisionResult.type) {
-                    HitObjectType.BLOCK, HitObjectType.INTERIOR, HitObjectType.CAR -> {
+                    HitObjectType.BLOCK, HitObjectType.INTERIOR -> {
                         // Spawn dust/sparks for static objects
+                        particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_MEDIUM, particleSpawnPos)
+                    }
+                    HitObjectType.CAR -> {
+                        val car = collisionResult.hitObject as GameCar
+                        // Apply damage
+                        car.takeDamage(equippedWeapon.damage)
+                        // Spawn impact effect
                         particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_MEDIUM, particleSpawnPos)
                     }
 
@@ -1121,7 +1181,33 @@ class PlayerSystem {
                 val validGroundPosition = getValidGroundImpactPosition(collisionResult, sceneManager, throwable.position)
                 particleSystem.spawnEffect(ParticleEffectType.EXPLOSION, validGroundPosition)
                 println("Dynamite effect originating at $validGroundPosition")
-                // TODO: Add area-of-effect damage logic here.
+
+                // Area-of-effect damage logic
+                val explosionRadius = 12f
+                val explosionDamage = throwable.weaponType.damage
+
+                // Damage cars
+                for (car in sceneManager.activeCars) {
+                    if (car.position.dst(validGroundPosition) < explosionRadius) {
+                        car.takeDamage(explosionDamage)
+                    }
+                }
+                // Damage enemies
+                for (enemy in sceneManager.activeEnemies) {
+                    if (enemy.position.dst(validGroundPosition) < explosionRadius) {
+                        if (enemy.takeDamage(explosionDamage)) {
+                            sceneManager.activeEnemies.removeValue(enemy, true)
+                        }
+                    }
+                }
+                // Damage NPCs
+                for (npc in sceneManager.activeNPCs) {
+                    if (npc.position.dst(validGroundPosition) < explosionRadius) {
+                        if (npc.takeDamage(explosionDamage)) {
+                            sceneManager.activeNPCs.removeValue(npc, true)
+                        }
+                    }
+                }
             }
             WeaponType.MOLOTOV -> {
                 // If the Molotov's lifetime ended without hitting anything, do nothing

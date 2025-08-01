@@ -52,6 +52,7 @@ public class Lwjgl3Launcher {
 // changing room transition effect colors
 // dynamite explosion image
 // car explosion image
+// visual throwing and explosion range
 // weapon and car spawner
 // all spawners working only in player range
 // step up for street blocks and cars can move up a full block

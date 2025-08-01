@@ -13,8 +13,15 @@ import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 
+enum class CarState {
+    DRIVABLE,
+    WRECKED, // The burned-out state
+    FADING_OUT // The state before being removed
+}
+
 class CarSystem: IFinePositionable {
     private val carModels = mutableMapOf<CarType, Model>()
+    private lateinit var wreckedCarTexture: Texture
     private lateinit var billboardShaderProvider: BillboardShaderProvider
     private lateinit var billboardModelBatch: ModelBatch
 
@@ -34,6 +41,8 @@ class CarSystem: IFinePositionable {
         billboardModelBatch = ModelBatch(billboardShaderProvider)
         billboardShaderProvider.setBillboardLightingStrength(0.9f)
         billboardShaderProvider.setMinLightLevel(0.3f)
+        // Load wrecked car texture once
+        wreckedCarTexture = Texture(Gdx.files.internal("textures/objects/cars/burned_down_car.png"))
         val modelBuilder = ModelBuilder()
 
         // Load models for each car type
@@ -132,6 +141,8 @@ class CarSystem: IFinePositionable {
         return model?.let { ModelInstance(it) }
     }
 
+    fun getWreckedTexture(): Texture = wreckedCarTexture
+
     fun dispose() {
         carModels.values.forEach { it.dispose() }
         billboardModelBatch.dispose()
@@ -145,8 +156,14 @@ data class GameCar(
     val carType: CarType,
     val position: Vector3,
     var direction: Float = 0f, // Direction in degrees (0 = facing forward/north)
-    val isLocked: Boolean = false
+    val isLocked: Boolean = false,
+    var health: Float = carType.baseHealth
 ) {
+    companion object {
+        const val WRECKED_DURATION = 25f
+        const val FADE_OUT_DURATION = 5f
+    }
+
     val id: String = java.util.UUID.randomUUID().toString()
 
     private var visualRotationY = 0f // Current visual rotation
@@ -158,6 +175,15 @@ data class GameCar(
     private val animationSystem = AnimationSystem()
     private val material: Material = modelInstance.materials.get(0)
     private var lastTexture: Texture? = null
+
+    // State management properties
+    var state: CarState = CarState.DRIVABLE
+    private var wreckedTimer: Float = 0f
+    private var fadeOutTimer: Float = FADE_OUT_DURATION
+
+    // Convenience properties
+    val isDestroyed: Boolean get() = state == CarState.WRECKED || state == CarState.FADING_OUT
+    val isReadyForRemoval: Boolean get() = state == CarState.FADING_OUT && fadeOutTimer <= 0f
 
     fun initializeAnimations() {
         // Only the default car has animations for now.
@@ -239,6 +265,32 @@ data class GameCar(
         return bounds
     }
 
+    fun takeDamage(damage: Float) {
+        if (state == CarState.DRIVABLE && health > 0) {
+            health -= damage
+            println("${this.carType.displayName} took $damage damage. HP remaining: ${this.health.toInt()}")
+            if (health <= 0) {
+                health = 0f
+            }
+        }
+    }
+
+    fun destroy(particleSystem: ParticleSystem, wreckedTexture: Texture) {
+        if (state != CarState.DRIVABLE) return // Can only be destroyed once
+
+        println("${this.carType.displayName} has been destroyed!")
+        state = CarState.WRECKED
+        wreckedTimer = WRECKED_DURATION
+
+        // Spawn explosion effect at the center of the car
+        val explosionPos = position.cpy().add(0f, carType.height / 2f, 0f)
+        particleSystem.spawnEffect(ParticleEffectType.CAR_EXPLOSION, explosionPos)
+
+        // Switch to the wrecked texture
+        val textureAttribute = material.get(TextureAttribute.Diffuse) as TextureAttribute?
+        textureAttribute?.textureDescription?.texture = wreckedTexture
+    }
+
     fun updateFlipAnimation(horizontalDirection: Float, deltaTime: Float) {
         // Only update target rotation if there's actual horizontal movement
         if (horizontalDirection != 0f && horizontalDirection != lastHorizontalDirection) {
@@ -286,16 +338,32 @@ data class GameCar(
     }
 
     fun update(deltaTime: Float) {
-        // 1. Update the animation timer
-        animationSystem.update(deltaTime)
+        when (state) {
+            CarState.DRIVABLE -> {
+                // 1. Update the animation timer
+                animationSystem.update(deltaTime)
 
-        // 2. Check if the texture needs to be changed
-        val newTexture = animationSystem.getCurrentTexture()
-        if (newTexture != null && newTexture != lastTexture) {
-            // 3. Apply the new texture to the car's material
-            val textureAttribute = material.get(TextureAttribute.Diffuse) as TextureAttribute?
-            textureAttribute?.textureDescription?.texture = newTexture
-            lastTexture = newTexture
+                // 2. Check if the texture needs to be changed
+                val newTexture = animationSystem.getCurrentTexture()
+                if (newTexture != null && newTexture != lastTexture) {
+                    // 3. Apply the new texture to the car's material
+                    val textureAttribute = material.get(TextureAttribute.Diffuse) as TextureAttribute?
+                    textureAttribute?.textureDescription?.texture = newTexture
+                    lastTexture = newTexture
+                }
+            }
+            CarState.WRECKED -> {
+                wreckedTimer -= deltaTime
+                if (wreckedTimer <= 0) {
+                    state = CarState.FADING_OUT
+                }
+            }
+            CarState.FADING_OUT -> {
+                fadeOutTimer -= deltaTime
+                // Update opacity for the fade-out effect
+                val blendingAttribute = material.get(BlendingAttribute.Type) as? BlendingAttribute
+                blendingAttribute?.opacity = (fadeOutTimer / FADE_OUT_DURATION).coerceIn(0f, 1f)
+            }
         }
     }
 
@@ -322,13 +390,14 @@ enum class CarType(
     val displayName: String,
     val texturePath: String,
     val width: Float,
-    val height: Float
+    val height: Float,
+    val baseHealth: Float
 ) {
-    DEFAULT("Default", "textures/objects/cars/car_driving.png", 10f, 7f),
-    BOSS_CAR("Boss Car", "textures/objects/cars/boss_car.png", 10f, 7f),
-    SUV("SUV", "textures/objects/cars/suv.png", 8f, 5f),
-    TRUCK("Truck", "textures/objects/cars/truck.png", 11f, 6f),
-    VAN("Van", "textures/objects/cars/van.png", 7f, 5.5f),
-    POLICE_CAR("Police Car", "textures/objects/cars/police_car.png", 7f, 4f),
-    TAXI("Taxi", "textures/objects/cars/taxi.png", 10f, 7f),
+    DEFAULT("Default", "textures/objects/cars/car_driving.png", 10f, 7f, 250f),
+    BOSS_CAR("Boss Car", "textures/objects/cars/boss_car.png", 10f, 7f, 500f),
+    SUV("SUV", "textures/objects/cars/suv.png", 8f, 5f, 300f),
+    TRUCK("Truck", "textures/objects/cars/truck.png", 11f, 6f, 400f),
+    VAN("Van", "textures/objects/cars/van.png", 7f, 5.5f, 280f),
+    POLICE_CAR("Police Car", "textures/objects/cars/police_car.png", 7f, 4f, 200f),
+    TAXI("Taxi", "textures/objects/cars/taxi.png", 10f, 7f, 220f),
 }

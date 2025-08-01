@@ -157,7 +157,7 @@ class FireSystem {
         activeFires.removeValue(fireToRemove, true)
     }
 
-    fun update(deltaTime: Float, playerSystem: PlayerSystem, particleSystem: ParticleSystem): List<GameFire> {
+    fun update(deltaTime: Float, playerSystem: PlayerSystem, particleSystem: ParticleSystem, sceneManager: SceneManager): List<GameFire> {
         val expiredFires = mutableListOf<GameFire>()
         val iterator = activeFires.iterator()
 
@@ -184,10 +184,21 @@ class FireSystem {
             // Damage logic
             if (fire.dealsDamage && !fire.isBeingExtinguished) {
                 // Get the position from the GameObject, which is always correct.
+                val fireDamage = fire.damagePerSecond * deltaTime
+                val fireRadius = fire.damageRadius * fire.currentScale / fire.initialScale
+
+                // Damage Player
                 val distanceToPlayer = fire.gameObject.position.dst(playerSystem.getPosition())
-                if (distanceToPlayer < fire.damageRadius * fire.currentScale / fire.initialScale) {
-                    // playerSystem.takeDamage(fire.damagePerSecond * deltaTime)
-                    playerSystem.takeDamage(fire.damagePerSecond * deltaTime)
+                if (distanceToPlayer < fireRadius) {
+                    playerSystem.takeDamage(fireDamage)
+                }
+
+                // Damage Cars
+                for (car in sceneManager.activeCars) {
+                    val distanceToCar = fire.gameObject.position.dst(car.position)
+                    if (distanceToCar < fireRadius) {
+                        car.takeDamage(fireDamage)
+                    }
                 }
             }
         }

@@ -320,6 +320,16 @@ enum class ParticleEffectType(
         frameDuration = 0.1f, isLooping = false, particleLifetime = 0.4f,
         particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
         scale = 1.5f, scaleVariance = 0.3f, fadeIn = 0.05f, fadeOut = 0.35f
+    ),
+    CAR_EXPLOSION(
+        "Car Explosion",
+        arrayOf(
+            "textures/particles/car_explosion/car_explosion_start.png",
+            "textures/particles/car_explosion/car_explosion.png"
+        ),
+        frameDuration = 0.15f, isLooping = false, particleLifetime = 0.4f, // Short and punchy
+        particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
+        scale = 12f, scaleVariance = 2f, fadeIn = 0.0f, fadeOut = 0.1f // Fades out quickly after animation
     );
 
     val isAnimated: Boolean get() = texturePaths.size > 1
