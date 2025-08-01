@@ -50,12 +50,15 @@ public class Lwjgl3Launcher {
 // occlusion optional
 
 // changing room transition effect colors
+// dynamite explosion image
+// car explosion image
+// weapon and car spawner
+// all spawners working only in player range
 // step up for street blocks and cars can move up a full block
 // maybe improving billboard shader
 // step up for streets
 // placing 5 light sources creates room filling light visually, not actually. probably existing bc the area light disappears
 // visible border of light sources
-// showing tp point text only if near the y position and or collide with it
 // working collisions for ramp, pillar and corner
 // maybe adding player hiding tp point text behind it
 // visual reload/charging bar

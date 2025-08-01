@@ -2,16 +2,14 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Camera
-import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.math.Interpolation
-import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
-import com.badlogic.gdx.math.collision.Ray
+import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.utils.Array
 
 class TeleporterSystem(
@@ -26,8 +24,7 @@ class TeleporterSystem(
     private val font: BitmapFont by lazy { uiManager.skin.getFont("default-font") }
     private val tempVec3 = Vector3()
     private val glyphLayout = GlyphLayout()
-    private val tempRay = Ray()
-    private val tempIntersection = Vector3()
+    private val tempBounds = BoundingBox()
 
     // --- Linking State ---
     var isLinkingMode = false
@@ -142,12 +139,13 @@ class TeleporterSystem(
         spriteBatch.begin()
 
         val playerPos = playerSystem.getPosition()
+        val playerBounds = playerSystem.getPlayerBounds()
 
         for (teleporter in activeTeleporters) {
             val teleporterPos = teleporter.gameObject.position
             val textWorldPos = tempVec3.set(teleporterPos).add(0f, 2.5f, 0f)
 
-            // Use the actual teleporter's position for distance checks, as it's more intuitive for gameplay.
+            // Use the actual teleporter's position for distance checks
             val distanceToPlayer = playerPos.dst(teleporterPos)
 
             // 1. Create a ray from the camera to the text's position
@@ -164,8 +162,21 @@ class TeleporterSystem(
                 opacity = 1.0f - Interpolation.pow2Out.apply(fadeProgress)
             }
 
+            var isPlayerColliding = false
+            val tpObject = teleporter.gameObject
+            val halfWidth = tpObject.objectType.width / 2f
+            val collisionHeight = 0.5f // A small vertical collision area
+            tempBounds.set(
+                tpObject.position.cpy().sub(halfWidth, 0f, halfWidth),
+                tpObject.position.cpy().add(halfWidth, collisionHeight, halfWidth)
+            )
+            // Check if the player's bounds intersects with the pad's bounds
+            if (playerBounds.intersects(tempBounds)) {
+                isPlayerColliding = true
+            }
+
             // If opacity is greater than 0 and the text is on screen, draw it.
-            if (opacity > 0.01f && camera.frustum.pointInFrustum(textWorldPos)) {
+            if (opacity > 0.01f && !isPlayerColliding && camera.frustum.pointInFrustum(textWorldPos)) {
 
                 // Set the calculated opacity on the font color.
                 font.color.a = opacity
