@@ -75,9 +75,8 @@ class CarSystem: IFinePositionable {
 
         billboardModelBatch.begin(camera)
         for (car in cars) {
-            car.update(Gdx.graphics.deltaTime, wreckedCarTexture)
-
-            if (!car.isVisible) continue
+            // The car's internal update no longer needs the texture passed to it
+            car.update(Gdx.graphics.deltaTime)
 
             car.updateTransform()
             billboardModelBatch.render(car.modelInstance, environment)
@@ -278,22 +277,21 @@ data class GameCar(
         }
     }
 
-    fun destroy(particleSystem: ParticleSystem) {
-        if (state != CarState.DRIVABLE) return // Can only be destroyed once
+    fun destroy(particleSystem: ParticleSystem, carSystem: CarSystem) {
+        if (state != CarState.DRIVABLE) return
 
-        println("${this.carType.displayName} is exploding!")
+        println("${this.carType.displayName} has been destroyed!")
         state = CarState.WRECKED
         wreckedTimer = WRECKED_DURATION
 
-        // Spawn explosion effect at the center of the car
-        wreckSpawnTimer = 0.8f
-
-        // 1. Make the original car model disappear
-        isVisible = false
-
-        // 2. Spawn the explosion particle effect
+        // 1. Spawn the explosion particle effect
         val explosionPos = position.cpy().add(0f, carType.height / 2f, 0f)
         particleSystem.spawnEffect(ParticleEffectType.CAR_EXPLOSION, explosionPos)
+
+        // 2. Immediately switch to the wrecked texture
+        val wreckedTexture = carSystem.getWreckedTexture()
+        val textureAttribute = material.get(TextureAttribute.Diffuse) as TextureAttribute?
+        textureAttribute?.textureDescription?.texture = wreckedTexture
     }
 
     fun updateFlipAnimation(horizontalDirection: Float, deltaTime: Float) {
@@ -342,7 +340,7 @@ data class GameCar(
         modelInstance.transform.rotate(Vector3.Y, visualRotationY)
     }
 
-    fun update(deltaTime: Float, wreckedTexture: Texture) {
+    fun update(deltaTime: Float) {
         when (state) {
             CarState.DRIVABLE -> {
                 // 1. Update the animation timer
@@ -358,18 +356,9 @@ data class GameCar(
                 }
             }
             CarState.WRECKED -> {
-                if (!isVisible) {
-                    wreckSpawnTimer -= deltaTime
-                    if (wreckSpawnTimer <= 0) {
-                        isVisible = true
-                        val textureAttribute = material.get(TextureAttribute.Diffuse) as TextureAttribute?
-                        textureAttribute?.textureDescription?.texture = wreckedTexture
-                    }
-                } else {
-                    wreckedTimer -= deltaTime
-                    if (wreckedTimer <= 0) {
-                        state = CarState.FADING_OUT
-                    }
+                wreckedTimer -= deltaTime
+                if (wreckedTimer <= 0) {
+                    state = CarState.FADING_OUT
                 }
             }
             CarState.FADING_OUT -> {
