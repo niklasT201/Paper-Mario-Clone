@@ -197,7 +197,7 @@ class FireSystem {
                 for (car in sceneManager.activeCars) {
                     val distanceToCar = fire.gameObject.position.dst(car.position)
                     if (distanceToCar < fireRadius) {
-                        car.takeDamage(fireDamage)
+                        car.takeDamage(fireDamage, DamageType.FIRE)
                     }
                 }
             }

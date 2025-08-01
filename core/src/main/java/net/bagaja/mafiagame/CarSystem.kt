@@ -20,6 +20,13 @@ enum class CarState {
     FADING_OUT // The state before being removed
 }
 
+enum class DamageType {
+    GENERIC, // For bullets or other untyped sources
+    FIRE,
+    EXPLOSIVE,
+    MELEE
+}
+
 class CarSystem: IFinePositionable {
     private val carModels = mutableMapOf<CarType, Model>()
     private lateinit var wreckedCarTexture: Texture
@@ -187,6 +194,7 @@ data class GameCar(
     // Convenience properties
     val isDestroyed: Boolean get() = state == CarState.WRECKED || state == CarState.FADING_OUT
     val isReadyForRemoval: Boolean get() = state == CarState.FADING_OUT && fadeOutTimer <= 0f
+    var lastDamageType: DamageType = DamageType.GENERIC
 
     fun initializeAnimations() {
         // Only the default car has animations for now.
@@ -268,22 +276,21 @@ data class GameCar(
         return bounds
     }
 
-    fun takeDamage(damage: Float) {
+    fun takeDamage(damage: Float, type: DamageType) {
         if (state == CarState.DRIVABLE && health > 0) {
             health -= damage
-            println("${this.carType.displayName} took $damage damage. HP remaining: ${this.health.toInt()}")
-            if (health <= 0) {
-                health = 0f
-            }
+            this.lastDamageType = type // Remember the last damage source
+            println("${this.carType.displayName} took $damage $type damage. HP: ${this.health.toInt()}")
         }
     }
 
     fun destroy(
         particleSystem: ParticleSystem,
+        carSystem: CarSystem,
+        shouldSpawnFire: Boolean,
         fireSystem: FireSystem,
         objectSystem: ObjectSystem,
-        lightingManager: LightingManager,
-        carSystem: CarSystem
+        lightingManager: LightingManager
     ): com.badlogic.gdx.utils.Array<GameObject> {
         if (state != CarState.DRIVABLE) return com.badlogic.gdx.utils.Array()
 
@@ -303,38 +310,44 @@ data class GameCar(
         // SPAWNING GAMEPLAY FIRE
         val newFireObjects = com.badlogic.gdx.utils.Array<GameObject>()
 
-        // Save the FireSystem's current settings so we don't mess up the user's editor selection
-        val originalFadesOut = fireSystem.nextFireFadesOut
-        val originalLifetime = fireSystem.nextFireLifetime
-        val originalMinScale = fireSystem.nextFireMinScale
-        val originalMaxScale = fireSystem.nextFireMaxScale
+        if (shouldSpawnFire) {
+            println("${this.carType.displayName} is exploding and spawning fire!")
 
-        // Configure the FireSystem for small, temporary car fires
-        fireSystem.nextFireFadesOut = true
-        fireSystem.nextFireLifetime = 12f // Fire lasts for 12 seconds
-        fireSystem.nextFireMinScale = 0.4f // Small flames
-        fireSystem.nextFireMaxScale = 0.8f // with a little size variation
+            // Save the FireSystem's current settings so we don't mess up the user's editor selection
+            val originalFadesOut = fireSystem.nextFireFadesOut
+            val originalLifetime = fireSystem.nextFireLifetime
+            val originalMinScale = fireSystem.nextFireMinScale
+            val originalMaxScale = fireSystem.nextFireMaxScale
 
-        val fireCount = (2..4).random() // Spawn 2 to 4 fires
-        val spawnRadius = carType.width / 2.5f
+            // Configure the FireSystem for small, temporary car fires
+            fireSystem.nextFireFadesOut = true
+            fireSystem.nextFireLifetime = 12f // Fire lasts for 12 seconds
+            fireSystem.nextFireMinScale = 0.4f // Small flames
+            fireSystem.nextFireMaxScale = 0.8f // with a little size variation
 
-        for (i in 0 until fireCount) {
-            val offsetX = (Random.nextFloat() * 2f - 1f) * spawnRadius
-            val offsetZ = (Random.nextFloat() * 2f - 1f) * spawnRadius
-            val firePosition = position.cpy().add(offsetX, 0.1f, offsetZ)
+            val fireCount = (2..4).random() // Spawn 2 to 4 fires
+            val spawnRadius = carType.width / 2.5f
 
-            // Add the fire using the FireSystem
-            val newFire = fireSystem.addFire(firePosition, objectSystem, lightingManager)
-            if (newFire != null) {
-                newFireObjects.add(newFire.gameObject)
+            for (i in 0 until fireCount) {
+                val offsetX = (Random.nextFloat() * 2f - 1f) * spawnRadius
+                val offsetZ = (Random.nextFloat() * 2f - 1f) * spawnRadius
+                val firePosition = position.cpy().add(offsetX, 0.1f, offsetZ)
+
+                // Add the fire using the FireSystem
+                val newFire = fireSystem.addFire(firePosition, objectSystem, lightingManager)
+                if (newFire != null) {
+                    newFireObjects.add(newFire.gameObject)
+                }
             }
-        }
 
-        // Restore the original settings to the FireSystem
-        fireSystem.nextFireFadesOut = originalFadesOut
-        fireSystem.nextFireLifetime = originalLifetime
-        fireSystem.nextFireMinScale = originalMinScale
-        fireSystem.nextFireMaxScale = originalMaxScale
+            // Restore original settings
+            fireSystem.nextFireFadesOut = originalFadesOut
+            fireSystem.nextFireLifetime = originalLifetime
+            fireSystem.nextFireMinScale = originalMinScale
+            fireSystem.nextFireMaxScale = originalMaxScale
+        } else {
+            println("${this.carType.displayName} was destroyed by fire, no additional fire spawned.")
+        }
 
         return newFireObjects
     }

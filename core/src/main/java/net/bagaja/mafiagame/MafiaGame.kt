@@ -1699,13 +1699,16 @@ class MafiaGame : ApplicationAdapter() {
                 if (playerSystem.isDriving && playerSystem.getControlledEntityPosition() == car.position) {
                     playerSystem.exitCar(sceneManager)
                 }
+                val shouldSpawnFire = car.lastDamageType != DamageType.FIRE
+
                 // Trigger the destruction sequence
                 val newFireObjects = car.destroy(
                     particleSystem,
+                    carSystem,
+                    shouldSpawnFire,
                     fireSystem,
                     objectSystem,
-                    lightingManager,
-                    carSystem
+                    lightingManager
                 )
 
                 sceneManager.activeObjects.addAll(newFireObjects)

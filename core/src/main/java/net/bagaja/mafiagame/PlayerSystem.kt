@@ -422,7 +422,7 @@ class PlayerSystem {
             val car = carIterator.next()
             if (hitBox.intersects(car.getBoundingBox())) {
                 println("Melee hit on car: ${car.carType.displayName}")
-                car.takeDamage(equippedWeapon.damage)
+                car.takeDamage(equippedWeapon.damage, DamageType.MELEE)
             }
         }
     }
@@ -1059,9 +1059,7 @@ class PlayerSystem {
                     }
                     HitObjectType.CAR -> {
                         val car = collisionResult.hitObject as GameCar
-                        // Apply damage
-                        car.takeDamage(equippedWeapon.damage)
-                        // Spawn impact effect
+                        car.takeDamage(equippedWeapon.damage, DamageType.GENERIC)
                         particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_MEDIUM, particleSpawnPos)
                     }
 
@@ -1196,7 +1194,7 @@ class PlayerSystem {
                 // Damage cars
                 for (car in sceneManager.activeCars) {
                     if (car.position.dst(validGroundPosition) < explosionRadius) {
-                        car.takeDamage(explosionDamage)
+                        car.takeDamage(explosionDamage, DamageType.EXPLOSIVE)
                     }
                 }
                 // Damage enemies

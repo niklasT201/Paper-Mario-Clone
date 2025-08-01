@@ -31,7 +31,7 @@ enum class BuildMode(val size: Int, val isWall: Boolean) {
             WALL_3x3 -> "3x3 Wall"
             FLOOR_3x3 -> "3x3 Floor"
             WALL_5x5 -> "5x5 Wall"
-            FLOOR_4x4 -> "5x5 Floor"
+            FLOOR_4x4 -> "4x4 Floor"
             FLOOR_5x5 -> "5x5 Floor"
             FLOOR_8x8 -> "8x8 Floor"
             FLOOR_16x16 -> "16x16 Floor"
