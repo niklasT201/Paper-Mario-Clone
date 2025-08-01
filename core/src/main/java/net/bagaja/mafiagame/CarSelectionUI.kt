@@ -212,32 +212,6 @@ class CarSelectionUI(
                 pixmap.fillCircle(18, 38, 3) // Front wheel
                 pixmap.fillCircle(32, 38, 3) // Rear wheel
             }
-            CarType.SUV -> {
-                // Taller SUV shape
-                pixmap.setColor(Color(0.6f, 0.4f, 0.2f, 1f)) // Brown
-                pixmap.fillRectangle(8, 15, 34, 20) // Main body
-                pixmap.fillRectangle(12, 10, 26, 10) // Top/roof
-                pixmap.setColor(Color.BLACK)
-                pixmap.fillCircle(16, 38, 4) // Front wheel
-                pixmap.fillCircle(34, 38, 4) // Rear wheel
-            }
-            CarType.TRUCK -> {
-                // Truck shape with cargo area
-                pixmap.setColor(Color(0.8f, 0.2f, 0.2f, 1f)) // Red
-                pixmap.fillRectangle(5, 20, 15, 15) // Cab
-                pixmap.fillRectangle(20, 18, 25, 17) // Cargo area
-                pixmap.setColor(Color.BLACK)
-                pixmap.fillCircle(13, 38, 4) // Front wheel
-                pixmap.fillCircle(37, 38, 4) // Rear wheel
-            }
-            CarType.VAN -> {
-                // Tall van shape
-                pixmap.setColor(Color(0.5f, 0.5f, 0.5f, 1f)) // Gray
-                pixmap.fillRectangle(10, 12, 30, 23) // Main body
-                pixmap.setColor(Color.BLACK)
-                pixmap.fillCircle(18, 38, 3) // Front wheel
-                pixmap.fillCircle(32, 38, 3) // Rear wheel
-            }
             CarType.POLICE_CAR -> {
                 // Police car with light bar
                 pixmap.setColor(Color(0.1f, 0.1f, 0.8f, 1f)) // Blue
@@ -259,13 +233,13 @@ class CarSelectionUI(
                 pixmap.fillCircle(18, 38, 3) // Front wheel
                 pixmap.fillCircle(32, 38, 3) // Rear wheel
             }
-            CarType.BOSS_CAR -> {
-                pixmap.setColor(Color(0.8f, 0.2f, 0.2f, 1f)) // Red
-                pixmap.fillRectangle(5, 20, 15, 15) // Cab
-                pixmap.fillRectangle(20, 18, 25, 17) // Cargo area
+            else -> {
+                pixmap.setColor(Color(0.3f, 0.5f, 0.8f, 1f)) // Blue
+                pixmap.fillRectangle(10, 20, 30, 15) // Main body
+                pixmap.fillRectangle(15, 15, 20, 10) // Top/roof
                 pixmap.setColor(Color.BLACK)
-                pixmap.fillCircle(13, 38, 4) // Front wheel
-                pixmap.fillCircle(37, 38, 4) // Rear wheel
+                pixmap.fillCircle(18, 38, 3) // Front wheel
+                pixmap.fillCircle(32, 38, 3) // Rear wheel
             }
         }
 

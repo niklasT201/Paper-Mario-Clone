@@ -395,9 +395,10 @@ enum class CarType(
 ) {
     DEFAULT("Default", "textures/objects/cars/car_driving.png", 10f, 7f, 250f),
     BOSS_CAR("Boss Car", "textures/objects/cars/boss_car.png", 10f, 7f, 500f),
-    SUV("SUV", "textures/objects/cars/suv.png", 8f, 5f, 300f),
-    TRUCK("Truck", "textures/objects/cars/truck.png", 11f, 6f, 400f),
-    VAN("Van", "textures/objects/cars/van.png", 7f, 5.5f, 280f),
-    POLICE_CAR("Police Car", "textures/objects/cars/police_car.png", 7f, 4f, 200f),
     TAXI("Taxi", "textures/objects/cars/taxi.png", 10f, 7f, 220f),
+    TAXI_CAB("Taxi Cab", "textures/objects/cars/taxi_cab.png", 10f, 7f, 240f),
+    NEWSPAPER_TRUCK("Newspaper Truck", "textures/objects/cars/newspaper_truck.png", 12f, 8f, 300f),
+    CARGO_TRUCK("Cargo Truck", "textures/objects/cars/red_cargo.png", 12f, 5f, 400f),
+    POLICE_CAR("Police Car", "textures/objects/cars/police_car.png", 8f, 5f, 200f),
+    VAN("Van", "textures/objects/cars/van.png", 9f, 6f, 280f),
 }
