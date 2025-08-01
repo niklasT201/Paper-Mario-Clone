@@ -1700,7 +1700,15 @@ class MafiaGame : ApplicationAdapter() {
                     playerSystem.exitCar(sceneManager)
                 }
                 // Trigger the destruction sequence
-                car.destroy(particleSystem, carSystem)
+                val newFireObjects = car.destroy(
+                    particleSystem,
+                    fireSystem,
+                    objectSystem,
+                    lightingManager,
+                    carSystem
+                )
+
+                sceneManager.activeObjects.addAll(newFireObjects)
             }
 
             // 2. Check if a faded-out car should be removed

@@ -12,6 +12,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
+import kotlin.random.Random
 
 enum class CarState {
     DRIVABLE,
@@ -277,8 +278,14 @@ data class GameCar(
         }
     }
 
-    fun destroy(particleSystem: ParticleSystem, carSystem: CarSystem) {
-        if (state != CarState.DRIVABLE) return
+    fun destroy(
+        particleSystem: ParticleSystem,
+        fireSystem: FireSystem,
+        objectSystem: ObjectSystem,
+        lightingManager: LightingManager,
+        carSystem: CarSystem
+    ): com.badlogic.gdx.utils.Array<GameObject> {
+        if (state != CarState.DRIVABLE) return com.badlogic.gdx.utils.Array()
 
         println("${this.carType.displayName} has been destroyed!")
         state = CarState.WRECKED
@@ -292,6 +299,44 @@ data class GameCar(
         val wreckedTexture = carSystem.getWreckedTexture()
         val textureAttribute = material.get(TextureAttribute.Diffuse) as TextureAttribute?
         textureAttribute?.textureDescription?.texture = wreckedTexture
+
+        // SPAWNING GAMEPLAY FIRE
+        val newFireObjects = com.badlogic.gdx.utils.Array<GameObject>()
+
+        // Save the FireSystem's current settings so we don't mess up the user's editor selection
+        val originalFadesOut = fireSystem.nextFireFadesOut
+        val originalLifetime = fireSystem.nextFireLifetime
+        val originalMinScale = fireSystem.nextFireMinScale
+        val originalMaxScale = fireSystem.nextFireMaxScale
+
+        // Configure the FireSystem for small, temporary car fires
+        fireSystem.nextFireFadesOut = true
+        fireSystem.nextFireLifetime = 12f // Fire lasts for 12 seconds
+        fireSystem.nextFireMinScale = 0.4f // Small flames
+        fireSystem.nextFireMaxScale = 0.8f // with a little size variation
+
+        val fireCount = (2..4).random() // Spawn 2 to 4 fires
+        val spawnRadius = carType.width / 2.5f
+
+        for (i in 0 until fireCount) {
+            val offsetX = (Random.nextFloat() * 2f - 1f) * spawnRadius
+            val offsetZ = (Random.nextFloat() * 2f - 1f) * spawnRadius
+            val firePosition = position.cpy().add(offsetX, 0.1f, offsetZ)
+
+            // Add the fire using the FireSystem
+            val newFire = fireSystem.addFire(firePosition, objectSystem, lightingManager)
+            if (newFire != null) {
+                newFireObjects.add(newFire.gameObject)
+            }
+        }
+
+        // Restore the original settings to the FireSystem
+        fireSystem.nextFireFadesOut = originalFadesOut
+        fireSystem.nextFireLifetime = originalLifetime
+        fireSystem.nextFireMinScale = originalMinScale
+        fireSystem.nextFireMaxScale = originalMaxScale
+
+        return newFireObjects
     }
 
     fun updateFlipAnimation(horizontalDirection: Float, deltaTime: Float) {
