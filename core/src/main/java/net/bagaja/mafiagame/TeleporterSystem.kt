@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
+import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
@@ -17,6 +18,9 @@ class TeleporterSystem(
     private val objectSystem: ObjectSystem,
     private val uiManager: UIManager
 ) : IFinePositionable {
+    private val FULL_VISIBILITY_RADIUS = 5f
+    private val FADE_OUT_RADIUS = 10f
+
     val activeTeleporters = Array<GameTeleporter>()
     private val spriteBatch = SpriteBatch()
     private val font: BitmapFont by lazy { uiManager.skin.getFont("default-font") }
@@ -130,50 +134,54 @@ class TeleporterSystem(
 
     fun renderNameplates(camera: Camera, playerSystem: PlayerSystem) {
         // SETUP FOR 3D SPRITEBATCH RENDERING
-        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glEnable(GL20.GL_BLEND)
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+        Gdx.gl.glDepthMask(false)
 
         spriteBatch.projectionMatrix = camera.combined
         spriteBatch.begin()
 
-        val renderDistanceSq = 30f * 30f
-        val playerBounds = playerSystem.getPlayerBounds()
+        val playerPos = playerSystem.getPosition()
 
         for (teleporter in activeTeleporters) {
-            val textWorldPos = tempVec3.set(teleporter.gameObject.position).add(0f, 2.5f, 0f)
-            val textDistanceSq = camera.position.dst2(textWorldPos)
+            val teleporterPos = teleporter.gameObject.position
+            val textWorldPos = tempVec3.set(teleporterPos).add(0f, 2.5f, 0f)
 
-            if (textDistanceSq < renderDistanceSq && camera.frustum.pointInFrustum(textWorldPos)) {
-                var isOccluded = false
+            // Use the actual teleporter's position for distance checks, as it's more intuitive for gameplay.
+            val distanceToPlayer = playerPos.dst(teleporterPos)
 
-                // 1. Create a ray from the camera to the text's position.
-                tempRay.set(camera.position, textWorldPos.cpy().sub(camera.position).nor())
+            // 1. Create a ray from the camera to the text's position
+            var opacity = 0f
+            if (distanceToPlayer <= FULL_VISIBILITY_RADIUS) {
+                // Player is very close, text is fully visible.
+                opacity = 1.0f
+            } else if (distanceToPlayer < FADE_OUT_RADIUS) {
+                // Player is in the fade zone, calculate opacity.
+                val fadeRange = FADE_OUT_RADIUS - FULL_VISIBILITY_RADIUS
+                val distanceIntoFade = distanceToPlayer - FULL_VISIBILITY_RADIUS
+                val fadeProgress = distanceIntoFade / fadeRange
 
-                // 2. Check if this ray intersects the player's bounding box.
-                if (Intersector.intersectRayBounds(tempRay, playerBounds, tempIntersection)) {
-                    // 3. An intersection occurred. Now, check if the player is actually BETWEEN the camera and the text.
-                    val hitDistanceSq = camera.position.dst2(tempIntersection)
-                    if (hitDistanceSq < textDistanceSq) {
-                        isOccluded = true // The player is in the way.
-                    }
-                }
+                opacity = 1.0f - Interpolation.pow2Out.apply(fadeProgress)
+            }
+
+            // If opacity is greater than 0 and the text is on screen, draw it.
+            if (opacity > 0.01f && camera.frustum.pointInFrustum(textWorldPos)) {
+
+                // Set the calculated opacity on the font color.
+                font.color.a = opacity
 
                 // 4. Only draw the text if it is not occluded by the player.
-                if (!isOccluded) {
-                    val transformMatrix = Matrix4()
-                    transformMatrix.setToTranslation(textWorldPos)
+                val transformMatrix = Matrix4()
+                transformMatrix.setToTranslation(textWorldPos)
 
-                    val scale = 0.045f
-                    transformMatrix.scl(scale)
+                val scale = 0.045f
+                transformMatrix.scl(scale)
 
-                    // DRAWING
-                    spriteBatch.transformMatrix = transformMatrix
-                    font.data.setScale(1.0f)
-                    font.color = Color.WHITE
-                    glyphLayout.setText(font, teleporter.name)
-                    font.draw(spriteBatch, glyphLayout, -glyphLayout.width / 2, glyphLayout.height / 2)
-                }
+                // DRAWING
+                spriteBatch.transformMatrix = transformMatrix
+                font.data.setScale(1.0f)
+                glyphLayout.setText(font, teleporter.name)
+                font.draw(spriteBatch, glyphLayout, -glyphLayout.width / 2, glyphLayout.height / 2)
             }
         }
 
@@ -181,7 +189,7 @@ class TeleporterSystem(
 
         // Restore matrices and GL state
         spriteBatch.transformMatrix.idt()
-        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
+        Gdx.gl.glDepthMask(true)
         Gdx.gl.glDisable(GL20.GL_BLEND)
     }
 
