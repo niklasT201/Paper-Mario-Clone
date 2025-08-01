@@ -119,11 +119,33 @@ class FireSystem {
         billboardModelBatch = ModelBatch(billboardShaderProvider)
     }
 
-    fun addFire(position: Vector3, objectSystem: ObjectSystem, lightingManager: LightingManager): GameFire? {
-        val fireObject = objectSystem.createGameObjectWithLight(ObjectType.FIRE_SPREAD, position, lightingManager) ?: return null
+    fun addFire(position: Vector3, objectSystem: ObjectSystem, lightingManager: LightingManager, lightIntensityOverride: Float? = null, lightRangeOverride: Float? = null): GameFire? {
+        // If an override is provided
+        val finalLightIntensity = lightIntensityOverride ?: ObjectType.FIRE_SPREAD.lightIntensity
+        val finalLightRange = lightRangeOverride ?: ObjectType.FIRE_SPREAD.lightRange
+
+        val fireObject = objectSystem.createGameObjectWithLight(ObjectType.FIRE_SPREAD, position) ?: return null
         fireObject.modelInstance.userData = "player"
 
-        // Calculate the random scale
+        // Remove the default light that
+        fireObject.associatedLightId?.let {
+            lightingManager.removeLightSource(it)
+            objectSystem.removeLightSource(it)
+        }
+
+        // Now create new customized light source
+        val customLightSource = objectSystem.createLightSource(
+            position = position.cpy().add(0f, ObjectType.FIRE_SPREAD.lightOffsetY, 0f),
+            intensity = finalLightIntensity,
+            range = finalLightRange,
+            color = ObjectType.FIRE_SPREAD.getLightColor()
+        )
+        // Associate this new light
+        fireObject.associatedLightId = customLightSource.id
+
+        val lightInstances = objectSystem.createLightSourceInstances(customLightSource)
+        lightingManager.addLightSource(customLightSource, lightInstances)
+
         val randomScale = nextFireMinScale + Random.nextFloat() * (nextFireMaxScale - nextFireMinScale)
 
         val newFire = GameFire(

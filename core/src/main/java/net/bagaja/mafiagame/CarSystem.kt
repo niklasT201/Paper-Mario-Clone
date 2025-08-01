@@ -334,7 +334,14 @@ data class GameCar(
                 val firePosition = position.cpy().add(offsetX, 0.1f, offsetZ)
 
                 // Add the fire using the FireSystem
-                val newFire = fireSystem.addFire(firePosition, objectSystem, lightingManager)
+                val newFire = fireSystem.addFire(
+                    position = firePosition,
+                    objectSystem = objectSystem,
+                    lightingManager = lightingManager,
+                    lightIntensityOverride = 20f,
+                    lightRangeOverride = 10f
+                )
+
                 if (newFire != null) {
                     newFireObjects.add(newFire.gameObject)
                 }
