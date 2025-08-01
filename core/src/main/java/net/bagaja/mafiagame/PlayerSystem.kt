@@ -1237,7 +1237,7 @@ class PlayerSystem {
                 fireSystem.nextFireFadesOut = true
                 fireSystem.nextFireLifetime = 15f + Random.nextFloat() * 10f
                 fireSystem.nextFireMinScale = 0.5f
-                fireSystem.nextFireMaxScale = 1.2f
+                fireSystem.nextFireMaxScale = 0.8f
 
                 // Spawn fires with robust collision checking, starting from our valid position.
                 val fireCount = (1..5).random()

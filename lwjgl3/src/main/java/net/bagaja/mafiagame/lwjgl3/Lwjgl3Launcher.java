@@ -51,6 +51,7 @@ public class Lwjgl3Launcher {
 
 // changing room transition effect colors
 // car exploding spawning small fire flames
+// dynamite exploding where it disappears and not at players height
 // removing flame from burned car image
 // dynamite explosion image
 // car explosion image
