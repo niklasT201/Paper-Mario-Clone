@@ -1246,7 +1246,13 @@ class PlayerSystem {
 
                 // The groundZeroPosition is now the already-calculated validGroundPosition
                 if (sceneManager.isPositionValidForFire(validGroundPosition)) {
-                    fireSystem.addFire(validGroundPosition, objectSystem, lightingManager)
+                    fireSystem.addFire(
+                        position = validGroundPosition,
+                        objectSystem = objectSystem,
+                        lightingManager = lightingManager,
+                        lightIntensityOverride = 35f, // Dimmer light (default is 60)
+                        lightRangeOverride = 15f      // Smaller range (default is 25)
+                    )
                     spawnedCount++
                 }
 
@@ -1259,7 +1265,13 @@ class PlayerSystem {
 
                     // Only spawn the fire if the position is not inside a block.
                     if (sceneManager.isPositionValidForFire(firePosition)) {
-                        fireSystem.addFire(firePosition, objectSystem, lightingManager)
+                        fireSystem.addFire(
+                            position = firePosition,
+                            objectSystem = objectSystem,
+                            lightingManager = lightingManager,
+                            lightIntensityOverride = 35f, // Dimmer light
+                            lightRangeOverride = 10f      // Smaller range
+                        )
                         spawnedCount++
                     }
                 }
