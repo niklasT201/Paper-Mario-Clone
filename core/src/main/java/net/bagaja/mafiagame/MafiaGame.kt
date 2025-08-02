@@ -1675,7 +1675,8 @@ class MafiaGame : ApplicationAdapter() {
         // Handle player input
         handlePlayerInput()
         particleSystem.update(deltaTime)
-        particleSpawnerSystem.update(deltaTime, particleSystem, sceneManager.activeParticleSpawners)
+        particleSpawnerSystem.update(deltaTime, particleSystem, sceneManager.activeParticleSpawners, cameraManager.camera.position
+        )
         val expiredFires = fireSystem.update(Gdx.graphics.deltaTime, playerSystem, particleSystem, sceneManager)
         if (expiredFires.isNotEmpty()) {
             for (fireToRemove in expiredFires) {

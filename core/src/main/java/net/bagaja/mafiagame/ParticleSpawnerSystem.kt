@@ -23,14 +23,23 @@ data class GameParticleSpawner(
  * Manages the update loop for all particle spawners in the scene.
  */
 class ParticleSpawnerSystem {
+    private val ACTIVATION_RANGE_SQUARED = 100f * 100f // Use squared distance for better performance
 
     /**
      * Iterates through all spawners and triggers particle emissions based on their timers.
      */
-    fun update(deltaTime: Float, particleSystem: ParticleSystem, spawners: Array<GameParticleSpawner>) {
+    fun update(deltaTime: Float, particleSystem: ParticleSystem, spawners: Array<GameParticleSpawner>, cameraPosition: Vector3
+    ) {
         if (spawners.isEmpty) return
 
         for (spawner in spawners) {
+            // Check the squared distance
+            if (spawner.position.dst2(cameraPosition) > ACTIVATION_RANGE_SQUARED) {
+                // If the spawner is too far away, reset its timer to prevent
+                spawner.timer = spawner.spawnInterval
+                continue // Skip to the next spawner
+            }
+
             spawner.timer -= deltaTime
             if (spawner.timer <= 0f) {
                 // Time to spawn!
