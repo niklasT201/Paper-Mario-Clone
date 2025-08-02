@@ -338,6 +338,13 @@ enum class ParticleEffectType(
         scaleVariance = 2f,
         fadeIn = 0.2f,
         fadeOut = 0.1f // A quick fade at the very end
+    ),
+    DYNAMITE_EXPLOSION(
+        "Dynamite Explosion",
+        arrayOf("textures/particles/dynamite_explosion/dynamite_exploding.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 0.7f, // A quick, powerful blast
+        particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
+        scale = 9f, scaleVariance = 1f, fadeIn = 0.0f, fadeOut = 0.3f
     );
 
     val isAnimated: Boolean get() = texturePaths.size > 1

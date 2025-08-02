@@ -1240,7 +1240,40 @@ class PlayerSystem {
             WeaponType.DYNAMITE -> {
                 // Now the explosion correctly happens on the ground next to a wall, not in mid-air!
                 val validGroundPosition = getValidGroundImpactPosition(collisionResult, sceneManager, throwable.position)
-                particleSystem.spawnEffect(ParticleEffectType.EXPLOSION, validGroundPosition)
+                val explosionCenterPosition = validGroundPosition.cpy().add(0f, 7f, 0f)
+                particleSystem.spawnEffect(ParticleEffectType.DYNAMITE_EXPLOSION, explosionCenterPosition)
+
+                val smokePlumeTypes = listOf(
+                    ParticleEffectType.DUST_SMOKE_LIGHT,
+                    ParticleEffectType.DUST_SMOKE_MEDIUM,
+                    ParticleEffectType.DUST_SMOKE_HEAVY
+                )
+                val smokeCount = (2..5).random()
+
+                // Smoke Spawning
+                for (i in 0 until smokeCount) {
+                    val randomSmokeType = smokePlumeTypes.random()
+                    val spreadRadius = 6f
+
+                    // Step 1: Get a random X and Z coordinate in a radius
+                    val finalX = validGroundPosition.x + (Random.nextFloat() * 2f - 1f) * spreadRadius
+                    val finalZ = validGroundPosition.z + (Random.nextFloat() * 2f - 1f) * spreadRadius
+
+                    // Step 2: Find the actual ground height at this new random spot
+                    val groundY = sceneManager.findHighestSupportY(finalX, finalZ, validGroundPosition.y + 2f, 0.1f, blockSize)
+
+                    // Step 3: Create the final position vector for the smoke plume
+                    val smokePosition = Vector3(finalX, groundY, finalZ)
+
+                    val smokeScale = 4.0f + Random.nextFloat() * (6.5f - 4.0f)
+
+                    particleSystem.spawnEffect(
+                        type = randomSmokeType,
+                        position = smokePosition,
+                        overrideScale = smokeScale
+                    )
+                }
+
                 println("Dynamite effect originating at $validGroundPosition")
 
                 // Area-of-effect damage logic
