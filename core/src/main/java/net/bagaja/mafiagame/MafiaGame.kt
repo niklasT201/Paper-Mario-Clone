@@ -105,7 +105,7 @@ class MafiaGame : ApplicationAdapter() {
         transitionSystem = TransitionSystem()
 
         playerSystem = PlayerSystem()
-        playerSystem.initialize(blockSize, particleSystem)
+        playerSystem.initialize(blockSize, particleSystem, lightingManager)
 
         // Initialize Shader Effect Manager
         shaderEffectManager = ShaderEffectManager()

@@ -50,6 +50,8 @@ public class Lwjgl3Launcher {
 // occlusion optional
 
 // changing room transition effect colors
+// optional weapon light
+// change flashlight color
 // car exploding spawning small fire flames
 // dynamite exploding where it disappears and not at players height
 // removing flame from burned car image

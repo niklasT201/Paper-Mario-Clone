@@ -127,6 +127,8 @@ class PlayerSystem {
     private val minShotScale = 0.7f // The initial size of the particle on a quick tap
     private val maxShotScale = 2.0f // The maximum size limit for the particle
     private val chargeDurationForMaxScale = 10f
+    private var muzzleFlashLight: LightSource? = null
+    private var muzzleFlashTimer = 0f
 
     // Caches for weapon assets to avoid loading them repeatedly
     private val poseTextures = mutableMapOf<String, Texture>()
@@ -142,7 +144,7 @@ class PlayerSystem {
         return playerBounds
     }
 
-    fun initialize(blockSize: Float, particleSystem: ParticleSystem) {
+    fun initialize(blockSize: Float, particleSystem: ParticleSystem, lightingManager: LightingManager) {
         this.blockSize = blockSize
         this.particleSystem = particleSystem
         setupAnimationSystem()
@@ -156,6 +158,13 @@ class PlayerSystem {
 
         // Set initial weapon state
         currentMagazineCount = equippedWeapon.magazineSize
+
+        // ADDED: Create the muzzle flash light source once and keep it
+        // We create it with an ID of 0 or a special negative ID to signify it's a transient effect light
+        val light = LightSource(id = -1, position = Vector3(), intensity = 0f, range = 0f)
+        muzzleFlashLight = light
+        // We add the PointLight to the environment so it can be rendered
+        lightingManager.getEnvironment().add(light.createPointLight())
     }
 
     private fun setupBillboardShader() {
@@ -507,6 +516,23 @@ class PlayerSystem {
             position = muzzleFlashPosition,
             overrideScale = currentShotScale
         )
+
+        // Muzzle Flashlight Logic
+        muzzleFlashLight?.let { light ->
+            // 1. Move the light to the muzzle flash position
+            light.position.set(muzzleFlashPosition)
+
+            // 2. Set its properties for the flash
+            light.intensity = 25f // A good, noticeable but not overwhelming brightness
+            light.range = 10f      // A small radius
+            light.color.set(1f, 0.85f, 0.7f, 1f) // A warm, yellowish-white flash color
+
+            // 3. Update the light in the rendering environment
+            light.updatePointLight()
+
+            // 4. Start the timer to turn it off
+            muzzleFlashTimer = 0.06f // The flash will last for a very short time
+        }
     }
 
     fun equipWeapon(weaponType: WeaponType) {
@@ -996,6 +1022,18 @@ class PlayerSystem {
     }
 
     fun update(deltaTime: Float, sceneManager: SceneManager) {
+        // Timer for the muzzle flash
+        if (muzzleFlashTimer > 0f) {
+            muzzleFlashTimer -= deltaTime
+            if (muzzleFlashTimer <= 0f) {
+                // Timer finished, turn the light off
+                muzzleFlashLight?.let { light ->
+                    light.intensity = 0f
+                    light.updatePointLight()
+                }
+            }
+        }
+
         if (teleportCooldown > 0f) {
             teleportCooldown -= deltaTime
         }
