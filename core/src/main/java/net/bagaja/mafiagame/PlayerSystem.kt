@@ -127,6 +127,9 @@ class PlayerSystem {
     private val minShotScale = 0.7f // The initial size of the particle on a quick tap
     private val maxShotScale = 2.0f // The maximum size limit for the particle
     private val chargeDurationForMaxScale = 10f
+    var isMuzzleFlashLightEnabled = true
+        private set
+
     private var muzzleFlashLight: LightSource? = null
     private var muzzleFlashTimer = 0f
 
@@ -467,6 +470,19 @@ class PlayerSystem {
         println("Threw ${equippedWeapon.displayName} with power $throwPower")
     }
 
+    fun toggleMuzzleFlashLight() {
+        isMuzzleFlashLightEnabled = !isMuzzleFlashLightEnabled
+        println("Muzzle Flash Light toggled: ${if (isMuzzleFlashLightEnabled) "ON" else "OFF"}")
+        // If we turn it off, make sure any active flash is immediately extinguished
+        if (!isMuzzleFlashLightEnabled) {
+            muzzleFlashLight?.let {
+                it.intensity = 0f
+                it.updatePointLight()
+            }
+            muzzleFlashTimer = 0f
+        }
+    }
+
     private fun spawnBullet() {
         val bulletModel = bulletModels[equippedWeapon.bulletTexturePath] ?: return
 
@@ -518,7 +534,8 @@ class PlayerSystem {
         )
 
         // Muzzle Flashlight Logic
-        muzzleFlashLight?.let { light ->
+        if (isMuzzleFlashLightEnabled) {
+            muzzleFlashLight?.let { light ->
             // 1. Move the light to the muzzle flash position
             light.position.set(muzzleFlashPosition)
 
@@ -532,6 +549,7 @@ class PlayerSystem {
 
             // 4. Start the timer to turn it off
             muzzleFlashTimer = 0.06f // The flash will last for a very short time
+            }
         }
     }
 
