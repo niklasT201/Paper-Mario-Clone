@@ -51,11 +51,9 @@ public class Lwjgl3Launcher {
 
 // changing room transition effect colors
 // optional weapon light
-// change flashlight color
-// car exploding spawning small fire flames
 // dynamite exploding where it disappears and not at players height
 // removing flame from burned car image
-// dynamite explosion image
+// dynamite spawning smoke and explosion image
 // car explosion image
 // visual throwing and explosion range
 // weapon and car spawner
@@ -68,7 +66,6 @@ public class Lwjgl3Launcher {
 // working collisions for ramp, pillar and corner
 // maybe adding player hiding tp point text behind it
 // visual reload/charging bar
-// dynamite explodes and deals damage
 // missing knife, baseball bat and fist animations
 // player falling too early and being then stuck in blocks
 // add player with revolver image
@@ -78,7 +75,6 @@ public class Lwjgl3Launcher {
 // add new player with weapon images
 // player hitting with baseball bat
 // player stabbing with knife
-// car explosion when getting shot at
 // character dies, blood pool will spawn and get bigger over time
 // player wipe is switching to vertical when pressing W or S
 // only new wipes rotating with players direction not old ones too

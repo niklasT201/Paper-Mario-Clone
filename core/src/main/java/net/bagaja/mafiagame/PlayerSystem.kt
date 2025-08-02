@@ -523,9 +523,9 @@ class PlayerSystem {
             light.position.set(muzzleFlashPosition)
 
             // 2. Set its properties for the flash
-            light.intensity = 25f // A good, noticeable but not overwhelming brightness
-            light.range = 10f      // A small radius
-            light.color.set(1f, 0.85f, 0.7f, 1f) // A warm, yellowish-white flash color
+            light.intensity = 18f // A good, noticeable but not overwhelming brightness
+            light.range = 8f      // A small radius
+            light.color.set(1f, 0.75f, 0.4f, 1f) // orange/dark yellow
 
             // 3. Update the light in the rendering environment
             light.updatePointLight()
