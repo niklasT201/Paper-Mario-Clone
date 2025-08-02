@@ -5,6 +5,7 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
+import kotlin.math.abs
 
 enum class SceneType {
     WORLD,
@@ -103,6 +104,7 @@ class SceneManager(
 
         // This uses the player's dimensions, which is okay since SceneManager has a reference to playerSystem.
         val entityFootY = currentY - (playerSystem.playerSize.y / 2f)
+        val checkRange = 10f
 
         // 1. Check Blocks using the efficient column query
         val blocksInColumn = activeChunkManager.getBlocksInColumn(x, z)
@@ -112,7 +114,6 @@ class SceneManager(
             val blockBounds = block.getBoundingBox(blockSize, tempBlockBounds)
             val blockTop = blockBounds.max.y
 
-            // NOW THIS LINE WILL WORK, because MAX_STEP_HEIGHT is in the companion object.
             if (blockTop <= entityFootY + PlayerSystem.MAX_STEP_HEIGHT && blockTop > highestSupportY) {
                 highestSupportY = blockTop
             }
@@ -120,6 +121,10 @@ class SceneManager(
 
         // Check against all active houses
         for (house in activeHouses) {
+            // Is the player even horizontally close to this house?
+            if (abs(house.position.x - x) > checkRange || abs(house.position.z - z) > checkRange) {
+                continue // Skip this house, it's too far away
+            }
             // NEW STAIR LOGIC (from old PlayerSystem)
             if (house.houseType == HouseType.STAIR) {
                 val playerHeight = playerSystem.playerSize.y
@@ -161,6 +166,11 @@ class SceneManager(
         // Check against all solid 3D interiors
         for (interior in activeInteriors) {
             if (!interior.interiorType.is3D || !interior.interiorType.hasCollision) continue
+
+            // CHEAP CHECK FIRST
+            if (abs(interior.position.x - x) > checkRange || abs(interior.position.z - z) > checkRange) {
+                continue
+            }
 
             val supportRay = Ray()
             val supportIntersection = Vector3()
