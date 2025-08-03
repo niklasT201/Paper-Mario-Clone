@@ -252,8 +252,8 @@ class RaycastSystem(private val blockSize: Float) {
         return closestInterior
     }
 
-    fun getParticleSpawnerAtRay(ray: Ray, spawners: Array<GameParticleSpawner>): GameParticleSpawner? {
-        var closestSpawner: GameParticleSpawner? = null
+    fun getSpawnerAtRay(ray: Ray, spawners: Array<GameSpawner>): GameSpawner? {
+        var closestSpawner: GameSpawner? = null
         var closestDistance = Float.MAX_VALUE
 
         for (spawner in spawners) {

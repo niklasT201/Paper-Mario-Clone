@@ -22,7 +22,7 @@ data class RoomElement(
     val npcRotation: Float = 0f,
     val rotation: Float = 0f,
     val textureRotation: Float = 0f,
-    val topTextureRotation: Float = 0f, // ADDED
+    val topTextureRotation: Float = 0f,
     val scale: Vector3 = Vector3(1f, 1f, 1f),
     val lightColor: Color? = null,
     val lightIntensity: Float? = null,
@@ -30,10 +30,23 @@ data class RoomElement(
     val flickerMode: FlickerMode? = null,
     val loopOnDuration: Float? = null,
     val loopOffDuration: Float? = null,
+    // General
+    val spawnerType: SpawnerType? = null,
+    val spawnerInterval: Float? = null,
+    val spawnerMinRange: Float? = null,
+    val spawnerMaxRange: Float? = null,
+    // Particle Spawner Specific
     val particleEffectType: ParticleEffectType? = null,
     val spawnerMinParticles: Int? = null,
     val spawnerMaxParticles: Int? = null,
-    val spawnerInterval: Float? = null,
+    // Item Spawner Specific
+    val spawnerItemType: ItemType? = null,
+    val spawnerMinItems: Int? = null,
+    val spawnerMaxItems: Int? = null,
+    // Weapon Spawner Specific
+    val spawnerWeaponItemType: ItemType? = null,
+    val spawnerMinAmmo: Int? = null,
+    val spawnerMaxAmmo: Int? = null,
     val teleporterId: String? = null,
     val linkedTeleporterId: String? = null,
     val teleporterName: String? = null,

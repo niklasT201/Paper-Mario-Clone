@@ -34,11 +34,11 @@ class SceneManager(
     val cameraManager: CameraManager,
     private val transitionSystem: TransitionSystem,
     private val faceCullingSystem: FaceCullingSystem,
-    val teleporterSystem: TeleporterSystem,
     val game: MafiaGame,
     private val particleSystem: ParticleSystem,
     private val fireSystem: FireSystem
 ) {
+    lateinit var teleporterSystem: TeleporterSystem
     // --- ACTIVE SCENE DATA ---
     private lateinit var worldChunkManager: ChunkManager
     private val interiorChunkManagers = mutableMapOf<String, ChunkManager>()
@@ -50,7 +50,7 @@ class SceneManager(
     val activeInteriors = Array<GameInterior>()
     val activeEnemies = Array<GameEnemy>()
     val activeNPCs = Array<GameNPC>()
-    val activeParticleSpawners = Array<GameParticleSpawner>()
+    val activeSpawners = Array<GameSpawner>()
 
     // State Management
     var currentScene: SceneType = SceneType.WORLD
@@ -522,7 +522,7 @@ class SceneManager(
             items = Array(activeItems),
             enemies = Array(activeEnemies),
             npcs = Array(activeNPCs),
-            particleSpawners = Array(activeParticleSpawners),
+            spawners = Array(activeSpawners),
             playerPosition = playerSystem.getPosition(),
             cameraPosition = Vector3(),
             lights = game.lightingManager.getLightSources()
@@ -548,7 +548,7 @@ class SceneManager(
         activeItems.addAll(state.items)
         activeEnemies.addAll(state.enemies)
         activeNPCs.addAll(state.npcs)
-        activeParticleSpawners.addAll(state.particleSpawners)
+        activeSpawners.addAll(state.spawners)
 
         // Synchronize the ItemSystem with the restored world items
         itemSystem.setActiveItems(activeItems)
@@ -567,7 +567,7 @@ class SceneManager(
         currentState.interiors.clear(); currentState.interiors.addAll(activeInteriors)
         currentState.enemies.clear(); currentState.enemies.addAll(activeEnemies)
         currentState.npcs.clear(); currentState.npcs.addAll(activeNPCs)
-        currentState.particleSpawners.clear(); currentState.particleSpawners.addAll(activeParticleSpawners)
+        currentState.spawners.clear(); currentState.spawners.addAll(activeSpawners)
         currentState.teleporters.clear(); currentState.teleporters.addAll(teleporterSystem.activeTeleporters)
         currentState.playerPosition.set(playerSystem.getPosition())
 
@@ -584,7 +584,7 @@ class SceneManager(
         activeInteriors.addAll(state.interiors)
         activeEnemies.addAll(state.enemies)
         activeNPCs.addAll(state.npcs)
-        activeParticleSpawners.addAll(state.particleSpawners)
+        activeSpawners.addAll(state.spawners)
         teleporterSystem.activeTeleporters.addAll(state.teleporters)
 
         // Synchronize the ItemSystem with the loaded interior items
@@ -600,7 +600,7 @@ class SceneManager(
         val newInteriors = Array<GameInterior>()
         val newEnemies = Array<GameEnemy>()
         val newNPCs = Array<GameNPC>()
-        val newParticleSpawners = Array<GameParticleSpawner>()
+        val newParticleSpawners = Array<GameSpawner>()
         val newLights = mutableMapOf<Int, LightSource>()
         val newTeleporters = Array<GameTeleporter>()
 
@@ -704,20 +704,33 @@ class SceneManager(
                     }
                 }
                 RoomElementType.PARTICLE_SPAWNER -> {
-                    if (element.particleEffectType != null) {
-                        val spawnerGameObject = objectSystem.createGameObjectWithLight(ObjectType.PARTICLE_SPAWNER, element.position.cpy())
-                        if (spawnerGameObject != null) {
-                            spawnerGameObject.debugInstance?.transform?.setTranslation(element.position)
-                            val newSpawner = GameParticleSpawner(
-                                position = element.position.cpy(),
-                                gameObject = spawnerGameObject,
-                                particleEffectType = element.particleEffectType,
-                                minParticles = element.spawnerMinParticles ?: 1,
-                                maxParticles = element.spawnerMaxParticles ?: 3,
-                                spawnInterval = element.spawnerInterval ?: 1.0f
-                            )
-                            newParticleSpawners.add(newSpawner)
-                        }
+                    val spawnerGameObject = objectSystem.createGameObjectWithLight(ObjectType.SPAWNER, element.position.cpy())
+                    if (spawnerGameObject != null) {
+                        spawnerGameObject.debugInstance?.transform?.setTranslation(element.position)
+                        val newSpawner = GameSpawner(
+                            position = element.position.cpy(),
+                            gameObject = spawnerGameObject
+                        )
+
+                        // Load all saved spawner properties from the element
+                        newSpawner.spawnerType = element.spawnerType ?: newSpawner.spawnerType
+                        newSpawner.spawnInterval = element.spawnerInterval ?: newSpawner.spawnInterval
+                        newSpawner.minSpawnRange = element.spawnerMinRange ?: newSpawner.minSpawnRange
+                        newSpawner.maxSpawnRange = element.spawnerMaxRange ?: newSpawner.maxSpawnRange
+
+                        newSpawner.particleEffectType = element.particleEffectType ?: newSpawner.particleEffectType
+                        newSpawner.minParticles = element.spawnerMinParticles ?: newSpawner.minParticles
+                        newSpawner.maxParticles = element.spawnerMaxParticles ?: newSpawner.maxParticles
+
+                        newSpawner.itemType = element.spawnerItemType ?: newSpawner.itemType
+                        newSpawner.minItems = element.spawnerMinItems ?: newSpawner.minItems
+                        newSpawner.maxItems = element.spawnerMaxItems ?: newSpawner.maxItems
+
+                        newSpawner.weaponItemType = element.spawnerWeaponItemType ?: newSpawner.weaponItemType
+                        newSpawner.minAmmo = element.spawnerMinAmmo ?: newSpawner.minAmmo
+                        newSpawner.maxAmmo = element.spawnerMaxAmmo ?: newSpawner.maxAmmo
+
+                        newParticleSpawners.add(newSpawner)
                     }
                 }
                 RoomElementType.TELEPORTER -> {
@@ -814,7 +827,7 @@ class SceneManager(
             interiors = newInteriors,
             enemies = newEnemies,
             npcs = newNPCs,
-            particleSpawners = newParticleSpawners,
+            spawners = newParticleSpawners,
             teleporters = newTeleporters,
             playerPosition = template.entrancePosition.cpy(),
             isTimeFixed = template.isTimeFixed,
@@ -950,14 +963,31 @@ class SceneManager(
             ))
         }
 
-        activeParticleSpawners.forEach { spawner ->
+        activeSpawners.forEach { spawner ->
             elements.add(RoomElement(
                 position = spawner.position.cpy(),
                 elementType = RoomElementType.PARTICLE_SPAWNER,
+
+                // Saving all spawner properties
+                spawnerType = spawner.spawnerType,
+                spawnerInterval = spawner.spawnInterval,
+                spawnerMinRange = spawner.minSpawnRange,
+                spawnerMaxRange = spawner.maxSpawnRange,
+
+                // Particle properties
                 particleEffectType = spawner.particleEffectType,
                 spawnerMinParticles = spawner.minParticles,
                 spawnerMaxParticles = spawner.maxParticles,
-                spawnerInterval = spawner.spawnInterval
+
+                // Item properties
+                spawnerItemType = spawner.itemType,
+                spawnerMinItems = spawner.minItems,
+                spawnerMaxItems = spawner.maxItems,
+
+                // Weapon properties
+                spawnerWeaponItemType = spawner.weaponItemType,
+                spawnerMinAmmo = spawner.minAmmo,
+                spawnerMaxAmmo = spawner.maxAmmo
             ))
         }
 
@@ -1116,20 +1146,33 @@ class SceneManager(
                     }
                 }
                 RoomElementType.PARTICLE_SPAWNER -> {
-                    if (element.particleEffectType != null) {
-                        val spawnerGameObject = objectSystem.createGameObjectWithLight(ObjectType.PARTICLE_SPAWNER, element.position.cpy())
-                        if (spawnerGameObject != null) {
-                            spawnerGameObject.debugInstance?.transform?.setTranslation(element.position)
-                            val newSpawner = GameParticleSpawner(
-                                position = element.position.cpy(),
-                                gameObject = spawnerGameObject,
-                                particleEffectType = element.particleEffectType,
-                                minParticles = element.spawnerMinParticles ?: 1,
-                                maxParticles = element.spawnerMaxParticles ?: 3,
-                                spawnInterval = element.spawnerInterval ?: 1.0f
-                            )
-                            activeParticleSpawners.add(newSpawner)
-                        }
+                    val spawnerGameObject = objectSystem.createGameObjectWithLight(ObjectType.SPAWNER, element.position.cpy())
+                    if (spawnerGameObject != null) {
+                        spawnerGameObject.debugInstance?.transform?.setTranslation(element.position)
+                        val newSpawner = GameSpawner(
+                            position = element.position.cpy(),
+                            gameObject = spawnerGameObject
+                        )
+
+                        // NEW: Load all saved spawner properties from the element
+                        newSpawner.spawnerType = element.spawnerType ?: newSpawner.spawnerType
+                        newSpawner.spawnInterval = element.spawnerInterval ?: newSpawner.spawnInterval
+                        newSpawner.minSpawnRange = element.spawnerMinRange ?: newSpawner.minSpawnRange
+                        newSpawner.maxSpawnRange = element.spawnerMaxRange ?: newSpawner.maxSpawnRange
+
+                        newSpawner.particleEffectType = element.particleEffectType ?: newSpawner.particleEffectType
+                        newSpawner.minParticles = element.spawnerMinParticles ?: newSpawner.minParticles
+                        newSpawner.maxParticles = element.spawnerMaxParticles ?: newSpawner.maxParticles
+
+                        newSpawner.itemType = element.spawnerItemType ?: newSpawner.itemType
+                        newSpawner.minItems = element.spawnerMinItems ?: newSpawner.minItems
+                        newSpawner.maxItems = element.spawnerMaxItems ?: newSpawner.maxItems
+
+                        newSpawner.weaponItemType = element.spawnerWeaponItemType ?: newSpawner.weaponItemType
+                        newSpawner.minAmmo = element.spawnerMinAmmo ?: newSpawner.minAmmo
+                        newSpawner.maxAmmo = element.spawnerMaxAmmo ?: newSpawner.maxAmmo
+
+                        activeSpawners.add(newSpawner)
                     }
                 }
                 RoomElementType.TELEPORTER -> {
@@ -1220,7 +1263,7 @@ class SceneManager(
         activeInteriors.clear()
         activeEnemies.clear()
         activeNPCs.clear()
-        activeParticleSpawners.clear()
+        activeSpawners.clear()
         teleporterSystem.activeTeleporters.clear()
 
         // Also clear any active lights from the lighting manager
@@ -1236,7 +1279,7 @@ data class WorldState(
     val items: Array<GameItem>,
     val enemies: Array<GameEnemy>,
     val npcs: Array<GameNPC>,
-    val particleSpawners: Array<GameParticleSpawner>,
+    val spawners: Array<GameSpawner>,
     val playerPosition: Vector3,
     val cameraPosition: Vector3,
     val lights: Map<Int, LightSource>
@@ -1251,8 +1294,8 @@ data class InteriorState(
     val interiors: Array<GameInterior> = Array(),
     val enemies: Array<GameEnemy> = Array(),
     val npcs: Array<GameNPC> = Array(),
-    val particleSpawners: Array<GameParticleSpawner> = Array(),
-    val teleporters: Array<GameTeleporter> = Array(), // ADDED
+    val spawners: Array<GameSpawner> = Array(),
+    val teleporters: Array<GameTeleporter> = Array(),
     var playerPosition: Vector3,
     var isTimeFixed: Boolean = false,
     var fixedTimeProgress: Float = 0.5f,

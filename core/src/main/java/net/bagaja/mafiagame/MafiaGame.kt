@@ -51,7 +51,7 @@ class MafiaGame : ApplicationAdapter() {
     // 2D Player (but positioned in 3D space)
     private lateinit var playerSystem: PlayerSystem
 
-    private lateinit var particleSpawnerSystem: ParticleSpawnerSystem
+    private lateinit var spawnerSystem: SpawnerSystem
 
     // Game objects
     private var lastPlacedInstance: Any? = null
@@ -76,7 +76,6 @@ class MafiaGame : ApplicationAdapter() {
         setupGraphics()
         particleSystem = ParticleSystem()
         particleSystem.initialize()
-        particleSpawnerSystem = ParticleSpawnerSystem()
         setupBlockSystem()
         faceCullingSystem = FaceCullingSystem(blockSize)
         //occlusionSystem = OcclusionSystem(blockSize)
@@ -110,6 +109,7 @@ class MafiaGame : ApplicationAdapter() {
         // Initialize Shader Effect Manager
         shaderEffectManager = ShaderEffectManager()
         shaderEffectManager.initialize()
+        spawnerSystem = SpawnerSystem(particleSystem, itemSystem)
 
         // Initialize UI Manager
         uiManager = UIManager(
@@ -127,8 +127,8 @@ class MafiaGame : ApplicationAdapter() {
             enemySystem,
             npcSystem,
             particleSystem,
-            particleSpawnerSystem,
-            this::removeParticleSpawner
+            spawnerSystem,
+            this::removeSpawner
         )
         teleporterSystem = TeleporterSystem(objectSystem, uiManager)
 
@@ -144,11 +144,12 @@ class MafiaGame : ApplicationAdapter() {
             cameraManager,
             transitionSystem,
             faceCullingSystem,
-            teleporterSystem,
             this,
             particleSystem,
             fireSystem
         )
+        spawnerSystem.sceneManager = sceneManager
+        sceneManager.teleporterSystem = teleporterSystem
 
         transitionSystem.create(cameraManager.findUiCamera())
         uiManager.initialize()
@@ -169,7 +170,7 @@ class MafiaGame : ApplicationAdapter() {
             enemySystem,
             npcSystem,
             particleSystem,
-            particleSpawnerSystem,
+            spawnerSystem,
             teleporterSystem,
             sceneManager,
             roomTemplateManager,
@@ -451,12 +452,12 @@ class MafiaGame : ApplicationAdapter() {
             UIManager.Tool.BLOCK -> placeBlock(ray)
             UIManager.Tool.PLAYER -> placePlayer(ray)
             UIManager.Tool.OBJECT -> {
-                if (objectSystem.currentSelectedObject == ObjectType.FIRE_SPREAD) {
+                if (objectSystem.currentSelectedObject == ObjectType.SPAWNER) {
+                    placeSpawner(ray)
+                } else if (objectSystem.currentSelectedObject == ObjectType.FIRE_SPREAD) {
                     placeFire(ray)
                 } else if (objectSystem.currentSelectedObject == ObjectType.TELEPORTER) {
                     placeTeleporter(ray)
-                } else if (objectSystem.currentSelectedObject == ObjectType.PARTICLE_SPAWNER) {
-                    placeParticleSpawner(ray)
                 } else {
                     placeObject(ray)
                 }
@@ -536,9 +537,9 @@ class MafiaGame : ApplicationAdapter() {
                         return true
                     }
                     // If no normal object found, try removing a spawner.
-                    val spawnerToRemove = raycastSystem.getParticleSpawnerAtRay(ray, sceneManager.activeParticleSpawners)
-                    if (spawnerToRemove != null) {
-                        removeParticleSpawner(spawnerToRemove)
+                    val spawnerToRemove = raycastSystem.getSpawnerAtRay(ray, sceneManager.activeSpawners)
+                    if (spawnerToRemove != null && objectSystem.debugMode) {
+                        removeSpawner(spawnerToRemove)
                         return true
                     }
                 }
@@ -708,12 +709,12 @@ class MafiaGame : ApplicationAdapter() {
                 instance.updateVisuals()
                 println("Moved NPC to ${instance.position}")
             }
-            is GameParticleSpawner -> {
+            is GameSpawner -> {
                 instance.position.add(deltaX, deltaY, deltaZ)
                 instance.gameObject.position.set(instance.position)
                 instance.gameObject.modelInstance.transform.setTranslation(instance.position)
                 instance.gameObject.debugInstance?.transform?.setTranslation(instance.position)
-                println("Moved Particle Spawner to ${instance.position}")
+                println("Moved Spawner to ${instance.position}")
             }
             is GameTeleporter -> {
                 instance.gameObject.position.add(deltaX, deltaY, deltaZ)
@@ -1562,7 +1563,7 @@ class MafiaGame : ApplicationAdapter() {
         }
     }
 
-    private fun placeParticleSpawner(ray: Ray) {
+    private fun placeSpawner(ray: Ray) {
         val intersection = Vector3()
         val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
@@ -1570,26 +1571,30 @@ class MafiaGame : ApplicationAdapter() {
             val surfaceY = findHighestSurfaceYAt(intersection.x, intersection.z)
             val spawnerPosition = Vector3(intersection.x, surfaceY, intersection.z)
 
-            val spawnerGameObject = objectSystem.createGameObjectWithLight(ObjectType.PARTICLE_SPAWNER, spawnerPosition.cpy())
+            val spawnerGameObject = objectSystem.createGameObjectWithLight(ObjectType.SPAWNER, spawnerPosition.cpy())
 
             if (spawnerGameObject != null) {
                 // Manually set the transform of the visible debug model to the spawn position
                 spawnerGameObject.debugInstance?.transform?.setTranslation(spawnerPosition)
 
-                val newSpawner = GameParticleSpawner(
+                val newSpawner = GameSpawner(
                     position = spawnerPosition.cpy(),
                     gameObject = spawnerGameObject
                 )
-                sceneManager.activeParticleSpawners.add(newSpawner)
+                sceneManager.activeSpawners.add(newSpawner)
                 lastPlacedInstance = newSpawner // For fine positioning
-                println("Placed Particle Spawner at $spawnerPosition")
+                println("Placed a new generic Spawner at $spawnerPosition")
+
+                // Immediately open the UI to configure the new spawner
+                uiManager.showSpawnerUI(newSpawner)
             }
         }
     }
 
-    private fun removeParticleSpawner(spawner: GameParticleSpawner) {
-        sceneManager.activeParticleSpawners.removeValue(spawner, true)
-        println("Removed Particle Spawner at ${spawner.position}")
+    private fun removeSpawner(spawner: GameSpawner) {
+        sceneManager.activeSpawners.removeValue(spawner, true)
+        sceneManager.activeObjects.removeValue(spawner.gameObject, true)
+        println("Removed Spawner at ${spawner.position}")
     }
 
     private fun placeFire(ray: Ray) {
@@ -1675,8 +1680,7 @@ class MafiaGame : ApplicationAdapter() {
         // Handle player input
         handlePlayerInput()
         particleSystem.update(deltaTime)
-        particleSpawnerSystem.update(deltaTime, particleSystem, sceneManager.activeParticleSpawners, cameraManager.camera.position
-        )
+        spawnerSystem.update(deltaTime, sceneManager.activeSpawners, playerSystem.getPosition())
         val expiredFires = fireSystem.update(Gdx.graphics.deltaTime, playerSystem, particleSystem, sceneManager)
         if (expiredFires.isNotEmpty()) {
             for (fireToRemove in expiredFires) {
@@ -1742,7 +1746,7 @@ class MafiaGame : ApplicationAdapter() {
             blockSystem,
             sceneManager.activeChunkManager.getAllBlocks(),
             sceneManager.activeObjects,
-            sceneManager.activeParticleSpawners,
+            sceneManager.activeSpawners,
             sceneManager.activeCars,
             sceneManager.activeHouses,
             backgroundSystem,
@@ -1799,7 +1803,7 @@ class MafiaGame : ApplicationAdapter() {
             }
         }
 
-        for (spawner in sceneManager.activeParticleSpawners) {
+        for (spawner in sceneManager.activeSpawners) {
             spawner.gameObject.getRenderInstance(objectSystem.debugMode)?.let {
                 modelBatch.render(it, environment)
             }

@@ -76,7 +76,7 @@ class ObjectSystem: IFinePositionable {
                                 (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong())
                             debugModels[objectType] = debugModel
                         }
-                        ObjectType.PARTICLE_SPAWNER -> {
+                        ObjectType.SPAWNER -> {
                             // A purple cube to distinguish it from light sources
                             val debugMaterial = Material(
                                 ColorAttribute.createDiffuse(Color.PURPLE),
@@ -500,7 +500,7 @@ enum class ObjectType(
     ),
 
     LIGHT_SOURCE("Light Source", "", 2f, 2f, true, true),
-    PARTICLE_SPAWNER("Particle Spawner", "", 2f, 2f, true, canBePlacedAnywhere = true),
+    SPAWNER("Particle Spawner", "", 2f, 2f, true, canBePlacedAnywhere = true),
 
     BROKEN_LANTERN("Broken Lantern", "textures/objects/models/broken_lantern.png", 3f, 11f,
         hasLightSource = false // Broken lanterns don't emit light

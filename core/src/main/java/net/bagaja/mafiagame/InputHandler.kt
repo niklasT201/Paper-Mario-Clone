@@ -22,7 +22,7 @@ class InputHandler(
     private val enemySystem: EnemySystem,
     private val npcSystem: NPCSystem,
     private val particleSystem: ParticleSystem,
-    private val particleSpawnerSystem: ParticleSpawnerSystem,
+    private val spawnerSystem: SpawnerSystem,
     private val teleporterSystem: TeleporterSystem,
     private val sceneManager: SceneManager,
     private val roomTemplateManager: RoomTemplateManager,
@@ -127,14 +127,14 @@ class InputHandler(
                         if (uiManager.selectedTool == Tool.OBJECT) {
                             val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
                             val raycastSystem = RaycastSystem(4f) // Assuming block size
-                            val spawner = raycastSystem.getParticleSpawnerAtRay(ray, sceneManager.activeParticleSpawners)
+                            val spawner = raycastSystem.getSpawnerAtRay(ray, sceneManager.activeSpawners)
                             if (spawner != null) {
                                 // Check if debug mode is on (i.e., the purple cube is visible)
                                 if (objectSystem.debugMode) {
                                     // Debug mode is ON: Remove the spawner directly
                                 } else {
                                     // Debug mode is OFF: Open the UI for configuration.
-                                    uiManager.showParticleSpawnerUI(spawner)
+                                    uiManager.showSpawnerUI(spawner)
                                     return true // Consume the input, preventing removal or camera drag.
                                 }
                             }

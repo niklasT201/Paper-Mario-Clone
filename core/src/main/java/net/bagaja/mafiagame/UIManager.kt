@@ -36,8 +36,8 @@ class UIManager(
     private val enemySystem: EnemySystem,
     private val npcSystem: NPCSystem,
     private val particleSystem: ParticleSystem,
-    private val particleSpawnerSystem: ParticleSpawnerSystem,
-    private val onRemoveSpawner: (spawner: GameParticleSpawner) -> Unit
+    private val spawnerSystem: SpawnerSystem,
+    private val onRemoveSpawner: (spawner: GameSpawner) -> Unit,
 ) {
     private lateinit var stage: Stage
     lateinit var skin: Skin
@@ -52,7 +52,7 @@ class UIManager(
     private lateinit var enemySelectionUI: EnemySelectionUI
     private lateinit var npcSelectionUI: NPCSelectionUI
     private lateinit var particleSelectionUI: ParticleSelectionUI
-    private lateinit var particleSpawnerUI: ParticleSpawnerUI
+    private lateinit var spawnerUI: SpawnerUI
     private lateinit var lightSourceUI: LightSourceUI
     private lateinit var skyCustomizationUI: SkyCustomizationUI
     private lateinit var shaderEffectUI: ShaderEffectUI
@@ -161,7 +161,7 @@ class UIManager(
         particleSelectionUI = ParticleSelectionUI(particleSystem, skin, stage)
         particleSelectionUI.initialize()
 
-        particleSpawnerUI = ParticleSpawnerUI(skin, stage, particleSystem, onRemoveSpawner)
+        spawnerUI = SpawnerUI(skin, stage, particleSystem, itemSystem, onRemoveSpawner)
 
         shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager)
         shaderEffectUI.initialize()
@@ -891,6 +891,7 @@ class UIManager(
                 // Only update TextButton style if it exists
                 try {
                     loadedSkin.get(TextButton.TextButtonStyle::class.java).font = customFont
+                    loadedSkin.get("toggle", TextButton.TextButtonStyle::class.java).font = customFont
                 } catch (e: Exception) {
                     // TextButton style might not exist in a minimal skin
                 }
@@ -1462,8 +1463,8 @@ class UIManager(
         }
     }
 
-    fun showParticleSpawnerUI(spawner: GameParticleSpawner) {
-        particleSpawnerUI.show(spawner)
+    fun showSpawnerUI(spawner: GameSpawner) {
+        spawnerUI.show(spawner)
     }
 
     fun setPersistentMessage(message: String) {
