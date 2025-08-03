@@ -1238,9 +1238,23 @@ class PlayerSystem {
     ) {
         when (throwable.weaponType) {
             WeaponType.DYNAMITE -> {
+                val explosionOrigin: Vector3
+                val spawnSmokeOnGround: Boolean
+
+                if (collisionResult != null) {
+                    // hit something solid
+                    explosionOrigin = getValidGroundImpactPosition(collisionResult, sceneManager, throwable.position)
+                    spawnSmokeOnGround = true
+                    println("Dynamite hit a surface. Exploding from ground.")
+                } else {
+                    // exploded mid-air
+                    explosionOrigin = throwable.position.cpy()
+                    spawnSmokeOnGround = false
+                    println("Dynamite fuse ended mid-air. Exploding at last known position.")
+                }
                 // Now the explosion correctly happens on the ground next to a wall, not in mid-air!
                 val validGroundPosition = getValidGroundImpactPosition(collisionResult, sceneManager, throwable.position)
-                val explosionCenterPosition = validGroundPosition.cpy().add(0f, 2.5f, 0f)
+                val explosionCenterPosition = explosionOrigin.cpy().add(0f, 2.5f, 0f)
                 particleSystem.spawnEffect(ParticleEffectType.DYNAMITE_EXPLOSION, explosionCenterPosition)
 
                 val smokePlumeTypes = listOf(
@@ -1255,16 +1269,27 @@ class PlayerSystem {
                     val randomSmokeType = smokePlumeTypes.random()
                     val spreadRadius = 6f
 
-                    // Step 1: Get a random X and Z coordinate in a radius
-                    val finalX = validGroundPosition.x + (Random.nextFloat() * 2f - 1f) * spreadRadius
-                    val finalZ = validGroundPosition.z + (Random.nextFloat() * 2f - 1f) * spreadRadius
+                    val offsetX = (Random.nextFloat() * 2f - 1f) * spreadRadius
+                    val offsetZ = (Random.nextFloat() * 2f - 1f) * spreadRadius
 
-                    // Step 2: Find the actual ground height at this new random spot
-                    val groundY = sceneManager.findHighestSupportY(finalX, finalZ, validGroundPosition.y + 2f, 0.1f, blockSize)
-                    val verticalOffset = 1.5f + Random.nextFloat() * 2f
+                    val smokePosition: Vector3
 
-                    // Step 3: Create the final position vector for the smoke plume
-                    val smokePosition = Vector3(finalX, groundY + verticalOffset, finalZ)
+                    if (spawnSmokeOnGround) {
+                        // Step 1: Get a random X and Z coordinate in a radius
+                        val finalX = explosionOrigin.x + offsetX
+                        val finalZ = explosionOrigin.z + offsetZ
+
+                        // Step 2: Find the actual ground height at this new random spot
+                        val groundY = sceneManager.findHighestSupportY(finalX, finalZ, explosionOrigin.y + 2f, 0.1f, blockSize)
+                        val verticalOffset = 1.5f + Random.nextFloat() * 2f
+
+                        // Step 3: Create the final position vector for the smoke plume
+                        smokePosition = Vector3(finalX, groundY + verticalOffset, finalZ)
+                    } else {
+                        // Exploded in the void. Spawn smoke relative to the explosion's origin.
+                        val verticalOffset = (Random.nextFloat() * 2f - 1f) * (spreadRadius / 2f) // Random Y offset
+                        smokePosition = explosionOrigin.cpy().add(offsetX, verticalOffset, offsetZ)
+                    }
 
                     val smokeScale = 2.5f + Random.nextFloat() * (3.0f - 1f)
 

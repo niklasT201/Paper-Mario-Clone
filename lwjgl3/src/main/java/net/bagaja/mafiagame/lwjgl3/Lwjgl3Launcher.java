@@ -51,9 +51,9 @@ public class Lwjgl3Launcher {
 
 // changing room transition effect colors
 // optional weapon light
+// maybe adding bouncy dynamite (1 bounce max)
 // dynamite exploding where it disappears and not at players height
 // removing flame from burned car image
-// dynamite spawning smoke and explosion image
 // car explosion image
 // visual throwing and explosion range
 // weapon and car spawner
