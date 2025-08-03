@@ -1240,12 +1240,12 @@ class PlayerSystem {
             WeaponType.DYNAMITE -> {
                 // Now the explosion correctly happens on the ground next to a wall, not in mid-air!
                 val validGroundPosition = getValidGroundImpactPosition(collisionResult, sceneManager, throwable.position)
-                val explosionCenterPosition = validGroundPosition.cpy().add(0f, 7f, 0f)
+                val explosionCenterPosition = validGroundPosition.cpy().add(0f, 2.5f, 0f)
                 particleSystem.spawnEffect(ParticleEffectType.DYNAMITE_EXPLOSION, explosionCenterPosition)
 
                 val smokePlumeTypes = listOf(
                     ParticleEffectType.DUST_SMOKE_LIGHT,
-                    ParticleEffectType.DUST_SMOKE_MEDIUM,
+                    ParticleEffectType.DUST_SMOKE_DEFAULT,
                     ParticleEffectType.DUST_SMOKE_HEAVY
                 )
                 val smokeCount = (2..5).random()
@@ -1261,11 +1261,12 @@ class PlayerSystem {
 
                     // Step 2: Find the actual ground height at this new random spot
                     val groundY = sceneManager.findHighestSupportY(finalX, finalZ, validGroundPosition.y + 2f, 0.1f, blockSize)
+                    val verticalOffset = 1.5f + Random.nextFloat() * 2f
 
                     // Step 3: Create the final position vector for the smoke plume
-                    val smokePosition = Vector3(finalX, groundY, finalZ)
+                    val smokePosition = Vector3(finalX, groundY + verticalOffset, finalZ)
 
-                    val smokeScale = 4.0f + Random.nextFloat() * (6.5f - 4.0f)
+                    val smokeScale = 2.5f + Random.nextFloat() * (3.0f - 1f)
 
                     particleSystem.spawnEffect(
                         type = randomSmokeType,

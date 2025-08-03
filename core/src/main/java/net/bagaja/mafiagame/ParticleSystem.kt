@@ -90,6 +90,13 @@ enum class ParticleEffectType(
         particleCount = 1..2, initialSpeed = 1.0f, speedVariance = 0.8f, gravity = 0.3f,
         scale = 1.2f, scaleVariance = 0.4f, fadeOut = 1.2f
     ),
+    DUST_SMOKE_DEFAULT(
+        "Heavy Dust Smoke",
+        arrayOf("textures/particles/dust/smoke.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 1.8f,
+        particleCount = 1..2, initialSpeed = 1.0f, speedVariance = 0.8f, gravity = 0.3f,
+        scale = 1.2f, scaleVariance = 0.4f, fadeOut = 1.2f
+    ),
 
     // GUN SMOKE PARTICLES
     GUN_SMOKE_INITIAL(
@@ -344,7 +351,7 @@ enum class ParticleEffectType(
         arrayOf("textures/particles/dynamite_explosion/dynamite_exploding.png"),
         frameDuration = 0.1f, isLooping = false, particleLifetime = 0.7f, // A quick, powerful blast
         particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
-        scale = 9f, scaleVariance = 1f, fadeIn = 0.0f, fadeOut = 0.3f
+        scale = 7f, scaleVariance = 1f, fadeIn = 0.0f, fadeOut = 0.3f
     );
 
     val isAnimated: Boolean get() = texturePaths.size > 1
