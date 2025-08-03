@@ -73,7 +73,7 @@ enum class ParticleEffectType(
         "Light Dust Smoke",
         arrayOf("textures/particles/dust/smoke_1.png"),
         frameDuration = 0.1f, isLooping = false, particleLifetime = 1.5f,
-        particleCount = 2..4, initialSpeed = 1.5f, speedVariance = 1f, gravity = 0.5f,
+        particleCount = 1..1, initialSpeed = 1.5f, speedVariance = 1f, gravity = 0.5f,
         scale = 1.0f, scaleVariance = 0.5f, fadeOut = 1.0f
     ),
     DUST_SMOKE_MEDIUM(
