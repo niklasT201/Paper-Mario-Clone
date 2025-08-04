@@ -841,7 +841,8 @@ class PlayerSystem {
                 val carBottom = newPosition.y
                 val blockTop = blockBounds.max.y
 
-                if (carBottom >= blockTop - 0.5f || blockTop - carBottom <= CAR_MAX_STEP_HEIGHT) {
+                if (carBounds.min.y >= blockBounds.max.y - 0.5f) {
+                    //   if (carBottom >= blockTop - 0.5f || blockTop - carBottom <= CAR_MAX_STEP_HEIGHT) { // old Version
                     continue
                 }
 
