@@ -56,7 +56,6 @@ public class Lwjgl3Launcher {
 // car ai to drive around
 // maybe adding bouncy dynamite (1 bounce max)
 // removing flame from burned car image
-// car explosion image
 // visual throwing and explosion range
 // maybe improving billboard shader
 // placing 5 light sources creates room filling light visually, not actually. probably existing bc the area light disappears

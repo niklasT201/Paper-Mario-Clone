@@ -346,6 +346,24 @@ enum class ParticleEffectType(
         fadeIn = 0.2f,
         fadeOut = 0.1f // A quick fade at the very end
     ),
+    CAR_EXPLOSION_BIG(
+        "Big Car Explosion",
+        arrayOf(
+            "textures/particles/car_explosion/car_start_explosion.png",
+            "textures/particles/car_explosion/car_explosion_big.png"
+        ),
+        frameDuration = 0.15f,
+        isLooping = false,
+        particleLifetime = 0.5f,
+        particleCount = 1..1,
+        initialSpeed = 0f,
+        speedVariance = 0f,
+        gravity = 0f,
+        scale = 20f,
+        scaleVariance = 3f,
+        fadeIn = 0.1f,
+        fadeOut = 0.3f
+    ),
     DYNAMITE_EXPLOSION(
         "Dynamite Explosion",
         arrayOf("textures/particles/dynamite_explosion/dynamite_exploding.png"),

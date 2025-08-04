@@ -299,8 +299,20 @@ data class GameCar(
         wreckedTimer = WRECKED_DURATION
 
         // 1. Spawn the explosion particle effect
-        val explosionPos = position.cpy().add(0f, carType.height / 2f, 0f)
-        particleSystem.spawnEffect(ParticleEffectType.CAR_EXPLOSION, explosionPos)
+        val explosionPos = position.cpy().add(0f, carType.height / 1.15f, 0f)
+
+        // Randomly choose which explosion effect to use
+        if (Random.nextFloat() < 0.5f) {
+            println("Spawning BIG car explosion!")
+
+            val bigExplosionSpawnPos = explosionPos.cpy().add(0f, 3.15f, 0f)
+            // Spawn big explosion
+            particleSystem.spawnEffect(ParticleEffectType.CAR_EXPLOSION_BIG, bigExplosionSpawnPos)
+
+        } else {
+            println("Spawning standard car explosion.")
+            particleSystem.spawnEffect(ParticleEffectType.CAR_EXPLOSION, explosionPos)
+        }
 
         // 2. Immediately switch to the wrecked texture
         val wreckedTexture = carSystem.getWreckedTexture()
