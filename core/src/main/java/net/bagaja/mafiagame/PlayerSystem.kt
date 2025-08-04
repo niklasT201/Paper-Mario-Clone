@@ -69,6 +69,7 @@ class PlayerSystem {
     companion object {
         const val FALL_SPEED = 25f
         const val MAX_STEP_HEIGHT = 1.0f
+        const val CAR_MAX_STEP_HEIGHT = 4.1f
     }
 
     // Player position and movement
@@ -580,11 +581,11 @@ class PlayerSystem {
         for (gameBlock in sceneManager.activeChunkManager.getAllBlocks()) {
             if (!gameBlock.blockType.hasCollision) continue
             if (gameBlock.collidesWith(playerBoundsFor3D)) {
-                val playerBottom = playerBoundsFor3D.min.y
-                val blockAABB = gameBlock.getBoundingBox(blockSize, BoundingBox())
-                val blockTop = blockAABB.max.y
-                if (playerBottom >= blockTop - 0.1f) {
-                    // Player is standing on the block, not colliding with its side.
+                // Player is standing on the block, not colliding with its side.
+                val playerFootY = y - (playerSize.y / 2f)
+                val blockTop = gameBlock.getBoundingBox(blockSize, BoundingBox()).max.y
+
+                if (blockTop - playerFootY <= MAX_STEP_HEIGHT) {
                     continue
                 }
                 return false
@@ -592,7 +593,7 @@ class PlayerSystem {
         }
         // Check house collisions
         for (house in sceneManager.activeHouses) {
-            if (house.houseType != HouseType.STAIR && house.collidesWithMesh(playerBoundsFor3D)) {
+            if (house.collidesWithMesh(playerBoundsFor3D)) {
                 return false
             }
         }
@@ -605,7 +606,7 @@ class PlayerSystem {
                 // Use the standard player bounds for 3D interiors
                 if (interior.collidesWithMesh(playerBoundsFor3D)) return false
             } else {
-                // It's a 2D interior! Use the tighter player collision radius.
+                // It's a 2D interior!
                 val playerRadius = (playerSize.x / 2f) - shrinkFor2D
                 if (interior.collidesWithPlayer2D(Vector3(x, y, z), playerRadius)) return false
             }
@@ -779,7 +780,7 @@ class PlayerSystem {
             val nextX = car.position.x + deltaX
             // Check for ground support and step height before checking for collision
             val supportY = sceneManager.findHighestSupportYForCar(nextX, car.position.z, car.carType.width / 2f, blockSize)
-            if (supportY - car.position.y <= MAX_STEP_HEIGHT) {
+            if (supportY - car.position.y <= CAR_MAX_STEP_HEIGHT) {
                 // Check for collision at the current height
                 val potentialPos = Vector3(nextX, car.position.y, car.position.z)
                 if (canCarMoveTo(potentialPos, car, sceneManager, allCars)) {
@@ -793,7 +794,7 @@ class PlayerSystem {
             // Use the *potentially updated* X position from the previous step
             val nextZ = car.position.z + deltaZ
             val supportY = sceneManager.findHighestSupportYForCar(car.position.x, nextZ, car.carType.width / 2f, blockSize)
-            if (supportY - car.position.y <= MAX_STEP_HEIGHT) {
+            if (supportY - car.position.y <= CAR_MAX_STEP_HEIGHT) {
                 val potentialPos = Vector3(car.position.x, car.position.y, nextZ)
                 if (canCarMoveTo(potentialPos, car, sceneManager, allCars)) {
                     car.position.z = nextZ // If clear, apply the Z movement
@@ -805,7 +806,7 @@ class PlayerSystem {
         val finalSupportY = sceneManager.findHighestSupportYForCar(car.position.x, car.position.z, car.carType.width / 2f, blockSize)
 
         // Use the original Y position to check step height to prevent "snapping" up high walls
-        val effectiveSupportY = if (finalSupportY - originalPosition.y <= MAX_STEP_HEIGHT) {
+        val effectiveSupportY = if (finalSupportY - originalPosition.y <= CAR_MAX_STEP_HEIGHT) {
             finalSupportY
         } else {
             // If step is too high, find support at the original location to prevent floating
@@ -837,7 +838,10 @@ class PlayerSystem {
             val blockBounds = block.getBoundingBox(blockSize, tempBlockBounds)
 
             if (carBounds.intersects(blockBounds)) {
-                if (carBounds.min.y >= blockBounds.max.y - 0.5f) {
+                val carBottom = newPosition.y
+                val blockTop = blockBounds.max.y
+
+                if (carBottom >= blockTop - 0.5f || blockTop - carBottom <= CAR_MAX_STEP_HEIGHT) {
                     continue
                 }
 

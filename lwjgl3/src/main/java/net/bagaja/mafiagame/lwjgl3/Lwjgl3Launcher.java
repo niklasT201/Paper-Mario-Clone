@@ -57,9 +57,7 @@ public class Lwjgl3Launcher {
 // removing flame from burned car image
 // car explosion image
 // visual throwing and explosion range
-// step up for street blocks and cars can move up a full block
 // maybe improving billboard shader
-// step up for streets
 // placing 5 light sources creates room filling light visually, not actually. probably existing bc the area light disappears
 // visible border of light sources
 // working collisions for ramp, pillar and corner
