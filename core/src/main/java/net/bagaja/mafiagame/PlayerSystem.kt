@@ -143,14 +143,16 @@ class PlayerSystem {
     private val activeThrowables = Array<ThrowableEntity>()
     private val tempCheckBounds = BoundingBox()
     private var teleportCooldown = 0f
+    private lateinit var bloodPoolSystem: BloodPoolSystem
 
     fun getPlayerBounds(): BoundingBox {
         return playerBounds
     }
 
-    fun initialize(blockSize: Float, particleSystem: ParticleSystem, lightingManager: LightingManager) {
+    fun initialize(blockSize: Float, particleSystem: ParticleSystem, lightingManager: LightingManager, bloodPoolSystem: BloodPoolSystem) {
         this.blockSize = blockSize
         this.particleSystem = particleSystem
+        this.bloodPoolSystem = bloodPoolSystem
         setupAnimationSystem()
 
         // Load weapon
@@ -1146,6 +1148,7 @@ class PlayerSystem {
                         }
 
                         if (enemy.takeDamage(equippedWeapon.damage)) {
+                            bloodPoolSystem.addPool(enemy.position.cpy(), sceneManager)
                             // Enemy died, remove it
                             sceneManager.activeEnemies.removeValue(enemy, true)
                         }
@@ -1167,6 +1170,7 @@ class PlayerSystem {
                         }
 
                         if (npc.takeDamage(equippedWeapon.damage)) {
+                            bloodPoolSystem.addPool(npc.position.cpy(), sceneManager)
                             // NPC died, remove it from the scene
                             sceneManager.activeNPCs.removeValue(npc, true)
                         }

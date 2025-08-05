@@ -71,6 +71,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var particleSystem: ParticleSystem
     lateinit var teleporterSystem: TeleporterSystem
     lateinit var fireSystem: FireSystem
+    private lateinit var bloodPoolSystem: BloodPoolSystem
 
     override fun create() {
         setupGraphics()
@@ -82,6 +83,8 @@ class MafiaGame : ApplicationAdapter() {
         setupObjectSystem()
         fireSystem = FireSystem()
         fireSystem.initialize()
+        bloodPoolSystem = BloodPoolSystem()
+        bloodPoolSystem.initialize()
         setupItemSystem()
         setupCarSystem()
         lockIndicatorSystem = LockIndicatorSystem()
@@ -104,7 +107,7 @@ class MafiaGame : ApplicationAdapter() {
         transitionSystem = TransitionSystem()
 
         playerSystem = PlayerSystem()
-        playerSystem.initialize(blockSize, particleSystem, lightingManager)
+        playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem)
 
         // Initialize Shader Effect Manager
         shaderEffectManager = ShaderEffectManager()
@@ -1692,6 +1695,7 @@ class MafiaGame : ApplicationAdapter() {
         playerSystem.update(deltaTime, sceneManager)
         enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
         npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
+        bloodPoolSystem.update(deltaTime)
 
         // Handle car destruction and removals
         val carIterator = sceneManager.activeCars.iterator()
@@ -1786,6 +1790,9 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render all blocks
         sceneManager.activeChunkManager.render(modelBatch, environment, cameraManager.camera)
+
+        // Render Blood Pool
+        bloodPoolSystem.render(cameraManager.camera, environment)
 
         // Render all objects
         for (gameObject in sceneManager.activeObjects) {
@@ -1925,6 +1932,7 @@ class MafiaGame : ApplicationAdapter() {
         npcSystem.dispose()
         particleSystem.dispose()
         fireSystem.dispose()
+        bloodPoolSystem.dispose()
 
         // Dispose shader effect manager
         shaderEffectManager.dispose()

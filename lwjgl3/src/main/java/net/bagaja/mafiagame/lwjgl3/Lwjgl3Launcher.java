@@ -72,7 +72,6 @@ public class Lwjgl3Launcher {
 // add new player with weapon images
 // player hitting with baseball bat
 // player stabbing with knife
-// character dies, blood pool will spawn and get bigger over time
 // player wipe is switching to vertical when pressing W or S
 // only new wipes rotating with players direction not old ones too
 // south park like animation
@@ -82,8 +81,7 @@ public class Lwjgl3Launcher {
 // mission starting, saving and ending
 // option for choosing door enter
 // blood system
-// black bars top/bottom or left/right
-// when shooting flickering light gets spawned
+// black bars top/bottom or left/right (4/3)
 // player visible optional in cars
 // killed enemies drop items
 // enemies have an inventory and collect ite0ms
