@@ -29,13 +29,20 @@ class BloodPoolSystem {
     private val activePools = Array<BloodPool>()
     private val textures = Array<Texture>()
     private val models = Array<Model>()
-    private lateinit var modelBatch: ModelBatch
+    private lateinit var billboardModelBatch: ModelBatch
+    private lateinit var billboardShaderProvider: BillboardShaderProvider
 
     fun initialize() {
-        modelBatch = ModelBatch()
+        // MODIFIED: Initialize the shader and batch for proper rendering
+        billboardShaderProvider = BillboardShaderProvider().apply {
+            setBillboardLightingStrength(0.8f) // Make it affected by light
+            setMinLightLevel(0.3f)             // Ensure it's not completely black in shadows
+        }
+        billboardModelBatch = ModelBatch(billboardShaderProvider)
+
         val modelBuilder = ModelBuilder()
 
-        // Load your two blood pool textures
+        // Load blood pool textures
         val texturePaths = arrayOf(
             "textures/particles/blood_pool/blood_pool_one.png",
             "textures/particles/blood_pool/blood_pool_two.png"
@@ -56,11 +63,9 @@ class BloodPoolSystem {
 
                 // Create a flat, horizontal plane model (1x1 unit)
                 val model = modelBuilder.createRect(
-                    -0.5f, 0f, 0.5f,  // back-left
-                    0.5f, 0f, 0.5f,  // back-right
-                    0.5f, 0f, -0.5f, // front-right
-                    -0.5f, 0f, -0.5f, // front-left
-                    0f, 1f, 0f,     // normal (pointing straight up)
+                    -0.5f, 0f, 0.5f, -0.5f, 0f, -0.5f,
+                    0.5f, 0f, -0.5f, 0.5f, 0f, 0.5f,
+                    0f, 1f, 0f,
                     material,
                     (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
                 )
@@ -78,9 +83,10 @@ class BloodPoolSystem {
         val groundY = sceneManager.findHighestSupportY(deathPosition.x, deathPosition.z, deathPosition.y, 0.1f, 4f)
         val spawnPosition = Vector3(deathPosition.x, groundY + 0.05f, deathPosition.z) // Place slightly above ground
 
-        // Pick a random model (texture) for the pool
+        // Pick a random model (texture)
         val modelToUse = models.random()
         val instance = ModelInstance(modelToUse)
+        instance.userData = "player"
 
         // Randomize the maximum size and growth rate for variety
         val maxScale = Random.nextFloat() * 4f + 3f // Random max size between 3 and 7 units
@@ -113,15 +119,17 @@ class BloodPoolSystem {
     fun render(camera: Camera, environment: Environment) {
         if (activePools.isEmpty) return
 
-        modelBatch.begin(camera)
+        billboardShaderProvider.setEnvironment(environment)
+        billboardModelBatch.begin(camera)
         for (pool in activePools) {
-            modelBatch.render(pool.instance, environment)
+            billboardModelBatch.render(pool.instance, environment)
         }
-        modelBatch.end()
+        billboardModelBatch.end()
     }
 
     fun dispose() {
-        modelBatch.dispose()
+        billboardModelBatch.dispose()
+        billboardShaderProvider.dispose()
         textures.forEach { it.dispose() }
         models.forEach { it.dispose() }
         activePools.clear()
