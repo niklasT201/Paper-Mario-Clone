@@ -892,6 +892,7 @@ class PlayerSystem {
             deltaZ = 0f
         }
 
+        // 2. Resolve X-axis movement
         if (deltaX != 0f) {
             val playerFootY = playerPosition.y - (playerSize.y / 2f)
             val supportY = sceneManager.findHighestSupportY(playerPosition.x + deltaX, playerPosition.z, playerPosition.y, playerSize.x / 2f, blockSize)
@@ -948,6 +949,20 @@ class PlayerSystem {
         val backCheckZ = playerPosition.z + zEdgeOffset
         if (canMoveToWithDoorCollision(playerPosition.x, playerPosition.y, backCheckZ, sceneManager)) {
             supportCandidates.add(sceneManager.findStrictSupportY(playerPosition.x, backCheckZ, originalPosition.y, 0.1f, blockSize))
+        }
+
+        // Points 6-9: Corner Edges
+        if (canMoveToWithDoorCollision(leftCheckX, playerPosition.y, frontCheckZ, sceneManager)) { // Front-Left
+            supportCandidates.add(sceneManager.findStrictSupportY(leftCheckX, frontCheckZ, originalPosition.y, 0.1f, blockSize))
+        }
+        if (canMoveToWithDoorCollision(rightCheckX, playerPosition.y, frontCheckZ, sceneManager)) { // Front-Right
+            supportCandidates.add(sceneManager.findStrictSupportY(rightCheckX, frontCheckZ, originalPosition.y, 0.1f, blockSize))
+        }
+        if (canMoveToWithDoorCollision(leftCheckX, playerPosition.y, backCheckZ, sceneManager)) { // Back-Left
+            supportCandidates.add(sceneManager.findStrictSupportY(leftCheckX, backCheckZ, originalPosition.y, 0.1f, blockSize))
+        }
+        if (canMoveToWithDoorCollision(rightCheckX, playerPosition.y, backCheckZ, sceneManager)) { // Back-Right
+            supportCandidates.add(sceneManager.findStrictSupportY(rightCheckX, backCheckZ, originalPosition.y, 0.1f, blockSize))
         }
 
         val maxSupportY = supportCandidates.maxOrNull() ?: 0f
