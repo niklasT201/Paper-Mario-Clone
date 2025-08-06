@@ -918,7 +918,26 @@ class PlayerSystem {
             }
         }
 
-        val finalSupportY = sceneManager.findHighestSupportY(playerPosition.x, playerPosition.z, originalPosition.y, playerSize.x / 2f, blockSize)
+       // 4. Resolve Y-axis movement (Gravity and Grounding) with MULTI-POINT CHECK
+        val edgeOffset = playerSize.x / 2f * 0.9f // Check near the edges of the player's collision
+
+        // Point 1: Center
+        var maxSupportY = sceneManager.findHighestSupportY(playerPosition.x, playerPosition.z, originalPosition.y, 0.1f, blockSize)
+
+        // Point 2: Left Edge
+        val leftSupportY = sceneManager.findHighestSupportY(playerPosition.x - edgeOffset, playerPosition.z, originalPosition.y, 0.1f, blockSize)
+        if (leftSupportY > maxSupportY) {
+            maxSupportY = leftSupportY
+        }
+
+        // Point 3: Right Edge
+        val rightSupportY = sceneManager.findHighestSupportY(playerPosition.x + edgeOffset, playerPosition.z, originalPosition.y, 0.1f, blockSize)
+        if (rightSupportY > maxSupportY) {
+            maxSupportY = rightSupportY
+        }
+
+        val finalSupportY = maxSupportY
+
         val playerFootY = originalPosition.y - (playerSize.y / 2f)
         val effectiveSupportY = if (finalSupportY - playerFootY <= MAX_STEP_HEIGHT) finalSupportY else sceneManager.findHighestSupportY(originalPosition.x, originalPosition.z, originalPosition.y, playerSize.x / 2f, blockSize)
         val targetY = effectiveSupportY + (playerSize.y / 2f)
