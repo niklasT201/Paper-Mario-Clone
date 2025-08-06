@@ -1695,7 +1695,7 @@ class MafiaGame : ApplicationAdapter() {
         playerSystem.update(deltaTime, sceneManager)
         enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
         npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
-        bloodPoolSystem.update(deltaTime)
+        bloodPoolSystem.update(deltaTime, sceneManager.activeBloodPools)
 
         // Handle car destruction and removals
         val carIterator = sceneManager.activeCars.iterator()
@@ -1792,7 +1792,7 @@ class MafiaGame : ApplicationAdapter() {
         sceneManager.activeChunkManager.render(modelBatch, environment, cameraManager.camera)
 
         // Render Blood Pool
-        bloodPoolSystem.render(cameraManager.camera, environment)
+        bloodPoolSystem.render(cameraManager.camera, environment, sceneManager.activeBloodPools)
 
         // Render all objects
         for (gameObject in sceneManager.activeObjects) {

@@ -51,6 +51,7 @@ class SceneManager(
     val activeEnemies = Array<GameEnemy>()
     val activeNPCs = Array<GameNPC>()
     val activeSpawners = Array<GameSpawner>()
+    val activeBloodPools = Array<BloodPool>()
 
     // State Management
     var currentScene: SceneType = SceneType.WORLD
@@ -525,7 +526,8 @@ class SceneManager(
             spawners = Array(activeSpawners),
             playerPosition = playerSystem.getPosition(),
             cameraPosition = Vector3(),
-            lights = game.lightingManager.getLightSources()
+            lights = game.lightingManager.getLightSources(),
+            bloodPools = Array(activeBloodPools)
         )
         println("World state saved. Player at ${worldState!!.playerPosition}")
     }
@@ -549,6 +551,7 @@ class SceneManager(
         activeEnemies.addAll(state.enemies)
         activeNPCs.addAll(state.npcs)
         activeSpawners.addAll(state.spawners)
+        activeBloodPools.addAll(state.bloodPools)
 
         // Synchronize the ItemSystem with the restored world items
         itemSystem.setActiveItems(activeItems)
@@ -559,7 +562,7 @@ class SceneManager(
 
     private fun saveCurrentInteriorState() {
         val id = currentInteriorId ?: return
-        val currentState = getInteriorStateFor(id)
+        val currentState = interiorStates.getOrPut(id) { getInteriorStateFor(id) }
         println("Saving state for interior instance: $id")
 
         currentState.objects.clear(); currentState.objects.addAll(activeObjects)
@@ -569,6 +572,7 @@ class SceneManager(
         currentState.npcs.clear(); currentState.npcs.addAll(activeNPCs)
         currentState.spawners.clear(); currentState.spawners.addAll(activeSpawners)
         currentState.teleporters.clear(); currentState.teleporters.addAll(teleporterSystem.activeTeleporters)
+        currentState.bloodPools.clear(); currentState.bloodPools.addAll(activeBloodPools)
         currentState.playerPosition.set(playerSystem.getPosition())
 
         currentState.lights.clear()
@@ -586,6 +590,7 @@ class SceneManager(
         activeNPCs.addAll(state.npcs)
         activeSpawners.addAll(state.spawners)
         teleporterSystem.activeTeleporters.addAll(state.teleporters)
+        activeBloodPools.addAll(state.bloodPools)
 
         // Synchronize the ItemSystem with the loaded interior items
         itemSystem.setActiveItems(activeItems)
@@ -1265,6 +1270,7 @@ class SceneManager(
         activeNPCs.clear()
         activeSpawners.clear()
         teleporterSystem.activeTeleporters.clear()
+        activeBloodPools.clear()
 
         // Also clear any active lights from the lighting manager
         val currentLightIds = game.lightingManager.getLightSources().keys.toList()
@@ -1282,7 +1288,8 @@ data class WorldState(
     val spawners: Array<GameSpawner>,
     val playerPosition: Vector3,
     val cameraPosition: Vector3,
-    val lights: Map<Int, LightSource>
+    val lights: Map<Int, LightSource>,
+    val bloodPools: Array<BloodPool>
 )
 
 // The state for a single house interior.
@@ -1301,7 +1308,8 @@ data class InteriorState(
     var fixedTimeProgress: Float = 0.5f,
     val lights: MutableMap<Int, LightSource> = mutableMapOf(),
     var savedShaderEffect: ShaderEffect = ShaderEffect.NONE,
-    var sourceTemplateId: String? = null
+    var sourceTemplateId: String? = null,
+    val bloodPools: Array<BloodPool> = Array()
 )
 
 data class InteriorLayout(

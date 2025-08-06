@@ -16,7 +16,7 @@ import java.util.*
 import kotlin.random.Random
 
 // Data class to hold the state of a single blood pool
-private data class BloodPool(
+data class BloodPool(
     val id: String = UUID.randomUUID().toString(),
     val instance: ModelInstance,
     val position: Vector3,
@@ -26,7 +26,6 @@ private data class BloodPool(
 )
 
 class BloodPoolSystem {
-    private val activePools = Array<BloodPool>()
     private val textures = Array<Texture>()
     private val models = Array<Model>()
     private lateinit var billboardModelBatch: ModelBatch
@@ -98,10 +97,10 @@ class BloodPoolSystem {
             maxScale = maxScale,
             growthRate = growthRate
         )
-        activePools.add(newPool)
+        sceneManager.activeBloodPools.add(newPool)
     }
 
-    fun update(deltaTime: Float) {
+    fun update(deltaTime: Float, activePools: Array<BloodPool>) {
         for (pool in activePools) {
             // Grow the pool over time until it reaches its max size
             if (pool.currentScale < pool.maxScale) {
@@ -116,7 +115,7 @@ class BloodPoolSystem {
         }
     }
 
-    fun render(camera: Camera, environment: Environment) {
+    fun render(camera: Camera, environment: Environment, activePools: Array<BloodPool>) {
         if (activePools.isEmpty) return
 
         billboardShaderProvider.setEnvironment(environment)
@@ -132,6 +131,5 @@ class BloodPoolSystem {
         billboardShaderProvider.dispose()
         textures.forEach { it.dispose() }
         models.forEach { it.dispose() }
-        activePools.clear()
     }
 }
