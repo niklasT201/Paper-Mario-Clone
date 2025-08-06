@@ -1322,18 +1322,24 @@ class PlayerSystem {
                     }
                 }
                 // Damage enemies
-                for (enemy in sceneManager.activeEnemies) {
+                val enemyIterator = sceneManager.activeEnemies.iterator()
+                while(enemyIterator.hasNext()) {
+                    val enemy = enemyIterator.next()
                     if (enemy.position.dst(validGroundPosition) < explosionRadius) {
                         if (enemy.takeDamage(explosionDamage)) {
-                            sceneManager.activeEnemies.removeValue(enemy, true)
+                            bloodPoolSystem.addPool(enemy.position.cpy(), sceneManager)
+                            enemyIterator.remove()
                         }
                     }
                 }
                 // Damage NPCs
-                for (npc in sceneManager.activeNPCs) {
+                val npcIterator = sceneManager.activeNPCs.iterator()
+                while(npcIterator.hasNext()) {
+                    val npc = npcIterator.next()
                     if (npc.position.dst(validGroundPosition) < explosionRadius) {
                         if (npc.takeDamage(explosionDamage)) {
-                            sceneManager.activeNPCs.removeValue(npc, true)
+                            bloodPoolSystem.addPool(npc.position.cpy(), sceneManager)
+                            npcIterator.remove()
                         }
                     }
                 }
