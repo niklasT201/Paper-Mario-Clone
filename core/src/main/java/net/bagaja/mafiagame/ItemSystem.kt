@@ -159,30 +159,22 @@ class ItemSystem: IFinePositionable {
             // 1. Apply Gravity and Find Support for the item
             val itemX = item.position.x
             val itemZ = item.position.z
-            val itemRadius = item.itemType.width / 4f // Use a small radius for point-like check
-            val itemBottomY = item.position.y // The item's origin is at its base
+            val itemCurrentY = item.position.y + ITEM_SURFACE_OFFSET // The item's origin is at its base
 
-            val supportY = sceneManager.findHighestSupportY(itemX, itemZ, itemBottomY, itemRadius, this.blockSize)
-
-            val effectiveSupportY = if (supportY - itemBottomY <= MAX_STEP_HEIGHT) {
-                // The ground is within stepping range, so we can use it.
-                supportY
-            } else {
-                // The ground is too high (it's a wall), so we maintain our current Y-level for this check.
-                itemBottomY
-            }
+            val supportY = sceneManager.findHighestSupportYForItem(itemX, itemZ, itemCurrentY, this.blockSize)
 
             // Apply Gravity
             val fallY = item.position.y - FALL_SPEED * deltaTime
-            val nextY = kotlin.math.max(effectiveSupportY, fallY) // Item is on ground, stepping up, or falling.
+            val nextY = kotlin.math.max(supportY, fallY) // The item is either on the ground or falling.
 
             // 2. Update item position if it moved vertically
             if (kotlin.math.abs(nextY - item.position.y) > 0.01f) {
-                item.position.y = nextY + ITEM_SURFACE_OFFSET
+                item.position.y = nextY
             }
+            item.position.y = nextY
 
             // Update item animation (rotation and bobbing)
-            item.update(deltaTime, camera.position)
+            item.update(deltaTime, camera.position, ITEM_SURFACE_OFFSET)
 
             // Check collision with player
             if (item.checkCollision(playerSystem.getPosition(), 2f)) {
@@ -274,7 +266,7 @@ data class GameItem(
     }
 
     // Update item animation (rotation and bobbing)
-    fun update(deltaTime: Float, cameraPosition: Vector3) {
+    fun update(deltaTime: Float, cameraPosition: Vector3, surfaceOffset: Float = 0f) {
         if (isCollected) return
 
         totalTime += deltaTime
@@ -293,8 +285,8 @@ data class GameItem(
         // Calculate angle to rotate towards camera
         val angle = Math.atan2(direction.x.toDouble(), direction.z.toDouble()) * 180.0 / Math.PI
 
-        // Apply transformations: position + bobbing + rotation towards camera + spinning
-        modelInstance.transform.setToTranslation(position.x, position.y + bobHeight, position.z)
+        // Apply transformations: position + surfaceOffset + bobbing + rotation towards camera + spinning
+        modelInstance.transform.setToTranslation(position.x, position.y + surfaceOffset + bobHeight, position.z)
         modelInstance.transform.rotate(Vector3.Y, angle.toFloat() + currentRotation)
     }
 
