@@ -201,6 +201,7 @@ class FireSystem {
                 println("Fire ${fire.id} has expired and should be removed.")
                 // iterator.remove() // We can't fully remove it without the other systems.
                 expiredFires.add(fire)
+                continue // Skip damage logic for expired fires
             }
 
             // Damage logic
@@ -210,16 +211,40 @@ class FireSystem {
                 val fireRadius = fire.damageRadius * fire.currentScale / fire.initialScale
 
                 // Damage Player
-                val distanceToPlayer = fire.gameObject.position.dst(playerSystem.getPosition())
-                if (distanceToPlayer < fireRadius) {
+                if (fire.gameObject.position.dst(playerSystem.getPosition()) < fireRadius) {
                     playerSystem.takeDamage(fireDamage)
                 }
 
                 // Damage Cars
                 for (car in sceneManager.activeCars) {
-                    val distanceToCar = fire.gameObject.position.dst(car.position)
-                    if (distanceToCar < fireRadius) {
+                    if (fire.gameObject.position.dst(car.position) < fireRadius) {
                         car.takeDamage(fireDamage, DamageType.FIRE)
+                    }
+                }
+
+                // Damage Enemies
+                val enemyIterator = sceneManager.activeEnemies.iterator()
+                while (enemyIterator.hasNext()) {
+                    val enemy = enemyIterator.next()
+                    if (fire.gameObject.position.dst(enemy.position) < fireRadius) {
+                        if (enemy.takeDamage(fireDamage)) {
+                            // Enemy died from fire, spawn a blood pool and remove them
+                            playerSystem.bloodPoolSystem.addPool(enemy.position.cpy(), sceneManager)
+                            enemyIterator.remove()
+                        }
+                    }
+                }
+
+                // Damage NPCs
+                val npcIterator = sceneManager.activeNPCs.iterator()
+                while (npcIterator.hasNext()) {
+                    val npc = npcIterator.next()
+                    if (fire.gameObject.position.dst(npc.position) < fireRadius) {
+                        if (npc.takeDamage(fireDamage)) {
+                            // NPC died from fire, spawn a blood pool and remove them
+                            playerSystem.bloodPoolSystem.addPool(npc.position.cpy(), sceneManager)
+                            npcIterator.remove()
+                        }
                     }
                 }
             }

@@ -143,7 +143,7 @@ class PlayerSystem {
     private val activeThrowables = Array<ThrowableEntity>()
     private val tempCheckBounds = BoundingBox()
     private var teleportCooldown = 0f
-    private lateinit var bloodPoolSystem: BloodPoolSystem
+    lateinit var bloodPoolSystem: BloodPoolSystem
 
     fun getPlayerBounds(): BoundingBox {
         return playerBounds

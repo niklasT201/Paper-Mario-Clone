@@ -50,6 +50,7 @@ public class Lwjgl3Launcher {
 // occlusion optional
 
 // changing room transition effect colors
+// blood pools not switching from open world to room
 // car maybe be able to step up half a block
 // optional weapon light
 // car spawner
