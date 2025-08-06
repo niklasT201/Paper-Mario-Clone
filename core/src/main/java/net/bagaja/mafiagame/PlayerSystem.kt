@@ -918,28 +918,48 @@ class PlayerSystem {
             }
         }
 
-       // 4. Resolve Y-axis movement (Gravity and Grounding) with MULTI-POINT CHECK
-        val edgeOffset = playerSize.x / 2f * 0.9f // Check near the edges of the player's collision
+        // 4. Resolve Y-axis movement (Gravity and Grounding) with MULTI-POINT CHECK
+        val xEdgeOffset = playerSize.x / 2f * 0.9f
+        val zEdgeOffset = playerSize.z / 2f * 0.9f
+        val supportCandidates = mutableListOf<Float>()
 
         // Point 1: Center
-        var maxSupportY = sceneManager.findHighestSupportY(playerPosition.x, playerPosition.z, originalPosition.y, 0.1f, blockSize)
+        supportCandidates.add(sceneManager.findStrictSupportY(playerPosition.x, playerPosition.z, originalPosition.y, 0.1f, blockSize))
 
         // Point 2: Left Edge
-        val leftSupportY = sceneManager.findHighestSupportY(playerPosition.x - edgeOffset, playerPosition.z, originalPosition.y, 0.1f, blockSize)
-        if (leftSupportY > maxSupportY) {
-            maxSupportY = leftSupportY
+        val leftCheckX = playerPosition.x - xEdgeOffset
+        if (canMoveToWithDoorCollision(leftCheckX, playerPosition.y, playerPosition.z, sceneManager)) {
+            supportCandidates.add(sceneManager.findStrictSupportY(leftCheckX, playerPosition.z, originalPosition.y, 0.1f, blockSize))
         }
 
         // Point 3: Right Edge
-        val rightSupportY = sceneManager.findHighestSupportY(playerPosition.x + edgeOffset, playerPosition.z, originalPosition.y, 0.1f, blockSize)
-        if (rightSupportY > maxSupportY) {
-            maxSupportY = rightSupportY
+        val rightCheckX = playerPosition.x + xEdgeOffset
+        if (canMoveToWithDoorCollision(rightCheckX, playerPosition.y, playerPosition.z, sceneManager)) {
+            supportCandidates.add(sceneManager.findStrictSupportY(rightCheckX, playerPosition.z, originalPosition.y, 0.1f, blockSize))
         }
 
+        // Point 4: Front Edge
+        val frontCheckZ = playerPosition.z - zEdgeOffset
+        if (canMoveToWithDoorCollision(playerPosition.x, playerPosition.y, frontCheckZ, sceneManager)) {
+            supportCandidates.add(sceneManager.findStrictSupportY(playerPosition.x, frontCheckZ, originalPosition.y, 0.1f, blockSize))
+        }
+
+        // Point 5: Back Edge
+        val backCheckZ = playerPosition.z + zEdgeOffset
+        if (canMoveToWithDoorCollision(playerPosition.x, playerPosition.y, backCheckZ, sceneManager)) {
+            supportCandidates.add(sceneManager.findStrictSupportY(playerPosition.x, backCheckZ, originalPosition.y, 0.1f, blockSize))
+        }
+
+        val maxSupportY = supportCandidates.maxOrNull() ?: 0f
         val finalSupportY = maxSupportY
 
         val playerFootY = originalPosition.y - (playerSize.y / 2f)
-        val effectiveSupportY = if (finalSupportY - playerFootY <= MAX_STEP_HEIGHT) finalSupportY else sceneManager.findHighestSupportY(originalPosition.x, originalPosition.z, originalPosition.y, playerSize.x / 2f, blockSize)
+        val effectiveSupportY = if (finalSupportY - playerFootY <= MAX_STEP_HEIGHT) {
+            finalSupportY
+        } else {
+            // If the strict ground is too high, find support at the original center to prevent floating
+            sceneManager.findStrictSupportY(originalPosition.x, originalPosition.z, originalPosition.y, playerSize.x / 2f, blockSize)
+        }
         val targetY = effectiveSupportY + (playerSize.y / 2f)
         val fallY = playerPosition.y - FALL_SPEED * deltaTime
         playerPosition.y = kotlin.math.max(targetY, fallY)

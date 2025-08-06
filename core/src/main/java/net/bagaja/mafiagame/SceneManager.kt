@@ -204,6 +204,57 @@ class SceneManager(
         return highestSupportY
     }
 
+    fun findStrictSupportY(x: Float, z: Float, currentY: Float, checkRadius: Float, blockSize: Float): Float {
+        var highestSupportY = 0f // Default to ground level
+        val entityFootY = currentY - (playerSystem.playerSize.y / 2f)
+
+        // 1. Check Blocks using the efficient column query
+        val blocksInColumn = activeChunkManager.getBlocksInColumn(x, z)
+        for (block in blocksInColumn) {
+            if (!block.blockType.hasCollision) continue
+
+            val blockBounds = block.getBoundingBox(blockSize, tempBlockBounds)
+            val blockTop = blockBounds.max.y
+
+            // STRICT CHECK: The support must be at or below the entity's feet.
+            if (blockTop <= entityFootY + 0.01f && blockTop > highestSupportY) { // Added a tiny tolerance
+                highestSupportY = blockTop
+            }
+        }
+
+        // 2. Check against all active houses
+        for (house in activeHouses) {
+            val houseBounds = house.modelInstance.calculateBoundingBox(BoundingBox())
+            val horizontalOverlap = (x + checkRadius > houseBounds.min.x && x - checkRadius < houseBounds.max.x) &&
+                (z + checkRadius > houseBounds.min.z && z - checkRadius < houseBounds.max.z)
+
+            if(horizontalOverlap) {
+                val houseTop = houseBounds.max.y
+                // STRICT CHECK
+                if (houseTop <= entityFootY + 0.01f && houseTop > highestSupportY) {
+                    highestSupportY = houseTop
+                }
+            }
+        }
+
+        // 3. Check against all solid 3D interiors
+        for (interior in activeInteriors) {
+            if (!interior.interiorType.is3D || !interior.interiorType.hasCollision) continue
+            val interiorBounds = interior.instance.calculateBoundingBox(BoundingBox())
+            val horizontalOverlap = (x + checkRadius > interiorBounds.min.x && x - checkRadius < interiorBounds.max.x) &&
+                (z + checkRadius > interiorBounds.min.z && z - checkRadius < interiorBounds.max.z)
+            if(horizontalOverlap) {
+                val interiorTop = interiorBounds.max.y
+                // STRICT CHECK
+                if (interiorTop <= entityFootY + 0.01f && interiorTop > highestSupportY) {
+                    highestSupportY = interiorTop
+                }
+            }
+        }
+
+        return highestSupportY
+    }
+
     fun findHighestSupportYForItem(x: Float, z: Float, currentY: Float, blockSize: Float): Float {
         var highestSupportY = 0f // Default to ground level
         val checkRadius = 0.1f // A tiny radius is fine for items
