@@ -56,6 +56,7 @@ class UIManager(
     private lateinit var lightSourceUI: LightSourceUI
     private lateinit var skyCustomizationUI: SkyCustomizationUI
     private lateinit var shaderEffectUI: ShaderEffectUI
+    private lateinit var pauseMenuUI: PauseMenuUI
     private lateinit var mainTable: Table
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
@@ -165,6 +166,9 @@ class UIManager(
 
         shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager)
         shaderEffectUI.initialize()
+
+        pauseMenuUI = PauseMenuUI(skin, stage)
+        pauseMenuUI.initialize()
 
         // Set initial visibility for the main UI panel
         mainTable.isVisible = isUIVisible
@@ -1544,6 +1548,14 @@ class UIManager(
         stage.viewport.update(width, height, true)
     }
 
+    fun togglePauseMenu() {
+        pauseMenuUI.toggle()
+    }
+
+    fun isPauseMenuVisible(): Boolean {
+        return pauseMenuUI.isVisible()
+    }
+
     fun dispose() {
         blockSelectionUI.dispose()
         objectSelectionUI.dispose()
@@ -1557,6 +1569,7 @@ class UIManager(
         skyCustomizationUI.dispose()
         shaderEffectUI.dispose()
         particleSelectionUI.dispose()
+        pauseMenuUI.dispose()
         stage.dispose()
         skin.dispose()
     }

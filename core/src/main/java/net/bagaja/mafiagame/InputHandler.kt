@@ -292,10 +292,14 @@ class InputHandler(
 
                 when (keycode) {
                     Input.Keys.ESCAPE -> {
+                        // First, handle cancelling any ongoing actions
                         if (game.teleporterSystem.isLinkingMode) {
                             game.teleporterSystem.cancelLinking()
                             return true
                         }
+                        // If no actions to cancel, toggle the pause menu
+                        uiManager.togglePauseMenu()
+                        return true
                     }
                     Input.Keys.F1 -> {
                         uiManager.toggleVisibility()

@@ -1658,94 +1658,96 @@ class MafiaGame : ApplicationAdapter() {
         Gdx.gl.glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a)
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
 
-        // Get delta time for this frame
-        val deltaTime = Gdx.graphics.deltaTime
-        val timeMultiplier = if (inputHandler.isTimeSpeedUpActive()) 200f else 1f
+        if (!uiManager.isPauseMenuVisible()) {
+            // Get delta time for this frame
+            val deltaTime = Gdx.graphics.deltaTime
+            val timeMultiplier = if (inputHandler.isTimeSpeedUpActive()) 200f else 1f
 
-        val isSinCityEffect = shaderEffectManager.isEffectsEnabled &&
-            shaderEffectManager.getCurrentEffect() == ShaderEffect.SIN_CITY
-        lightingManager.setGrayscaleMode(isSinCityEffect)
+            val isSinCityEffect = shaderEffectManager.isEffectsEnabled &&
+                shaderEffectManager.getCurrentEffect() == ShaderEffect.SIN_CITY
+            lightingManager.setGrayscaleMode(isSinCityEffect)
 
-        sceneManager.update(deltaTime)
-        transitionSystem.update(deltaTime)
+            sceneManager.update(deltaTime)
+            transitionSystem.update(deltaTime)
 
-        // Update lighting manager
-        lightingManager.update(deltaTime, cameraManager.camera.position, timeMultiplier)
+            // Update lighting manager
+            lightingManager.update(deltaTime, cameraManager.camera.position, timeMultiplier)
 
-        val expiredLightIds = lightingManager.collectAndClearExpiredLights()
-        if (expiredLightIds.isNotEmpty()) {
-            expiredLightIds.forEach { id ->
-                // Also remove it from the object system so it doesn't leave a ghost object
-                objectSystem.removeLightSource(id)
-            }
-        }
-
-        // Update input handler for continuous actions
-        inputHandler.update(deltaTime)
-
-        // Handle player input
-        handlePlayerInput()
-        particleSystem.update(deltaTime)
-        spawnerSystem.update(deltaTime, sceneManager.activeSpawners, playerSystem.getPosition())
-        val expiredFires = fireSystem.update(Gdx.graphics.deltaTime, playerSystem, particleSystem, sceneManager)
-        if (expiredFires.isNotEmpty()) {
-            for (fireToRemove in expiredFires) {
-                sceneManager.activeObjects.removeValue(fireToRemove.gameObject, true)
-                fireSystem.removeFire(fireToRemove, objectSystem, lightingManager)
-            }
-        }
-
-        playerSystem.update(deltaTime, sceneManager)
-        enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
-        npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
-        bloodPoolSystem.update(deltaTime, sceneManager.activeBloodPools)
-        footprintSystem.update(deltaTime, sceneManager.activeFootprints)
-
-        // Handle car destruction and removals
-        val carIterator = sceneManager.activeCars.iterator()
-        while (carIterator.hasNext()) {
-            val car = carIterator.next()
-
-            // 1. Check if a drivable car should be destroyed
-            if (car.state == CarState.DRIVABLE && car.health <= 0) {
-                // If the player is driving this car, kick them out
-                if (playerSystem.isDriving && playerSystem.getControlledEntityPosition() == car.position) {
-                    playerSystem.exitCar(sceneManager)
+            val expiredLightIds = lightingManager.collectAndClearExpiredLights()
+            if (expiredLightIds.isNotEmpty()) {
+                expiredLightIds.forEach { id ->
+                    // Also remove it from the object system so it doesn't leave a ghost object
+                    objectSystem.removeLightSource(id)
                 }
-                val shouldSpawnFire = car.lastDamageType != DamageType.FIRE
-
-                // Trigger the destruction sequence
-                val newFireObjects = car.destroy(
-                    particleSystem,
-                    carSystem,
-                    shouldSpawnFire,
-                    fireSystem,
-                    objectSystem,
-                    lightingManager
-                )
-
-                sceneManager.activeObjects.addAll(newFireObjects)
             }
 
-            // 2. Check if a faded-out car should be removed
-            if (car.isReadyForRemoval) {
-                // If player is inside car
-                if (playerSystem.isDriving && playerSystem.getControlledEntityPosition() == car.position) {
-                    playerSystem.exitCar(sceneManager)
+            // Update input handler for continuous actions
+            inputHandler.update(deltaTime)
+
+            // Handle player input
+            handlePlayerInput()
+            particleSystem.update(deltaTime)
+            spawnerSystem.update(deltaTime, sceneManager.activeSpawners, playerSystem.getPosition())
+            val expiredFires = fireSystem.update(Gdx.graphics.deltaTime, playerSystem, particleSystem, sceneManager)
+            if (expiredFires.isNotEmpty()) {
+                for (fireToRemove in expiredFires) {
+                    sceneManager.activeObjects.removeValue(fireToRemove.gameObject, true)
+                    fireSystem.removeFire(fireToRemove, objectSystem, lightingManager)
+                }
+            }
+
+            playerSystem.update(deltaTime, sceneManager)
+            enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
+            npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
+            bloodPoolSystem.update(deltaTime, sceneManager.activeBloodPools)
+            footprintSystem.update(deltaTime, sceneManager.activeFootprints)
+
+            // Handle car destruction and removals
+            val carIterator = sceneManager.activeCars.iterator()
+            while (carIterator.hasNext()) {
+                val car = carIterator.next()
+
+                // 1. Check if a drivable car should be destroyed
+                if (car.state == CarState.DRIVABLE && car.health <= 0) {
+                    // If the player is driving this car, kick them out
+                    if (playerSystem.isDriving && playerSystem.getControlledEntityPosition() == car.position) {
+                        playerSystem.exitCar(sceneManager)
+                    }
+                    val shouldSpawnFire = car.lastDamageType != DamageType.FIRE
+
+                    // Trigger the destruction sequence
+                    val newFireObjects = car.destroy(
+                        particleSystem,
+                        carSystem,
+                        shouldSpawnFire,
+                        fireSystem,
+                        objectSystem,
+                        lightingManager
+                    )
+
+                    sceneManager.activeObjects.addAll(newFireObjects)
                 }
 
-                carIterator.remove()
-                println("Removed wrecked car from scene: ${car.carType.displayName}")
+                // 2. Check if a faded-out car should be removed
+                if (car.isReadyForRemoval) {
+                    // If player is inside car
+                    if (playerSystem.isDriving && playerSystem.getControlledEntityPosition() == car.position) {
+                        playerSystem.exitCar(sceneManager)
+                    }
+
+                    carIterator.remove()
+                    println("Removed wrecked car from scene: ${car.carType.displayName}")
+                }
             }
+
+            // Update the lock indicator based on player, car, and house positions
+            lockIndicatorSystem.update(playerSystem.getPosition(), sceneManager.activeCars, sceneManager.activeHouses)
+
+            // Update item system (animations, collisions, etc.)
+            itemSystem.update(deltaTime, cameraManager.camera, playerSystem, sceneManager)
+
+            sceneManager.activeChunkManager.processDirtyChunks()
         }
-
-        // Update the lock indicator based on player, car, and house positions
-        lockIndicatorSystem.update(playerSystem.getPosition(), sceneManager.activeCars, sceneManager.activeHouses)
-
-        // Update item system (animations, collisions, etc.)
-        itemSystem.update(deltaTime, cameraManager.camera, playerSystem, sceneManager)
-
-        sceneManager.activeChunkManager.processDirtyChunks()
 
         // Update highlight system
         highlightSystem.update(

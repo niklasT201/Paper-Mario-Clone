@@ -58,6 +58,12 @@ public class Lwjgl3Launcher {
 // removing flame from burned car image
 // step up stair
 // enemies that get punched, spawn more blood drops and shot enemies leave a blood train behind them
+// killed enemy vanishes over some time (fade out)
+// burned enemies leave dust hill
+// disappeared enemy leaves bones behind it
+// improved bloody footprint image
+// bones image
+// dust image
 // visual throwing and explosion range
 // maybe improving billboard shader
 // placing 5 light sources creates room filling light visually, not actually. probably existing bc the area light disappears
