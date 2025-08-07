@@ -72,6 +72,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var teleporterSystem: TeleporterSystem
     lateinit var fireSystem: FireSystem
     private lateinit var bloodPoolSystem: BloodPoolSystem
+    private lateinit var footprintSystem: FootprintSystem
 
     override fun create() {
         setupGraphics()
@@ -85,6 +86,8 @@ class MafiaGame : ApplicationAdapter() {
         fireSystem.initialize()
         bloodPoolSystem = BloodPoolSystem()
         bloodPoolSystem.initialize()
+        footprintSystem = FootprintSystem()
+        footprintSystem.initialize()
         setupItemSystem()
         setupCarSystem()
         lockIndicatorSystem = LockIndicatorSystem()
@@ -107,7 +110,7 @@ class MafiaGame : ApplicationAdapter() {
         transitionSystem = TransitionSystem()
 
         playerSystem = PlayerSystem()
-        playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem)
+        playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem, footprintSystem)
 
         // Initialize Shader Effect Manager
         shaderEffectManager = ShaderEffectManager()
@@ -1696,6 +1699,7 @@ class MafiaGame : ApplicationAdapter() {
         enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
         npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
         bloodPoolSystem.update(deltaTime, sceneManager.activeBloodPools)
+        footprintSystem.update(deltaTime, sceneManager.activeFootprints)
 
         // Handle car destruction and removals
         val carIterator = sceneManager.activeCars.iterator()
@@ -1793,6 +1797,7 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render Blood Pool
         bloodPoolSystem.render(cameraManager.camera, environment, sceneManager.activeBloodPools)
+        footprintSystem.render(cameraManager.camera, environment, sceneManager.activeFootprints)
 
         // Render all objects
         for (gameObject in sceneManager.activeObjects) {
@@ -1933,6 +1938,7 @@ class MafiaGame : ApplicationAdapter() {
         particleSystem.dispose()
         fireSystem.dispose()
         bloodPoolSystem.dispose()
+        footprintSystem.dispose()
 
         // Dispose shader effect manager
         shaderEffectManager.dispose()

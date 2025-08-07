@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Intersector
+import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
@@ -68,7 +69,7 @@ class PlayerSystem {
 
     companion object {
         const val FALL_SPEED = 25f
-        const val MAX_STEP_HEIGHT = 1.0f
+        const val MAX_STEP_HEIGHT = 1.1f
         const val CAR_MAX_STEP_HEIGHT = 4.1f
     }
 
@@ -144,15 +145,22 @@ class PlayerSystem {
     private val tempCheckBounds = BoundingBox()
     private var teleportCooldown = 0f
     lateinit var bloodPoolSystem: BloodPoolSystem
+    private lateinit var footprintSystem: FootprintSystem
+
+    private var bloodyFootprintsTimer = 0f
+    private val BLOODY_FOOTPRINT_COOLDOWN = 10f // Effect lasts 10 seconds after leaving a pool
+    private var footprintSpawnTimer = 0f
+    private val FOOTPRINT_SPAWN_INTERVAL = 0.35f // One print every 0.35 seconds of movement
 
     fun getPlayerBounds(): BoundingBox {
         return playerBounds
     }
 
-    fun initialize(blockSize: Float, particleSystem: ParticleSystem, lightingManager: LightingManager, bloodPoolSystem: BloodPoolSystem) {
+    fun initialize(blockSize: Float, particleSystem: ParticleSystem, lightingManager: LightingManager, bloodPoolSystem: BloodPoolSystem, footprintSystem: FootprintSystem) {
         this.blockSize = blockSize
         this.particleSystem = particleSystem
         this.bloodPoolSystem = bloodPoolSystem
+        this.footprintSystem = footprintSystem
         setupAnimationSystem()
 
         // Load weapon
@@ -983,7 +991,12 @@ class PlayerSystem {
         val moved = !playerPosition.epsilonEquals(originalPosition, 0.001f)
         isMoving = (originalPosition.x != playerPosition.x) || (originalPosition.z != playerPosition.z)
 
+        var movementRotation = playerCurrentRotationY
+
         if (isMoving) {
+            if (deltaX != 0f || deltaZ != 0f) {
+                movementRotation = com.badlogic.gdx.math.MathUtils.atan2(-deltaX, -deltaZ) * com.badlogic.gdx.math.MathUtils.radiansToDegrees + 90f
+            }
             // Player is moving
             continuousMovementTimer += deltaTime
 
@@ -1007,6 +1020,19 @@ class PlayerSystem {
                         targetRotation = playerTargetRotationY,
                         overrideScale = wipeSize
                     )
+                }
+            }
+            if (bloodyFootprintsTimer > 0f) {
+                footprintSpawnTimer += deltaTime
+                if (footprintSpawnTimer >= FOOTPRINT_SPAWN_INTERVAL) {
+                    footprintSpawnTimer = 0f
+
+                    // Find the ground position directly below the player
+                    val groundY = sceneManager.findHighestSupportY(playerPosition.x, playerPosition.z, playerPosition.y, playerSize.x / 2f, blockSize)
+                    val footprintPosition = Vector3(playerPosition.x, groundY, playerPosition.z)
+
+                    // Spawn the footprint using the new system
+                    footprintSystem.spawnFootprint(footprintPosition, movementRotation, sceneManager) // <<< MODIFIED
                 }
             }
         } else {
@@ -1115,6 +1141,14 @@ class PlayerSystem {
 
         if (teleportCooldown > 0f) {
             teleportCooldown -= deltaTime
+        }
+
+        // Check for blood pool collision and update the footprint timer
+        if (!isDriving) { // Only check when on foot
+            checkBloodPoolCollision(sceneManager)
+            if (bloodyFootprintsTimer > 0f) {
+                bloodyFootprintsTimer -= deltaTime
+            }
         }
         handleWeaponInput(deltaTime, sceneManager)
 
@@ -1258,6 +1292,27 @@ class PlayerSystem {
         }
 
         updatePlayerTransform()
+    }
+
+    private fun checkBloodPoolCollision(sceneManager: SceneManager) {
+        var isTouchingBlood = false
+        val playerPos2D = Vector2(playerPosition.x, playerPosition.z)
+
+        for (pool in sceneManager.activeBloodPools) {
+            // Simple 2D distance check from player center to pool center
+            val distance = playerPos2D.dst(pool.position.x, pool.position.z)
+
+            val playerRadius = playerSize.x / 2f
+            if (distance < (pool.currentScale / 2f - playerRadius)) {
+                isTouchingBlood = true
+                break // Found a collision, no need to check other pools
+            }
+        }
+
+        if (isTouchingBlood) {
+            // If touching a blood pool, refresh the timer to its maximum duration
+            bloodyFootprintsTimer = BLOODY_FOOTPRINT_COOLDOWN
+        }
     }
 
     private fun getValidGroundImpactPosition(

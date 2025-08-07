@@ -52,6 +52,7 @@ class SceneManager(
     val activeNPCs = Array<GameNPC>()
     val activeSpawners = Array<GameSpawner>()
     val activeBloodPools = Array<BloodPool>()
+    val activeFootprints = Array<GameFootprint>()
 
     // State Management
     var currentScene: SceneType = SceneType.WORLD
@@ -630,7 +631,8 @@ class SceneManager(
             playerPosition = playerSystem.getPosition(),
             cameraPosition = Vector3(),
             lights = game.lightingManager.getLightSources(),
-            bloodPools = Array(activeBloodPools)
+            bloodPools = Array(activeBloodPools),
+            footprints = Array(activeFootprints)
         )
         println("World state saved. Player at ${worldState!!.playerPosition}")
     }
@@ -655,6 +657,7 @@ class SceneManager(
         activeNPCs.addAll(state.npcs)
         activeSpawners.addAll(state.spawners)
         activeBloodPools.addAll(state.bloodPools)
+        activeFootprints.addAll(state.footprints)
 
         // Synchronize the ItemSystem with the restored world items
         itemSystem.setActiveItems(activeItems)
@@ -676,6 +679,7 @@ class SceneManager(
         currentState.spawners.clear(); currentState.spawners.addAll(activeSpawners)
         currentState.teleporters.clear(); currentState.teleporters.addAll(teleporterSystem.activeTeleporters)
         currentState.bloodPools.clear(); currentState.bloodPools.addAll(activeBloodPools)
+        currentState.footprints.clear(); currentState.footprints.addAll(activeFootprints)
         currentState.playerPosition.set(playerSystem.getPosition())
 
         currentState.lights.clear()
@@ -694,6 +698,7 @@ class SceneManager(
         activeSpawners.addAll(state.spawners)
         teleporterSystem.activeTeleporters.addAll(state.teleporters)
         activeBloodPools.addAll(state.bloodPools)
+        activeFootprints.addAll(state.footprints)
 
         // Synchronize the ItemSystem with the loaded interior items
         itemSystem.setActiveItems(activeItems)
@@ -1374,6 +1379,7 @@ class SceneManager(
         activeSpawners.clear()
         teleporterSystem.activeTeleporters.clear()
         activeBloodPools.clear()
+        activeFootprints.clear()
 
         // Also clear any active lights from the lighting manager
         val currentLightIds = game.lightingManager.getLightSources().keys.toList()
@@ -1392,7 +1398,8 @@ data class WorldState(
     val playerPosition: Vector3,
     val cameraPosition: Vector3,
     val lights: Map<Int, LightSource>,
-    val bloodPools: Array<BloodPool>
+    val bloodPools: Array<BloodPool>,
+    val footprints: Array<GameFootprint>
 )
 
 // The state for a single house interior.
@@ -1412,7 +1419,8 @@ data class InteriorState(
     val lights: MutableMap<Int, LightSource> = mutableMapOf(),
     var savedShaderEffect: ShaderEffect = ShaderEffect.NONE,
     var sourceTemplateId: String? = null,
-    val bloodPools: Array<BloodPool> = Array()
+    val bloodPools: Array<BloodPool> = Array(),
+    val footprints: Array<GameFootprint> = Array()
 )
 
 data class InteriorLayout(
