@@ -194,12 +194,9 @@ class HighlightSystem(private val blockSize: Float) {
             showHighlight(hitBlock.position, removeColor)
         } else {
             // Show green highlight for block placement
-            val intersection = Vector3()
-            val groundPlane = Plane(Vector3.Y, 0f)
-
             if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
-                val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
-                val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+                val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+                val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
 
                 // Floors are flat, Walls are vertical.
                 val highlightSize = if (buildMode.isWall) {
