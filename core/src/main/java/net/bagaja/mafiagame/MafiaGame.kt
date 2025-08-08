@@ -15,6 +15,7 @@ import kotlin.math.floor
 
 class MafiaGame : ApplicationAdapter() {
     val isEditorMode = true
+    val renderDistanceInChunks = 2
     private lateinit var modelBatch: ModelBatch
     private lateinit var shaderProvider: BillboardShaderProvider
     private lateinit var spriteBatch: SpriteBatch
@@ -74,6 +75,10 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var fireSystem: FireSystem
     private lateinit var bloodPoolSystem: BloodPoolSystem
     private lateinit var footprintSystem: FootprintSystem
+
+    private val tempRay = Ray()
+    private val tempVec3 = Vector3()
+    private val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
     override fun create() {
         setupGraphics()
@@ -456,7 +461,9 @@ class MafiaGame : ApplicationAdapter() {
 
     // Callback for InputHandler for left mouse click
     private fun handleLeftClickAction(screenX: Int, screenY: Int) {
-        val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+        val newRay = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+        tempRay.set(newRay)
+        val ray = tempRay
         when (uiManager.selectedTool) {
             UIManager.Tool.BLOCK -> placeBlock(ray)
             UIManager.Tool.PLAYER -> placePlayer(ray)
@@ -475,8 +482,9 @@ class MafiaGame : ApplicationAdapter() {
             UIManager.Tool.CAR -> placeCar(ray)
             UIManager.Tool.HOUSE -> placeHouse(ray)
             UIManager.Tool.BACKGROUND -> {
-                val bgRay = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
-                placeBackground(bgRay)
+                val bgNewRay = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+                tempRay.set(bgNewRay)
+                placeBackground(tempRay)
                 backgroundSystem.hidePreview()
             }
             UIManager.Tool.PARALLAX -> placeParallaxImage(ray)
@@ -492,7 +500,9 @@ class MafiaGame : ApplicationAdapter() {
 
     // Callback for InputHandler for right mouse click
     private fun handleRightClickAndRemoveAction(screenX: Int, screenY: Int): Boolean {
-        val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+        val newRay = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+        tempRay.set(newRay)
+        val ray = tempRay
 
         // Handle cancelling teleporter linking
         if (teleporterSystem.isLinkingMode) {
@@ -859,14 +869,10 @@ class MafiaGame : ApplicationAdapter() {
             placeBlockAdjacentTo(ray, hitBlock)
         } else {
             // No block hit, place on ground
-            val intersection = Vector3()
-            val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-
-            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
                 // Snap to grid
-                val gridX = floor(intersection.x / blockSize) * blockSize
-                val gridZ = floor(intersection.z / blockSize) * blockSize
-
+                val gridX = floor(tempVec3.x / blockSize) * blockSize
+                val gridZ = floor(tempVec3.z / blockSize) * blockSize
                 placeBlockArea(gridX, 0f, gridZ)
             }
         }
@@ -875,15 +881,11 @@ class MafiaGame : ApplicationAdapter() {
     private fun placeBlockAdjacentTo(ray: Ray, hitBlock: GameBlock) {
         // Calculate intersection point with the hit block
         val blockBounds = BoundingBox()
-        blockBounds.set(
-            Vector3(hitBlock.position.x - blockSize / 2, hitBlock.position.y - blockSize / 2, hitBlock.position.z - blockSize / 2),
-            Vector3(hitBlock.position.x + blockSize / 2, hitBlock.position.y + blockSize / 2, hitBlock.position.z + blockSize / 2)
-        )
+        hitBlock.getBoundingBox(blockSize, blockBounds)
 
-        val intersection = Vector3()
-        if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, blockBounds, intersection)) {
+        if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, blockBounds, tempVec3)) {
             // Determine which face was hit by finding the closest face
-            val relativePos = Vector3(intersection).sub(hitBlock.position)
+            val relativePos = Vector3(tempVec3).sub(hitBlock.position)
             var newX = hitBlock.position.x
             var newY = hitBlock.position.y
             var newZ = hitBlock.position.z
@@ -1023,22 +1025,19 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeObjectOnGround(ray: Ray) {
-        val intersection = Vector3()
-        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-
-        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+      if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             when (objectSystem.currentSelectedObject) {
                 ObjectType.LIGHT_SOURCE -> {
                     // Snap to grid and calculate proper Y position
-                    val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
-                    val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+                    val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+                    val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
                     val properY = calculateObjectYPosition(gridX, gridZ, 0f) // Light sources at block surface
 
                     placeLightSource(Vector3(gridX, properY, gridZ))
                 }
                 else -> {
-                    val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
-                    val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+                    val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+                    val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
                     val properY = calculateObjectYPosition(gridX, gridZ, 0f)
 
                     // Check if there's already an object at this position (optional)
@@ -1166,13 +1165,10 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeItemOnGround(ray: Ray) {
-        val intersection = Vector3()
-        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-
-        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+       if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             // Items can be placed more freely, but still need to be on top of blocks
-            val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
-            val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+            val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
             val properY = calculateObjectYPosition(gridX, gridZ, ItemSystem.ITEM_SURFACE_OFFSET) // Items float 1 unit above surface
 
             val itemPosition = Vector3(gridX, properY, gridZ)
@@ -1248,13 +1244,10 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeCar(ray: Ray) {
-        val intersection = Vector3()
-        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-
-        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             // Snap to grid
-            val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
-            val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+            val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
             val properY = calculateObjectYPosition(gridX, gridZ, 0f) // Cars sit on block surface
 
             // Check if there's already a car at this position
@@ -1291,12 +1284,9 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeHouse(ray: Ray) {
-        val intersection = Vector3()
-        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-
-        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
-            val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
             val properY = calculateObjectYPosition(gridX, gridZ, 0f) // Houses sit on block surface
 
             // Check if there's already a house at this position
@@ -1324,12 +1314,9 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeBackground(ray: Ray) {
-        val intersection = Vector3()
-        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-
-        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
-            val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
             val properY = calculateObjectYPosition(gridX, gridZ, 0f) // Backgrounds at block surface
 
             val newBackground = backgroundSystem.addBackground(
@@ -1347,16 +1334,13 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeParallaxImage(ray: Ray) {
-        // Parallax images are placed based on where the cursor intersects the ground plane.
-        val intersection = Vector3()
-        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-
-        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+        // Parallax images are placed based on where the cursor intersects the ground plane
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val imageType = uiManager.getCurrentParallaxImageType()
             val layerIndex = uiManager.getCurrentParallaxLayer()
 
             // The x-position comes from the ray intersection with the ground.
-            val xPosition = intersection.x
+            val xPosition = tempVec3.x
 
             // Attempt to add the image using the parallax system.
             val success = parallaxBackgroundSystem.addParallaxImage(imageType, xPosition, layerIndex)
@@ -1415,11 +1399,10 @@ class MafiaGame : ApplicationAdapter() {
             }
         }
 
-        val intersection = Vector3()
         val floorPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
-        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, floorPlane, intersection)) {
-            addInterior(intersection, interiorSystem.currentSelectedInterior)
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, floorPlane, tempVec3)) {
+            addInterior(tempVec3, interiorSystem.currentSelectedInterior)
         }
     }
 
@@ -1461,15 +1444,12 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeEnemy(ray: Ray) {
-        val intersection = Vector3()
-        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-
-        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            val surfaceY = findHighestSurfaceYAt(intersection.x, intersection.z)
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
 
             // Position the enemy so its feet are on the surface
             val enemyType = enemySystem.currentSelectedEnemyType
-            val enemyPosition = Vector3(intersection.x, surfaceY + enemyType.height / 2f, intersection.z)
+            val enemyPosition = Vector3(tempVec3.x, surfaceY + enemyType.height / 2f, tempVec3.z)
 
             val newEnemy = enemySystem.createEnemy(
                 enemyPosition,
@@ -1491,15 +1471,12 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeNPC(ray: Ray) {
-        val intersection = Vector3()
-        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-
-        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            val surfaceY = findHighestSurfaceYAt(intersection.x, intersection.z)
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
 
             // Position the NPC so its feet are on the surface.
             val npcType = npcSystem.currentSelectedNPCType
-            val npcPosition = Vector3(intersection.x, surfaceY + npcType.height / 2f, intersection.z)
+            val npcPosition = Vector3(tempVec3.x, surfaceY + npcType.height / 2f, tempVec3.z)
 
             val newNPC = npcSystem.createNPC(
                 npcPosition,
@@ -1521,17 +1498,16 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeParticleEffect(ray: Ray) {
-        val intersection = Vector3()
         var hitPoint: Vector3? = null
         var hitNormal: Vector3? = null // To orient effects like impacts
 
         val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
         if (hitBlock != null) {
             val blockBounds = hitBlock.getBoundingBox(blockSize, BoundingBox())
-            if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, blockBounds, intersection)) {
-                hitPoint = intersection.cpy()
+            if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, blockBounds, tempVec3)) {
+                hitPoint = tempVec3.cpy()
                 // A simple way to get the hit normal
-                val relativePos = Vector3(intersection).sub(hitBlock.position)
+                val relativePos = Vector3(tempVec3).sub(hitBlock.position)
                 val absX = kotlin.math.abs(relativePos.x)
                 val absY = kotlin.math.abs(relativePos.y)
                 val absZ = kotlin.math.abs(relativePos.z)
@@ -1545,9 +1521,8 @@ class MafiaGame : ApplicationAdapter() {
 
         // If no object was hit, intersect with the ground plane
         if (hitPoint == null) {
-            val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-                hitPoint = intersection.cpy()
+            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+                hitPoint = tempVec3.cpy()
                 hitNormal = Vector3.Y // Normal is straight up
             }
         }
@@ -1573,12 +1548,9 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeSpawner(ray: Ray) {
-        val intersection = Vector3()
-        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-
-        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            val surfaceY = findHighestSurfaceYAt(intersection.x, intersection.z)
-            val spawnerPosition = Vector3(intersection.x, surfaceY, intersection.z)
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+            val spawnerPosition = Vector3(tempVec3.x, surfaceY, tempVec3.z)
 
             val spawnerGameObject = objectSystem.createGameObjectWithLight(ObjectType.SPAWNER, spawnerPosition.cpy())
 
@@ -1607,11 +1579,9 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeFire(ray: Ray) {
-        val intersection = Vector3()
-        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
-        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            val surfaceY = findHighestSurfaceYAt(intersection.x, intersection.z)
-            val firePosition = Vector3(intersection.x, surfaceY, intersection.z)
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+            val firePosition = Vector3(tempVec3.x, surfaceY, tempVec3.z)
 
             val newFire = fireSystem.addFire(firePosition, objectSystem, lightingManager)
             if (newFire != null) {
@@ -1623,13 +1593,9 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun placeTeleporter(ray: Ray) {
-        val intersection = Vector3()
-        val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val newTeleporter = teleporterSystem.addTeleporterAt(tempVec3) ?: return
 
-        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-            val newTeleporter = teleporterSystem.addTeleporterAt(intersection) ?: return
-
-            // THIS IS THE IMPORTANT PART
             lastPlacedInstance = newTeleporter
 
             if (teleporterSystem.isLinkingMode) {

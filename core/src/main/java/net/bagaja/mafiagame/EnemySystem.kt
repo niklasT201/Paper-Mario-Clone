@@ -122,6 +122,7 @@ class EnemySystem : IFinePositionable {
     override var finePosMode: Boolean = false
     override val fineStep: Float = 0.25f
     private val tempBlockBounds = BoundingBox()
+    private val nearbyBlocks = Array<GameBlock>()
 
     fun initialize() {
         billboardShaderProvider = BillboardShaderProvider()
@@ -361,8 +362,11 @@ class EnemySystem : IFinePositionable {
         )
 
         // Check against blocks with step-up logic
-        sceneManager.activeChunkManager.getAllBlocks().forEach { block ->
-            if (!block.blockType.hasCollision) return@forEach // Skips this block in the loop
+        sceneManager.activeChunkManager.getBlocksAround(newPosition, 10f, nearbyBlocks)
+
+        // Loop over the small 'nearbyBlocks' array
+        for (block in nearbyBlocks) {
+            if (!block.blockType.hasCollision) continue
 
             val blockBounds = block.getBoundingBox(4f, tempBlockBounds) // Use 4f as blockSize
 
@@ -373,7 +377,7 @@ class EnemySystem : IFinePositionable {
 
                 // If the enemy's bottom is above or very close to the block's top, it's a valid surface, not a wall.
                 if (enemyBottomY >= blockTopY - 0.5f) { // 0.5f tolerance
-                    return@forEach // Continue to the next block
+                    continue // It's a valid step, not a wall
                 }
 
                 // It's a real side collision with a wall.

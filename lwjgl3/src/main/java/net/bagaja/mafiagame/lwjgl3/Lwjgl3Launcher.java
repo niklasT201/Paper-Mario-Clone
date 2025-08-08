@@ -96,6 +96,10 @@ public class Lwjgl3Launcher {
 // adding ammunition
 // adding health
 // adding multiple city areas
+// maybe, not intended for now:
+// Asynchronous/Multi-threaded Chunk Building
+// Incremental Mesh Updates
+// Time-Slicing the Rebuild
 
 // when i place mutliple lights in a room for example, lets say 6, then the big room that should have only light where the light sources are, gets completely bright. BUT this is only a visual bug. when i move to the area where is no light placed and i move away from the light sources i placed, then the room area gets dark again. this is a really weird bug, and i think it has to do with this visible light area or maybe not. im not so sure
 

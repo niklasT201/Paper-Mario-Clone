@@ -23,6 +23,9 @@ class HighlightSystem(private val blockSize: Float) {
     private var isHighlightVisible = false
     private var highlightPosition = Vector3()
     private var currentHighlightSize = Vector3(blockSize, blockSize, blockSize)
+    private val tempRay = Ray()
+    private val tempVec3 = Vector3()
+    private val groundPlane = Plane(Vector3.Y, 0f)
 
     // Colors for different states
     private val placeColor = Color(0f, 1f, 0f, 0.3f) // Green for placement
@@ -103,7 +106,9 @@ class HighlightSystem(private val blockSize: Float) {
     ) {
         val mouseX = Gdx.input.x.toFloat()
         val mouseY = Gdx.input.y.toFloat()
-        val ray = cameraManager.camera.getPickRay(mouseX, mouseY)
+        val newRay = cameraManager.camera.getPickRay(mouseX, mouseY)
+        tempRay.set(newRay)
+        val ray = tempRay
 
         when (uiManager.selectedTool) {
             UIManager.Tool.BLOCK -> updateBlockHighlight(ray, gameBlocks, raycastSystem, blockSystem)
@@ -192,7 +197,7 @@ class HighlightSystem(private val blockSize: Float) {
             val intersection = Vector3()
             val groundPlane = Plane(Vector3.Y, 0f)
 
-            if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+            if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
                 val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
                 val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
 

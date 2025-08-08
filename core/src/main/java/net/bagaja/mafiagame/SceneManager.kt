@@ -64,6 +64,7 @@ class SceneManager(
 
     // Helper objects for physics/raycasting
     private val tempBlockBounds = BoundingBox()
+    private val tempStairBounds = BoundingBox()
 
     // --- INITIALIZATION ---
     fun initializeWorld(
@@ -75,7 +76,7 @@ class SceneManager(
         initialEnemies: Array<GameEnemy>,
         initialNPCs: Array<GameNPC>,
     ) {
-        worldChunkManager = ChunkManager(faceCullingSystem, game.blockSize)
+        worldChunkManager = ChunkManager(faceCullingSystem, game.blockSize, game)
         worldChunkManager.loadInitialBlocks(initialBlocks)
         activeChunkManager = worldChunkManager
 
@@ -313,7 +314,7 @@ class SceneManager(
         val maxStepUp = 4.0f // Matches player's MAX_STEP_HEIGHT
         val playerFootY = currentY - playerHeight / 2f
         var lastCollisionHeight = playerFootY
-        val testBounds = BoundingBox()
+        val testBounds = tempStairBounds
 
         // Try different heights to find where we stop colliding
         for (stepHeight in generateSequence(0f) { it + stepSize }.takeWhile { it <= maxStepUp }) {
@@ -342,7 +343,7 @@ class SceneManager(
     private fun findStairSupportHeight(house: GameHouse, x: Float, z: Float, currentY: Float, checkRadius: Float, playerHeight: Float): Float {
         val stepSize = 0.05f
         var lastNonCollisionFootY = 0f // Default to ground
-        val testBounds = BoundingBox()
+        val testBounds = tempStairBounds
 
         // Check downward from current position to find the stair surface
         for (checkPlayerCenterY in generateSequence(currentY) { it - stepSize }.takeWhile { it >= 0f }) {
@@ -494,7 +495,7 @@ class SceneManager(
         val house = pendingHouse ?: return
         val interiorCm = interiorChunkManagers.getOrPut(house.id) {
             println("Creating new ChunkManager for house ID: ${house.id}")
-            ChunkManager(faceCullingSystem, game.blockSize)
+            ChunkManager(faceCullingSystem, game.blockSize, game)
         }
 
         // This will hold the state of the interior we are about to load.

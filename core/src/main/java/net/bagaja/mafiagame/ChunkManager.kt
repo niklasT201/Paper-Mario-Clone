@@ -8,14 +8,15 @@ import com.badlogic.gdx.graphics.g3d.Material
 import com.badlogic.gdx.graphics.g3d.ModelBatch
 import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
-import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.utils.Array
 import kotlin.math.floor
 
-class ChunkManager(private val faceCullingSystem: FaceCullingSystem, private val blockSize: Float) {
+class ChunkManager(private val faceCullingSystem: FaceCullingSystem, private val blockSize: Float, private val game: MafiaGame ) {
     val chunks = mutableMapOf<ChunkPosition, Chunk>()
     private val dirtyChunks = mutableSetOf<Chunk>()
+    private val searchBounds = BoundingBox()
 
     fun addBlock(block: GameBlock) {
         val chunkPos = worldToChunkPosition(block.position)
@@ -59,6 +60,34 @@ class ChunkManager(private val faceCullingSystem: FaceCullingSystem, private val
             }
         }
         return results
+    }
+
+    fun getBlocksAround(position: Vector3, radius: Float, out: Array<GameBlock>): Array<GameBlock> {
+        out.clear()
+        val radiusSq = radius * radius // Use squared distance for efficiency
+
+        // Determine the search area and set our reusable bounding box
+        val minX = position.x - radius
+        val maxX = position.x + radius
+        val minY = position.y - radius
+        val maxY = position.y + radius
+        val minZ = position.z - radius
+        val maxZ = position.z + radius
+        searchBounds.set(Vector3(minX, minY, minZ), Vector3(maxX, maxY, maxZ))
+
+        for (chunk in chunks.values) {
+            if (!chunk.boundingBox.intersects(searchBounds)) {
+                continue // Skip this entire chunk if it's not in the search area.
+            }
+
+            for (block in chunk.blocks.values) {
+                // Check squared distance to avoid expensive square root calculations.
+                if (block.position.dst2(position) <= radiusSq) {
+                    out.add(block)
+                }
+            }
+        }
+        return out
     }
 
     fun getAllBlocks(): Array<GameBlock> {
@@ -133,7 +162,29 @@ class ChunkManager(private val faceCullingSystem: FaceCullingSystem, private val
     }
 
     fun render(modelBatch: ModelBatch, environment: Environment, camera: Camera) {
+        // 1. Calculate the chunk coordinates of the camera's current position.
+        val cameraChunkX = floor(camera.position.x / (Chunk.CHUNK_SIZE * blockSize)).toInt()
+        val cameraChunkZ = floor(camera.position.z / (Chunk.CHUNK_SIZE * blockSize)).toInt()
+
+        // 2. Get the render distance from the main game class.
+        val renderDistance = game.renderDistanceInChunks
+
+        // 3. Define the square area of chunks to check, centered on the camera.
+        val minChunkX = cameraChunkX - renderDistance
+        val maxChunkX = cameraChunkX + renderDistance
+        val minChunkZ = cameraChunkZ - renderDistance
+        val maxChunkZ = cameraChunkZ + renderDistance
+
         for (chunk in chunks.values) {
+            val cx = chunk.position.x
+            val cz = chunk.position.z
+
+            // 4. If the chunk is outside our defined render distance, skip it entirely.
+            if (cx < minChunkX || cx > maxChunkX || cz < minChunkZ || cz > maxChunkZ) {
+                continue // Skip this chunk
+            }
+
+            // 5. If the chunk is nearby, perform the original frustum culling and render it.
             chunk.modelInstance?.let { instance ->
                 if (camera.frustum.boundsInFrustum(chunk.boundingBox)) {
                     modelBatch.render(instance, environment)

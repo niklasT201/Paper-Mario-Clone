@@ -142,10 +142,11 @@ class PlayerSystem {
 
     private val activeBullets = Array<Bullet>()
     private val activeThrowables = Array<ThrowableEntity>()
-    private val tempCheckBounds = BoundingBox()
     private var teleportCooldown = 0f
     lateinit var bloodPoolSystem: BloodPoolSystem
     private lateinit var footprintSystem: FootprintSystem
+    private val tempBlockBounds = BoundingBox()
+    private val nearbyBlocks = Array<GameBlock>()
 
     private var bloodyFootprintsTimer = 0f
     private val BLOODY_FOOTPRINT_COOLDOWN = 10f // Effect lasts 10 seconds after leaving a pool
@@ -588,7 +589,8 @@ class PlayerSystem {
             Vector3(x + (playerSize.x / 2 - shrinkFor3D), y + playerSize.y / 2, z + (playerSize.z / 2 - shrinkFor3D))
         )
 
-        for (gameBlock in sceneManager.activeChunkManager.getAllBlocks()) {
+        sceneManager.activeChunkManager.getBlocksAround(Vector3(x, y, z), 10f, nearbyBlocks)
+        for (gameBlock in nearbyBlocks) { // Loop over the smaller list
             if (!gameBlock.blockType.hasCollision) continue
             if (gameBlock.collidesWith(playerBoundsFor3D)) {
                 // Player is standing on the block, not colliding with its side.
