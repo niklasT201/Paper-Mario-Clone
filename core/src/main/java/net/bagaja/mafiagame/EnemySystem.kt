@@ -98,6 +98,7 @@ class EnemySystem : IFinePositionable {
     private val enemyTextures = mutableMapOf<EnemyType, Texture>()
     private lateinit var billboardModelBatch: ModelBatch
     private lateinit var billboardShaderProvider: BillboardShaderProvider
+    private val renderableInstances = Array<ModelInstance>()
     private val WOBBLE_AMPLITUDE_DEGREES = 5f
     private val WOBBLE_FREQUENCY = 6f
 
@@ -403,13 +404,21 @@ class EnemySystem : IFinePositionable {
         return true
     }
 
-    // This method needs to be called from the actual render loop with the active enemies.
     fun renderEnemies(camera: Camera, environment: Environment, enemies: Array<GameEnemy>) {
+        if (enemies.isEmpty) return
+
         billboardShaderProvider.setEnvironment(environment)
         billboardModelBatch.begin(camera)
+
+        // Collect all enemy instances.
+        renderableInstances.clear()
         for (enemy in enemies) {
-            billboardModelBatch.render(enemy.modelInstance, environment)
+            renderableInstances.add(enemy.modelInstance)
         }
+
+        // Render all enemies at once.
+        billboardModelBatch.render(renderableInstances, environment)
+
         billboardModelBatch.end()
     }
 

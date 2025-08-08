@@ -19,8 +19,8 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * A Paper Mario-style pause menu with storybook charm and whimsical animations.
- * Features a floating book/journal design with decorative elements.
+ * A 1920s Mafia-style pause menu with vintage newspaper and speakeasy charm.
+ * Features a prohibition-era design with art deco elements and smoky atmosphere.
  */
 class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
 
@@ -31,8 +31,8 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
     private var animationTime = 0f
 
     fun initialize() {
-        createMagicalOverlay()
-        createStoryBookMenu()
+        createSmokyOverlay()
+        createNewspaperMenu()
         createFloatingDecorations()
     }
 
@@ -43,22 +43,19 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
         }
     }
 
-    private fun createMagicalOverlay() {
-        // Create a more magical, softer overlay
+    private fun createSmokyOverlay() {
+        // Create a smoky, noir-style overlay with cigarette smoke effect
         val pixmap = Pixmap(100, 100, Pixmap.Format.RGBA8888)
 
-        // Create a radial gradient effect
-        val centerX = 50
-        val centerY = 50
+        // Create layered smoke effect
+        for (y in 0 until 100) {
+            for (x in 0 until 100) {
+                val waveEffect = sin((x + y) * 0.1) * 0.1f
+                val smokeIntensity = (y / 100f) * 0.4f + waveEffect
 
-        for (x in 0 until 100) {
-            for (y in 0 until 100) {
-                val distance = kotlin.math.sqrt(((x - centerX) * (x - centerX) + (y - centerY) * (y - centerY)).toDouble()).toFloat()
-                val normalizedDistance = (distance / 70f).coerceIn(0f, 1f)
-
-                // Create a dreamy purple-blue gradient
-                val alpha = 0.3f + (normalizedDistance * 0.4f)
-                pixmap.setColor(0.1f, 0.05f, 0.2f, alpha)
+                // Dark sepia overlay with smoke
+                val alpha = 0.7f + smokeIntensity
+                pixmap.setColor(0.1f, 0.08f, 0.06f, alpha.coerceIn(0.0, 0.85).toFloat())
                 pixmap.drawPixel(x, y)
             }
         }
@@ -70,187 +67,228 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
         stage.addActor(overlay)
     }
 
-    private fun createStoryBookMenu() {
+    private fun createNewspaperMenu() {
         mainContainer = Table()
         mainContainer.setFillParent(true)
         mainContainer.center()
         mainContainer.isVisible = false
         stage.addActor(mainContainer)
 
-        // Main book/journal container
-        val bookTable = Table()
-        bookTable.background = createStoryBookBackground()
-        bookTable.pad(60f, 70f, 50f, 70f)
+        // Main newspaper/wanted poster container
+        val newspaperTable = Table()
+        newspaperTable.background = createNewspaperBackground()
+        newspaperTable.pad(50f, 60f, 40f, 60f)
 
-        // Decorative header with flourishes
+        // Vintage header with art deco styling
         val headerTable = Table()
-        headerTable.add(createDecorationImage("left-flourish")).padRight(20f)
+        headerTable.add(createArtDecoDecoration("left")).padRight(25f)
 
-        val titleLabel = Label("~ PAUSED ~", skin, "title")
+        val titleLabel = Label("⦿ GAME PAUSED ⦿", skin, "title")
         titleLabel.setAlignment(Align.center)
-        titleLabel.color = Color.valueOf("#2C1810") // Dark brown ink color
+        titleLabel.color = Color.valueOf("#1A0F0A") // Dark ink black
         headerTable.add(titleLabel)
 
-        headerTable.add(createDecorationImage("right-flourish")).padLeft(20f)
+        headerTable.add(createArtDecoDecoration("right")).padLeft(25f)
 
-        bookTable.add(headerTable).padBottom(40f).row()
+        newspaperTable.add(headerTable).padBottom(35f).row()
 
-        // Menu buttons with Paper Mario style
+        // Vintage subtitle
+        val subtitleLabel = Label("~ The Family Business Awaits ~", skin, "default")
+        subtitleLabel.setAlignment(Align.center)
+        subtitleLabel.color = Color.valueOf("#3D2817")
+        newspaperTable.add(subtitleLabel).padBottom(30f).row()
+
+        // Menu buttons with 1920s styling
         val buttonsTable = Table()
-        buttonsTable.add(createPaperButton("✦ RESUME ✦", Color.valueOf("#4A90E2"))).fillX().height(65f).padBottom(12f).row()
-        buttonsTable.add(createPaperButton("⚙ SETTINGS ⚙", Color.valueOf("#7B68EE"))).fillX().height(65f).padBottom(12f).row()
-        buttonsTable.add(createPaperButton("💾 SAVE GAME 💾", Color.valueOf("#50C878"))).fillX().height(65f).padBottom(12f).row()
-        buttonsTable.add(createPaperButton("🚪 QUIT TO MENU 🚪", Color.valueOf("#FF6B6B"))).fillX().height(65f).padTop(20f).row()
+        buttonsTable.add(createVintageButton("⚡ RESUME OPERATIONS ⚡", Color.valueOf("#8B4513"))).fillX().height(60f).padBottom(10f).row()
+        buttonsTable.add(createVintageButton("⚙ MODIFY RACKET ⚙", Color.valueOf("#654321"))).fillX().height(60f).padBottom(10f).row()
+        buttonsTable.add(createVintageButton("💰 STASH THE LOOT 💰", Color.valueOf("#2F4F2F"))).fillX().height(60f).padBottom(10f).row()
+        buttonsTable.add(createVintageButton("🚪 ABANDON TERRITORY 🚪", Color.valueOf("#8B0000"))).fillX().height(60f).padTop(15f).row()
 
-        bookTable.add(buttonsTable).width(400f).row()
+        newspaperTable.add(buttonsTable).width(380f).row()
 
-        // Decorative footer
-        val footerDecoration = createDecorationImage("bottom-swirl")
-        bookTable.add(footerDecoration).padTop(30f)
+        // Bottom art deco decoration
+        val bottomDecoration = createBottomBanner()
+        newspaperTable.add(bottomDecoration).padTop(25f)
 
-        mainContainer.add(bookTable)
+        mainContainer.add(newspaperTable)
     }
 
-    private fun createStoryBookBackground(): TextureRegionDrawable {
-        val pixmap = Pixmap(400, 500, Pixmap.Format.RGBA8888)
+    private fun createNewspaperBackground(): TextureRegionDrawable {
+        val pixmap = Pixmap(420, 480, Pixmap.Format.RGBA8888)
 
-        // Create a warm, aged paper background
-        val paperColor = Color.valueOf("#F7F3E9") // Warm cream
+        // Aged newspaper color
+        val paperColor = Color.valueOf("#F5F1E8") // Cream newspaper
         pixmap.setColor(paperColor)
         pixmap.fill()
 
-        // Add subtle texture and aging spots
-        val agingColor = Color.valueOf("#E8D5B7")
-        for (i in 0 until 200) {
-            val x = Random.nextInt(400)
-            val y = Random.nextInt(500)
-            val size = Random.nextInt(3) + 1
-            pixmap.setColor(agingColor)
+        // Add newsprint texture and aging
+        val inkSpots = Color.valueOf("#E8E0D6")
+        for (i in 0 until 300) {
+            val x = Random.nextInt(420)
+            val y = Random.nextInt(480)
+            val size = Random.nextInt(2) + 1
+            pixmap.setColor(inkSpots)
             pixmap.fillCircle(x, y, size)
         }
 
-        // Create decorative border
-        val borderColor = Color.valueOf("#8B4513") // Saddle brown
+        // Create art deco border with geometric patterns
+        val borderColor = Color.valueOf("#2C1810") // Dark brown
         pixmap.setColor(borderColor)
 
-        // Outer decorative border
-        for (i in 0 until 10) {
-            pixmap.drawRectangle(i, i, 400 - i * 2, 500 - i * 2)
+        // Main border
+        for (i in 0 until 6) {
+            pixmap.drawRectangle(i, i, 420 - i * 2, 480 - i * 2)
         }
 
-        // Inner decorative elements
-        pixmap.setColor(Color.valueOf("#D4AF37")) // Gold accents
-        drawDecorativeCorners(pixmap)
+        // Art deco corner elements
+        drawArtDecoCorners(pixmap)
+
+        // Add prohibition-era elements
+        drawVintageElements(pixmap)
 
         val texture = Texture(pixmap)
         pixmap.dispose()
         return TextureRegionDrawable(TextureRegion(texture))
     }
 
-    private fun drawDecorativeCorners(pixmap: Pixmap) {
-        // Simple corner decorations
-        val size = 30
+    private fun drawArtDecoCorners(pixmap: Pixmap) {
+        val accentColor = Color.valueOf("#8B6914") // Dark gold
+        pixmap.setColor(accentColor)
 
-        // Top-left corner flourish
-        for (i in 15 until size) {
-            pixmap.drawLine(15, i, i, 15)
-        }
+        val cornerSize = 25
 
-        // Top-right corner flourish
-        for (i in 15 until size) {
-            pixmap.drawLine(400 - 15, i, 400 - i, 15)
-        }
+        // Top corners - art deco fan patterns
+        for (i in 10 until cornerSize) {
+            // Top-left fan
+            pixmap.drawLine(10, i, i, 10)
+            pixmap.drawLine(12, i, i, 12)
 
-        // Bottom-left corner flourish
-        for (i in 15 until size) {
-            pixmap.drawLine(15, 500 - i, i, 500 - 15)
-        }
+            // Top-right fan
+            pixmap.drawLine(420 - 10, i, 420 - i, 10)
+            pixmap.drawLine(420 - 12, i, 420 - i, 12)
 
-        // Bottom-right corner flourish
-        for (i in 15 until size) {
-            pixmap.drawLine(400 - 15, 500 - i, 400 - i, 500 - 15)
+            // Bottom-left fan
+            pixmap.drawLine(10, 480 - i, i, 480 - 10)
+            pixmap.drawLine(12, 480 - i, i, 480 - 12)
+
+            // Bottom-right fan
+            pixmap.drawLine(420 - 10, 480 - i, 420 - i, 480 - 10)
+            pixmap.drawLine(420 - 12, 480 - i, 420 - i, 480 - 12)
         }
     }
 
-    private fun createPaperButton(text: String, bgColor: Color): TextButton {
+    private fun drawVintageElements(pixmap: Pixmap) {
+        val accentColor = Color.valueOf("#8B6914") // Dark gold
+        pixmap.setColor(accentColor)
+
+        // Side geometric patterns
+        for (y in 100 until 380 step 40) {
+            // Left side diamonds
+            pixmap.fillCircle(20, y, 4)
+            pixmap.drawRectangle(16, y - 2, 8, 4)
+
+            // Right side diamonds
+            pixmap.fillCircle(400, y, 4)
+            pixmap.drawRectangle(396, y - 2, 8, 4)
+        }
+    }
+
+    private fun createVintageButton(text: String, bgColor: Color): TextButton {
         val button = TextButton(text, skin, "default")
 
-        // Create paper-style button background
-        val buttonPixmap = Pixmap(300, 50, Pixmap.Format.RGBA8888)
+        // Create vintage button with leather/wood texture
+        val buttonPixmap = Pixmap(300, 45, Pixmap.Format.RGBA8888)
 
-        // Main button color with slight transparency
-        val mainColor = Color(bgColor.r, bgColor.g, bgColor.b, 0.9f)
-        buttonPixmap.setColor(mainColor)
+        // Base color - darker vintage tone
+        val baseColor = Color(bgColor.r * 0.8f, bgColor.g * 0.8f, bgColor.b * 0.8f, 1f)
+        buttonPixmap.setColor(baseColor)
         buttonPixmap.fill()
 
-        // Add paper texture
-        val textureColor = Color(bgColor.r * 0.9f, bgColor.g * 0.9f, bgColor.b * 0.9f, 0.8f)
-        buttonPixmap.setColor(textureColor)
-        for (i in 0 until 30) {
+        // Add leather-like texture
+        val textureColor = Color(bgColor.r * 0.6f, bgColor.g * 0.6f, bgColor.b * 0.6f, 0.7f)
+        for (i in 0 until 80) {
             val x = Random.nextInt(300)
-            val y = Random.nextInt(50)
-            buttonPixmap.drawPixel(x, y)
+            val y = Random.nextInt(45)
+            val size = Random.nextInt(3) + 1
+            buttonPixmap.setColor(textureColor)
+            buttonPixmap.fillCircle(x, y, size)
         }
 
-        // Dark border for depth
-        val borderColor = Color(bgColor.r * 0.6f, bgColor.g * 0.6f, bgColor.b * 0.6f, 1f)
+        // Art deco style border
+        val borderColor = Color.valueOf("#1A0F0A")
         buttonPixmap.setColor(borderColor)
-        buttonPixmap.drawRectangle(0, 0, 300, 50)
-        buttonPixmap.drawRectangle(1, 1, 298, 48)
 
-        // Light highlight for 3D effect
-        val highlightColor = Color(bgColor.r * 1.2f, bgColor.g * 1.2f, bgColor.b * 1.2f, 0.8f)
+        // Multiple border lines for depth
+        buttonPixmap.drawRectangle(0, 0, 300, 45)
+        buttonPixmap.drawRectangle(1, 1, 298, 43)
+        buttonPixmap.drawRectangle(2, 2, 296, 41)
+
+        // Brass-like highlight
+        val highlightColor = Color.valueOf("#CD7F32") // Bronze
         buttonPixmap.setColor(highlightColor)
-        buttonPixmap.drawLine(2, 2, 297, 2)
-        buttonPixmap.drawLine(2, 2, 2, 47)
+        buttonPixmap.drawLine(3, 3, 296, 3)
+        buttonPixmap.drawLine(3, 3, 3, 41)
+
+        // Corner accents
+        for (i in 0 until 8) {
+            buttonPixmap.drawPixel(5 + i, 5)
+            buttonPixmap.drawPixel(5, 5 + i)
+            buttonPixmap.drawPixel(294 - i, 5)
+            buttonPixmap.drawPixel(294, 5 + i)
+            buttonPixmap.drawPixel(5 + i, 39)
+            buttonPixmap.drawPixel(5, 39 - i)
+            buttonPixmap.drawPixel(294 - i, 39)
+            buttonPixmap.drawPixel(294, 39 - i)
+        }
 
         val buttonTexture = Texture(buttonPixmap)
         buttonPixmap.dispose()
 
         button.style.up = TextureRegionDrawable(TextureRegion(buttonTexture))
-        button.label.color = Color.WHITE
+        button.label.color = Color.valueOf("#F5F1E8") // Cream text
 
         return button
     }
 
-    private fun createDecorationImage(type: String): Image {
-        val size = when (type) {
-            "left-flourish", "right-flourish" -> 40
-            else -> 60
-        }
-
-        val pixmap = Pixmap(size, size, Pixmap.Format.RGBA8888)
-        val decorColor = Color.valueOf("#D4AF37") // Gold
+    private fun createArtDecoDecoration(side: String): Image {
+        val pixmap = Pixmap(45, 45, Pixmap.Format.RGBA8888)
+        val decorColor = Color.valueOf("#8B6914") // Dark gold
         pixmap.setColor(decorColor)
 
-        when (type) {
-            "left-flourish" -> {
-                // Simple left-pointing decorative swirl
-                for (i in 0 until size) {
-                    val y = (size / 2 + sin(i * 0.2) * 8).toInt()
-                    if (y in 0 until size) {
-                        pixmap.fillCircle(i, y, 2)
+        // Art deco geometric pattern
+        val center = 22
+
+        when (side) {
+            "left" -> {
+                // Left-pointing arrow with geometric elements
+                for (i in 0 until 20) {
+                    val offset = i / 2
+                    pixmap.drawLine(center - offset, center - i/2, center + offset, center - i/2)
+                    if (i < 15) {
+                        pixmap.drawLine(center - offset, center + i/2, center + offset, center + i/2)
                     }
                 }
+
+                // Central diamond
+                pixmap.fillCircle(center, center, 6)
+                pixmap.setColor(Color.valueOf("#CD7F32"))
+                pixmap.fillCircle(center, center, 3)
             }
-            "right-flourish" -> {
-                // Simple right-pointing decorative swirl
-                for (i in 0 until size) {
-                    val y = (size / 2 + sin((size - i) * 0.2) * 8).toInt()
-                    if (y in 0 until size) {
-                        pixmap.fillCircle(i, y, 2)
+            "right" -> {
+                // Right-pointing arrow with geometric elements
+                for (i in 0 until 20) {
+                    val offset = i / 2
+                    pixmap.drawLine(center - offset, center - i/2, center + offset, center - i/2)
+                    if (i < 15) {
+                        pixmap.drawLine(center - offset, center + i/2, center + offset, center + i/2)
                     }
                 }
-            }
-            else -> {
-                // Bottom decoration - simple star pattern
-                pixmap.fillCircle(size / 2, size / 2, 8)
-                for (angle in 0 until 360 step 45) {
-                    val rad = Math.toRadians(angle.toDouble())
-                    val x = (size / 2 + cos(rad) * 15).toInt()
-                    val y = (size / 2 + sin(rad) * 15).toInt()
-                    pixmap.fillCircle(x, y, 3)
-                }
+
+                // Central diamond
+                pixmap.fillCircle(center, center, 6)
+                pixmap.setColor(Color.valueOf("#CD7F32"))
+                pixmap.fillCircle(center, center, 3)
             }
         }
 
@@ -259,9 +297,34 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
         return Image(texture)
     }
 
+    private fun createBottomBanner(): Image {
+        val pixmap = Pixmap(200, 30, Pixmap.Format.RGBA8888)
+        val bannerColor = Color.valueOf("#2C1810")
+        pixmap.setColor(bannerColor)
+
+        // Create banner ribbon
+        pixmap.fill()
+
+        // Banner notches at ends
+        for (i in 0 until 8) {
+            pixmap.setColor(Color.CLEAR)
+            pixmap.drawLine(i, 15 + i, i, 30)
+            pixmap.drawLine(199 - i, 15 + i, 199 - i, 30)
+        }
+
+        // Gold trim
+        pixmap.setColor(Color.valueOf("#CD7F32"))
+        pixmap.drawRectangle(0, 0, 200, 30)
+        pixmap.drawRectangle(1, 1, 198, 28)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+        return Image(texture)
+    }
+
     private fun createFloatingDecorations() {
-        decorativeElements = Array(6) { index ->
-            val decoration = createMagicalParticle()
+        decorativeElements = Array(5) { index ->
+            val decoration = createSmokeParticle()
             decoration.setPosition(
                 Random.nextFloat() * stage.width,
                 Random.nextFloat() * stage.height
@@ -272,22 +335,27 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
         }
     }
 
-    private fun createMagicalParticle(): Image {
-        val pixmap = Pixmap(12, 12, Pixmap.Format.RGBA8888)
-        val colors = arrayOf(
-            Color.valueOf("#FFD700"), // Gold
-            Color.valueOf("#FFA500"), // Orange
-            Color.valueOf("#DA70D6"), // Orchid
-            Color.valueOf("#87CEEB")  // Sky blue
+    private fun createSmokeParticle(): Image {
+        val pixmap = Pixmap(16, 16, Pixmap.Format.RGBA8888)
+
+        // Create cigarette smoke wisps
+        val smokeColors = arrayOf(
+            Color.valueOf("#D3D3D3"), // Light gray
+            Color.valueOf("#A9A9A9"), // Dark gray
+            Color.valueOf("#C0C0C0"), // Silver
+            Color.valueOf("#F5F5DC")  // Beige
         )
 
-        val color = colors[Random.nextInt(colors.size)]
+        val color = smokeColors[Random.nextInt(smokeColors.size)]
+        color.a = 0.6f
         pixmap.setColor(color)
-        pixmap.fillCircle(6, 6, 4)
 
-        // Add sparkle effect
-        pixmap.setColor(Color.WHITE)
-        pixmap.fillCircle(6, 6, 2)
+        // Irregular smoke wisp shape
+        for (i in 0 until 8) {
+            val x = 8 + (cos(i * 0.8) * (4 + Random.nextFloat() * 2)).toInt()
+            val y = 8 + (sin(i * 0.8) * (4 + Random.nextFloat() * 2)).toInt()
+            pixmap.fillCircle(x.coerceIn(0, 15), y.coerceIn(0, 15), 2)
+        }
 
         val texture = Texture(pixmap)
         pixmap.dispose()
@@ -296,16 +364,23 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
 
     private fun animateFloatingElements() {
         decorativeElements.forEachIndexed { index, element ->
-            val offsetY = sin(animationTime * 0.5f + (index * 1.5f)) * 20f
-            val originalY = element.y - (element.originY - element.y) // Get original spawn Y
-            element.y = originalY + offsetY
+            // Slow upward drift like cigarette smoke
+            element.y += 0.5f
 
-            // Gentle rotation
-            element.x += cos(animationTime * 0.3f + (index * 2f)) * 0.2f
+            // Gentle side-to-side sway
+            val sway = sin(animationTime * 0.4f + (index * 1.2f)) * 15f
+            val baseX = element.x - (element.x - element.originX) // Original X position
+            element.x = baseX + sway
 
-            // Subtle scale pulsing
-            val scale = 1f + sin(animationTime * 1.5f + index * 0.8f) * 0.15f
-            element.setScale(scale)
+            // Fade in and out
+            val fadePhase = sin(animationTime * 0.6f + index * 0.9f)
+            element.color.a = (0.3f + fadePhase * 0.3f).coerceIn(0.1f, 0.7f)
+
+            // Reset position when smoke drifts too high
+            if (element.y > stage.height + 50) {
+                element.y = -20f
+                element.x = Random.nextFloat() * stage.width
+            }
         }
     }
 
@@ -320,29 +395,29 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
         decorativeElements.forEach { it.isVisible = true }
         mainContainer.toFront()
 
-        // Magical book opening animation
+        // Smoky fade-in effect
         overlay.color.a = 0f
-        overlay.addAction(Actions.fadeIn(0.5f, Interpolation.fade))
+        overlay.addAction(Actions.fadeIn(0.6f, Interpolation.fade))
 
-        mainContainer.scaleX = 0.3f
-        mainContainer.scaleY = 0.3f
+        // Newspaper unfolding animation
+        mainContainer.scaleX = 0.1f
+        mainContainer.scaleY = 0.8f
         mainContainer.color.a = 0f
-        mainContainer.rotation = -180f // Start rotated
+        mainContainer.rotation = 0f
 
         mainContainer.addAction(
             Actions.parallel(
                 Actions.fadeIn(0.5f, Interpolation.fade),
-                Actions.scaleTo(1f, 1f, 0.6f, Interpolation.swingOut),
-                Actions.rotateTo(0f, 0.6f, Interpolation.swingOut)
+                Actions.scaleTo(1f, 1f, 0.7f, Interpolation.swingOut)
             )
         )
 
-        // Animate decorative particles
+        // Smoke particles drift in
         decorativeElements.forEach { particle ->
             particle.color.a = 0f
             particle.addAction(
-                Actions.delay(Random.nextFloat() * 0.3f,
-                    Actions.fadeIn(0.8f, Interpolation.fade))
+                Actions.delay(Random.nextFloat() * 0.4f,
+                    Actions.fadeIn(1.2f, Interpolation.fade))
             )
         }
     }
@@ -351,22 +426,21 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
         isVisible = false
 
         overlay.addAction(Actions.sequence(
-            Actions.fadeOut(0.4f, Interpolation.fade),
+            Actions.fadeOut(0.5f, Interpolation.fade),
             Actions.visible(false)
         ))
 
         mainContainer.addAction(Actions.sequence(
             Actions.parallel(
                 Actions.fadeOut(0.4f, Interpolation.fade),
-                Actions.scaleTo(0.3f, 0.3f, 0.4f, Interpolation.swingIn),
-                Actions.rotateTo(-90f, 0.4f, Interpolation.swingIn)
+                Actions.scaleTo(0.1f, 0.8f, 0.4f, Interpolation.swingIn)
             ),
             Actions.visible(false)
         ))
 
         decorativeElements.forEach { particle ->
             particle.addAction(Actions.sequence(
-                Actions.fadeOut(0.3f, Interpolation.fade),
+                Actions.fadeOut(0.4f, Interpolation.fade),
                 Actions.visible(false)
             ))
         }

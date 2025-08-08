@@ -507,6 +507,7 @@ class ParticleSystem {
     }
 
     var currentSelectedEffect: ParticleEffectType = ParticleEffectType.BLOOD_SPLATTER_1
+    private val renderableInstances = Array<ModelInstance>()
 
     init {
         billboardModelBatch = ModelBatch(billboardShaderProvider)
@@ -696,9 +697,13 @@ class ParticleSystem {
 
         billboardShaderProvider.setEnvironment(environment)
         billboardModelBatch.begin(camera)
+        renderableInstances.clear()
+
         for (particle in activeParticles) {
-            billboardModelBatch.render(particle.instance, environment)
+            renderableInstances.add(particle.instance)
         }
+
+        billboardModelBatch.render(renderableInstances, environment)
         billboardModelBatch.end()
     }
 

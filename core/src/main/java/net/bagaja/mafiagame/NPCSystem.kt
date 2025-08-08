@@ -187,6 +187,7 @@ class NPCSystem : IFinePositionable {
     private val npcTextures = mutableMapOf<NPCType, Texture>()
     private lateinit var billboardModelBatch: ModelBatch
     private lateinit var billboardShaderProvider: BillboardShaderProvider
+    private val renderableInstances = Array<ModelInstance>()
     private val WOBBLE_AMPLITUDE_DEGREES = 5f // How far it tilts left/right. 10 degrees is a good start.
     private val WOBBLE_FREQUENCY = 6f
     private val fleeDuration = 5.0f
@@ -525,12 +526,20 @@ class NPCSystem : IFinePositionable {
     }
 
     fun renderNPCs(camera: Camera, environment: Environment, npcs: Array<GameNPC>) {
-        billboardShaderProvider.setEnvironment(environment)
+        if (npcs.isEmpty) return
 
+        billboardShaderProvider.setEnvironment(environment)
         billboardModelBatch.begin(camera)
+
+        // Collect all NPC instances.
+        renderableInstances.clear()
         for (npc in npcs) {
-            billboardModelBatch.render(npc.modelInstance, environment)
+            renderableInstances.add(npc.modelInstance)
         }
+
+        // Render all NPCs at once.
+        billboardModelBatch.render(renderableInstances, environment)
+
         billboardModelBatch.end()
     }
 

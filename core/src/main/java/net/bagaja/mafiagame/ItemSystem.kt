@@ -26,8 +26,8 @@ class ItemSystem: IFinePositionable {
     private val gameItems = Array<GameItem>()
     private lateinit var itemModelBatch: ModelBatch
     private lateinit var billboardShaderProvider: BillboardShaderProvider
+    private val renderableInstances = Array<ModelInstance>()
     private val FALL_SPEED = 25f
-    private val MAX_STEP_HEIGHT = 0.5f // Items can step over small bumps
     private var blockSize: Float = 4f // Will be set by initialize
 
     var currentSelectedItem = ItemType.MONEY_STACK
@@ -196,14 +196,24 @@ class ItemSystem: IFinePositionable {
     }
 
     fun render(camera: Camera, environment: Environment) {
-        billboardShaderProvider.setEnvironment(environment)
+        if (gameItems.isEmpty) return
 
+        billboardShaderProvider.setEnvironment(environment)
         itemModelBatch.begin(camera)
+
+        // Collect all visible items.
+        renderableInstances.clear()
         for (item in gameItems) {
             if (!item.isCollected) {
-                itemModelBatch.render(item.modelInstance, environment)
+                renderableInstances.add(item.modelInstance)
             }
         }
+
+        // Render all visible items at once
+        if (renderableInstances.size > 0) {
+            itemModelBatch.render(renderableInstances, environment)
+        }
+
         itemModelBatch.end()
     }
 

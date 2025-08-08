@@ -29,6 +29,7 @@ class BloodPoolSystem {
     private val textures = Array<Texture>()
     private val models = Array<Model>()
     private lateinit var billboardModelBatch: ModelBatch
+    private val renderableInstances = Array<ModelInstance>()
     private lateinit var billboardShaderProvider: BillboardShaderProvider
 
     fun initialize() {
@@ -120,9 +121,12 @@ class BloodPoolSystem {
 
         billboardShaderProvider.setEnvironment(environment)
         billboardModelBatch.begin(camera)
+        renderableInstances.clear()
+
         for (pool in activePools) {
-            billboardModelBatch.render(pool.instance, environment)
+            renderableInstances.add(pool.instance)
         }
+        billboardModelBatch.render(renderableInstances, environment)
         billboardModelBatch.end()
     }
 

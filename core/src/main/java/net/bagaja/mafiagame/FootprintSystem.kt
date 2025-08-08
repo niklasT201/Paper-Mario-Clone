@@ -33,6 +33,7 @@ class FootprintSystem {
     private lateinit var footprintTexture: Texture
     private lateinit var footprintModel: Model
     private lateinit var modelBatch: ModelBatch
+    private val renderableInstances = Array<ModelInstance>()
     private lateinit var shaderProvider: BillboardShaderProvider
 
     companion object {
@@ -51,7 +52,7 @@ class FootprintSystem {
 
         try {
             // Load the texture
-            footprintTexture = Texture(Gdx.files.internal("textures/particles/bloody_prints.png"), true).apply {
+            footprintTexture = Texture(Gdx.files.internal("textures/particles/bloody_shoeprints.png"), true).apply {
                 setFilter(Texture.TextureFilter.MipMapLinearLinear, Texture.TextureFilter.Linear)
             }
 
@@ -124,9 +125,12 @@ class FootprintSystem {
 
         shaderProvider.setEnvironment(environment)
         modelBatch.begin(camera)
+        renderableInstances.clear()
+
         for (footprint in activeFootprints) {
-            modelBatch.render(footprint.instance, environment)
+            renderableInstances.add(footprint.instance)
         }
+        modelBatch.render(renderableInstances, environment)
         modelBatch.end()
     }
 

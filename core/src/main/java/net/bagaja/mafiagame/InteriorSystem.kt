@@ -17,6 +17,7 @@ import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.Matrix4
+import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.JsonReader
 import java.util.*
 
@@ -138,6 +139,7 @@ class InteriorSystem : IFinePositionable {
     private val interiorTextures = mutableMapOf<InteriorType, Texture>()
     private val modelLoader = G3dModelLoader(JsonReader())
     val billboardModelBatch: ModelBatch // For rendering 2D billboards
+    private val renderableBillboards = Array<ModelInstance>()
     private val billboardShaderProvider: BillboardShaderProvider = BillboardShaderProvider()
     private var previewInstance: GameInterior? = null
 
@@ -320,16 +322,22 @@ class InteriorSystem : IFinePositionable {
     fun renderBillboards(camera: Camera, environment: Environment, interiors: com.badlogic.gdx.utils.Array<GameInterior>) {
         billboardShaderProvider.setEnvironment(environment)
         billboardModelBatch.begin(camera)
-        for (interior in interiors) {
-            if (interior.interiorType == InteriorType.PLAYER_SPAWNPOINT) {
-                continue
-            }
 
+        // Collect all billboard instances.
+        renderableBillboards.clear()
+        for (interior in interiors) {
             if (interior.interiorType.is2D && !interior.interiorType.isFloorObject) {
-                // The billboard shader will handle facing the camera
-                billboardModelBatch.render(interior.instance, environment)
+                if (interior.interiorType != InteriorType.PLAYER_SPAWNPOINT) {
+                    renderableBillboards.add(interior.instance)
+                }
             }
         }
+
+        // Render all billboards at once.
+        if (renderableBillboards.size > 0) {
+            billboardModelBatch.render(renderableBillboards, environment)
+        }
+
         billboardModelBatch.end()
     }
 

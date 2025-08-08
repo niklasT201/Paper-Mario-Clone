@@ -55,15 +55,12 @@ public class Lwjgl3Launcher {
 // car spawner
 // car ai to drive around
 // maybe adding bouncy dynamite (1 bounce max)
-// removing flame from burned car image
 // step up stair
 // enemies that get punched, spawn more blood drops and shot enemies leave a blood train behind them
 // killed enemy vanishes over some time (fade out)
 // burned enemies leave dust hill
 // disappeared enemy leaves bones behind it
-// improved bloody footprint image
 // bones image
-// dust image
 // visual throwing and explosion range
 // maybe improving billboard shader
 // placing 5 light sources creates room filling light visually, not actually. probably existing bc the area light disappears
@@ -96,10 +93,13 @@ public class Lwjgl3Launcher {
 // adding ammunition
 // adding health
 // adding multiple city areas
+
 // maybe, not intended for now:
 // Asynchronous/Multi-threaded Chunk Building
 // Incremental Mesh Updates
 // Time-Slicing the Rebuild
+// Advanced AI and Physics Optimization: Spatial Partitioning
+// Future-Proofing: Asset and World Management
 
 // when i place mutliple lights in a room for example, lets say 6, then the big room that should have only light where the light sources are, gets completely bright. BUT this is only a visual bug. when i move to the area where is no light placed and i move away from the light sources i placed, then the room area gets dark again. this is a really weird bug, and i think it has to do with this visible light area or maybe not. im not so sure
 
@@ -111,3 +111,7 @@ public class Lwjgl3Launcher {
 // not coding, more like brainstorming. as you hopefully see, i have a lot of code, also for rooms and houses. now the needed part for later. i will need missions later, so some checks will be needed like, mission started, mission finished, in which mission are you, maybe special values for some missions, so for example that no cars in traffic spawn, unlimited ammunition, unlimited health and so on like in gta 3 or vc to make missions not completely unfair to play. also there will be missions where some events will be permant like a house burning down, so then it would be needed that the house in the world changes. please explain how this would be done and how good my code is already to implement this later
 
 // can you help me with my kotlin 3d game? I have this billboard shader for my player, items, npcs and enemies. it worls fine but i would like to modify it a bit. as you maybe see, the shader makes, that the things that has a userdata set = player are full bright. so you can see them clear. this is fine, but originally i wanted to make it so, that when i place a light source and the light source shines at a billobard, the billboard gets shiny, and when i rotate so now the other side of the billboard is visible, it also gets shiny. as you maybe know, in default in libgdx this is not possible. a billboard can only get shined at from one side and not both. so i wanted to change this, but as it didnt work what i wanted, i made at so they are for now always completely bright. for the player i noticed that i liked this even more, but i dont like it so much for everything eslse. i would like it when the player would stay as it is, so always fully bright, but everything else can be shined from both sides and not only one. but the problem is, that it seems like when i place a light source that shines at something that uses this billboard shader, it completely ignores it, like these things dont exist. why is this happening and is there a way to fix it?
+
+// can you help me with my kotlin 3d game?
+//
+//i want a small visual option in my game, in default false. i want that you can play the game in multiple screen options. obvious the normal one as any modern game has, so full screen or smaller, but also and this is the new part i want from you, black bars at the left and right side, so it looks like an old movie that has, i dont know the format name, 4:3 or something like this? nearly quadrated i think it is. as you can have multiple shaders, also an old movie shader, this would be a very cool defailt. can you add this?

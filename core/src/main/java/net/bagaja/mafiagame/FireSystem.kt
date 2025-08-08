@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g3d.Environment
 import com.badlogic.gdx.graphics.g3d.ModelBatch
+import com.badlogic.gdx.graphics.g3d.ModelInstance
 import kotlin.random.Random
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
@@ -87,6 +88,7 @@ class FireSystem {
     private lateinit var fireAnimationFrames: kotlin.Array<String>
     private lateinit var frameTextures: List<Texture>
     private lateinit var billboardModelBatch: ModelBatch
+    private val renderableInstances = Array<ModelInstance>()
     private lateinit var billboardShaderProvider: BillboardShaderProvider
 
     // Configurable properties for the NEXT fire to be placed
@@ -257,10 +259,12 @@ class FireSystem {
 
         billboardShaderProvider.setEnvironment(environment)
         billboardModelBatch.begin(camera)
+        renderableInstances.clear()
+
         for (fire in activeFires) {
-            // The fire's update logic already sets its transform correctly
-            billboardModelBatch.render(fire.gameObject.modelInstance, environment)
+            renderableInstances.add(fire.gameObject.modelInstance)
         }
+        billboardModelBatch.render(renderableInstances, environment)
         billboardModelBatch.end()
     }
 
