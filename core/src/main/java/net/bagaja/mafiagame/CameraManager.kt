@@ -16,6 +16,8 @@ class CameraManager {
     lateinit var uiCamera: OrthographicCamera
         private set
 
+    lateinit var game: MafiaGame
+
     // Camera modes
     enum class CameraMode {
         ORBITING,    // Original orbiting camera (for building/placing blocks)
@@ -180,25 +182,27 @@ class CameraManager {
     }
 
     fun handleMouseScroll(amountY: Float) {
-        when (currentCameraMode) {
-            CameraMode.ORBITING -> {
-                cameraDistance += amountY * 2f
-                cameraDistance = cameraDistance.coerceIn(5f, 50f)
-                updateCameraPosition()
-            }
-            CameraMode.PLAYER -> {
-                // Adjust distance based on whether we are following a player or a car
-                if (isFollowingCar) {
-                    carCameraDistance += amountY * 1.5f
-                    carCameraDistance = carCameraDistance.coerceIn(15f, 40f)
-                } else {
-                    playerCameraDistance += amountY * 1f
-                    playerCameraDistance = playerCameraDistance.coerceIn(8f, 25f)
+        if (game.isEditorMode) {
+            when (currentCameraMode) {
+                CameraMode.ORBITING -> {
+                    cameraDistance += amountY * 2f
+                    cameraDistance = cameraDistance.coerceIn(5f, 50f)
+                    updateCameraPosition()
                 }
-                calculatePlayerCameraTarget()
-            }
-            CameraMode.FREE -> {
-                // Could add zoom functionality for free camera if needed
+                CameraMode.PLAYER -> {
+                    // Adjust distance based on whether we are following a player or a car
+                    if (isFollowingCar) {
+                        carCameraDistance += amountY * 1.5f
+                        carCameraDistance = carCameraDistance.coerceIn(15f, 40f)
+                    } else {
+                        playerCameraDistance += amountY * 1f
+                        playerCameraDistance = playerCameraDistance.coerceIn(8f, 25f)
+                    }
+                    calculatePlayerCameraTarget()
+                }
+                CameraMode.FREE -> {
+                    // Could add zoom functionality for free camera if needed
+                }
             }
         }
     }
@@ -281,27 +285,29 @@ class CameraManager {
 //        }
 
         // Allow height adjustment with R and T keys
-        if (Gdx.input.isKeyPressed(Input.Keys.R)) {
-            // Adjust height for player or car
-            if (isFollowingCar) {
-                carCameraHeight += adjustmentSpeed * 0.5f
-                carCameraHeight = carCameraHeight.coerceIn(5f, 20f)
-            } else {
-                playerCameraHeight += adjustmentSpeed * 0.5f
-                playerCameraHeight = playerCameraHeight.coerceIn(3f, 15f)
+        if (game.isEditorMode) {
+            if (Gdx.input.isKeyPressed(Input.Keys.R)) {
+                // Adjust height for player or car
+                if (isFollowingCar) {
+                    carCameraHeight += adjustmentSpeed * 0.5f
+                    carCameraHeight = carCameraHeight.coerceIn(5f, 20f)
+                } else {
+                    playerCameraHeight += adjustmentSpeed * 0.5f
+                    playerCameraHeight = playerCameraHeight.coerceIn(3f, 15f)
+                }
+                calculatePlayerCameraTarget()
             }
-            calculatePlayerCameraTarget()
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.T)) {
-            // NEW: Adjust height for player or car
-            if (isFollowingCar) {
-                carCameraHeight -= adjustmentSpeed * 0.5f
-                carCameraHeight = carCameraHeight.coerceIn(5f, 20f)
-            } else {
-                playerCameraHeight -= adjustmentSpeed * 0.5f
-                playerCameraHeight = playerCameraHeight.coerceIn(3f, 15f)
+            if (Gdx.input.isKeyPressed(Input.Keys.T)) {
+                // Adjust height for player or car
+                if (isFollowingCar) {
+                    carCameraHeight -= adjustmentSpeed * 0.5f
+                    carCameraHeight = carCameraHeight.coerceIn(5f, 20f)
+                } else {
+                    playerCameraHeight -= adjustmentSpeed * 0.5f
+                    playerCameraHeight = playerCameraHeight.coerceIn(3f, 15f)
+                }
+                calculatePlayerCameraTarget()
             }
-            calculatePlayerCameraTarget()
         }
     }
 

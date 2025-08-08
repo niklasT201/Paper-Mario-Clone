@@ -296,15 +296,15 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
 
     private fun animateFloatingElements() {
         decorativeElements.forEachIndexed { index, element ->
-            val offsetY = sin(animationTime * 2f + index) * 20f
-            val originalY = element.y
-            element.setPosition(element.x, originalY + offsetY)
+            val offsetY = sin(animationTime * 0.5f + (index * 1.5f)) * 20f
+            val originalY = element.y - (element.originY - element.y) // Get original spawn Y
+            element.y = originalY + offsetY
 
             // Gentle rotation
-            element.rotateBy(0.5f)
+            element.x += cos(animationTime * 0.3f + (index * 2f)) * 0.2f
 
             // Subtle scale pulsing
-            val scale = 1f + sin(animationTime * 3f + index * 0.5f) * 0.1f
+            val scale = 1f + sin(animationTime * 1.5f + index * 0.8f) * 0.15f
             element.setScale(scale)
         }
     }

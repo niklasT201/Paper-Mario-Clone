@@ -14,6 +14,7 @@ import com.badlogic.gdx.utils.Array
 import kotlin.math.floor
 
 class MafiaGame : ApplicationAdapter() {
+    val isEditorMode = true
     private lateinit var modelBatch: ModelBatch
     private lateinit var shaderProvider: BillboardShaderProvider
     private lateinit var spriteBatch: SpriteBatch
@@ -119,6 +120,7 @@ class MafiaGame : ApplicationAdapter() {
 
         // Initialize UI Manager
         uiManager = UIManager(
+            this,
             blockSystem,
             objectSystem,
             itemSystem,
@@ -212,6 +214,7 @@ class MafiaGame : ApplicationAdapter() {
 
         // Initialize camera manager
         cameraManager = CameraManager()
+        cameraManager.game = this
         cameraManager.initialize()
 
         // Initialize lighting manager
@@ -1658,7 +1661,8 @@ class MafiaGame : ApplicationAdapter() {
         Gdx.gl.glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a)
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
 
-        if (!uiManager.isPauseMenuVisible()) {
+        val isPaused = uiManager.isPauseMenuVisible()
+        if (!isPaused) {
             // Get delta time for this frame
             val deltaTime = Gdx.graphics.deltaTime
             val timeMultiplier = if (inputHandler.isTimeSpeedUpActive()) 200f else 1f
@@ -1750,26 +1754,28 @@ class MafiaGame : ApplicationAdapter() {
         }
 
         // Update highlight system
-        highlightSystem.update(
-            cameraManager,
-            uiManager,
-            blockSystem,
-            sceneManager.activeChunkManager.getAllBlocks(),
-            sceneManager.activeObjects,
-            sceneManager.activeSpawners,
-            sceneManager.activeCars,
-            sceneManager.activeHouses,
-            backgroundSystem,
-            parallaxBackgroundSystem,
-            itemSystem,
-            objectSystem,
-            raycastSystem,
-            sceneManager.activeInteriors,
-            interiorSystem,
-            sceneManager.activeEnemies,
-            sceneManager.activeNPCs,
-            particleSystem
-        )
+        if (isEditorMode && !isPaused) {
+            highlightSystem.update(
+                cameraManager,
+                uiManager,
+                blockSystem,
+                sceneManager.activeChunkManager.getAllBlocks(),
+                sceneManager.activeObjects,
+                sceneManager.activeSpawners,
+                sceneManager.activeCars,
+                sceneManager.activeHouses,
+                backgroundSystem,
+                parallaxBackgroundSystem,
+                itemSystem,
+                objectSystem,
+                raycastSystem,
+                sceneManager.activeInteriors,
+                interiorSystem,
+                sceneManager.activeEnemies,
+                sceneManager.activeNPCs,
+                particleSystem
+            )
+        }
 
         //shaderProvider.setEnvironment(environment)
         //println("MafiaGame.render: Passing environment to provider, hash: ${environment.hashCode()}")
@@ -1842,8 +1848,10 @@ class MafiaGame : ApplicationAdapter() {
             }
         }
 
-        // Render background preview
-        backgroundSystem.renderPreview(modelBatch, cameraManager.camera, environment)
+        if (isEditorMode) {
+            // Render background preview
+            backgroundSystem.renderPreview(modelBatch, cameraManager.camera, environment)
+        }
 
         // Render 3D player with custom billboard shader
         playerSystem.render(cameraManager.camera, environment)
@@ -1866,22 +1874,24 @@ class MafiaGame : ApplicationAdapter() {
         teleporterSystem.renderNameplates(cameraManager.camera, playerSystem)
         interiorSystem.renderBillboards(cameraManager.camera, environment, sceneManager.activeInteriors)
 
-        // Render highlight using HighlightSystem
-        highlightSystem.render(modelBatch, cameraManager.camera, environment)
+        if (isEditorMode) {
+            // Render highlight using HighlightSystem
+            highlightSystem.render(modelBatch, cameraManager.camera, environment)
 
-        if (interiorSystem.isPreviewActive()) {
-            interiorSystem.billboardModelBatch.begin(cameraManager.camera)
-            interiorSystem.renderPreview(interiorSystem.billboardModelBatch, environment)
-            interiorSystem.billboardModelBatch.end()
-        }
+            if (interiorSystem.isPreviewActive()) {
+                interiorSystem.billboardModelBatch.begin(cameraManager.camera)
+                interiorSystem.renderPreview(interiorSystem.billboardModelBatch, environment)
+                interiorSystem.billboardModelBatch.end()
+            }
 
-        if (showInvisibleBlockOutlines) {
-            highlightSystem.renderInvisibleBlockOutlines(
-                modelBatch,
-                environment,
-                cameraManager.camera,
-                sceneManager.activeChunkManager.getAllBlocks()
-            )
+            if (showInvisibleBlockOutlines) {
+                highlightSystem.renderInvisibleBlockOutlines(
+                    modelBatch,
+                    environment,
+                    cameraManager.camera,
+                    sceneManager.activeChunkManager.getAllBlocks()
+                )
+            }
         }
 
         // Transition to 2D UI Rendering

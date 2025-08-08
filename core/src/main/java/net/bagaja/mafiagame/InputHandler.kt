@@ -107,48 +107,54 @@ class InputHandler(
                 }
                  */
 
+                if (uiManager.isPauseMenuVisible()) {
+                    return true
+                }
+
                 // Handle mouse input
                 when (button) {
                     Input.Buttons.LEFT -> {
-                        isLeftMousePressed = true
-                        onLeftClick(screenX, screenY)
-                        // Reset timer and track position for continuous placement
-                        continuousActionTimer = 0f
-                        lastPlacementX = screenX
-                        lastPlacementY = screenY
-
-                        // NEW: Hide preview right after placing
-                        if (uiManager.selectedTool == Tool.BACKGROUND) {
-                            backgroundSystem.hidePreview()
-                        }
-                        return true
-                    }
-                    Input.Buttons.RIGHT -> {
-                        if (uiManager.selectedTool == Tool.OBJECT) {
-                            val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
-                            val raycastSystem = RaycastSystem(4f) // Assuming block size
-                            val spawner = raycastSystem.getSpawnerAtRay(ray, sceneManager.activeSpawners)
-                            if (spawner != null) {
-                                // Check if debug mode is on (i.e., the purple cube is visible)
-                                if (objectSystem.debugMode) {
-                                    // Debug mode is ON: Remove the spawner directly
-                                } else {
-                                    // Debug mode is OFF: Open the UI for configuration.
-                                    uiManager.showSpawnerUI(spawner)
-                                    return true // Consume the input, preventing removal or camera drag.
-                                }
-                            }
-                        }
-                        // Try to remove a block. If successful, consume the event.
-                        if (onRightClickAttemptBlockRemove(screenX, screenY)) {
-                            isRightMousePressed = true
-                            // Reset timer and track position for continuous removal
+                        if (game.isEditorMode) {
+                            isLeftMousePressed = true
+                            onLeftClick(screenX, screenY)
+                            // Reset timer and track position for continuous placement
                             continuousActionTimer = 0f
-                            lastRemovalX = screenX
-                            lastRemovalY = screenY
+                            lastPlacementX = screenX
+                            lastPlacementY = screenY
+
+                            // Hide preview right after placing
+                            if (uiManager.selectedTool == Tool.BACKGROUND) {
+                                backgroundSystem.hidePreview()
+                            }
                             return true
                         }
-                        // No object removed, handle as camera drag
+                    }
+                    Input.Buttons.RIGHT -> {
+                        if (game.isEditorMode) {
+                            if (uiManager.selectedTool == Tool.OBJECT) {
+                                val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+                                val raycastSystem = RaycastSystem(4f) // Assuming block size
+                                val spawner = raycastSystem.getSpawnerAtRay(ray, sceneManager.activeSpawners)
+                                if (spawner != null) {
+                                    // Check if debug mode is on (i.e., the purple cube is visible)
+                                    if (!objectSystem.debugMode) {
+                                        // Debug mode is OFF: Open the UI for configuration.
+                                        uiManager.showSpawnerUI(spawner)
+                                        return true // Consume the input, preventing removal or camera drag.
+                                    }
+                                }
+                            }
+                            // Try to remove a block. If successful, consume the event.
+                            if (onRightClickAttemptBlockRemove(screenX, screenY)) {
+                                isRightMousePressed = true
+                                // Reset timer and track position for continuous removal
+                                continuousActionTimer = 0f
+                                lastRemovalX = screenX
+                                lastRemovalY = screenY
+                                return true
+                            }
+                            // No object removed, handle as camera drag
+                        }
                         isRightMousePressed = true
                         lastMouseX = screenX.toFloat()
                         lastMouseY = screenY.toFloat()
@@ -167,7 +173,7 @@ class InputHandler(
             }
 
             override fun touchDragged(screenX: Int, screenY: Int, pointer: Int): Boolean {
-                // MODIFIED: Also update the preview when dragging
+                // Also update the preview when dragging
                 handleBackgroundPreviewUpdate(screenX, screenY)
 
                 if (isRightMousePressed && !isBlockBeingRemoved()) {
@@ -254,338 +260,217 @@ class InputHandler(
                 if (uiManager.getStage().keyboardFocus != null) {
                     return false
                 }
-                // Shader effect controls
-                if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) && keycode == Input.Keys.S) {
-                    uiManager.showSaveRoomDialog(sceneManager)
-                    return true // Consume the input
-                }
 
-                // LOAD TEMPLATE HOTKEY
-                if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) && keycode == Input.Keys.L) {
-                    val firstTemplate = roomTemplateManager.getAllTemplates().firstOrNull()
-                    if (firstTemplate != null) {
-                        sceneManager.loadTemplateIntoCurrentInterior(firstTemplate.id)
-                        uiManager.updatePlacementInfo("Loaded template: ${firstTemplate.name}")
-                    } else {
-                        println("No saved templates to load!")
-                        uiManager.updatePlacementInfo("No saved templates to load!")
+                if (keycode == Input.Keys.ESCAPE) {
+                    // First, handle cancelling any ongoing actions
+                    if (game.teleporterSystem.isLinkingMode) {
+                        game.teleporterSystem.cancelLinking()
+                        return true
                     }
-                    return true // Consume the input
+                    // If no actions to cancel, toggle the pause menu.
+                    uiManager.togglePauseMenu()
+                    return true
                 }
 
-                if (isHouseSelectionMode) {
+                if (uiManager.isPauseMenuVisible()) {
+                    return true
+                }
+
+                if (keycode == Input.Keys.F11) {
+                    uiManager.toggleFpsLabel()
+                    return true
+                }
+
+                // EDITOR MODE CHECK
+                if (game.isEditorMode) {
+                    // Shader effect controls
+                    if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) && keycode == Input.Keys.S) {
+                        uiManager.showSaveRoomDialog(sceneManager)
+                        return true // Consume the input
+                    }
+
+                    // LOAD TEMPLATE HOTKEY
+                    if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) && keycode == Input.Keys.L) {
+                        val firstTemplate = roomTemplateManager.getAllTemplates().firstOrNull()
+                        if (firstTemplate != null) {
+                            sceneManager.loadTemplateIntoCurrentInterior(firstTemplate.id)
+                            uiManager.updatePlacementInfo("Loaded template: ${firstTemplate.name}")
+                        } else {
+                            println("No saved templates to load!")
+                            uiManager.updatePlacementInfo("No saved templates to load!")
+                        }
+                        return true // Consume the input
+                    }
+
+                    if (isHouseSelectionMode) {
+                        when (keycode) {
+                            Input.Keys.UP -> {
+                                uiManager.navigateHouseRooms(-1)
+                                return true
+                            }
+                            Input.Keys.DOWN -> {
+                                uiManager.navigateHouseRooms(1)
+                                return true
+                            }
+                            Input.Keys.ENTER -> {
+                                uiManager.selectHouseRoom()
+                                return true
+                            }
+                        }
+                    }
+
                     when (keycode) {
-                        Input.Keys.UP -> {
-                            uiManager.navigateHouseRooms(-1)
+                        Input.Keys.F1 -> {
+                            uiManager.toggleVisibility()
                             return true
                         }
-                        Input.Keys.DOWN -> {
-                            uiManager.navigateHouseRooms(1)
+                        Input.Keys.F2 -> {
+                            shaderEffectManager.nextEffect()
+                            uiManager.updatePlacementInfo("Shader Effect: ${shaderEffectManager.getCurrentEffect().displayName}")
                             return true
                         }
-                        Input.Keys.ENTER -> {
-                            uiManager.selectHouseRoom()
+                        Input.Keys.F3 -> {
+                            shaderEffectManager.previousEffect()
+                            uiManager.updatePlacementInfo("Shader Effect: ${shaderEffectManager.getCurrentEffect().displayName}")
                             return true
                         }
-                    }
-                }
-
-                when (keycode) {
-                    Input.Keys.ESCAPE -> {
-                        // First, handle cancelling any ongoing actions
-                        if (game.teleporterSystem.isLinkingMode) {
-                            game.teleporterSystem.cancelLinking()
+                        Input.Keys.F4 -> {
+                            uiManager.toggleShaderEffectUI()
                             return true
                         }
-                        // If no actions to cancel, toggle the pause menu
-                        uiManager.togglePauseMenu()
-                        return true
-                    }
-                    Input.Keys.F1 -> {
-                        uiManager.toggleVisibility()
-                        return true
-                    }
-                    Input.Keys.F2 -> {
-                        shaderEffectManager.nextEffect()
-                        uiManager.updatePlacementInfo("Shader Effect: ${shaderEffectManager.getCurrentEffect().displayName}")
-                        return true
-                    }
-                    Input.Keys.F3 -> {
-                        shaderEffectManager.previousEffect()
-                        uiManager.updatePlacementInfo("Shader Effect: ${shaderEffectManager.getCurrentEffect().displayName}")
-                        return true
-                    }
-                    Input.Keys.F4 -> {
-                        uiManager.toggleShaderEffectUI()
-                        return true
-                    }
-                    Input.Keys.F5 -> {
-                        val isBright = game.lightingManager.toggleBuildModeBrightness()
-                        val status = if (isBright) "ON" else "OFF"
-                        uiManager.updatePlacementInfo("Build Mode Brightness: $status")
-                        return true
-                    }
-                    Input.Keys.F11 -> {
-                        uiManager.toggleFpsLabel()
-                        return true
-                    }
-                    Input.Keys.K -> {
-                        uiManager.toggleSkyCustomizationUI()
-                        return true
-                    }
-                    Input.Keys.V -> {
-                        // Only cycle area when the block tool is active
-                        if (uiManager.selectedTool == Tool.BLOCK) {
-                            if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) {
-                                blockSystem.previousBuildMode()
-                            } else {
-                                blockSystem.nextBuildMode()
-                            }
-                            uiManager.updateBlockSelection() // Update UI to show the new mode
+                        Input.Keys.F5 -> {
+                            val isBright = game.lightingManager.toggleBuildModeBrightness()
+                            val status = if (isBright) "ON" else "OFF"
+                            uiManager.updatePlacementInfo("Build Mode Brightness: $status")
                             return true
                         }
-                        return false // Not in block mode, let other systems handle 'V' if needed
-                    }
-                    Input.Keys.T -> {
-                        if (isBlockSelectionMode) { // Only cycle shapes when in block mode
-                            if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)) {
-                                blockSystem.previousShape()
-                            } else {
-                                blockSystem.nextShape()
-                            }
-                            uiManager.updateBlockSelection() // Update UI to show the new shape
+                        Input.Keys.K -> {
+                            uiManager.toggleSkyCustomizationUI()
                             return true
                         }
-                        return false
-                    }
-                    Input.Keys.H -> {
-                        if (!isHouseSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isBackgroundSelectionMode) {
-                            isHouseSelectionMode = true
-                            uiManager.showHouseSelection()
-                        }
-                        return true
-                    }
-                    Input.Keys.N -> {
-                        if (!isBackgroundSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode) {
-                            isBackgroundSelectionMode = true
-                            uiManager.showBackgroundSelection()
-                        }
-                        return true
-                    }
-                    Input.Keys.L -> {
-                        // If holding H, toggle the house lock state
-                        if (isHouseSelectionMode) {
-                            houseSystem.toggleLockState()
-                            uiManager.updateHouseSelection()
+                        Input.Keys.C -> {
+                            cameraManager.toggleFreeCameraMode()
                             return true
                         }
-                        // If holding M, toggle the car lock state
-                        if (isCarSelectionMode) {
-                            carSystem.toggleLockState()
-                            uiManager.updateCarSelection()
+                        Input.Keys.G -> {
+                            objectSystem.toggleDebugMode()
+                            game.toggleInvisibleBlockOutlines()
                             return true
                         }
 
-                        // Otherwise normal key actions
-                        if (isParallaxSelectionMode) {
-                            uiManager.nextParallaxLayer()
-                            return true
+                        // Tool-specific hotkeys
+                        Input.Keys.V -> {
+                            // Only cycle area when the block tool is active
+                            if (uiManager.selectedTool == Tool.BLOCK) {
+                                if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) {
+                                    blockSystem.previousBuildMode()
+                                } else {
+                                    blockSystem.nextBuildMode()
+                                }
+                                uiManager.updateBlockSelection() // Update UI to show the new mode
+                                return true
+                            }
+                            return false // Not in block mode, let other systems handle 'V' if needed
                         }
-                        uiManager.toggleLightSourceUI()
-                        return true
-                    }
-                    Input.Keys.B -> {
-                        if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
-                            isBlockSelectionMode = true
-                            uiManager.showBlockSelection()
+                        Input.Keys.T -> {
+                            if (isBlockSelectionMode) {  // Only cycle shapes when in block mode
+                                if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)) {
+                                    blockSystem.previousShape()
+                                } else {
+                                    blockSystem.nextShape()
+                                }
+                                uiManager.updateBlockSelection() // Update UI to show the new shape
+                                return true
+                            }
+                            return false
                         }
-                        return true
-                    }
-                    Input.Keys.O -> {
-                        if (!isObjectSelectionMode && !isBlockSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
-                            isObjectSelectionMode = true
-                            uiManager.showObjectSelection()
+                        Input.Keys.R -> {
+                            if (isBlockSelectionMode) {
+                                blockSystem.toggleRotationMode()
+                                uiManager.updateBlockSelection()
+                                return true
+                            }
+                            if (isInteriorSelectionMode) {
+                                interiorSystem.rotateSelection()
+                                uiManager.updateInteriorSelection()
+                                return true
+                            }
                         }
-                        return true
-                    }
-                    Input.Keys.I -> {
-                        if (!isItemSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
-                            isItemSelectionMode = true
-                            uiManager.showItemSelection()
-                        }
-                        return true
-                    }
-                    Input.Keys.M -> {
-                        if (!isCarSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
-                            isCarSelectionMode = true
-                            uiManager.showCarSelection()
-                        }
-                        return true
-                    }
-                    // Key to cycle background placement modes
-                    Input.Keys.P -> {
-                        // If parallax tool is active, this key now shows the parallax selection UI
-                        if (uiManager.selectedTool == Tool.PARALLAX) {
-                            if (!isParallaxSelectionMode) {
-                                isParallaxSelectionMode = true
-                                uiManager.showParallaxSelection()
+                        Input.Keys.Q, Input.Keys.E -> {
+                            val reverse = (keycode == Input.Keys.E)
+                            when {
+                                uiManager.selectedTool == Tool.NPC -> {
+                                    npcSystem.toggleRotation()
+                                    val direction = if (npcSystem.currentRotation == 0f) "Right" else "Left"
+                                    uiManager.updatePlacementInfo("NPC will face: $direction")
+                                }
+                                uiManager.selectedTool == Tool.BLOCK || isBlockSelectionMode -> {
+                                    if (reverse) blockSystem.rotateCurrentBlockReverse() else blockSystem.rotateCurrentBlock()
+                                    uiManager.updateBlockSelection()
+                                }
                             }
                             return true
                         }
-                        if (uiManager.selectedTool == Tool.BACKGROUND) {
-                            backgroundSystem.cyclePlacementMode()
-                            // Force an update of the preview to reflect the new mode
-                            handleBackgroundPreviewUpdate(Gdx.input.x, Gdx.input.y)
-                        }
-                        return true
-                    }
-                    Input.Keys.F -> {
-                        if (isInteriorSelectionMode) {
-                            interiorSystem.toggleFinePosMode()
-                            uiManager.updateInteriorSelection()
+
+                        Input.Keys.B -> { if (!isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) { isBlockSelectionMode = true; uiManager.showBlockSelection(); }; return true }
+                        Input.Keys.O -> { if (!isObjectSelectionMode && !isBlockSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) { isObjectSelectionMode = true; uiManager.showObjectSelection(); }; return true }
+                        Input.Keys.I -> { if (!isItemSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) { isItemSelectionMode = true; uiManager.showItemSelection(); }; return true }
+                        Input.Keys.M -> { if (!isCarSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) { isCarSelectionMode = true; uiManager.showCarSelection(); }; return true }
+                        Input.Keys.H -> { if (!isHouseSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isBackgroundSelectionMode) { isHouseSelectionMode = true; uiManager.showHouseSelection(); }; return true }
+                        Input.Keys.N -> { if (!isBackgroundSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode) { isBackgroundSelectionMode = true; uiManager.showBackgroundSelection(); }; return true }
+                        Input.Keys.J -> { if (!isInteriorSelectionMode && !isItemSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) { isInteriorSelectionMode = true; uiManager.showInteriorSelection(); }; return true }
+                        Input.Keys.Y -> { if (!isEnemySelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode && !isInteriorSelectionMode && !isNPCSelectionMode) { isEnemySelectionMode = true; uiManager.showEnemySelection(); }; return true }
+                        Input.Keys.U -> { if (!isNPCSelectionMode && !isEnemySelectionMode && !isBlockSelectionMode&& !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode && !isInteriorSelectionMode) { isNPCSelectionMode = true; uiManager.showNPCSelection(); }; return true }
+                        Input.Keys.X -> { if (!isParticleSelectionMode && !isNPCSelectionMode && !isEnemySelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode && !isInteriorSelectionMode) { isParticleSelectionMode = true; uiManager.showParticleSelection(); }; return true }
+
+                        // Other special keys
+                        Input.Keys.L -> {
+                            if (isHouseSelectionMode) { houseSystem.toggleLockState(); uiManager.updateHouseSelection(); return true }
+                            if (isCarSelectionMode) { carSystem.toggleLockState(); uiManager.updateCarSelection(); return true }
+                            if (isParallaxSelectionMode) { uiManager.nextParallaxLayer(); return true }
+                            uiManager.toggleLightSourceUI()
                             return true
                         }
-                        getCurrentPositionableSystem()?.toggleFinePosMode()
-                        return true
-                    }
-                    Input.Keys.G -> {
-                        // Toggle debug mode for objects (to see invisible ones)
-                        objectSystem.toggleDebugMode()
-                        game.toggleInvisibleBlockOutlines()
-                        return true
-                    }
-                    Input.Keys.C -> {
-                        cameraManager.toggleFreeCameraMode()
-                        return true
-                    }
-                    // Camera mode switching
-//                    Input.Keys.NUM_1 -> {
-//                        cameraManager.switchToOrbitingCamera()
-//                        return true
-//                    }
-//                    Input.Keys.NUM_2 -> {
-//                        cameraManager.switchToPlayerCamera()
-//                        return true
-//                    }
-                    // Tool selection
-                    Input.Keys.NUMPAD_1 -> uiManager.selectedTool = Tool.BLOCK
-                    Input.Keys.NUMPAD_2 -> uiManager.selectedTool = Tool.PLAYER
-                    Input.Keys.NUMPAD_3 -> uiManager.selectedTool = Tool.OBJECT
-                    Input.Keys.NUMPAD_4 -> uiManager.selectedTool = Tool.ITEM
-                    Input.Keys.NUMPAD_5 -> uiManager.selectedTool = Tool.CAR
-                    Input.Keys.NUMPAD_6 -> uiManager.selectedTool = Tool.HOUSE
-                    Input.Keys.NUMPAD_7 -> uiManager.selectedTool = Tool.BACKGROUND
-                    Input.Keys.NUMPAD_8 -> uiManager.selectedTool = Tool.PARALLAX
-                    Input.Keys.NUMPAD_9 -> uiManager.selectedTool = Tool.INTERIOR
-                    Input.Keys.NUMPAD_0 -> uiManager.selectedTool = Tool.ENEMY
-                    Input.Keys.NUM_7 -> uiManager.selectedTool = Tool.NPC
-                    Input.Keys.NUM_6 -> uiManager.selectedTool = Tool.PARTICLE
-                    // Fine positioning controls
-                    Input.Keys.LEFT -> {
-                        if (getCurrentPositionableSystem()?.finePosMode == true) {
-                            leftPressed = true; continuousFineTimer = 0f; return true
-                        }
-                    }
-                    Input.Keys.RIGHT -> {
-                        if (getCurrentPositionableSystem()?.finePosMode == true) {
-                            rightPressed = true; continuousFineTimer = 0f; return true
-                        }
-                    }
-                    Input.Keys.UP -> {
-                        if (getCurrentPositionableSystem()?.finePosMode == true) {
-                            upPressed = true; continuousFineTimer = 0f; return true
-                        }
-                    }
-                    Input.Keys.DOWN -> {
-                        if (getCurrentPositionableSystem()?.finePosMode == true) {
-                            downPressed = true; continuousFineTimer = 0f; return true
-                        }
-                    }
-                    Input.Keys.NUM_0 -> {
-                        if (getCurrentPositionableSystem()?.finePosMode == true) {
-                            pageUpPressed = true; continuousFineTimer = 0f; return true
-                        }
-                    }
-                    Input.Keys.NUM_9 -> {
-                        if (getCurrentPositionableSystem()?.finePosMode == true) {
-                            pageDownPressed = true; continuousFineTimer = 0f; return true
-                        }
-                    }
-                    Input.Keys.COMMA -> { isTimeSpeedUpPressed = true; return true }
-                    Input.Keys.Q -> {
-                        if (uiManager.selectedTool == Tool.NPC) {
-                            npcSystem.toggleRotation()
-                            val direction = if (npcSystem.currentRotation == 0f) "Right" else "Left"
-                            uiManager.updatePlacementInfo("NPC will face: $direction")
+                        // Key to cycle background placement modes
+                        Input.Keys.P -> {
+                            // If parallax tool is active, this key now shows the parallax selection UI
+                            if (uiManager.selectedTool == Tool.PARALLAX) { if (!isParallaxSelectionMode) { isParallaxSelectionMode = true; uiManager.showParallaxSelection(); }; return true }
+                            if (uiManager.selectedTool == Tool.BACKGROUND) { backgroundSystem.cyclePlacementMode(); handleBackgroundPreviewUpdate(Gdx.input.x, Gdx.input.y); }
                             return true
                         }
-                        // Only rotate if we're in block mode/selection
-                        if (uiManager.selectedTool == Tool.BLOCK || isBlockSelectionMode) {
-                            blockSystem.rotateCurrentBlock()
-                            // Update UI to show current rotation if you have rotation display
-                            uiManager.updateBlockSelection()
-                            return true
-                        }
+                        Input.Keys.F -> { getCurrentPositionableSystem()?.toggleFinePosMode(); return true }
+
+                        // Numpad tool selection
+                        Input.Keys.NUMPAD_1 -> uiManager.selectedTool = Tool.BLOCK
+                        Input.Keys.NUMPAD_2 -> uiManager.selectedTool = Tool.PLAYER
+                        Input.Keys.NUMPAD_3 -> uiManager.selectedTool = Tool.OBJECT
+                        Input.Keys.NUMPAD_4 -> uiManager.selectedTool = Tool.ITEM
+                        Input.Keys.NUMPAD_5 -> uiManager.selectedTool = Tool.CAR
+                        Input.Keys.NUMPAD_6 -> uiManager.selectedTool = Tool.HOUSE
+                        Input.Keys.NUMPAD_7 -> uiManager.selectedTool = Tool.BACKGROUND
+                        Input.Keys.NUMPAD_8 -> uiManager.selectedTool = Tool.PARALLAX
+                        Input.Keys.NUMPAD_9 -> uiManager.selectedTool = Tool.INTERIOR
+                        Input.Keys.NUMPAD_0 -> uiManager.selectedTool = Tool.ENEMY
+                        Input.Keys.NUM_7 -> uiManager.selectedTool = Tool.NPC
+                        Input.Keys.NUM_6 -> uiManager.selectedTool = Tool.PARTICLE
+                        // Fine positioning controls
+                        Input.Keys.LEFT -> { if (getCurrentPositionableSystem()?.finePosMode == true) { leftPressed = true; continuousFineTimer = 0f; return true } }
+                        Input.Keys.RIGHT -> { if (getCurrentPositionableSystem()?.finePosMode == true) { rightPressed = true; continuousFineTimer = 0f; return true } }
+                        Input.Keys.UP -> { if (getCurrentPositionableSystem()?.finePosMode == true) { upPressed = true; continuousFineTimer = 0f; return true } }
+                        Input.Keys.DOWN -> { if (getCurrentPositionableSystem()?.finePosMode == true) { downPressed = true; continuousFineTimer = 0f; return true } }
+                        Input.Keys.NUM_0 -> { if (getCurrentPositionableSystem()?.finePosMode == true) { pageUpPressed = true; continuousFineTimer = 0f; return true } }
+                        Input.Keys.NUM_9 -> { if (getCurrentPositionableSystem()?.finePosMode == true) { pageDownPressed = true; continuousFineTimer = 0f; return true } }
+
+                        // Gameplay/Debug controls
+                        Input.Keys.COMMA -> { isTimeSpeedUpPressed = true; return true }
                     }
-                    Input.Keys.E -> {
-                        if (uiManager.selectedTool == Tool.NPC) {
-                            npcSystem.toggleRotation()
-                            val direction = if (npcSystem.currentRotation == 0f) "Right" else "Left"
-                            uiManager.updatePlacementInfo("NPC will face: $direction")
-                            return true
-                        }
-                        if (uiManager.selectedTool == Tool.BLOCK || isBlockSelectionMode) {
-                            blockSystem.rotateCurrentBlockReverse()
-                            uiManager.updateBlockSelection()
-                            return true
-                        }
+
+                    // Update UI after tool selection
+                    if (keycode in Input.Keys.NUMPAD_0..Input.Keys.NUMPAD_9 || keycode == Input.Keys.NUM_6 || keycode == Input.Keys.NUM_7) {
+                        uiManager.updateToolDisplay()
+                        // Update preview in case we switched to/from the background tool
+                        handleBackgroundPreviewUpdate(Gdx.input.x, Gdx.input.y)
                     }
-                    Input.Keys.J -> {
-                        if (!isInteriorSelectionMode && !isItemSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) {
-                            isInteriorSelectionMode = true
-                            uiManager.showInteriorSelection()
-                        }
-                        return true
-                    }
-                    Input.Keys.R -> {
-                        if (isBlockSelectionMode) {
-                            blockSystem.toggleRotationMode()
-                            uiManager.updateBlockSelection() // Refresh the UI to show the new mode
-                            return true
-                        }
-                        if (isInteriorSelectionMode) {
-                            interiorSystem.rotateSelection()
-                            uiManager.updateInteriorSelection()
-                            return true
-                        }
-                    }
-                    Input.Keys.Y -> {
-                        if (!isEnemySelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode && !isInteriorSelectionMode && !isNPCSelectionMode) {
-                            isEnemySelectionMode = true
-                            uiManager.showEnemySelection()
-                        }
-                        return true
-                    }
-                    Input.Keys.X -> {
-                        if (!isParticleSelectionMode && !isNPCSelectionMode && !isEnemySelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode && !isInteriorSelectionMode) {
-                            isParticleSelectionMode = true
-                            uiManager.showParticleSelection()
-                        }
-                        return true
-                    }
-                    Input.Keys.U -> {
-                        if (!isNPCSelectionMode && !isEnemySelectionMode && !isBlockSelectionMode&& !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode && !isInteriorSelectionMode) {
-                            isNPCSelectionMode = true
-                            uiManager.showNPCSelection()
-                        }
-                        return true
-                    }
-                }
-                // Update UI after tool selection
-                if (keycode in Input.Keys.NUMPAD_0..Input.Keys.NUMPAD_9) {
-                    uiManager.updateToolDisplay()
-                    // Update preview in case we switched to/from the background tool
-                    handleBackgroundPreviewUpdate(Gdx.input.x, Gdx.input.y)
                 }
                 return false
             }

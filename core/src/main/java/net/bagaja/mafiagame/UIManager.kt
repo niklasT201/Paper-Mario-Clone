@@ -22,6 +22,7 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 class UIManager(
+    private val game: MafiaGame,
     private val blockSystem: BlockSystem,
     private val objectSystem: ObjectSystem,
     private val itemSystem: ItemSystem,
@@ -171,7 +172,7 @@ class UIManager(
         pauseMenuUI.initialize()
 
         // Set initial visibility for the main UI panel
-        mainTable.isVisible = isUIVisible
+        mainTable.isVisible = isUIVisible && game.isEditorMode
     }
 
     private fun setupMainUI() {
@@ -1121,6 +1122,11 @@ class UIManager(
     }
 
     fun toggleVisibility() {
+        if (!game.isEditorMode) {
+            isUIVisible = false
+            mainTable.isVisible = false
+            return
+        }
         isUIVisible = !isUIVisible
         mainTable.isVisible = isUIVisible
 
@@ -1538,6 +1544,7 @@ class UIManager(
     fun getStage(): Stage = stage
 
     fun render() {
+        pauseMenuUI.update(Gdx.graphics.deltaTime)
         skyCustomizationUI.update()
         shaderEffectUI.update()
         stage.act(Gdx.graphics.deltaTime)
