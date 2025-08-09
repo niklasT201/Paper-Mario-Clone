@@ -26,6 +26,9 @@ class HouseSystem: IFinePositionable {
         private set
     var isNextHouseLocked: Boolean = false
         private set
+    var currentRotation: Float = 0f
+        private set
+    private val rotationStep = 90f
 
     var selectedRoomTemplateId: String? = null
 
@@ -63,6 +66,11 @@ class HouseSystem: IFinePositionable {
                 e.printStackTrace()
             }
         }
+    }
+
+    fun rotateSelection() {
+        currentRotation = (currentRotation + rotationStep) % 360f
+        println("House rotation set to: $currentRotation")
     }
 
     fun nextHouse() {
@@ -116,6 +124,7 @@ data class GameHouse(
     val isLocked: Boolean,
     val assignedRoomTemplateId: String? = null,
     var exitDoorId: String? = null,
+    var rotationY: Float = 0f,
     val id: String = UUID.randomUUID().toString()
 ) {
     // Data for Mesh Collision
@@ -242,6 +251,11 @@ data class GameHouse(
         }
 
         return false
+    }
+
+    fun updateTransform() {
+        modelInstance.transform.setToTranslationAndScaling(position, Vector3(6f, 6f, 6f))
+        modelInstance.transform.rotate(Vector3.Y, rotationY)
     }
 }
 

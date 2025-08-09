@@ -701,7 +701,7 @@ class MafiaGame : ApplicationAdapter() {
             is GameHouse -> {
                 instance.position.add(deltaX, deltaY, deltaZ)
                 // Apply uniform scaling to all house types
-                instance.modelInstance.transform.setToTranslationAndScaling(instance.position, Vector3(6f, 6f, 6f))
+                instance.updateTransform()
                 println("Moved House to ${instance.position}")
             }
             is GameItem -> {
@@ -1223,7 +1223,6 @@ class MafiaGame : ApplicationAdapter() {
     private fun addHouseToCollection(x: Float, y: Float, z: Float, houseType: HouseType, collection: Array<GameHouse>) {
         val houseInstance = houseSystem.createHouseInstance(houseType) ?: return
         val position = Vector3(x, y, z)
-        houseInstance.transform.setToTranslationAndScaling(position, Vector3(6f, 6f, 6f))
 
         val canHaveRoom = houseType.canHaveRoom
         val isLocked = if (canHaveRoom) houseSystem.isNextHouseLocked else false
@@ -1235,8 +1234,11 @@ class MafiaGame : ApplicationAdapter() {
             position = position,
             isLocked = isLocked,
             assignedRoomTemplateId = roomTemplateId,
-            exitDoorId = null
+            exitDoorId = null,
+            rotationY = houseSystem.currentRotation
         )
+        gameHouse.updateTransform()
+
         collection.add(gameHouse)
         lastPlacedInstance = gameHouse
 

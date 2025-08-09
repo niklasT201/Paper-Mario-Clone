@@ -50,8 +50,10 @@ public class Lwjgl3Launcher {
 // occlusion optional
 
 // changing room transition effect colors
-// rotating house key
 // edge houses
+// burned ash spawns after enemy burned to death
+// visual debug showing up when not in editor mode
+// bones showing up after some time an  enemy was killed
 // car maybe be able to step up half a block
 // optional weapon light
 // car spawner

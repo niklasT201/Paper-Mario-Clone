@@ -399,6 +399,10 @@ class InputHandler(
                         Input.Keys.Q, Input.Keys.E -> {
                             val reverse = (keycode == Input.Keys.E)
                             when {
+                                uiManager.selectedTool == Tool.HOUSE -> {
+                                    houseSystem.rotateSelection()
+                                    uiManager.updatePlacementInfo("House Rotation: ${houseSystem.currentRotation}°")
+                                }
                                 uiManager.selectedTool == Tool.NPC -> {
                                     npcSystem.toggleRotation()
                                     val direction = if (npcSystem.currentRotation == 0f) "Right" else "Left"
