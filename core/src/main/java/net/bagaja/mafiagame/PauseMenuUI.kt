@@ -100,9 +100,13 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
 
         // Menu buttons with 1920s styling
         val buttonsTable = Table()
+        // Original: "✦ RESUME ✦"
         buttonsTable.add(createVintageButton("⚡ RESUME OPERATIONS ⚡", Color.valueOf("#8B4513"))).fillX().height(60f).padBottom(10f).row()
+        // Original: "⚙ SETTINGS ⚙"
         buttonsTable.add(createVintageButton("⚙ MODIFY RACKET ⚙", Color.valueOf("#654321"))).fillX().height(60f).padBottom(10f).row()
+        // Original: "💾 SAVE GAME 💾"
         buttonsTable.add(createVintageButton("💰 STASH THE LOOT 💰", Color.valueOf("#2F4F2F"))).fillX().height(60f).padBottom(10f).row()
+        // Original: "🚪 QUIT TO MENU 🚪"
         buttonsTable.add(createVintageButton("🚪 ABANDON TERRITORY 🚪", Color.valueOf("#8B0000"))).fillX().height(60f).padTop(15f).row()
 
         newspaperTable.add(buttonsTable).width(380f).row()
@@ -323,7 +327,7 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
     }
 
     private fun createFloatingDecorations() {
-        decorativeElements = Array(5) { index ->
+        decorativeElements = Array(8) { index ->
             val decoration = createSmokeParticle()
             decoration.setPosition(
                 Random.nextFloat() * stage.width,
@@ -336,25 +340,53 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
     }
 
     private fun createSmokeParticle(): Image {
-        val pixmap = Pixmap(16, 16, Pixmap.Format.RGBA8888)
+        val pixmap = Pixmap(20, 20, Pixmap.Format.RGBA8888)
 
-        // Create cigarette smoke wisps
+        // Create more realistic cigarette smoke wisps
         val smokeColors = arrayOf(
+            Color.valueOf("#E5E5E5"), // Very light gray
             Color.valueOf("#D3D3D3"), // Light gray
-            Color.valueOf("#A9A9A9"), // Dark gray
-            Color.valueOf("#C0C0C0"), // Silver
-            Color.valueOf("#F5F5DC")  // Beige
+            Color.valueOf("#C8C8C8"), // Medium light gray
+            Color.valueOf("#F0F0F0")  // Almost white
         )
 
-        val color = smokeColors[Random.nextInt(smokeColors.size)]
-        color.a = 0.6f
-        pixmap.setColor(color)
+        val baseColor = smokeColors[Random.nextInt(smokeColors.size)]
 
-        // Irregular smoke wisp shape
-        for (i in 0 until 8) {
-            val x = 8 + (cos(i * 0.8) * (4 + Random.nextFloat() * 2)).toInt()
-            val y = 8 + (sin(i * 0.8) * (4 + Random.nextFloat() * 2)).toInt()
-            pixmap.fillCircle(x.coerceIn(0, 15), y.coerceIn(0, 15), 2)
+        // Create wispy smoke with varying density
+        val smokeShape = Random.nextInt(3)
+        when (smokeShape) {
+            0 -> {
+                // Circular wisp
+                for (radius in 1..6) {
+                    val alpha = (0.8f - radius * 0.12f).coerceAtLeast(0.1f)
+                    val color = Color(baseColor.r, baseColor.g, baseColor.b, alpha)
+                    pixmap.setColor(color)
+                    pixmap.fillCircle(10, 10, radius)
+                }
+            }
+            1 -> {
+                // Elongated wisp
+                for (i in 0 until 12) {
+                    val alpha = (0.7f - i * 0.05f).coerceAtLeast(0.1f)
+                    val color = Color(baseColor.r, baseColor.g, baseColor.b, alpha)
+                    pixmap.setColor(color)
+                    val thickness = (4 - i / 3).coerceAtLeast(1)
+                    pixmap.fillCircle(10 + (sin(i * 0.3) * 2).toInt(), 5 + i, thickness)
+                }
+            }
+            else -> {
+                // Swirly wisp
+                for (i in 0 until 10) {
+                    val angle = i * 0.6
+                    val radius = 2 + i * 0.4
+                    val alpha = (0.6f - i * 0.05f).coerceAtLeast(0.1f)
+                    val color = Color(baseColor.r, baseColor.g, baseColor.b, alpha)
+                    pixmap.setColor(color)
+                    val x = (10 + cos(angle) * radius).toInt().coerceIn(0, 19)
+                    val y = (10 + sin(angle) * radius).toInt().coerceIn(0, 19)
+                    pixmap.fillCircle(x, y, 2)
+                }
+            }
         }
 
         val texture = Texture(pixmap)
@@ -364,22 +396,34 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
 
     private fun animateFloatingElements() {
         decorativeElements.forEachIndexed { index, element ->
-            // Slow upward drift like cigarette smoke
-            element.y += 0.5f
+            // More realistic smoke behavior - slower, more organic movement
+            val baseSpeed = 0.3f + (index % 3) * 0.1f
+            element.y += baseSpeed
 
-            // Gentle side-to-side sway
-            val sway = sin(animationTime * 0.4f + (index * 1.2f)) * 15f
-            val baseX = element.x - (element.x - element.originX) // Original X position
-            element.x = baseX + sway
+            // Natural smoke turbulence with layered movement
+            val primarySway = sin(animationTime * 0.3f + (index * 0.8f)) * 12f
+            val secondarySway = cos(animationTime * 0.7f + (index * 1.3f)) * 6f
+            val turbulence = sin(animationTime * 1.5f + (index * 2.1f)) * 3f
 
-            // Fade in and out
-            val fadePhase = sin(animationTime * 0.6f + index * 0.9f)
-            element.color.a = (0.3f + fadePhase * 0.3f).coerceIn(0.1f, 0.7f)
+            val baseX = Random.nextFloat() * stage.width // More random starting positions
+            element.x = baseX + primarySway + secondarySway + turbulence
 
-            // Reset position when smoke drifts too high
-            if (element.y > stage.height + 50) {
-                element.y = -20f
-                element.x = Random.nextFloat() * stage.width
+            // More complex fading - smoke gets lighter as it rises
+            val lifePhase = ((element.y / stage.height) * 2f).coerceIn(0f, 1f)
+            val fadeIntensity = sin(animationTime * 0.5f + index * 0.7f)
+            val baseAlpha = 0.4f - (lifePhase * 0.3f) // Fade as it rises
+            element.color.a = (baseAlpha + fadeIntensity * 0.15f).coerceIn(0.05f, 0.6f)
+
+            // Slight scale changes for depth illusion
+            val scaleVariation = 1f + sin(animationTime * 0.4f + index * 1.1f) * 0.2f
+            element.setScale(scaleVariation)
+
+            // Reset smoke particle when it drifts away
+            if (element.y > stage.height + 50 || element.x < -30 || element.x > stage.width + 30) {
+                element.y = -30f - Random.nextFloat() * 20f // Start below screen
+                element.x = Random.nextFloat() * (stage.width + 60f) - 30f // Can start slightly off-screen
+                element.color.a = 0.5f // Reset to fuller opacity
+                element.setScale(0.8f + Random.nextFloat() * 0.4f) // Random initial scale
             }
         }
     }

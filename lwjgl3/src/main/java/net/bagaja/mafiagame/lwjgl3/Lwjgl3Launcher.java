@@ -50,6 +50,8 @@ public class Lwjgl3Launcher {
 // occlusion optional
 
 // changing room transition effect colors
+// rotating house key
+// edge houses
 // car maybe be able to step up half a block
 // optional weapon light
 // car spawner

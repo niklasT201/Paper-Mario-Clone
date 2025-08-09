@@ -281,13 +281,18 @@ enum class BlockType(
     // STREET & OUTDOOR
     COBBLESTONE("Cobblestone", "textures/objects/cobblestone_tile.png", 1.0f, BlockCategory.STREET),
     STONE("Stone", "textures/objects/stone_tile.png", 1.0f, BlockCategory.STREET),
+    STREET_DIRTY_PATH("Street (Low)", "textures/objects/street_dirty_path.png", 0.8f, BlockCategory.STREET),
     STREET_LOW("Street (Low)", "textures/objects/street_cheap.png", 0.8f, BlockCategory.STREET),
     SIDEWALK_POOR("Sidewalk (Poor)", "textures/objects/sidewalk_poor.png", 1.0f, BlockCategory.STREET),
     STREET_INDUSTRY("Street (Industry)", "textures/objects/street_industry.png", 0.8f, BlockCategory.STREET),
     SIDEWALK("Sidewalk", "textures/objects/sidewalk.png", 1.0f, BlockCategory.STREET),
     SIDEWALK_START("Sidewalk Start", "textures/objects/sidewalk_start.png", 1.0f, BlockCategory.STREET),
     SIDEWALK_INDUSTRY("Sidewalk (Industry)", "textures/objects/sidewalk_indutry.png", 1.0f, BlockCategory.STREET),
-    STREET_TILE("Street Tile", "textures/objects/street_tile.png", 1.0f, BlockCategory.STREET),
+    STREET_TILE("Street Tile", "textures/objects/street_tile.png", 0.8f, BlockCategory.STREET),
+    DARK_STREET("Street Tile", "textures/objects/street_beton.png", 0.8f, BlockCategory.STREET),
+    DARK_STREET_MIDDLE("Street Tile", "textures/objects/street_beton_middle.png", 0.8f, BlockCategory.STREET),
+    DARK_STREET_MIXED("Street Tile", "textures/objects/street_beton_mixed.png", 0.8f, BlockCategory.STREET),
+    OLD_STREET("Street Tile", "textures/objects/street_poor_area.png", 0.8f, BlockCategory.STREET),
 
     // WINDOWS & DOORS
     WINDOW_OPENED("Window Opened", "textures/objects/window.png", 1.0f, BlockCategory.WINDOWS),
