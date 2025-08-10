@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.OrthographicCamera
 import com.badlogic.gdx.graphics.PerspectiveCamera
+import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.math.Vector3
 import kotlin.math.cos
 import kotlin.math.sin
@@ -47,10 +48,15 @@ class CameraManager {
     private var currentPlayerCameraPosition = Vector3()
     private var targetPlayerCameraPosition = Vector3()
 
+    // Camera Flip Logic
+    private var isCameraFlipped = false
+    private var playerCameraAngle = 90f // This is now the CURRENT angle
+    private var targetPlayerCameraAngle = 90f // This is the angle we are moving TOWARDS
+    private val cameraAngleSmoothing = 8f // How fast the camera flips
+
     // Player-specific settings (Paper Mario style)
     private var playerCameraDistance = 15f // Distance behind/beside the player
     private var playerCameraHeight = 8f // Height above the player
-    private var playerCameraAngle = 90f // Side view angle
     private var playerLookAtHeightOffset = 1f // Look at player's chest area
 
     // Car-specific camera settings
@@ -135,6 +141,17 @@ class CameraManager {
         }
     }
 
+    fun flipCamera() {
+        isCameraFlipped = !isCameraFlipped
+        if (isCameraFlipped) {
+            // Add 180 degrees to flip to the back
+            targetPlayerCameraAngle += 180f
+        } else {
+            // Subtract 180 degrees to flip back to the front
+            targetPlayerCameraAngle -= 180f
+        }
+    }
+
     fun switchToPlayerCamera() {
         if (currentCameraMode != CameraMode.FREE) {
             currentCameraMode = CameraMode.PLAYER
@@ -171,8 +188,8 @@ class CameraManager {
             }
             CameraMode.PLAYER -> {
                 // In player mode, mouse drag can adjust the side view angle
-                playerCameraAngle += deltaX * 0.1f
-                playerCameraAngle = playerCameraAngle.coerceIn(0f, 180f)
+                targetPlayerCameraAngle += deltaX * 0.1f
+                playerCameraAngle = targetPlayerCameraAngle
                 calculatePlayerCameraTarget()
             }
             CameraMode.FREE -> {
@@ -252,6 +269,9 @@ class CameraManager {
     }
 
     private fun handlePlayerCameraInput(deltaTime: Float) {
+        playerCameraAngle = MathUtils.lerpAngleDeg(playerCameraAngle, targetPlayerCameraAngle, cameraAngleSmoothing * deltaTime)
+        calculatePlayerCameraTarget()
+
         // Smoothly move camera towards target position
         currentPlayerCameraPosition.lerp(targetPlayerCameraPosition, playerCameraSmoothing * deltaTime)
 

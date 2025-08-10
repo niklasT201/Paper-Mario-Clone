@@ -261,6 +261,15 @@ class InputHandler(
                     return false
                 }
 
+                // Camera Flip Hotkey
+                if (keycode == Input.Keys.TAB) {
+                    // Only flip if we are in player camera mode
+                    if (!cameraManager.isFreeCameraMode) {
+                        cameraManager.flipCamera()
+                        return true // Consume the key press
+                    }
+                }
+
                 if (keycode == Input.Keys.ESCAPE) {
                     // First, handle cancelling any ongoing actions
                     if (game.teleporterSystem.isLinkingMode) {
