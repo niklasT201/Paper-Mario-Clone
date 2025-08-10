@@ -64,7 +64,6 @@ public class Lwjgl3Launcher {
 // killed enemy vanishes over some time (fade out)
 // burned enemies leave dust hill
 // disappeared enemy leaves bones behind it
-// bones image
 // visual throwing and explosion range
 // maybe improving billboard shader
 // placing 5 light sources creates room filling light visually, not actually. probably existing bc the area light disappears

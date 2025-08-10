@@ -229,10 +229,9 @@ class FireSystem {
                 while (enemyIterator.hasNext()) {
                     val enemy = enemyIterator.next()
                     if (fire.gameObject.position.dst(enemy.position) < fireRadius) {
-                        if (enemy.takeDamage(fireDamage)) {
+                        if (enemy.takeDamage(fireDamage, DamageType.FIRE) && enemy.currentState != AIState.DYING) {
                             // Enemy died from fire, spawn a blood pool and remove them
-                            playerSystem.bloodPoolSystem.addPool(enemy.position.cpy(), sceneManager)
-                            enemyIterator.remove()
+                            sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
                     }
                 }
@@ -242,10 +241,9 @@ class FireSystem {
                 while (npcIterator.hasNext()) {
                     val npc = npcIterator.next()
                     if (fire.gameObject.position.dst(npc.position) < fireRadius) {
-                        if (npc.takeDamage(fireDamage)) {
+                        if (npc.takeDamage(fireDamage, DamageType.FIRE) && npc.currentState != NPCState.DYING) {
                             // NPC died from fire, spawn a blood pool and remove them
-                            playerSystem.bloodPoolSystem.addPool(npc.position.cpy(), sceneManager)
-                            npcIterator.remove()
+                            sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }
                     }
                 }

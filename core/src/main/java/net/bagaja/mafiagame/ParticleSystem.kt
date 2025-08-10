@@ -364,6 +364,21 @@ enum class ParticleEffectType(
         fadeIn = 0.1f,
         fadeOut = 0.3f
     ),
+    BURNED_ASH(
+        "Burned Ash",
+        arrayOf("textures/particles/bones/burned_ash.png"),
+        frameDuration = 0.1f,
+        isLooping = false,
+        particleLifetime = 15.0f, // Stays around for a while
+        particleCount = 1..1,
+        initialSpeed = 0f,      // Stays in place
+        speedVariance = 0f,
+        gravity = 0f,           // No gravity
+        scale = 2f,
+        scaleVariance = 0.5f,
+        fadeIn = 1.5f,          // Fades IN over 1.5 seconds to match the enemy fade out
+        fadeOut = 5.0f          // Fades out slowly after a long time
+    ),
     DYNAMITE_EXPLOSION(
         "Dynamite Explosion",
         arrayOf("textures/particles/dynamite_explosion/dynamite_exploding.png"),

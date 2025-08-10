@@ -422,8 +422,8 @@ class PlayerSystem {
             val enemy = enemyIterator.next()
             if (hitBox.intersects(enemy.getBoundingBox())) {
                 println("Melee hit on enemy: ${enemy.enemyType.displayName}")
-                if (enemy.takeDamage(equippedWeapon.damage)) {
-                    enemyIterator.remove()
+                if (enemy.takeDamage(equippedWeapon.damage, DamageType.MELEE) && enemy.currentState != AIState.DYING) {
+                    sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                 }
             }
         }
@@ -434,8 +434,8 @@ class PlayerSystem {
             val npc = npcIterator.next()
             if (hitBox.intersects(npc.getBoundingBox())) {
                 println("Melee hit on NPC: ${npc.npcType.displayName}")
-                if (npc.takeDamage(equippedWeapon.damage)) {
-                    npcIterator.remove()
+                if (npc.takeDamage(equippedWeapon.damage, DamageType.MELEE) && npc.currentState != NPCState.DYING) {
+                    sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                 }
             }
         }
@@ -1237,10 +1237,9 @@ class PlayerSystem {
                             spawnBloodEffects(bloodSpawnPosition, sceneManager)
                         }
 
-                        if (enemy.takeDamage(equippedWeapon.damage)) {
-                            bloodPoolSystem.addPool(enemy.position.cpy(), sceneManager)
-                            // Enemy died, remove it
-                            sceneManager.activeEnemies.removeValue(enemy, true)
+                        if (enemy.takeDamage(equippedWeapon.damage, DamageType.GENERIC) && enemy.currentState != AIState.DYING) {
+                            // Enemy died, start the death sequence.
+                            sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
                     }
                     HitObjectType.NPC -> {
@@ -1259,10 +1258,9 @@ class PlayerSystem {
                             spawnBloodEffects(bloodSpawnPosition, sceneManager)
                         }
 
-                        if (npc.takeDamage(equippedWeapon.damage)) {
-                            bloodPoolSystem.addPool(npc.position.cpy(), sceneManager)
+                        if (npc.takeDamage(equippedWeapon.damage, DamageType.GENERIC) && npc.currentState != NPCState.DYING) {
                             // NPC died, remove it from the scene
-                            sceneManager.activeNPCs.removeValue(npc, true)
+                            sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }
                     }
                     HitObjectType.NONE -> {}
@@ -1437,9 +1435,9 @@ class PlayerSystem {
                 while(enemyIterator.hasNext()) {
                     val enemy = enemyIterator.next()
                     if (enemy.position.dst(validGroundPosition) < explosionRadius) {
-                        if (enemy.takeDamage(explosionDamage)) {
-                            bloodPoolSystem.addPool(enemy.position.cpy(), sceneManager)
-                            enemyIterator.remove()
+                        // MODIFIED: Use the new death sequence
+                        if (enemy.takeDamage(explosionDamage, DamageType.EXPLOSIVE) && enemy.currentState != AIState.DYING) {
+                            sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
                     }
                 }
@@ -1448,9 +1446,8 @@ class PlayerSystem {
                 while(npcIterator.hasNext()) {
                     val npc = npcIterator.next()
                     if (npc.position.dst(validGroundPosition) < explosionRadius) {
-                        if (npc.takeDamage(explosionDamage)) {
-                            bloodPoolSystem.addPool(npc.position.cpy(), sceneManager)
-                            npcIterator.remove()
+                        if (npc.takeDamage(explosionDamage, DamageType.EXPLOSIVE) && npc.currentState != NPCState.DYING) {
+                            sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }
                     }
                 }

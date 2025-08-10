@@ -42,7 +42,8 @@ enum class AIState {
     CHASING,    // Moving towards the player (Rusher)
     FLEEING,    // Moving away from the player (Coward)
     SEARCHING,  // Looking for a hiding spot (Coward)
-    HIDING      // Reached a hiding spot (Coward)
+    HIDING,      // Reached a hiding spot (Coward)
+    DYING
 }
 
 // --- MAIN ENEMY DATA CLASS ---
@@ -59,6 +60,10 @@ data class GameEnemy(
     var stateTimer: Float = 0f
     var targetPosition: Vector3? = null
     var facingRotationY: Float = 0f
+    var lastDamageType: DamageType = DamageType.GENERIC
+    var fadeOutTimer: Float = 0f
+    @Transient val blendingAttribute: BlendingAttribute = modelInstance.materials.first().get(BlendingAttribute.Type) as BlendingAttribute
+    @Transient var ashSpawned: Boolean = false
 
     var isMoving: Boolean = false
     var walkAnimationTimer: Float = 0f
@@ -84,10 +89,16 @@ data class GameEnemy(
         return boundingBox
     }
 
-    fun takeDamage(damage: Float): Boolean {
-        this.health -= damage
-        println("${this.enemyType.displayName} took $damage damage. HP remaining: ${this.health}")
-        return this.health <= 0
+    fun takeDamage(damage: Float, type: DamageType): Boolean {
+        if (health <= 0) return false // Already dead, don't process more damage
+
+        health -= damage
+        // The type of the killing blow is what matters most.
+        if (health <= 0) {
+            lastDamageType = type
+        }
+        println("${this.enemyType.displayName} took $damage $type damage. HP remaining: ${this.health.coerceAtLeast(0f)}")
+        return health <= 0
     }
 }
 
@@ -124,6 +135,10 @@ class EnemySystem : IFinePositionable {
     override val fineStep: Float = 0.25f
     private val tempBlockBounds = BoundingBox()
     private val nearbyBlocks = Array<GameBlock>()
+
+    private val FADE_OUT_DURATION = 1.5f
+    private val ASH_SPAWN_START_TIME = 1.5f // Must match the ash particle's fadeIn time
+
 
     fun initialize() {
         billboardShaderProvider = BillboardShaderProvider()
@@ -171,12 +186,58 @@ class EnemySystem : IFinePositionable {
         )
     }
 
+    fun startDeathSequence(enemy: GameEnemy, sceneManager: SceneManager) {
+        if (enemy.currentState == AIState.DYING) return // Already dying
+
+        enemy.currentState = AIState.DYING
+        enemy.fadeOutTimer = FADE_OUT_DURATION
+        enemy.health = 0f // Finalize death
+
+        println("${enemy.enemyType.displayName} is dying from ${enemy.lastDamageType}.")
+
+        // If not burned, spawn a blood pool immediately.
+        if (enemy.lastDamageType != DamageType.FIRE) {
+            sceneManager.game.playerSystem.bloodPoolSystem.addPool(enemy.position.cpy(), sceneManager)
+        }
+    }
+
     fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float) {
         if (playerSystem.isDriving) return // Don't update AI if player is safe in a car
 
         val playerPos = playerSystem.getPosition()
+        val iterator = sceneManager.activeEnemies.iterator() // Use iterator for safe removal
 
-        for (enemy in sceneManager.activeEnemies) {
+        while(iterator.hasNext()) {
+            val enemy = iterator.next()
+
+            // DYING STATE LOGIC
+            if (enemy.currentState == AIState.DYING) {
+                enemy.fadeOutTimer -= deltaTime
+
+                // Check if it's time to spawn ash
+                if (enemy.lastDamageType == DamageType.FIRE && !enemy.ashSpawned) {
+                    // Start spawning when fadeOutTimer is less than or equal to the ash fade-in time
+                    if (enemy.fadeOutTimer <= ASH_SPAWN_START_TIME) {
+                        val groundY = sceneManager.findHighestSupportY(enemy.position.x, enemy.position.z, enemy.position.y, 0.1f, blockSize)
+                        val ashPosition = Vector3(enemy.position.x, groundY + 0.86f, enemy.position.z) // Spawn on the ground + tiny offset for visibility
+
+                        sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BURNED_ASH, ashPosition)
+                        enemy.ashSpawned = true // Spawn only once
+                    }
+                }
+                if (enemy.fadeOutTimer <= 0f) {
+                    iterator.remove() // Completely faded out, now remove
+                    continue
+                }
+
+                // Update opacity
+                val opacity = (enemy.fadeOutTimer / FADE_OUT_DURATION).coerceIn(0f, 1f)
+                enemy.blendingAttribute.opacity = opacity
+
+                // Don't process any other logic for a dying enemy
+                continue
+            }
+
             enemy.isMoving = false
 
             // --- ACTIVATION CHECK ---

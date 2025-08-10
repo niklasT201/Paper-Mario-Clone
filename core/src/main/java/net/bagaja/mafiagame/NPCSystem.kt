@@ -68,7 +68,8 @@ enum class NPCState {
     FOLLOWING,          // Moving towards the player
     PROVOKED,           // Hostile state, attacking the player
     COOLDOWN,           // Temp state after hostility before returning to normal
-    FLEEING
+    FLEEING,
+    DYING
 }
 
 // --- MAIN NPC DATA CLASS ---
@@ -87,6 +88,10 @@ data class GameNPC(
     var facingRotationY: Float = 0f
     var homePosition: Vector3 = position.cpy() // For wandering radius
     var reactionToDamage: DamageReaction = DamageReaction.FLEE
+    var lastDamageType: DamageType = DamageType.GENERIC
+    var fadeOutTimer: Float = 0f
+    @Transient val blendingAttribute: BlendingAttribute = modelInstance.materials.first().get(BlendingAttribute.Type) as BlendingAttribute
+    @Transient var ashSpawned: Boolean = false
 
     // --- Provocation properties ---
     var provocationLevel: Float = 0f
@@ -138,15 +143,23 @@ data class GameNPC(
         }
     }
 
-    fun takeDamage(damage: Float): Boolean {
+    fun takeDamage(damage: Float, type: DamageType): Boolean {
+        if (health <= 0) return false
+
         // Apply damage first, regardless of reaction
         health -= damage
-        println("NPC ${npcType.displayName} took $damage damage. HP: $health")
+
+        // The type of the killing blow is what matters.
+        if (health <= 0) {
+            lastDamageType = type
+        }
+        println("NPC ${npcType.displayName} took $damage $type damage. HP: ${health.coerceAtLeast(0f)}")
+
+        if (health <= 0) return true // Died, no need for reaction logic
 
         // If the NPC is already a guard or provoked, they just stay mad
         if (behaviorType == NPCBehavior.GUARD || currentState == NPCState.PROVOKED) {
-            // No state change needed, just check if they are defeated
-            return health <= 0
+            return false // Not dead yet
         }
 
         when (reactionToDamage) {
@@ -161,15 +174,11 @@ data class GameNPC(
                 }
             }
             DamageReaction.FLEE -> {
-                // default logic
-                println("NPC is fleeing!")
                 currentState = NPCState.FLEEING
                 stateTimer = 0f // Reset timer for flee duration
             }
         }
-
-        // Return true if the NPC should be removed from the game
-        return health <= 0
+        return false // Not dead yet
     }
 
     /** Decays the provocation level over time so the NPC can "forgive" accidental hits. */
@@ -216,6 +225,9 @@ class NPCSystem : IFinePositionable {
     override val fineStep: Float = 0.25f
     private val tempBlockBounds = BoundingBox()
     private val nearbyBlocks = Array<GameBlock>()
+    private val FADE_OUT_DURATION = 1.5f
+    private val ASH_SPAWN_START_TIME = 1.5f
+
 
     fun initialize() {
         billboardShaderProvider = BillboardShaderProvider()
@@ -270,12 +282,53 @@ class NPCSystem : IFinePositionable {
         return newNpc
     }
 
+    fun startDeathSequence(npc: GameNPC, sceneManager: SceneManager) {
+        if (npc.currentState == NPCState.DYING) return
+
+        npc.currentState = NPCState.DYING
+        npc.fadeOutTimer = FADE_OUT_DURATION
+        npc.health = 0f
+
+        println("NPC ${npc.npcType.displayName} is dying from ${npc.lastDamageType}.")
+
+        if (npc.lastDamageType != DamageType.FIRE) {
+            sceneManager.game.playerSystem.bloodPoolSystem.addPool(npc.position.cpy(), sceneManager)
+        }
+    }
+
     fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float) {
         if (playerSystem.isDriving) return
 
         val playerPos = playerSystem.getPosition()
+        val iterator = sceneManager.activeNPCs.iterator()
 
-        for (npc in sceneManager.activeNPCs) {
+        while(iterator.hasNext()) {
+            val npc = iterator.next()
+
+            if (npc.currentState == NPCState.DYING) {
+                npc.fadeOutTimer -= deltaTime
+
+                if (npc.lastDamageType == DamageType.FIRE && !npc.ashSpawned) {
+                    if (npc.fadeOutTimer <= ASH_SPAWN_START_TIME) {
+                        val groundY = sceneManager.findHighestSupportY(npc.position.x, npc.position.z, npc.position.y, 0.1f, blockSize)
+                        val ashPosition = Vector3(npc.position.x, groundY + 0.86f, npc.position.z) // Spawn on the ground + tiny offset
+
+                        sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BURNED_ASH, ashPosition)
+                        npc.ashSpawned = true
+                    }
+                }
+
+                if (npc.fadeOutTimer <= 0f) {
+                    iterator.remove()
+                    continue
+                }
+
+                val opacity = (npc.fadeOutTimer / FADE_OUT_DURATION).coerceIn(0f, 1f)
+                npc.blendingAttribute.opacity = opacity
+
+                continue
+            }
+
             // Reset moving flag
             npc.isMoving = false
             // ACTIVATION CHECK

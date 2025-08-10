@@ -51,7 +51,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var transitionSystem: TransitionSystem
 
     // 2D Player (but positioned in 3D space)
-    private lateinit var playerSystem: PlayerSystem
+    lateinit var playerSystem: PlayerSystem
 
     private lateinit var spawnerSystem: SpawnerSystem
 
@@ -70,7 +70,7 @@ class MafiaGame : ApplicationAdapter() {
     val blockSize = 4f
 
     lateinit var lightingManager: LightingManager
-    private lateinit var particleSystem: ParticleSystem
+    lateinit var particleSystem: ParticleSystem
     lateinit var teleporterSystem: TeleporterSystem
     lateinit var fireSystem: FireSystem
     private lateinit var bloodPoolSystem: BloodPoolSystem
