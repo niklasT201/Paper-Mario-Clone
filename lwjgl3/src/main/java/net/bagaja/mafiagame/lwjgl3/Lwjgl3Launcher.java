@@ -51,7 +51,6 @@ public class Lwjgl3Launcher {
 
 // changing room transition effect colors
 // edge houses
-// burned ash spawns after enemy burned to death
 // visual debug showing up when not in editor mode
 // bones showing up after some time an  enemy was killed
 // car maybe be able to step up half a block
@@ -61,8 +60,6 @@ public class Lwjgl3Launcher {
 // maybe adding bouncy dynamite (1 bounce max)
 // step up stair
 // enemies that get punched, spawn more blood drops and shot enemies leave a blood train behind them
-// killed enemy vanishes over some time (fade out)
-// burned enemies leave dust hill
 // disappeared enemy leaves bones behind it
 // visual throwing and explosion range
 // maybe improving billboard shader

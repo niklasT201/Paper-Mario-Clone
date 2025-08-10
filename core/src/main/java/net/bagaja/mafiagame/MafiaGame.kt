@@ -1821,17 +1821,17 @@ class MafiaGame : ApplicationAdapter() {
             backgroundSystem.renderPreview(modelBatch, cameraManager.camera, environment)
         }
 
-        // Render 3D player with custom billboard shader
-        playerSystem.render(cameraManager.camera, environment)
-        enemySystem.renderEnemies(cameraManager.camera, environment, sceneManager.activeEnemies)
-        npcSystem.renderNPCs(cameraManager.camera, environment, sceneManager.activeNPCs)
+        // Render cars first as they are mostly opaque
         carSystem.render(cameraManager.camera, environment, sceneManager.activeCars)
         lockIndicatorSystem.render(cameraManager.camera, environment)
 
+        // Render effects that should appear BEHIND characters
         fireSystem.render(cameraManager.camera, environment)
 
-
-        // Render particles
+        // Render all potentially transparent billboards AFTER the fire
+        playerSystem.render(cameraManager.camera, environment)
+        enemySystem.renderEnemies(cameraManager.camera, environment, sceneManager.activeEnemies)
+        npcSystem.renderNPCs(cameraManager.camera, environment, sceneManager.activeNPCs)
         particleSystem.render(cameraManager.camera, environment)
 
         // Render items
