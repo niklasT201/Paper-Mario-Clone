@@ -80,7 +80,7 @@ class FootprintSystem {
         if (!::footprintModel.isInitialized) return
 
         val instance = ModelInstance(footprintModel)
-        instance.userData = "player" // For potential future use
+        instance.userData = "effect" // For potential future use
 
         val blendingAttribute = instance.materials.first().get(BlendingAttribute.Type) as BlendingAttribute
 

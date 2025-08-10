@@ -264,7 +264,7 @@ class NPCSystem : IFinePositionable {
     fun createNPC(position: Vector3, npcType: NPCType, behavior: NPCBehavior, initialRotation: Float = 0f): GameNPC? {
         val model = npcModels[npcType] ?: return null
         val instance = ModelInstance(model)
-        instance.userData = "player"
+        instance.userData = "character"
 
         val newNpc = GameNPC(
             modelInstance = instance,

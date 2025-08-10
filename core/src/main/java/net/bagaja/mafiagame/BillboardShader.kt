@@ -6,7 +6,7 @@ import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.g3d.Environment
 import com.badlogic.gdx.graphics.g3d.Renderable
 import com.badlogic.gdx.graphics.g3d.Shader
-import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
+import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute // <<< IMPORT ADDED
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
@@ -92,10 +92,11 @@ class BillboardShader : BaseShader() {
         uniform int u_numDirLights;
         uniform float u_billboardLightingStrength;
         uniform float u_minLightLevel;
-        uniform float u_opacity;
         uniform float u_cartoonySaturation;
         uniform float u_glowIntensity;
         uniform float u_lightFalloffPower;
+        uniform float u_opacity;
+        uniform bool u_useMaterialOpacity; // <<< NEW: The switch to control fading
 
         vec3 calculatePointLight(vec3 lightPos, vec3 lightColor, float intensity, vec3 fragPos, vec3 normal) {
             vec3 lightDir = lightPos - fragPos;
@@ -143,7 +144,12 @@ class BillboardShader : BaseShader() {
                 discard;
             }
 
-             gl_FragColor = vec4(texColor.rgb, texColor.a * u_opacity);
+             // <<< MODIFIED: Use the switch to decide how to calculate alpha
+             if (u_useMaterialOpacity) {
+                 gl_FragColor = vec4(texColor.rgb, texColor.a * u_opacity);
+             } else {
+                 gl_FragColor = texColor; // Use texture's original alpha
+             }
         }
     """.trimIndent()
 
@@ -161,6 +167,7 @@ class BillboardShader : BaseShader() {
     private val u_glowIntensity = register("u_glowIntensity")
     private val u_lightFalloffPower = register("u_lightFalloffPower")
     private val u_opacity = register("u_opacity")
+    private val u_useMaterialOpacity = register("u_useMaterialOpacity")
 
     private val u_pointLightPositions = Array<Int>()
     private val u_pointLightColors = Array<Int>()
@@ -237,9 +244,16 @@ class BillboardShader : BaseShader() {
     override fun render(renderable: Renderable) {
         set(u_worldTrans, renderable.worldTransform)
         // Get the blending attribute from the material to control opacity
-        val blendingAttribute = renderable.material.get(BlendingAttribute.Type) as? BlendingAttribute
-        val opacity = blendingAttribute?.opacity ?: 1.0f // Default to 1.0 (fully opaque) if attribute is missing
-        set(u_opacity, opacity)
+        val userDataString = renderable.userData as? String
+        val useMaterialOpacity = (userDataString == "character") // Only characters will fade
+        set(u_useMaterialOpacity, if (useMaterialOpacity) 1 else 0)
+
+        // Only bother getting the blending attribute if actually needed
+        if (useMaterialOpacity) {
+            val blendingAttribute = renderable.material.get(BlendingAttribute.Type) as? BlendingAttribute
+            val opacity = blendingAttribute?.opacity ?: 1.0f
+            set(u_opacity, opacity)
+        }
 
         val diffuseTexture = renderable.material.get(TextureAttribute.Diffuse) as? TextureAttribute
         diffuseTexture?.textureDescription?.texture?.bind(0)
@@ -341,7 +355,9 @@ class BillboardShaderProvider: com.badlogic.gdx.graphics.g3d.utils.ShaderProvide
 
         // Check userData to decide which shader to use
         val userDataString = renderable.userData as? String
-        return if (userDataString == "player" || userDataString == "item") { // Or just check if userData is not null and it's for this batch
+        val validBillboardUsers = setOf("character", "item", "fire_effect", "effect", "car")
+
+        return if (userDataString in validBillboardUsers) {
             billboardShader
         } else {
             blockShader

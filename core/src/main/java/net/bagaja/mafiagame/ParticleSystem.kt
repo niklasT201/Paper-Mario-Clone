@@ -578,7 +578,7 @@ class ParticleSystem {
 
         for (i in 0 until particleCount) {
             val instance = ModelInstance(model)
-            instance.userData = "player"
+            instance.userData = "effect"
 
             val lifeVariance = (Random.nextFloat() - 0.5f) * 2f * type.lifetimeVariance
             val life = (type.particleLifetime + lifeVariance).coerceAtLeast(0.1f)

@@ -127,7 +127,7 @@ class FireSystem {
         val finalLightRange = lightRangeOverride ?: ObjectType.FIRE_SPREAD.lightRange
 
         val fireObject = objectSystem.createGameObjectWithLight(ObjectType.FIRE_SPREAD, position) ?: return null
-        fireObject.modelInstance.userData = "player"
+        fireObject.modelInstance.userData = "fire_effect"
 
         // Remove the default light that
         fireObject.associatedLightId?.let {

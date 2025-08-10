@@ -176,7 +176,7 @@ class EnemySystem : IFinePositionable {
         val model = enemyModels[enemyType] ?: return null
         val instance = ModelInstance(model)
 
-        instance.userData = "player"
+        instance.userData = "character"
 
         return GameEnemy(
             modelInstance = instance,

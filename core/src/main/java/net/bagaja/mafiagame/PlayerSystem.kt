@@ -253,7 +253,7 @@ class PlayerSystem {
 
         // Create player instance
         playerInstance = ModelInstance(playerModel)
-        playerInstance.userData = "player"
+        playerInstance.userData = "character"
         updatePlayerTransform()
     }
 
@@ -469,9 +469,12 @@ class PlayerSystem {
 
         val spawnPosition = playerPosition.cpy().add(directionX * 1.5f, 1f, 0f)
 
+        val modelInstance = ModelInstance(model)
+        modelInstance.userData = "effect"
+
         val throwable = ThrowableEntity(
             weaponType = equippedWeapon,
-            modelInstance = ModelInstance(model),
+            modelInstance = modelInstance,
             position = spawnPosition,
             velocity = initialVelocity,
             lifetime = 3.0f // 3-second fuse for dynamite
@@ -646,7 +649,7 @@ class PlayerSystem {
 
         isDriving = true
         drivingCar = car
-        car.modelInstance.userData = "player"
+        car.modelInstance.userData = "car"
 
         // If entering a wrecked car
         if (car.isDestroyed) {
@@ -676,7 +679,7 @@ class PlayerSystem {
             drivingCar = null
         } else {
             println("Cannot exit car, path is blocked.")
-            car.modelInstance.userData = "player"
+            car.modelInstance.userData = "car"
         }
     }
 

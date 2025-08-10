@@ -86,7 +86,7 @@ class BloodPoolSystem {
         // Pick a random model (texture)
         val modelToUse = models.random()
         val instance = ModelInstance(modelToUse)
-        instance.userData = "player"
+        instance.userData = "effect"
 
         // Randomize the maximum size and growth rate for variety
         val maxScale = Random.nextFloat() * 4f + 3f // Random max size between 3 and 7 units
