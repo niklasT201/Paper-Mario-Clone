@@ -6,6 +6,7 @@ import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.g3d.Environment
 import com.badlogic.gdx.graphics.g3d.Renderable
 import com.badlogic.gdx.graphics.g3d.Shader
+import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
@@ -91,6 +92,7 @@ class BillboardShader : BaseShader() {
         uniform int u_numDirLights;
         uniform float u_billboardLightingStrength;
         uniform float u_minLightLevel;
+        uniform float u_opacity;
         uniform float u_cartoonySaturation;
         uniform float u_glowIntensity;
         uniform float u_lightFalloffPower;
@@ -141,7 +143,7 @@ class BillboardShader : BaseShader() {
                 discard;
             }
 
-             gl_FragColor = texColor;
+             gl_FragColor = vec4(texColor.rgb, texColor.a * u_opacity);
         }
     """.trimIndent()
 
@@ -158,6 +160,7 @@ class BillboardShader : BaseShader() {
     private val u_cartoonySaturation = register("u_cartoonySaturation")
     private val u_glowIntensity = register("u_glowIntensity")
     private val u_lightFalloffPower = register("u_lightFalloffPower")
+    private val u_opacity = register("u_opacity")
 
     private val u_pointLightPositions = Array<Int>()
     private val u_pointLightColors = Array<Int>()
@@ -233,6 +236,10 @@ class BillboardShader : BaseShader() {
 
     override fun render(renderable: Renderable) {
         set(u_worldTrans, renderable.worldTransform)
+        // Get the blending attribute from the material to control opacity
+        val blendingAttribute = renderable.material.get(BlendingAttribute.Type) as? BlendingAttribute
+        val opacity = blendingAttribute?.opacity ?: 1.0f // Default to 1.0 (fully opaque) if attribute is missing
+        set(u_opacity, opacity)
 
         val diffuseTexture = renderable.material.get(TextureAttribute.Diffuse) as? TextureAttribute
         diffuseTexture?.textureDescription?.texture?.bind(0)
