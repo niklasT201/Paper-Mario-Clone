@@ -272,6 +272,13 @@ class InputHandler(
                     return true
                 }
 
+                if (keycode == Input.Keys.F12) {
+                    BillboardShader.DEBUG_SHADER_INFO = !BillboardShader.DEBUG_SHADER_INFO
+                    val status = if (BillboardShader.DEBUG_SHADER_INFO) "ON" else "OFF"
+                    uiManager.updatePlacementInfo("Shader Debug Info: $status")
+                    return true
+                }
+
                 if (uiManager.isPauseMenuVisible()) {
                     return true
                 }
