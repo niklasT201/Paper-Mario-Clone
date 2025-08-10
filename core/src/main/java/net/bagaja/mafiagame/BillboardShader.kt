@@ -18,6 +18,10 @@ import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.GdxRuntimeException
 
 class BillboardShader : BaseShader() {
+    companion object {
+        var DEBUG_SHADER_INFO = false
+    }
+
     private val VERTEX_SHADER = """
         #ifdef GL_ES
         #define LOWP lowp
@@ -81,6 +85,7 @@ class BillboardShader : BaseShader() {
         varying vec3 v_normal;
         varying vec3 v_viewDir;
 
+        // Uniforms for lighting and effects
         uniform sampler2D u_diffuseTexture;
         uniform vec3 u_ambientLight;
         uniform vec3 u_dirLights[MAX_DIRECTIONAL_LIGHTS];
@@ -96,7 +101,8 @@ class BillboardShader : BaseShader() {
         uniform float u_glowIntensity;
         uniform float u_lightFalloffPower;
         uniform float u_opacity;
-        uniform bool u_useMaterialOpacity; // <<< NEW: The switch to control fading
+        uniform bool u_useMaterialOpacity;
+        uniform bool u_isUnlit;
 
         vec3 calculatePointLight(vec3 lightPos, vec3 lightColor, float intensity, vec3 fragPos, vec3 normal) {
             vec3 lightDir = lightPos - fragPos;
@@ -182,6 +188,7 @@ class BillboardShader : BaseShader() {
     var glowIntensity = 1.0f
     var lightFalloffPower = 1.0f
     private var currentEnvironment: Environment? = null
+    private var lastKnownPointLightCount = -1
 
     override fun init() {
         val shaderProgram = ShaderProgram(VERTEX_SHADER, FRAGMENT_SHADER)
@@ -248,11 +255,16 @@ class BillboardShader : BaseShader() {
         val useMaterialOpacity = (userDataString == "character") // Only characters will fade
         set(u_useMaterialOpacity, if (useMaterialOpacity) 1 else 0)
 
-        // Only bother getting the blending attribute if actually needed
+        var opacity = 1.0f
         if (useMaterialOpacity) {
             val blendingAttribute = renderable.material.get(BlendingAttribute.Type) as? BlendingAttribute
-            val opacity = blendingAttribute?.opacity ?: 1.0f
+            opacity = blendingAttribute?.opacity ?: 1.0f
             set(u_opacity, opacity)
+        }
+
+        // Debug printing logic
+        if (DEBUG_SHADER_INFO && userDataString == "character") {
+            println("SHADER DEBUG | Character | Lights Received: $lastKnownPointLightCount | Opacity: $opacity")
         }
 
         val diffuseTexture = renderable.material.get(TextureAttribute.Diffuse) as? TextureAttribute
@@ -298,10 +310,10 @@ class BillboardShader : BaseShader() {
             }
         }
 
-        val numPointLights = pointLightsArray.size.coerceAtMost(16)
+        val numPointLights = pointLightsArray.size.coerceAtMost(128)
         set(u_numPointLights, numPointLights)
 
-        for (i in 0 until 16) {
+        for (i in 0 until 128) {
             if (i < numPointLights) {
                 val light = pointLightsArray[i]
                 set(u_pointLightPositions[i], light.position)
