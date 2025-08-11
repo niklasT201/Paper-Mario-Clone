@@ -297,11 +297,6 @@ class InputHandler(
                     return true
                 }
 
-                if (keycode == Input.Keys.F6) {
-                    cameraManager.cycleDisplayMode()
-                    return true
-                }
-
                 // EDITOR MODE CHECK
                 if (game.isEditorMode) {
                     // Shader effect controls

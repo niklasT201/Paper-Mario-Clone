@@ -60,7 +60,8 @@ class UIManager(
     private lateinit var pauseMenuUI: PauseMenuUI
     private lateinit var mainTable: Table
     private lateinit var letterboxTable: Table
-    private var isLetterboxVisible = true
+    private var isLetterboxVisible = false
+    private lateinit var visualSettingsUI: VisualSettingsUI
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
     private lateinit var placementInfoLabel: Label
@@ -86,6 +87,8 @@ class UIManager(
     enum class Tool {
         BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE
     }
+
+    fun isLetterboxEnabled(): Boolean = isLetterboxVisible
 
     fun initialize() {
         stage = Stage(ScreenViewport())
@@ -171,7 +174,9 @@ class UIManager(
         shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager)
         shaderEffectUI.initialize()
 
-        pauseMenuUI = PauseMenuUI(skin, stage)
+        visualSettingsUI = VisualSettingsUI(skin, game.cameraManager, this)
+
+        pauseMenuUI = PauseMenuUI(skin, stage, this)
         pauseMenuUI.initialize()
 
         // Set initial visibility for the main UI panel
@@ -272,29 +277,23 @@ class UIManager(
         val pixmap = Pixmap(1, 1, Pixmap.Format.RGBA8888)
         pixmap.setColor(Color.BLACK)
         pixmap.fill()
-        val blackTexture = Texture(pixmap)
+        val blackDrawable = TextureRegionDrawable(Texture(pixmap))
         pixmap.dispose()
-        val blackDrawable = TextureRegionDrawable(blackTexture)
-
-        // Create the two bar images from this single texture
-        val leftBar = Image(blackDrawable)
-        val rightBar = Image(blackDrawable)
 
         // Create the main table for the letterbox
         letterboxTable = Table()
-        letterboxTable.setFillParent(true) // Make it cover the whole screen
-        letterboxTable.isVisible = isLetterboxVisible // Set initial visibility
+        letterboxTable.setFillParent(true)
+        letterboxTable.isVisible = isLetterboxVisible
 
-        // Add the bars to the table
-        letterboxTable.add(leftBar).growY() // Left bar, grows vertically to fill height
-        letterboxTable.add().expandX()      // Empty, expanding middle cell
-        letterboxTable.add(rightBar).growY()// Right bar, grows vertically to fill height
+        letterboxTable.add(Image(blackDrawable)).growY()
+        letterboxTable.add().expandX()
+        letterboxTable.add(Image(blackDrawable)).growY()
 
         // maybe changing it, so User cant click through it
         letterboxTable.touchable = com.badlogic.gdx.scenes.scene2d.Touchable.disabled
 
         stage.addActor(letterboxTable)
-        updateLetterboxSize() // Call this to set the initial size
+        updateLetterboxSize()
     }
 
     private fun updateLetterboxSize() {
@@ -1606,6 +1605,11 @@ class UIManager(
         updateLetterboxSize()
     }
 
+    fun showVisualSettings() {
+        pauseMenuUI.hideInstantly()
+        visualSettingsUI.show(stage)
+    }
+
     fun getStage(): Stage = stage
 
     fun render() {
@@ -1622,11 +1626,26 @@ class UIManager(
     }
 
     fun togglePauseMenu() {
-        pauseMenuUI.toggle()
+        if (visualSettingsUI.parent != null) {
+            visualSettingsUI.hide()
+            pauseMenuUI.hideInstantly()
+            return
+        }
+
+        if (pauseMenuUI.isVisible()) {
+            pauseMenuUI.hide()
+        } else {
+            pauseMenuUI.show()
+        }
     }
 
     fun isPauseMenuVisible(): Boolean {
         return pauseMenuUI.isVisible()
+    }
+
+    fun returnToPauseMenu() {
+        visualSettingsUI.hide()
+        pauseMenuUI.show()
     }
 
     fun dispose() {

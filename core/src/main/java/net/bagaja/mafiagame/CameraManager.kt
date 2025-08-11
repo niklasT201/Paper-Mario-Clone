@@ -112,12 +112,11 @@ class CameraManager {
         uiCamera.update()
     }
 
-    fun cycleDisplayMode() {
-        currentDisplayMode = when (currentDisplayMode) {
-            DisplayMode.WINDOWED -> DisplayMode.FULLSCREEN
-            DisplayMode.FULLSCREEN -> DisplayMode.WINDOWED
-        }
-        println("Display Mode changed to: $currentDisplayMode")
+    fun setDisplayMode(mode: DisplayMode) {
+        if (currentDisplayMode == mode) return
+
+        currentDisplayMode = mode
+        println("Display Mode set to: $currentDisplayMode")
 
         when (currentDisplayMode) {
             DisplayMode.FULLSCREEN -> {

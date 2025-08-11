@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
+import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.Image
@@ -12,6 +13,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Label
 import com.badlogic.gdx.scenes.scene2d.ui.Skin
 import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
 import kotlin.math.cos
@@ -22,7 +24,7 @@ import kotlin.random.Random
  * A 1920s Mafia-style pause menu with vintage newspaper and speakeasy charm.
  * Features a prohibition-era design with art deco elements and smoky atmosphere.
  */
-class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
+class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val uiManager: UIManager ) {
 
     private lateinit var mainContainer: Table
     private lateinit var overlay: Image
@@ -103,8 +105,15 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
         // Original: "✦ RESUME ✦"
         buttonsTable.add(createVintageButton("⚡ RESUME OPERATIONS ⚡", Color.valueOf("#8B4513"))).fillX().height(60f).padBottom(10f).row()
         // Original: "⚙ SETTINGS ⚙"
-        buttonsTable.add(createVintageButton("⚙ MODIFY RACKET ⚙", Color.valueOf("#654321"))).fillX().height(60f).padBottom(10f).row()
+        val visualSettingsButton = createVintageButton("👁️ VISUAL SETTINGS 👁️", Color.valueOf("#654321"))
+        visualSettingsButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                uiManager.showVisualSettings()
+            }
+        })
         // Original: "💾 SAVE GAME 💾"
+        buttonsTable.add(visualSettingsButton).fillX().height(60f).padBottom(10f).row()
+
         buttonsTable.add(createVintageButton("💰 STASH THE LOOT 💰", Color.valueOf("#2F4F2F"))).fillX().height(60f).padBottom(10f).row()
         // Original: "🚪 QUIT TO MENU 🚪"
         buttonsTable.add(createVintageButton("🚪 ABANDON TERRITORY 🚪", Color.valueOf("#8B0000"))).fillX().height(60f).padTop(15f).row()
@@ -432,7 +441,7 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
         if (isVisible) hide() else show()
     }
 
-    private fun show() {
+    fun show() {
         isVisible = true
         overlay.isVisible = true
         mainContainer.isVisible = true
@@ -466,7 +475,7 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
         }
     }
 
-    private fun hide() {
+    fun hide() {
         isVisible = false
 
         overlay.addAction(Actions.sequence(
@@ -488,6 +497,17 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage) {
                 Actions.visible(false)
             ))
         }
+    }
+
+    fun hideInstantly() {
+        isVisible = false
+        overlay.clearActions()
+        mainContainer.clearActions()
+        decorativeElements.forEach { it.clearActions() }
+
+        overlay.isVisible = false
+        mainContainer.isVisible = false
+        decorativeElements.forEach { it.isVisible = false }
     }
 
     fun isVisible(): Boolean = isVisible
