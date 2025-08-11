@@ -92,6 +92,13 @@ class CameraManager {
         return uiCamera
     }
 
+    enum class DisplayMode {
+        WINDOWED,
+        FULLSCREEN
+    }
+    var currentDisplayMode = DisplayMode.WINDOWED
+        private set
+
     fun resize(width: Int, height: Int) {
         // Update the 3D camera
         camera.viewportWidth = width.toFloat()
@@ -103,6 +110,27 @@ class CameraManager {
         uiCamera.viewportHeight = height.toFloat()
         uiCamera.position.set(uiCamera.viewportWidth / 2f, uiCamera.viewportHeight / 2f, 0f)
         uiCamera.update()
+    }
+
+    fun cycleDisplayMode() {
+        currentDisplayMode = when (currentDisplayMode) {
+            DisplayMode.WINDOWED -> DisplayMode.FULLSCREEN
+            DisplayMode.FULLSCREEN -> DisplayMode.WINDOWED
+        }
+        println("Display Mode changed to: $currentDisplayMode")
+
+        when (currentDisplayMode) {
+            DisplayMode.FULLSCREEN -> {
+                if (!Gdx.graphics.isFullscreen) {
+                    Gdx.graphics.setFullscreenMode(Gdx.graphics.displayMode)
+                }
+            }
+            DisplayMode.WINDOWED -> {
+                if (Gdx.graphics.isFullscreen) {
+                    Gdx.graphics.setWindowedMode(1280, 720)
+                }
+            }
+        }
     }
 
     fun setPlayerPosition(position: Vector3, isDriving: Boolean, forceSnap: Boolean = false) {
