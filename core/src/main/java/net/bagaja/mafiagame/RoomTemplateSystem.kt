@@ -12,6 +12,7 @@ data class RoomElement(
     val elementType: RoomElementType = RoomElementType.BLOCK,
     val blockType: BlockType? = null,
     val shape: BlockShape? = null,
+    val cameraVisibility: CameraVisibility? = null,
     val objectType: ObjectType? = null,
     val itemType: ItemType? = null,
     val interiorType: InteriorType? = null,

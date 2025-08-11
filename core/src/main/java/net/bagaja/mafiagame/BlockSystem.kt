@@ -63,6 +63,8 @@ class BlockSystem {
         private set
     var currentBuildMode = BuildMode.SINGLE
         private set
+    var currentCameraVisibility = CameraVisibility.ALWAYS_VISIBLE
+        private set
 
     private lateinit var modelBuilder: ModelBuilder
     private var internalBlockSize: Float = 4f
@@ -116,15 +118,15 @@ class BlockSystem {
         }
 
         return if (shape == BlockShape.FULL_BLOCK) {
-            // Pass the new top rotation to face instance creation
             val faceInstances = createFaceInstances(type, textureRotation, topTextureRotation)!!
             GameBlock(
                 type,
                 shape,
                 position,
                 rotationY = geometryRotation,
-                textureRotationY = textureRotation,  // Store the texture rotation
+                textureRotationY = textureRotation,
                 topTextureRotationY = topTextureRotation,
+                cameraVisibility = currentCameraVisibility,
                 faceInstances = faceInstances
             )
         } else {
@@ -136,6 +138,7 @@ class BlockSystem {
                 rotationY = geometryRotation,
                 textureRotationY = textureRotation,
                 topTextureRotationY = topTextureRotation,
+                cameraVisibility = currentCameraVisibility,
                 modelInstance = modelInstance
             )
         }
@@ -540,6 +543,12 @@ class BlockSystem {
                 }
             }
         }
+    }
+
+    fun nextCameraVisibility() {
+        val visibilities = CameraVisibility.entries.toTypedArray()
+        currentCameraVisibility = visibilities[(visibilities.indexOf(currentCameraVisibility) + 1) % visibilities.size]
+        println("Block camera visibility set to: ${currentCameraVisibility.getDisplayName()}")
     }
 
     fun nextBuildMode() {

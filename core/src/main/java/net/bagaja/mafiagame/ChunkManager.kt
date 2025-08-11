@@ -113,15 +113,28 @@ class ChunkManager(private val faceCullingSystem: FaceCullingSystem, private val
         chunk.dispose()
         if (chunk.blocks.isEmpty()) return
 
-        val modelBuilder = ModelBuilder()
-        modelBuilder.begin()
+        val modelBuilderAlways = ModelBuilder()
+        val modelBuilderFront = ModelBuilder()
+        val modelBuilderBack = ModelBuilder()
+        modelBuilderAlways.begin()
+        modelBuilderFront.begin()
+        modelBuilderBack.begin()
 
-        var hasGeometry = false
+        var hasGeoAlways = false
+        var hasGeoFront = false
+        var hasGeoBack = false
 
         faceCullingSystem.updateFacesForChunk(chunk, this)
 
         for (block in chunk.blocks.values) {
             if (!block.blockType.isVisible) continue
+
+            // Select the correct builder
+            val targetModelBuilder = when (block.cameraVisibility) {
+                CameraVisibility.ALWAYS_VISIBLE -> modelBuilderAlways
+                CameraVisibility.FRONT_ONLY -> modelBuilderFront
+                CameraVisibility.BACK_ONLY -> modelBuilderBack
+            }
 
             val instancesToProcess = mutableListOf<ModelInstance>()
             if (block.shape == BlockShape.FULL_BLOCK && block.faceInstances != null) {
@@ -136,7 +149,7 @@ class ChunkManager(private val faceCullingSystem: FaceCullingSystem, private val
                 val mesh = instance.model.meshes.first()
                 val material = instance.materials.first()
 
-                val builder = modelBuilder.part(
+                val builder = targetModelBuilder.part(
                     "chunk_part_${instance.hashCode()}",
                     GL20.GL_TRIANGLES,
                     (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong(),
@@ -150,14 +163,28 @@ class ChunkManager(private val faceCullingSystem: FaceCullingSystem, private val
 
                 // 4. Add the entire transformed mesh copy to the builder
                 builder.addMesh(meshCopy)
-                hasGeometry = true
+
+                // Track which builders have geometry
+                when (block.cameraVisibility) {
+                    CameraVisibility.ALWAYS_VISIBLE -> hasGeoAlways = true
+                    CameraVisibility.FRONT_ONLY -> hasGeoFront = true
+                    CameraVisibility.BACK_ONLY -> hasGeoBack = true
+                }
             }
         }
 
-        if (hasGeometry) {
-            chunk.model = modelBuilder.end()
-            chunk.modelInstance = ModelInstance(chunk.model)
-            chunk.modelInstance?.transform?.idt()
+        // End and create models for each builder that has geometry
+        if (hasGeoAlways) {
+            chunk.modelAlways = modelBuilderAlways.end()
+            chunk.modelInstanceAlways = ModelInstance(chunk.modelAlways)
+        }
+        if (hasGeoFront) {
+            chunk.modelFront = modelBuilderFront.end()
+            chunk.modelInstanceFront = ModelInstance(chunk.modelFront)
+        }
+        if (hasGeoBack) {
+            chunk.modelBack = modelBuilderBack.end()
+            chunk.modelInstanceBack = ModelInstance(chunk.modelBack)
         }
     }
 
@@ -174,6 +201,7 @@ class ChunkManager(private val faceCullingSystem: FaceCullingSystem, private val
         val maxChunkX = cameraChunkX + renderDistance
         val minChunkZ = cameraChunkZ - renderDistance
         val maxChunkZ = cameraChunkZ + renderDistance
+        val isCameraFlipped = game.cameraManager.isCameraFlipped
 
         for (chunk in chunks.values) {
             val cx = chunk.position.x
@@ -184,10 +212,15 @@ class ChunkManager(private val faceCullingSystem: FaceCullingSystem, private val
                 continue // Skip this chunk
             }
 
-            // 5. If the chunk is nearby, perform the original frustum culling and render it.
-            chunk.modelInstance?.let { instance ->
-                if (camera.frustum.boundsInFrustum(chunk.boundingBox)) {
-                    modelBatch.render(instance, environment)
+            if (camera.frustum.boundsInFrustum(chunk.boundingBox)) {
+                // Always render 'always visible' blocks
+                chunk.modelInstanceAlways?.let { modelBatch.render(it, environment) }
+
+                // Conditionally render front or back-only blocks
+                if (isCameraFlipped) {
+                    chunk.modelInstanceBack?.let { modelBatch.render(it, environment) }
+                } else {
+                    chunk.modelInstanceFront?.let { modelBatch.render(it, environment) }
                 }
             }
         }

@@ -379,8 +379,10 @@ class InputHandler(
                             // Only cycle area when the block tool is active
                             if (uiManager.selectedTool == Tool.BLOCK) {
                                 if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) {
-                                    blockSystem.previousBuildMode()
+                                    // SHIFT+V cycles camera visibility
+                                    blockSystem.nextCameraVisibility()
                                 } else {
+                                    // V alone cycles build area
                                     blockSystem.nextBuildMode()
                                 }
                                 uiManager.updateBlockSelection() // Update UI to show the new mode

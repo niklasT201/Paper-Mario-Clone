@@ -49,7 +49,10 @@ class CameraManager {
     private var targetPlayerCameraPosition = Vector3()
 
     // Camera Flip Logic
-    private var isCameraFlipped = false
+    var _isCameraFlipped = false
+    val isCameraFlipped: Boolean
+        get() = _isCameraFlipped
+
     private var playerCameraAngle = 90f // This is now the CURRENT angle
     private var targetPlayerCameraAngle = 90f // This is the angle we are moving TOWARDS
     private val cameraAngleSmoothing = 8f // How fast the camera flips
@@ -142,8 +145,8 @@ class CameraManager {
     }
 
     fun flipCamera() {
-        isCameraFlipped = !isCameraFlipped
-        if (isCameraFlipped) {
+        _isCameraFlipped = !_isCameraFlipped
+        if (_isCameraFlipped) {
             // Add 180 degrees to flip to the back
             targetPlayerCameraAngle += 180f
         } else {

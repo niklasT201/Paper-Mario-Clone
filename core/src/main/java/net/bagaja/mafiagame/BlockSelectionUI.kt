@@ -36,6 +36,7 @@ class BlockSelectionUI(
     private lateinit var rotationModeLabel: Label
     private lateinit var shapeLabel: Label
     private lateinit var buildModeLabel: Label
+    private lateinit var visibilityLabel: Label
 
     private data class BlockSelectionItem(
         val container: Table,
@@ -121,11 +122,16 @@ class BlockSelectionUI(
         buildModeLabel.setFontScale(0.9f)
         buildModeLabel.color = Color(1f, 0.9f, 0.7f, 1f) // Light orange
 
+        visibilityLabel = Label("", skin)
+        visibilityLabel.setFontScale(0.9f)
+        visibilityLabel.color = Color(0.9f, 0.7f, 1f, 1f) // Light Purple
+
         // Add them to the table with some spacing
         modifiersTable.add(rotationLabel).padRight(25f)
         modifiersTable.add(rotationModeLabel).padRight(25f)
         modifiersTable.add(shapeLabel).padRight(25f) // MODIFIED: Added padding
-        modifiersTable.add(buildModeLabel) // ADD THIS
+        modifiersTable.add(buildModeLabel).padRight(25f)
+        modifiersTable.add(visibilityLabel)
 
         // Add the modifiers table to the main UI container
         mainContainer.add(modifiersTable).padBottom(15f).row()
@@ -336,6 +342,9 @@ class BlockSelectionUI(
 
         val buildModeName = blockSystem.currentBuildMode.getDisplayName()
         buildModeLabel.setText("[YELLOW]Area:[] $buildModeName ([ORANGE]V[])")
+
+        val visibilityName = blockSystem.currentCameraVisibility.getDisplayName()
+        visibilityLabel.setText("[YELLOW]View:[] $visibilityName ([ORANGE]Shift+V[]]")
 
         // Scrolling and item selection
         val currentIndex = blockSystem.currentSelectedBlockIndex

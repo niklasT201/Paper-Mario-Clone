@@ -19,7 +19,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var modelBatch: ModelBatch
     private lateinit var shaderProvider: BillboardShaderProvider
     private lateinit var spriteBatch: SpriteBatch
-    private lateinit var cameraManager: CameraManager
+    lateinit var cameraManager: CameraManager
     lateinit var shaderEffectManager: ShaderEffectManager
 
     // UI and Input Managers

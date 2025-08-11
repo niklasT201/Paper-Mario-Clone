@@ -5,6 +5,17 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import java.util.*
 
+enum class CameraVisibility {
+    ALWAYS_VISIBLE,
+    FRONT_ONLY,
+    BACK_ONLY;
+
+    fun getDisplayName(): String {
+        return this.name.replace('_', ' ').lowercase(Locale.getDefault())
+            .replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.getDefault()) else it.toString() }
+    }
+}
+
 enum class BlockFace {
     TOP, BOTTOM, FRONT, BACK, RIGHT, LEFT;
 
@@ -57,6 +68,7 @@ data class GameBlock(
     var rotationY: Float = 0f,
     var textureRotationY: Float = 0f,
     var topTextureRotationY: Float = 0f,
+    val cameraVisibility: CameraVisibility = CameraVisibility.ALWAYS_VISIBLE,
     val faceInstances: Map<BlockFace, ModelInstance>? = null, // For FULL_BLOCK
     val modelInstance: ModelInstance? = null,                // For all other shapes
 ) {

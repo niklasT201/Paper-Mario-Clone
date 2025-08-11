@@ -14,8 +14,13 @@ class Chunk(val position: ChunkPosition, private val blockSize: Float) {
         const val CHUNK_SIZE = 16 // The dimensions of the chunk in blocks (16x16x16).
     }
 
-    var modelInstance: ModelInstance? = null
-    var model: Model? = null
+    var modelInstanceAlways: ModelInstance? = null
+    var modelInstanceFront: ModelInstance? = null
+    var modelInstanceBack: ModelInstance? = null
+
+    var modelAlways: Model? = null
+    var modelFront: Model? = null
+    var modelBack: Model? = null
     val boundingBox = BoundingBox()
     val blocks = mutableMapOf<Vector3, GameBlock>()
 
@@ -61,8 +66,14 @@ class Chunk(val position: ChunkPosition, private val blockSize: Float) {
     }
 
     fun dispose() {
-        model?.dispose()
-        model = null
-        modelInstance = null
+        modelAlways?.dispose()
+        modelFront?.dispose()
+        modelBack?.dispose()
+        modelAlways = null
+        modelFront = null
+        modelBack = null
+        modelInstanceAlways = null
+        modelInstanceFront = null
+        modelInstanceBack = null
     }
 }

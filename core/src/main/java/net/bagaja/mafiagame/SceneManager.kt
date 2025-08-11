@@ -732,7 +732,10 @@ class SceneManager(
                             textureRotation = element.textureRotation,
                             topTextureRotation = element.topTextureRotation
                         )
-                        newBlocks.add(gameBlock)
+                        val finalBlock = gameBlock.copy(
+                            cameraVisibility = element.cameraVisibility ?: CameraVisibility.ALWAYS_VISIBLE
+                        )
+                        newBlocks.add(finalBlock)
                     }
                 }
                 RoomElementType.OBJECT -> {
@@ -1020,7 +1023,8 @@ class SceneManager(
                 shape = block.shape,
                 rotation = block.rotationY,
                 textureRotation = block.textureRotationY,
-                topTextureRotation = block.topTextureRotationY
+                topTextureRotation = block.topTextureRotationY,
+                cameraVisibility = block.cameraVisibility
             ))
         }
 
@@ -1203,7 +1207,10 @@ class SceneManager(
                             textureRotation = element.textureRotation,
                             topTextureRotation = element.topTextureRotation
                         )
-                        newBlocksForChunkManager.add(gameBlock)
+                        val finalBlock = gameBlock.copy(
+                            cameraVisibility = element.cameraVisibility ?: CameraVisibility.ALWAYS_VISIBLE
+                        )
+                        newBlocksForChunkManager.add(finalBlock)
                     }
                 }
                 RoomElementType.OBJECT -> {
