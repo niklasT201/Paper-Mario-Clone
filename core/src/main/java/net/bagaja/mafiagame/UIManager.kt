@@ -59,6 +59,8 @@ class UIManager(
     private lateinit var shaderEffectUI: ShaderEffectUI
     private lateinit var pauseMenuUI: PauseMenuUI
     private lateinit var mainTable: Table
+    private lateinit var letterboxTable: Table
+    private var isLetterboxVisible = true
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
     private lateinit var placementInfoLabel: Label
@@ -103,6 +105,7 @@ class UIManager(
         fpsTable.isVisible = false
 
         setupMainUI()
+        setupLetterboxUI()
 
         persistentMessageLabel = Label("", skin, "title") // Use a prominent style like "title"
         persistentMessageLabel.setAlignment(Align.center)
@@ -262,6 +265,63 @@ class UIManager(
 
         toolContainer.add(toolGrid)
         container.add(toolContainer).padBottom(25f).fillX().row()
+    }
+
+    private fun setupLetterboxUI() {
+        // Create a simple 1x1 black pixel texture. This is very efficient.
+        val pixmap = Pixmap(1, 1, Pixmap.Format.RGBA8888)
+        pixmap.setColor(Color.BLACK)
+        pixmap.fill()
+        val blackTexture = Texture(pixmap)
+        pixmap.dispose()
+        val blackDrawable = TextureRegionDrawable(blackTexture)
+
+        // Create the two bar images from this single texture
+        val leftBar = Image(blackDrawable)
+        val rightBar = Image(blackDrawable)
+
+        // Create the main table for the letterbox
+        letterboxTable = Table()
+        letterboxTable.setFillParent(true) // Make it cover the whole screen
+        letterboxTable.isVisible = isLetterboxVisible // Set initial visibility
+
+        // Add the bars to the table
+        letterboxTable.add(leftBar).growY() // Left bar, grows vertically to fill height
+        letterboxTable.add().expandX()      // Empty, expanding middle cell
+        letterboxTable.add(rightBar).growY()// Right bar, grows vertically to fill height
+
+        // maybe changing it, so User cant click through it
+        letterboxTable.touchable = com.badlogic.gdx.scenes.scene2d.Touchable.disabled
+
+        stage.addActor(letterboxTable)
+        updateLetterboxSize() // Call this to set the initial size
+    }
+
+    private fun updateLetterboxSize() {
+        val screenWidth = stage.width
+        val screenHeight = stage.height
+
+        // 4:3 is 1.333
+        val targetAspect = 1.375f
+
+        val targetWidth = screenHeight * targetAspect
+
+        if (screenWidth > targetWidth) {
+            val barWidth = (screenWidth - targetWidth) / 2f
+
+            val leftCell = letterboxTable.getCell(letterboxTable.children.first())
+            val middleCell = letterboxTable.cells[1]
+            val rightCell = letterboxTable.getCell(letterboxTable.children.last())
+
+            leftCell.width(barWidth)
+            middleCell.width(targetWidth)
+            rightCell.width(barWidth)
+
+            letterboxTable.isVisible = isLetterboxVisible
+        } else {
+            // If the screen isn't wide enough, hide the bars
+            letterboxTable.isVisible = false
+        }
     }
 
     private fun createEnhancedToolButton(tool: Tool, isSelected: Boolean): Table {
@@ -1541,6 +1601,11 @@ class UIManager(
         }
     }
 
+    fun toggleLetterbox() {
+        isLetterboxVisible = !isLetterboxVisible
+        updateLetterboxSize()
+    }
+
     fun getStage(): Stage = stage
 
     fun render() {
@@ -1553,6 +1618,7 @@ class UIManager(
 
     fun resize(width: Int, height: Int) {
         stage.viewport.update(width, height, true)
+        updateLetterboxSize()
     }
 
     fun togglePauseMenu() {
