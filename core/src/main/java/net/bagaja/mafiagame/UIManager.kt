@@ -1626,7 +1626,7 @@ class UIManager(
     }
 
     fun togglePauseMenu() {
-        if (visualSettingsUI.parent != null) {
+        if (visualSettingsUI.isVisible()) {
             visualSettingsUI.hide()
             pauseMenuUI.hideInstantly()
             return
