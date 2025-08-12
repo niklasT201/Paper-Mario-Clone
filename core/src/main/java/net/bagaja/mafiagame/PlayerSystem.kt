@@ -1614,6 +1614,20 @@ class PlayerSystem {
             sceneManager.activeCars.map { it to HitObjectType.CAR }
 
         for ((obj, type) in simpleObjects) {
+            if (type == HitObjectType.ENEMY) {
+                val enemy = obj as GameEnemy
+                if (enemy.currentState == AIState.DYING) {
+                    continue // Skip this enemy, it's already dead!
+                }
+            }
+
+            if (type == HitObjectType.NPC) {
+                val npc = obj as GameNPC
+                if (npc.currentState == NPCState.DYING) {
+                    continue // Skip this NPC, it's already dead!
+                }
+            }
+
             val bounds = (obj as? GameEnemy)?.getBoundingBox() ?: (obj as? GameNPC)?.getBoundingBox() ?: (obj as? GameObject)?.getBoundingBox() ?: (obj as? GameCar)?.getBoundingBox() ?: continue
 
             if (Intersector.intersectRayBounds(bulletRay, bounds, intersectionPoint)) {
