@@ -36,7 +36,8 @@ class SceneManager(
     private val faceCullingSystem: FaceCullingSystem,
     val game: MafiaGame,
     private val particleSystem: ParticleSystem,
-    private val fireSystem: FireSystem
+    private val fireSystem: FireSystem,
+    val boneSystem: BoneSystem
 ) {
     lateinit var teleporterSystem: TeleporterSystem
     // --- ACTIVE SCENE DATA ---
@@ -53,6 +54,8 @@ class SceneManager(
     val activeSpawners = Array<GameSpawner>()
     val activeBloodPools = Array<BloodPool>()
     val activeFootprints = Array<GameFootprint>()
+    val activeBones = Array<GameBone>()
+
 
     // State Management
     var currentScene: SceneType = SceneType.WORLD
@@ -633,7 +636,8 @@ class SceneManager(
             cameraPosition = Vector3(),
             lights = game.lightingManager.getLightSources(),
             bloodPools = Array(activeBloodPools),
-            footprints = Array(activeFootprints)
+            footprints = Array(activeFootprints),
+            bones = Array(activeBones)
         )
         println("World state saved. Player at ${worldState!!.playerPosition}")
     }
@@ -659,6 +663,7 @@ class SceneManager(
         activeSpawners.addAll(state.spawners)
         activeBloodPools.addAll(state.bloodPools)
         activeFootprints.addAll(state.footprints)
+        activeBones.addAll(state.bones)
 
         // Synchronize the ItemSystem with the restored world items
         itemSystem.setActiveItems(activeItems)
@@ -681,6 +686,7 @@ class SceneManager(
         currentState.teleporters.clear(); currentState.teleporters.addAll(teleporterSystem.activeTeleporters)
         currentState.bloodPools.clear(); currentState.bloodPools.addAll(activeBloodPools)
         currentState.footprints.clear(); currentState.footprints.addAll(activeFootprints)
+        currentState.bones.clear(); currentState.bones.addAll(activeBones)
         currentState.playerPosition.set(playerSystem.getPosition())
 
         currentState.lights.clear()
@@ -700,6 +706,7 @@ class SceneManager(
         teleporterSystem.activeTeleporters.addAll(state.teleporters)
         activeBloodPools.addAll(state.bloodPools)
         activeFootprints.addAll(state.footprints)
+        activeBones.addAll(state.bones)
 
         // Synchronize the ItemSystem with the loaded interior items
         itemSystem.setActiveItems(activeItems)
@@ -1388,6 +1395,7 @@ class SceneManager(
         teleporterSystem.activeTeleporters.clear()
         activeBloodPools.clear()
         activeFootprints.clear()
+        activeBones.clear()
 
         // Also clear any active lights from the lighting manager
         val currentLightIds = game.lightingManager.getLightSources().keys.toList()
@@ -1407,7 +1415,8 @@ data class WorldState(
     val cameraPosition: Vector3,
     val lights: Map<Int, LightSource>,
     val bloodPools: Array<BloodPool>,
-    val footprints: Array<GameFootprint>
+    val footprints: Array<GameFootprint>,
+    val bones: Array<GameBone>
 )
 
 // The state for a single house interior.
@@ -1428,7 +1437,8 @@ data class InteriorState(
     var savedShaderEffect: ShaderEffect = ShaderEffect.NONE,
     var sourceTemplateId: String? = null,
     val bloodPools: Array<BloodPool> = Array(),
-    val footprints: Array<GameFootprint> = Array()
+    val footprints: Array<GameFootprint> = Array(),
+    val bones: Array<GameBone> = Array()
 )
 
 data class InteriorLayout(

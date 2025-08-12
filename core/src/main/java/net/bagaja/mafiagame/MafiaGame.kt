@@ -75,6 +75,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var fireSystem: FireSystem
     private lateinit var bloodPoolSystem: BloodPoolSystem
     private lateinit var footprintSystem: FootprintSystem
+    private lateinit var boneSystem: BoneSystem
 
     private val tempRay = Ray()
     private val tempVec3 = Vector3()
@@ -94,6 +95,8 @@ class MafiaGame : ApplicationAdapter() {
         bloodPoolSystem.initialize()
         footprintSystem = FootprintSystem()
         footprintSystem.initialize()
+        boneSystem = BoneSystem()
+        boneSystem.initialize()
         setupItemSystem()
         setupCarSystem()
         lockIndicatorSystem = LockIndicatorSystem()
@@ -159,7 +162,8 @@ class MafiaGame : ApplicationAdapter() {
             faceCullingSystem,
             this,
             particleSystem,
-            fireSystem
+            fireSystem,
+            boneSystem
         )
         spawnerSystem.sceneManager = sceneManager
         sceneManager.teleporterSystem = teleporterSystem
@@ -1774,6 +1778,7 @@ class MafiaGame : ApplicationAdapter() {
         // Render Blood Pool
         bloodPoolSystem.render(cameraManager.camera, environment, sceneManager.activeBloodPools)
         footprintSystem.render(cameraManager.camera, environment, sceneManager.activeFootprints)
+        boneSystem.render(cameraManager.camera, environment, sceneManager.activeBones)
 
         // Render all objects
         for (gameObject in sceneManager.activeObjects) {
@@ -1919,6 +1924,7 @@ class MafiaGame : ApplicationAdapter() {
         fireSystem.dispose()
         bloodPoolSystem.dispose()
         footprintSystem.dispose()
+        boneSystem.dispose()
 
         // Dispose shader effect manager
         shaderEffectManager.dispose()

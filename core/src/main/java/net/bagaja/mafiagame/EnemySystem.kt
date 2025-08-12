@@ -195,9 +195,10 @@ class EnemySystem : IFinePositionable {
 
         println("${enemy.enemyType.displayName} is dying from ${enemy.lastDamageType}.")
 
-        // If not burned, spawn a blood pool immediately.
+        // If not burned, spawn a blood pool and bones
         if (enemy.lastDamageType != DamageType.FIRE) {
             sceneManager.game.playerSystem.bloodPoolSystem.addPool(enemy.position.cpy(), sceneManager)
+            sceneManager.boneSystem.spawnBones(enemy.position.cpy(), sceneManager)
         }
     }
 
