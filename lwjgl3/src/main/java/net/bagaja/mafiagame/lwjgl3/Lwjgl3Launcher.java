@@ -50,7 +50,8 @@ public class Lwjgl3Launcher {
 // changing room transition effect colors
 // edge houses
 // visual debug showing up when not in editor mode
-// bones showing up after some time an  enemy was killed
+// skull showing in the direction, the enemy died when killed
+// blocks being visible behind transparent enemies etc.
 // car maybe be able to step up half a block
 // optional weapon light
 // car spawner

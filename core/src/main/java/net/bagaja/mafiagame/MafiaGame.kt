@@ -1775,11 +1775,6 @@ class MafiaGame : ApplicationAdapter() {
         // Render all blocks
         sceneManager.activeChunkManager.render(modelBatch, environment, cameraManager.camera)
 
-        // Render Blood Pool
-        bloodPoolSystem.render(cameraManager.camera, environment, sceneManager.activeBloodPools)
-        footprintSystem.render(cameraManager.camera, environment, sceneManager.activeFootprints)
-        boneSystem.render(cameraManager.camera, environment, sceneManager.activeBones)
-
         // Render all objects
         for (gameObject in sceneManager.activeObjects) {
             if (gameObject.objectType != ObjectType.FIRE_SPREAD) {
@@ -1832,6 +1827,11 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render effects that should appear BEHIND characters
         fireSystem.render(cameraManager.camera, environment)
+
+        // Render Blood Pool
+        bloodPoolSystem.render(cameraManager.camera, environment, sceneManager.activeBloodPools)
+        footprintSystem.render(cameraManager.camera, environment, sceneManager.activeFootprints)
+        boneSystem.render(cameraManager.camera, environment, sceneManager.activeBones)
 
         // Render all potentially transparent billboards AFTER the fire
         playerSystem.render(cameraManager.camera, environment)
