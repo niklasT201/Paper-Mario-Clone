@@ -14,6 +14,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
 import kotlin.math.abs
 
@@ -69,8 +70,14 @@ class ParallaxBackgroundSystem {
         TEST_VILLA("Test Villa", "textures/objects/houses/villa.png", 25f, 18f, 2)
     }
 
-    fun initialize() {
+    lateinit var sceneManager: SceneManager
+    private lateinit var raycastSystem: RaycastSystem
+    private val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+    private val tempVec3 = Vector3()
+
+    fun initialize(blockSize: Float) {
         if (isInitialized) return
+        this.raycastSystem = RaycastSystem(blockSize)
 
         // Create 4 parallax layers with different speeds and distances
         parallaxLayers.clear()
@@ -105,6 +112,39 @@ class ParallaxBackgroundSystem {
 
         isInitialized = true
         println("ParallaxBackgroundSystem initialized with ${parallaxLayers.size} layers")
+    }
+
+    fun handlePlaceAction(ray: Ray) {
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val uiManager = sceneManager.game.uiManager // Get a reference to the UIManager
+            val imageType = uiManager.getCurrentParallaxImageType()
+            val layerIndex = uiManager.getCurrentParallaxLayer()
+
+            val xPosition = tempVec3.x
+
+            val success = addParallaxImage(imageType, xPosition, layerIndex)
+
+            if (success) {
+                println("Placed ${imageType.displayName} at X: $xPosition in layer $layerIndex")
+                // Fine positioning isn't supported for parallax images, so we clear the last placed instance.
+                sceneManager.game.lastPlacedInstance = null
+            } else {
+                println("Failed to place ${imageType.displayName}. Is there enough space?")
+            }
+        }
+    }
+
+    fun handleRemoveAction(ray: Ray): Boolean {
+        val parallaxImageToRemove = raycastSystem.getParallaxImageAtRay(ray, this)
+        if (parallaxImageToRemove != null) {
+            // Use the parallax system's own remove function
+            removeImage(
+                parallaxImageToRemove.layerIndex,
+                parallaxImageToRemove.basePosition.x
+            )
+            return true
+        }
+        return false
     }
 
     private fun createParallaxModel(imageType: ParallaxImageType): Model {

@@ -37,8 +37,7 @@ class UIManager(
     private val enemySystem: EnemySystem,
     private val npcSystem: NPCSystem,
     private val particleSystem: ParticleSystem,
-    private val spawnerSystem: SpawnerSystem,
-    private val onRemoveSpawner: (spawner: GameSpawner) -> Unit,
+    private val spawnerSystem: SpawnerSystem
 ) {
     private lateinit var stage: Stage
     lateinit var skin: Skin
@@ -169,7 +168,7 @@ class UIManager(
         particleSelectionUI = ParticleSelectionUI(particleSystem, skin, stage)
         particleSelectionUI.initialize()
 
-        spawnerUI = SpawnerUI(skin, stage, particleSystem, itemSystem, onRemoveSpawner)
+        spawnerUI = SpawnerUI(skin, stage, particleSystem, itemSystem, spawnerSystem::removeSpawner)
 
         shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager)
         shaderEffectUI.initialize()

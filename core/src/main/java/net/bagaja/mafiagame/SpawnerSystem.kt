@@ -144,4 +144,11 @@ class SpawnerSystem(
             println("Weapon spawner created ${weaponItem.itemType.displayName}. It should grant $ammoToGive ammo on pickup.")
         }
     }
+
+    fun removeSpawner(spawner: GameSpawner) {
+        sceneManager.activeSpawners.removeValue(spawner, true)
+        // Also remove its associated GameObject from the scene to hide the purple cube
+        sceneManager.activeObjects.removeValue(spawner.gameObject, true)
+        println("Removed Spawner at ${spawner.position}")
+    }
 }

@@ -12,7 +12,9 @@ import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
+import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
+import kotlin.math.floor
 import kotlin.math.sin
 
 // Item system class to manage 2D rotating item pickups
@@ -38,8 +40,14 @@ class ItemSystem: IFinePositionable {
     override var finePosMode = false
     override val fineStep = 0.25f
 
+    lateinit var sceneManager: SceneManager
+    private lateinit var raycastSystem: RaycastSystem
+    private val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+    private val tempVec3 = Vector3()
+
     fun initialize(blockSize: Float) {
         this.blockSize = blockSize
+        this.raycastSystem = RaycastSystem(blockSize)
         val modelBuilder = ModelBuilder()
 
         // Initialize shader and batch for items
@@ -148,6 +156,120 @@ class ItemSystem: IFinePositionable {
         if (gameItems.removeValue(item, true)) {
             println("Removed ${item.itemType.displayName}")
         }
+    }
+
+    fun handlePlaceAction(ray: Ray) {
+        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
+        if (hitBlock != null) {
+            // We hit a block directly - place item on top of it
+            placeItemOnBlock(ray, hitBlock)
+        } else {
+            // No block hit, use the original ground plane method
+            placeItemOnGround(ray)
+        }
+    }
+
+    fun handleRemoveAction(ray: Ray): Boolean {
+        val itemToRemove = raycastSystem.getItemAtRay(ray, this) // Pass itself to the raycaster
+        if (itemToRemove != null) {
+            sceneManager.activeItems.removeValue(itemToRemove, true)
+            this.setActiveItems(sceneManager.activeItems) // Resync the system's list
+            println("Removed ${itemToRemove.itemType.displayName}")
+            return true
+        }
+        return false
+    }
+
+    private fun placeItemOnBlock(ray: Ray, hitBlock: GameBlock) {
+        // Calculate intersection point with the hit block
+        val blockBounds = BoundingBox()
+        blockBounds.set(
+            Vector3(
+                hitBlock.position.x - blockSize / 2,
+                hitBlock.position.y - blockSize / 2,
+                hitBlock.position.z - blockSize / 2
+            ),
+            Vector3(
+                hitBlock.position.x + blockSize / 2,
+                hitBlock.position.y + blockSize / 2,
+                hitBlock.position.z + blockSize / 2
+            )
+        )
+
+        val intersection = Vector3()
+        if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, blockBounds, intersection)) {
+            // Determine which face was hit
+            val relativePos = Vector3(intersection).sub(hitBlock.position)
+
+            // Find the dominant axis (which face was hit)
+            val absX = kotlin.math.abs(relativePos.x)
+            val absY = kotlin.math.abs(relativePos.y)
+            val absZ = kotlin.math.abs(relativePos.z)
+
+            val itemPosition = when {
+                // Hit top face - place item on top
+                absY >= absX && absY >= absZ && relativePos.y > 0 -> {
+                    Vector3(
+                        hitBlock.position.x,
+                        hitBlock.position.y + blockSize / 2 + ItemSystem.ITEM_SURFACE_OFFSET, // 1f above the block surface
+                        hitBlock.position.z
+                    )
+                }
+                // Hit side faces - place item at the side but on the same level as block top
+                else -> {
+                    val blockTop = hitBlock.position.y + blockSize / 2
+                    Vector3(intersection.x, blockTop + ItemSystem.ITEM_SURFACE_OFFSET, intersection.z)
+                }
+            }
+            addItemToScene(itemPosition)
+        }
+    }
+
+    private fun placeItemOnGround(ray: Ray) {
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            // Items can be placed more freely, but still need to be on top of blocks
+            val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
+            val properY = calculateGroundYAt(gridX, gridZ, ITEM_SURFACE_OFFSET)
+
+            val itemPosition = Vector3(gridX, properY, gridZ)
+            addItemToScene(itemPosition)
+        }
+    }
+
+    private fun addItemToScene(position: Vector3) {
+        val newItem = createItem(position, currentSelectedItem)
+        if (newItem != null) {
+            sceneManager.activeItems.add(newItem)
+            setActiveItems(sceneManager.activeItems) // Resync this system
+            sceneManager.game.lastPlacedInstance = newItem
+            println("${newItem.itemType.displayName} placed in scene at: $position")
+        }
+    }
+
+    private fun calculateGroundYAt(x: Float, z: Float, objectHeight: Float = 0f): Float {
+        var highestBlockY = 0f // Ground level
+
+        for (gameBlock in sceneManager.activeChunkManager.getBlocksInColumn(x, z)) {
+            if (!gameBlock.blockType.hasCollision) continue
+
+            val blockCenterX = gameBlock.position.x
+            val blockCenterZ = gameBlock.position.z
+
+            // This tolerance check is the critical part that makes it work correctly
+            val tolerance = blockSize / 4f
+            if (kotlin.math.abs(blockCenterX - x) < tolerance &&
+                kotlin.math.abs(blockCenterZ - z) < tolerance) {
+
+                val blockHeight = blockSize * gameBlock.blockType.height
+                val blockTop = gameBlock.position.y + blockHeight / 2f
+
+                if (blockTop > highestBlockY) {
+                    highestBlockY = blockTop
+                }
+            }
+        }
+        return highestBlockY + objectHeight
     }
 
     fun update(deltaTime: Float, camera: Camera, playerSystem: PlayerSystem, sceneManager: SceneManager) {

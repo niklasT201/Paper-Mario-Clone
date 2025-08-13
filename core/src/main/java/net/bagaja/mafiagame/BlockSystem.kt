@@ -14,6 +14,9 @@ import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.collision.BoundingBox
+import com.badlogic.gdx.math.collision.Ray
+import kotlin.math.floor
 
 enum class BuildMode(val size: Int, val isWall: Boolean) {
     SINGLE(1, false),
@@ -69,9 +72,15 @@ class BlockSystem {
     private lateinit var modelBuilder: ModelBuilder
     private var internalBlockSize: Float = 4f
 
+    lateinit var sceneManager: SceneManager
+    private lateinit var raycastSystem: RaycastSystem
+    private val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+    private val tempVec3 = Vector3()
+
     fun initialize(blockSize: Float) {
         this.internalBlockSize = blockSize
         modelBuilder = ModelBuilder()
+        this.raycastSystem = RaycastSystem(blockSize)
 
         // Load textures and create models for each block type
         for (blockType in BlockType.entries) {
@@ -84,6 +93,213 @@ class BlockSystem {
             // Pre-generate face models for culling
             createFaceModelsForBlockType(blockType, blockSize)
         }
+    }
+
+    fun handlePlaceAction(ray: Ray) {
+        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
+
+        if (hitBlock != null) {
+            // We hit an existing block, place new block adjacent to it
+            placeBlockAdjacentTo(ray, hitBlock)
+        } else {
+            // No block hit, place on ground
+            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+                // Snap to grid
+                val gridX = floor(tempVec3.x / internalBlockSize) * internalBlockSize
+                val gridZ = floor(tempVec3.z / internalBlockSize) * internalBlockSize
+                placeBlockArea(gridX, 0f, gridZ)
+            }
+        }
+    }
+
+    fun handleRemoveAction(ray: Ray): Boolean {
+        val blockToRemove = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
+        if (blockToRemove != null) {
+            removeBlockArea(blockToRemove)
+            return true
+        }
+        return false
+    }
+
+    private fun placeBlockAdjacentTo(ray: Ray, hitBlock: GameBlock) {
+        // Calculate intersection point with the hit block
+        val blockBounds = BoundingBox()
+        hitBlock.getBoundingBox(internalBlockSize, blockBounds)
+
+        if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, blockBounds, tempVec3)) {
+            // Determine which face was hit by finding the closest face
+            val relativePos = Vector3(tempVec3).sub(hitBlock.position)
+            var newX = hitBlock.position.x
+            var newY = hitBlock.position.y
+            var newZ = hitBlock.position.z
+
+            // Find the dominant axis (which face was hit)
+            val absX = kotlin.math.abs(relativePos.x)
+            val absY = kotlin.math.abs(relativePos.y)
+            val absZ = kotlin.math.abs(relativePos.z)
+
+            when {
+                // Hit top or bottom face
+                absY >= absX && absY >= absZ -> newY += if (relativePos.y > 0) internalBlockSize else -internalBlockSize
+                // Hit left or right face
+                absX >= absY && absX >= absZ -> newX += if (relativePos.x > 0) internalBlockSize else -internalBlockSize
+                // Hit front or back face
+                else -> newZ += if (relativePos.z > 0) internalBlockSize else -internalBlockSize
+            }
+            val gridX = floor(newX / internalBlockSize) * internalBlockSize
+            val gridY = floor(newY / internalBlockSize) * internalBlockSize
+            val gridZ = floor(newZ / internalBlockSize) * internalBlockSize
+
+            placeBlockArea(gridX, gridY, gridZ)
+        }
+    }
+
+    private fun placeBlockArea(cornerX: Float, cornerY: Float, cornerZ: Float) {
+        val buildMode = this.currentBuildMode
+        val blockType = this.currentSelectedBlock
+        val size = buildMode.size
+
+        // If it's just a 1x1 area
+        if (size == 1) {
+            val position = Vector3(cornerX + internalBlockSize / 2, cornerY + (internalBlockSize * blockType.height) / 2, cornerZ + internalBlockSize / 2)
+            // Check if block already exists at this position
+            val existingBlock = sceneManager.activeChunkManager.getAllBlocks().find { gameBlock ->
+                // This check might need to be more robust for different shapes and sizes
+                gameBlock.position.dst(position) < 0.1f
+            }
+            if (existingBlock == null) {
+                addBlock(cornerX, cornerY, cornerZ, blockType)
+                println("${blockType.displayName} (${this.currentSelectedShape.getDisplayName()}) placed at: $cornerX, $cornerY, $cornerZ")
+            } else {
+                println("Block already exists at this position")
+            }
+            return
+        }
+
+        // For 3x3 or 5x5 areas
+        val offset = (size - 1) / 2
+        val isWall = buildMode.isWall
+
+        for (i in 0 until size) {
+            for (j in 0 until size) {
+                // Calculate the grid coordinates (bottom-left corner) for the current block in the area
+                val currentBlockX: Float
+                val currentBlockY: Float
+                val currentBlockZ: Float
+
+                if (isWall) {
+                    // Placing a wall (X, Y plane). The provided corner is the center block's corner.
+                    currentBlockX = cornerX + (i - offset) * internalBlockSize
+                    currentBlockY = cornerY + (j - offset) * internalBlockSize
+                    currentBlockZ = cornerZ
+                } else {
+                    // Placing a floor (X, Z plane)
+                    currentBlockX = cornerX + (i - offset) * internalBlockSize
+                    currentBlockY = cornerY
+                    currentBlockZ = cornerZ + (j - offset) * internalBlockSize
+                }
+
+                // Calculate the center position for the existence check
+                val checkPosition = Vector3(
+                    currentBlockX + internalBlockSize / 2,
+                    currentBlockY + (internalBlockSize * blockType.height) / 2,
+                    currentBlockZ + internalBlockSize / 2
+                )
+
+                // Check if a block already exists at this position
+                val existingBlock = sceneManager.activeChunkManager.getAllBlocks().find { gameBlock ->
+                    gameBlock.position.dst(checkPosition) < 0.1f
+                }
+
+                if (existingBlock == null) {
+                    // Pass the calculated corner coordinates to addBlock
+                    addBlock(currentBlockX, currentBlockY, currentBlockZ, blockType)
+                }
+            }
+        }
+        val areaType = if (isWall) "Wall" else "Floor"
+        println("${blockType.displayName} $size x $size $areaType placed around center corner: $cornerX, $cornerY, $cornerZ")
+    }
+
+    private fun removeBlockArea(centerBlock: GameBlock) {
+        val buildMode = this.currentBuildMode
+        val size = buildMode.size
+
+        // If it's just a 1x1 area
+        if (size == 1) {
+            removeBlock(centerBlock)
+            return
+        }
+
+        // For 3x3 or 5x5 areas
+        val blocksToRemoveList = mutableListOf<GameBlock>()
+        val centerPos = centerBlock.position
+        val offset = (size - 1) / 2
+        val isWall = buildMode.isWall
+
+        for (i in 0 until size) {
+            for (j in 0 until size) {
+                // Calculate the target center position for each block in the area
+                val targetX: Float
+                val targetY: Float
+                val targetZ: Float
+
+                if (isWall) {
+                    // Removing a wall area (X, Y plane), centered on the block that was clicked
+                    targetX = centerPos.x + (i - offset) * internalBlockSize
+                    targetY = centerPos.y + (j - offset) * internalBlockSize
+                    targetZ = centerPos.z
+                } else {
+                    // Removing a floor area (X, Z plane)
+                    targetX = centerPos.x + (i - offset) * internalBlockSize
+                    targetY = centerPos.y
+                    targetZ = centerPos.z + (j - offset) * internalBlockSize
+                }
+                val targetPos = Vector3(targetX, targetY, targetZ)
+
+                // Find if a block exists at this target position
+                val blockFound = sceneManager.activeChunkManager.getBlockAtWorld(targetPos)
+                if (blockFound != null) {
+                    blocksToRemoveList.add(blockFound)
+                }
+            }
+        }
+
+        if (blocksToRemoveList.isNotEmpty()) {
+            for (blockToRemove in blocksToRemoveList) {
+                removeBlock(blockToRemove)
+            }
+            println("Removed ${blocksToRemoveList.size} blocks in a $size x $size area.")
+        }
+    }
+
+    private fun addBlock(x: Float, y: Float, z: Float, blockType: BlockType) {
+        val shape = this.currentSelectedShape
+        val blockHeight = internalBlockSize * blockType.height
+
+        val position = when {
+            blockType == BlockType.WATER -> Vector3(x + internalBlockSize / 2, y + blockHeight, z + internalBlockSize / 2)
+            shape == BlockShape.SLAB_BOTTOM -> Vector3(x + internalBlockSize / 2, y + blockHeight / 4, z + internalBlockSize / 2)
+            shape == BlockShape.SLAB_TOP -> Vector3(x + internalBlockSize / 2, y + (blockHeight * 0.75f), z + internalBlockSize / 2)
+            else -> Vector3(x + internalBlockSize / 2, y + blockHeight / 2, z + internalBlockSize / 2)
+        }
+
+        val gameBlock = this.createGameBlock(
+            type = blockType,
+            shape = shape,
+            position = position,
+            geometryRotation = this.currentGeometryRotation,
+            textureRotation = this.currentTextureRotation,
+            topTextureRotation = this.currentTopTextureRotation
+        )
+
+        // The only call needed now
+        sceneManager.addBlock(gameBlock)
+    }
+
+    private fun removeBlock(blockToRemove: GameBlock) {
+        sceneManager.removeBlock(blockToRemove)
+        println("${blockToRemove.blockType.displayName} block removed at: ${blockToRemove.position}")
     }
 
     fun toggleRotationMode() {

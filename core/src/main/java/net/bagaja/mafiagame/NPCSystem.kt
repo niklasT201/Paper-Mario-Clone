@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
+import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
 import java.util.*
 import kotlin.math.cos
@@ -228,8 +229,16 @@ class NPCSystem : IFinePositionable {
     private val FADE_OUT_DURATION = 1.5f
     private val ASH_SPAWN_START_TIME = 1.5f
 
+    lateinit var sceneManager: SceneManager
+    private lateinit var raycastSystem: RaycastSystem
+    private val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+    private val tempVec3 = Vector3()
+    private var blockSize: Float = 4f
 
-    fun initialize() {
+    fun initialize(blockSize: Float) { // Modified to accept blockSize
+        this.blockSize = blockSize
+        this.raycastSystem = RaycastSystem(blockSize)
+
         billboardShaderProvider = BillboardShaderProvider()
         billboardModelBatch = ModelBatch(billboardShaderProvider)
         billboardShaderProvider.setBillboardLightingStrength(0.9f)
@@ -259,6 +268,61 @@ class NPCSystem : IFinePositionable {
                 println("ERROR: Could not load NPC texture or model for ${type.displayName}: ${e.message}")
             }
         }
+    }
+
+    fun handlePlaceAction(ray: Ray) {
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+
+            // Position the NPC so its feet are on the surface.
+            val npcType = currentSelectedNPCType
+            val npcPosition = Vector3(tempVec3.x, surfaceY + npcType.height / 2f, tempVec3.z)
+
+            val newNPC = createNPC(
+                npcPosition,
+                currentSelectedNPCType,
+                currentSelectedBehavior,
+                currentRotation // Pass the saved rotation
+            )
+
+            if (newNPC != null) {
+                sceneManager.activeNPCs.add(newNPC)
+                sceneManager.game.lastPlacedInstance = newNPC
+                println("Placed ${newNPC.npcType.displayName} with ${newNPC.behaviorType.displayName} behavior at $npcPosition")
+            }
+        }
+    }
+
+    fun handleRemoveAction(ray: Ray): Boolean {
+        val npcToRemove = raycastSystem.getNPCAtRay(ray, sceneManager.activeNPCs)
+        if (npcToRemove != null) {
+            removeNPC(npcToRemove)
+            return true
+        }
+        return false
+    }
+
+    private fun removeNPC(npcToRemove: GameNPC) {
+        sceneManager.activeNPCs.removeValue(npcToRemove, true)
+        println("Removed ${npcToRemove.npcType.displayName} at: ${npcToRemove.position}")
+    }
+
+    // --- Helper Function Copied from MafiaGame.kt ---
+    private fun findHighestSurfaceYAt(x: Float, z: Float): Float {
+        val blocksInColumn = sceneManager.activeChunkManager.getBlocksInColumn(x, z)
+        var highestY = 0f // Default to ground level
+        val tempBounds = BoundingBox()
+
+        for (gameBlock in blocksInColumn) {
+            if (!gameBlock.blockType.hasCollision) continue
+
+            val blockBounds = gameBlock.getBoundingBox(blockSize, tempBounds)
+
+            if (blockBounds.max.y > highestY) {
+                highestY = blockBounds.max.y
+            }
+        }
+        return highestY
     }
 
     fun createNPC(position: Vector3, npcType: NPCType, behavior: NPCBehavior, initialRotation: Float = 0f): GameNPC? {

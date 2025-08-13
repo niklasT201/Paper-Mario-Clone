@@ -158,13 +158,19 @@ class InteriorSystem : IFinePositionable {
         private set
     private val rotationStep = 90f
 
+    lateinit var sceneManager: SceneManager
+    private lateinit var raycastSystem: RaycastSystem
+    private val floorPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+    private val tempVec3 = Vector3()
+
     init {
         billboardShaderProvider.setBillboardLightingStrength(0.8f) // Adjust lighting as needed
         billboardShaderProvider.setMinLightLevel(0.4f)
         billboardModelBatch = ModelBatch(billboardShaderProvider)
     }
 
-    fun initialize() {
+    fun initialize(blockSize: Float) {
+        this.raycastSystem = RaycastSystem(blockSize)
         println("Initializing Interior System...")
         val modelBuilder = ModelBuilder() // Create one ModelBuilder to reuse
 
@@ -239,6 +245,66 @@ class InteriorSystem : IFinePositionable {
             }
         }
         println("Interior System initialized with ${interiorModels.size} models.")
+    }
+
+    fun handlePlaceAction(ray: Ray) {
+        if (sceneManager.currentScene != SceneType.HOUSE_INTERIOR) {
+            println("Can only place interiors inside a house.")
+            return
+        }
+
+        if (sceneManager.game.isPlacingExitDoorMode) {
+            if (currentSelectedInterior != InteriorType.DOOR_INTERIOR) {
+                println("You must place a DOOR to designate it as the exit.")
+                sceneManager.game.uiManager.setPersistentMessage("ERROR: You must select and place a DOOR.")
+                return
+            }
+        }
+
+        if (Intersector.intersectRayPlane(ray, floorPlane, tempVec3)) {
+            addInterior(tempVec3, currentSelectedInterior)
+        }
+    }
+
+    fun handleRemoveAction(ray: Ray): Boolean {
+        val interiorToRemove = raycastSystem.getInteriorAtRay(ray, sceneManager.activeInteriors)
+        if (interiorToRemove != null) {
+            removeInterior(interiorToRemove)
+            return true
+        }
+        return false
+    }
+
+    private fun addInterior(position: Vector3, interiorType: InteriorType) {
+        val newInterior = createInteriorInstance(interiorType) ?: return
+
+        newInterior.position.set(position)
+        if (interiorType.isFloorObject) {
+            newInterior.position.y += 0.01f
+        } else {
+            newInterior.position.y += interiorType.height / 2f
+        }
+        newInterior.rotation = currentRotation
+        newInterior.updateTransform()
+
+        sceneManager.activeInteriors.add(newInterior)
+        sceneManager.game.lastPlacedInstance = newInterior
+        println("${interiorType.displayName} placed at: $position")
+
+        // Assign the door and exit placement mode
+        if (sceneManager.game.isPlacingExitDoorMode && interiorType == InteriorType.DOOR_INTERIOR) {
+            val house = sceneManager.game.houseRequiringDoor
+            house?.exitDoorId = newInterior.id
+            println("SUCCESS: Door ${newInterior.id} assigned as exit for house ${house?.id}")
+
+            // Exit the special mode by calling the public game method
+            sceneManager.game.exitDoorPlacementModeCompleted()
+        }
+    }
+
+    private fun removeInterior(interiorToRemove: GameInterior) {
+        sceneManager.activeInteriors.removeValue(interiorToRemove, true)
+        println("${interiorToRemove.interiorType.displayName} removed at: ${interiorToRemove.position}")
     }
 
     fun nextInterior() {

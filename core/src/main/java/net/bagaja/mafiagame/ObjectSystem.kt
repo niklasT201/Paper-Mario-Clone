@@ -15,6 +15,9 @@ import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
+import com.badlogic.gdx.math.collision.Ray
+import com.badlogic.gdx.utils.Array
+import kotlin.math.floor
 
 // Object system class to manage 3D cross-shaped objects and light sources
 class ObjectSystem: IFinePositionable {
@@ -46,7 +49,30 @@ class ObjectSystem: IFinePositionable {
     private val objectLightAssociations = mutableMapOf<Int, Int>()
     private var nextObjectId = 1
 
-    fun initialize() {
+    lateinit var sceneManager: SceneManager
+    private lateinit var raycastSystem: RaycastSystem
+    private lateinit var lightingManager: LightingManager
+    private lateinit var fireSystem: FireSystem
+    private lateinit var teleporterSystem: TeleporterSystem
+    private lateinit var uiManager: UIManager
+    private val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+    private val tempVec3 = Vector3()
+    private var blockSize: Float = 4f
+
+    fun initialize(
+        blockSize: Float,
+        lightingManager: LightingManager,
+        fireSystem: FireSystem,
+        teleporterSystem: TeleporterSystem,
+        uiManager: UIManager
+    ) {
+        this.blockSize = blockSize
+        this.raycastSystem = RaycastSystem(blockSize)
+        this.lightingManager = lightingManager
+        this.fireSystem = fireSystem
+        this.teleporterSystem = teleporterSystem
+        this.uiManager = uiManager
+
         val modelBuilder = ModelBuilder()
 
         // Load textures and create models for each object type
@@ -134,6 +160,226 @@ class ObjectSystem: IFinePositionable {
                 println("Failed to load object ${objectType.displayName}: ${e.message}")
             }
         }
+    }
+
+    fun handlePlaceAction(ray: Ray, objectType: ObjectType) {
+        when (objectType) {
+            ObjectType.LIGHT_SOURCE -> placeLightSourceFromRay(ray)
+            ObjectType.SPAWNER -> placeSpawner(ray)
+            ObjectType.FIRE_SPREAD -> placeFire(ray)
+            ObjectType.TELEPORTER -> placeTeleporter(ray)
+            else -> placeGenericObject(ray, objectType)
+        }
+    }
+
+    fun handleRemoveAction(ray: Ray): Boolean {
+        // 1. Check for Fires
+        val fireToRemove = fireSystem.activeFires.find { fire ->
+            raycastSystem.getObjectAtRay(ray, Array(arrayOf(fire.gameObject))) != null
+        }
+        if (fireToRemove != null) {
+            sceneManager.activeObjects.removeValue(fireToRemove.gameObject, true)
+            fireSystem.removeFire(fireToRemove, this, lightingManager)
+            return true
+        }
+
+        // 2. Check for Teleporters
+        val teleporterGameObjects = Array(teleporterSystem.activeTeleporters.map { it.gameObject }.toTypedArray())
+        val teleporterToRemove = raycastSystem.getObjectAtRay(ray, teleporterGameObjects)
+        if (teleporterToRemove != null) {
+            val tp = teleporterSystem.activeTeleporters.find { it.gameObject.id == teleporterToRemove.id }
+            if (tp != null) {
+                teleporterSystem.removeTeleporter(tp)
+                return true
+            }
+        }
+
+        // 3. Check for Light Sources
+        val lightToRemove = raycastSystem.getLightSourceAtRay(ray, lightingManager)
+        if (lightToRemove != null) {
+            lightingManager.removeLightSource(lightToRemove.id)
+            this.removeLightSource(lightToRemove.id) // Use the object system's own method
+            return true
+        }
+
+        // 4. Check for Spawners (if in debug mode)
+        val spawnerToRemove = raycastSystem.getSpawnerAtRay(ray, sceneManager.activeSpawners)
+        if (spawnerToRemove != null && debugMode) {
+            removeSpawner(spawnerToRemove)
+            return true
+        }
+
+        // 5. Check for any other generic object
+        val objectToRemove = raycastSystem.getObjectAtRay(ray, sceneManager.activeObjects)
+        if (objectToRemove != null) {
+            removeObject(objectToRemove)
+            return true
+        }
+
+        // Open Spawner UI if not in debug mode
+        if (spawnerToRemove != null && !debugMode) {
+            uiManager.showSpawnerUI(spawnerToRemove)
+            return true // Consume the click
+        }
+
+        return false
+    }
+
+    private fun placeGenericObject(ray: Ray, objectType: ObjectType) {
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
+            val properY = findHighestSurfaceYAt(gridX, gridZ)
+
+            val existingObject = sceneManager.activeObjects.find { gameObject ->
+                kotlin.math.abs(gameObject.position.x - gridX) < 1f &&
+                    kotlin.math.abs(gameObject.position.z - gridZ) < 1f
+            }
+
+            if (existingObject == null) {
+                addObject(Vector3(gridX, properY, gridZ), objectType)
+                println("${objectType.displayName} placed at: $gridX, $properY, $gridZ")
+            } else {
+                println("Object already exists near this position")
+            }
+        }
+    }
+
+    private fun addObject(position: Vector3, objectType: ObjectType) {
+        val newGameObject = createGameObjectWithLight(
+            objectType = objectType,
+            position = position,
+            lightingManager = lightingManager
+        )
+
+        if (newGameObject != null) {
+            newGameObject.modelInstance.transform.setTranslation(position)
+            newGameObject.debugInstance?.transform?.setTranslation(position)
+
+            sceneManager.activeObjects.add(newGameObject)
+            sceneManager.game.lastPlacedInstance = newGameObject
+        } else {
+            println("Failed to create ${objectType.displayName}")
+        }
+    }
+
+    private fun removeObject(objectToRemove: GameObject) {
+        removeGameObjectWithLight(objectToRemove, lightingManager)
+        sceneManager.activeObjects.removeValue(objectToRemove, true)
+        println("${objectToRemove.objectType.displayName} removed at: ${objectToRemove.position}")
+    }
+
+    private fun placeLightSourceFromRay(ray: Ray) {
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
+            val properY = findHighestSurfaceYAt(gridX, gridZ)
+
+            val position = Vector3(gridX, properY, gridZ)
+
+            val existingLight = lightingManager.getLightSourceAt(position, 2f)
+            if (existingLight != null) {
+                println("Light source already exists near this position")
+                return
+            }
+
+            val settings = uiManager.getLightSourceSettings()
+            val lightSource = createLightSource(
+                position = Vector3(position.x, position.y, position.z),
+                intensity = settings.intensity,
+                range = settings.range,
+                color = settings.color,
+                rotationX = settings.rotationX,
+                rotationY = settings.rotationY,
+                rotationZ = settings.rotationZ,
+                flickerMode = settings.flickerMode,
+                loopOnDuration = settings.loopOnDuration,
+                loopOffDuration = settings.loopOffDuration,
+                timedFlickerLifetime = settings.timedFlickerLifetime
+            )
+
+            val instances = createLightSourceInstances(lightSource)
+            lightingManager.addLightSource(lightSource, instances)
+            sceneManager.game.lastPlacedInstance = lightSource
+        }
+    }
+
+    private fun placeSpawner(ray: Ray) {
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+            val spawnerPosition = Vector3(tempVec3.x, surfaceY, tempVec3.z)
+
+            val spawnerGameObject = createGameObjectWithLight(ObjectType.SPAWNER, spawnerPosition.cpy())
+
+            if (spawnerGameObject != null) {
+                // Manually set the transform of the visible debug model to the spawn position
+                spawnerGameObject.debugInstance?.transform?.setTranslation(spawnerPosition)
+
+                val newSpawner = GameSpawner(
+                    position = spawnerPosition.cpy(),
+                    gameObject = spawnerGameObject
+                )
+                sceneManager.activeSpawners.add(newSpawner)
+                //lastPlacedInstance = newSpawner // For fine positioning
+                println("Placed a new generic Spawner at $spawnerPosition")
+
+                // Immediately open the UI to configure the new spawner
+                uiManager.showSpawnerUI(newSpawner)
+            }
+        }
+    }
+
+    private fun removeSpawner(spawner: GameSpawner) {
+        sceneManager.activeSpawners.removeValue(spawner, true)
+        sceneManager.activeObjects.removeValue(spawner.gameObject, true)
+        println("Removed Spawner at ${spawner.position}")
+    }
+
+    private fun placeFire(ray: Ray) {
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+            val firePosition = Vector3(tempVec3.x, surfaceY, tempVec3.z)
+
+            val newFire = fireSystem.addFire(firePosition, this, lightingManager)
+            if (newFire != null) {
+                sceneManager.activeObjects.add(newFire.gameObject)
+                //lastPlacedInstance = newFire
+                println("Placed Spreading Fire object.")
+            }
+        }
+    }
+
+    private fun placeTeleporter(ray: Ray) {
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val newTeleporter = teleporterSystem.addTeleporterAt(tempVec3) ?: return
+
+            //lastPlacedInstance = newTeleporter
+
+            if (teleporterSystem.isLinkingMode) {
+                teleporterSystem.completeLinking(newTeleporter)
+            } else {
+                teleporterSystem.startLinking(newTeleporter)
+            }
+        }
+    }
+    private fun findHighestSurfaceYAt(x: Float, z: Float): Float {
+        val blocksInColumn = sceneManager.activeChunkManager.getBlocksInColumn(x, z)
+        var highestY = 0f // Default to ground level
+        val tempBounds = BoundingBox() // Re-use this to avoid creating new objects in the loop
+
+        for (gameBlock in blocksInColumn) {
+            // Skip blocks that don't have collision
+            if (!gameBlock.blockType.hasCollision) continue
+
+            // Get the world-space bounding box for the block
+            val blockBounds = gameBlock.getBoundingBox(blockSize, BoundingBox())
+
+            // If it is, check if this block's top surface is the highest we've found so far
+            if (blockBounds.max.y > highestY) {
+                highestY = blockBounds.max.y
+            }
+        }
+        return highestY
     }
 
     private fun createSinglePlaneModel(modelBuilder: ModelBuilder, material: Material, objectType: ObjectType): Model {

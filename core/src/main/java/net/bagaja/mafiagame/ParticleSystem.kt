@@ -11,6 +11,8 @@ import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.collision.BoundingBox
+import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
 import kotlin.random.Random
 
@@ -524,11 +526,19 @@ class ParticleSystem {
     var currentSelectedEffect: ParticleEffectType = ParticleEffectType.BLOOD_SPLATTER_1
     private val renderableInstances = Array<ModelInstance>()
 
+    lateinit var sceneManager: SceneManager
+    private lateinit var raycastSystem: RaycastSystem
+    private val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+    private val tempVec3 = Vector3()
+    private var blockSize: Float = 4f
+
     init {
         billboardModelBatch = ModelBatch(billboardShaderProvider)
     }
 
-    fun initialize() {
+    fun initialize(blockSize: Float) {
+        this.blockSize = blockSize
+        this.raycastSystem = RaycastSystem(blockSize)
         println("Initializing Particle System...")
         val modelBuilder = ModelBuilder()
 
@@ -559,6 +569,51 @@ class ParticleSystem {
             }
         }
         println("Particle System initialized with ${particleModels.size} effect models.")
+    }
+
+    fun handlePlaceAction(ray: Ray) {
+        var hitPoint: Vector3? = null
+        var hitNormal: Vector3? = null
+
+        // First, try to hit an existing block
+        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
+        if (hitBlock != null) {
+            val blockBounds = hitBlock.getBoundingBox(blockSize, BoundingBox())
+            if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, blockBounds, tempVec3)) {
+                hitPoint = tempVec3.cpy()
+                // A simple way to get the hit normal
+                val relativePos = Vector3(tempVec3).sub(hitBlock.position)
+                val absX = kotlin.math.abs(relativePos.x)
+                val absY = kotlin.math.abs(relativePos.y)
+                val absZ = kotlin.math.abs(relativePos.z)
+                hitNormal = when {
+                    absY > absX && absY > absZ -> Vector3(0f, if (relativePos.y > 0) 1f else -1f, 0f)
+                    absX > absY && absX > absZ -> Vector3(if (relativePos.x > 0) 1f else -1f, 0f, 0f)
+                    else -> Vector3(0f, 0f, if (relativePos.z > 0) 1f else -1f)
+                }
+            }
+        }
+
+        // If no block was hit, intersect with the ground plane
+        if (hitPoint == null) {
+            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+                hitPoint = tempVec3.cpy()
+                hitNormal = Vector3.Y // Normal is straight up from the ground
+            }
+        }
+
+        // Spawn the effect if we found a point
+        hitPoint?.let { pos ->
+            val effectType = currentSelectedEffect
+            // Check for gun smoke effects to determine direction
+            val isGunSmokeEffect = effectType.name.startsWith("GUN_SMOKE")
+
+            // If it's gun smoke, the direction is the ray. Otherwise, it's based on the surface normal.
+            val direction = if (isGunSmokeEffect) ray.direction else hitNormal
+
+            spawnEffect(effectType, pos, direction, hitNormal)
+            println("Spawned ${effectType.displayName} at $pos")
+        }
     }
 
     /**

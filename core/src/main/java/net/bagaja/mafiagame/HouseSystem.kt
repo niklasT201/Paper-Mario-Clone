@@ -12,6 +12,7 @@ import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.JsonReader
 import java.util.*
+import kotlin.math.floor
 
 class HouseSystem: IFinePositionable {
     private val houseModels = mutableMapOf<HouseType, Model>()
@@ -35,7 +36,16 @@ class HouseSystem: IFinePositionable {
     override var finePosMode = false
     override val fineStep = 0.25f
 
+    lateinit var sceneManager: SceneManager
+    private lateinit var raycastSystem: RaycastSystem
+    private val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+    private val tempVec3 = Vector3()
+    private var blockSize: Float = 4f
+
     fun initialize() {
+        this.blockSize = 4f // Assuming default size, or pass from MafiaGame
+        this.raycastSystem = RaycastSystem(blockSize)
+
         // Initialize the 3D model loader
         modelLoader = G3dModelLoader(JsonReader())
 
@@ -66,6 +76,80 @@ class HouseSystem: IFinePositionable {
                 e.printStackTrace()
             }
         }
+    }
+
+    fun handlePlaceAction(ray: Ray) {
+        if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
+            val properY = findHighestSurfaceYAt(gridX, gridZ)
+
+            val existingHouse = sceneManager.activeHouses.find { house ->
+                kotlin.math.abs(house.position.x - gridX) < 3f &&
+                    kotlin.math.abs(house.position.z - gridZ) < 3f
+            }
+
+            if (existingHouse == null) {
+                addHouse(gridX, properY, gridZ, currentSelectedHouse)
+                println("${currentSelectedHouse.displayName} placed at: $gridX, $properY, $gridZ")
+            } else {
+                println("House already exists near this position")
+            }
+        }
+    }
+
+    fun handleRemoveAction(ray: Ray): Boolean {
+        val houseToRemove = raycastSystem.getHouseAtRay(ray, sceneManager.activeHouses)
+        if (houseToRemove != null) {
+            removeHouse(houseToRemove)
+            return true
+        }
+        return false
+    }
+
+    private fun addHouse(x: Float, y: Float, z: Float, houseType: HouseType) {
+        val houseInstance = createHouseInstance(houseType) ?: return
+        val position = Vector3(x, y, z)
+
+        val canHaveRoom = houseType.canHaveRoom
+        val isLocked = if (canHaveRoom) isNextHouseLocked else false
+        val roomTemplateId = if (isLocked || !canHaveRoom) null else selectedRoomTemplateId
+
+        val gameHouse = GameHouse(
+            modelInstance = houseInstance,
+            houseType = houseType,
+            position = position,
+            isLocked = isLocked,
+            assignedRoomTemplateId = roomTemplateId,
+            exitDoorId = null,
+            rotationY = currentRotation
+        )
+        gameHouse.updateTransform()
+
+        sceneManager.activeHouses.add(gameHouse)
+        sceneManager.game.lastPlacedInstance = gameHouse
+
+        println("Placed ${houseType.displayName}. Locked: ${gameHouse.isLocked}. Room Template ID: ${gameHouse.assignedRoomTemplateId ?: "None"}")
+    }
+
+    private fun removeHouse(houseToRemove: GameHouse) {
+        sceneManager.activeHouses.removeValue(houseToRemove, true)
+        println("${houseToRemove.houseType.displayName} removed at: ${houseToRemove.position}")
+    }
+
+    // --- NEW: Helper Function Copied from MafiaGame.kt ---
+    private fun findHighestSurfaceYAt(x: Float, z: Float): Float {
+        val blocksInColumn = sceneManager.activeChunkManager.getBlocksInColumn(x, z)
+        var highestY = 0f // Default to ground level
+
+        for (gameBlock in blocksInColumn) {
+            if (!gameBlock.blockType.hasCollision) continue
+            val blockBounds = gameBlock.getBoundingBox(blockSize, BoundingBox())
+            if (blockBounds.max.y > highestY) {
+                highestY = blockBounds.max.y
+            }
+        }
+        return highestY
     }
 
     fun rotateSelection() {

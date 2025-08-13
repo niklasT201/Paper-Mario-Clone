@@ -12,6 +12,8 @@ import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
+import com.badlogic.gdx.math.collision.Ray
+import kotlin.math.floor
 import kotlin.random.Random
 
 enum class CarState {
@@ -44,7 +46,17 @@ class CarSystem: IFinePositionable {
     override var finePosMode = false
     override val fineStep = 0.25f
 
-    fun initialize() {
+    lateinit var sceneManager: SceneManager
+    private lateinit var raycastSystem: RaycastSystem
+    private val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+    private val tempVec3 = Vector3()
+    private var blockSize: Float = 4f
+
+
+    fun initialize(blockSize: Float) {
+        this.blockSize = blockSize
+        this.raycastSystem = RaycastSystem(blockSize)
+
         billboardShaderProvider = BillboardShaderProvider()
         billboardModelBatch = ModelBatch(billboardShaderProvider)
         billboardShaderProvider.setBillboardLightingStrength(0.9f)
@@ -76,6 +88,76 @@ class CarSystem: IFinePositionable {
                 println("Failed to load car ${carType.displayName}: ${e.message}")
             }
         }
+        this.blockSize = 4f
+        this.raycastSystem = RaycastSystem(blockSize)
+    }
+
+    fun handlePlaceAction(ray: Ray) {
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            // Snap to grid
+            val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
+            val properY = findHighestSurfaceYAt(gridX, gridZ) // Use local helper
+
+            // Check if there's already a car at this position
+            val existingCar = sceneManager.activeCars.find { car ->
+                kotlin.math.abs(car.position.x - gridX) < 2f &&
+                    kotlin.math.abs(car.position.z - gridZ) < 2f
+            }
+
+            if (existingCar == null) {
+                addCar(gridX, properY, gridZ, currentSelectedCar)
+                println("${currentSelectedCar.displayName} placed at: $gridX, $properY, $gridZ")
+            } else {
+                println("Car already exists near this position")
+            }
+        }
+    }
+
+    fun handleRemoveAction(ray: Ray): Boolean {
+        val carToRemove = raycastSystem.getCarAtRay(ray, sceneManager.activeCars)
+        if (carToRemove != null) {
+            removeCar(carToRemove)
+            return true
+        }
+        return false
+    }
+
+    private fun addCar(x: Float, y: Float, z: Float, carType: CarType) {
+        val carInstance = createCarInstance(carType)
+        if (carInstance != null) {
+            val position = Vector3(x, y, z)
+            val gameCar = GameCar(carInstance, carType, position, 0f, isNextCarLocked)
+            sceneManager.activeCars.add(gameCar)
+            sceneManager.game.lastPlacedInstance = gameCar
+
+            println("Placed ${carType.displayName}. Locked: ${gameCar.isLocked}")
+        }
+    }
+
+    private fun removeCar(carToRemove: GameCar) {
+        sceneManager.activeCars.removeValue(carToRemove, true)
+        println("${carToRemove.carType.displayName} removed at: ${carToRemove.position}")
+    }
+
+    private fun findHighestSurfaceYAt(x: Float, z: Float): Float {
+        val blocksInColumn = sceneManager.activeChunkManager.getBlocksInColumn(x, z)
+        var highestY = 0f // Default to ground level
+        val tempBounds = BoundingBox() // Re-use this to avoid creating new objects in the loop
+
+        for (gameBlock in blocksInColumn) {
+            // Skip blocks that don't have collision
+            if (!gameBlock.blockType.hasCollision) continue
+
+            // Get the world-space bounding box for the block
+            val blockBounds = gameBlock.getBoundingBox(blockSize, BoundingBox())
+
+            // If it is, check if this block's top surface is the highest we've found so far
+            if (blockBounds.max.y > highestY) {
+                highestY = blockBounds.max.y
+            }
+        }
+        return highestY
     }
 
     fun render(camera: Camera, environment: Environment, cars: com.badlogic.gdx.utils.Array<GameCar>) {

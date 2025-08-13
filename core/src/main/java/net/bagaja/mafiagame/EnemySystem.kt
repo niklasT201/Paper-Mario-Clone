@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
+import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
 import java.util.*
 import kotlin.math.max
@@ -139,8 +140,16 @@ class EnemySystem : IFinePositionable {
     private val FADE_OUT_DURATION = 1.5f
     private val ASH_SPAWN_START_TIME = 1.5f // Must match the ash particle's fadeIn time
 
+    lateinit var sceneManager: SceneManager
+    private lateinit var raycastSystem: RaycastSystem
+    private val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+    private val tempVec3 = Vector3()
+    private var blockSize: Float = 4f
 
-    fun initialize() {
+    fun initialize(blockSize: Float) { // Modified to accept blockSize
+        this.blockSize = blockSize
+        this.raycastSystem = RaycastSystem(blockSize)
+
         billboardShaderProvider = BillboardShaderProvider()
         billboardModelBatch = ModelBatch(billboardShaderProvider)
         billboardShaderProvider.setBillboardLightingStrength(0.9f)
@@ -170,6 +179,59 @@ class EnemySystem : IFinePositionable {
                 println("ERROR: Could not load enemy texture or model for ${type.displayName}: ${e.message}")
             }
         }
+    }
+
+    fun handlePlaceAction(ray: Ray) {
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+
+            // Position the enemy so its feet are on the surface
+            val enemyType = currentSelectedEnemyType
+            val enemyPosition = Vector3(tempVec3.x, surfaceY + enemyType.height / 2f, tempVec3.z)
+
+            val newEnemy = createEnemy(
+                enemyPosition,
+                currentSelectedEnemyType,
+                currentSelectedBehavior
+            )
+
+            if (newEnemy != null) {
+                sceneManager.activeEnemies.add(newEnemy)
+                sceneManager.game.lastPlacedInstance = newEnemy // For fine positioning
+                println("Placed ${newEnemy.enemyType.displayName} with ${newEnemy.behaviorType.displayName} behavior at $enemyPosition")
+            }
+        }
+    }
+
+    fun handleRemoveAction(ray: Ray): Boolean {
+        val enemyToRemove = raycastSystem.getEnemyAtRay(ray, sceneManager.activeEnemies)
+        if (enemyToRemove != null) {
+            removeEnemy(enemyToRemove)
+            return true
+        }
+        return false
+    }
+
+    private fun removeEnemy(enemyToRemove: GameEnemy) {
+        sceneManager.activeEnemies.removeValue(enemyToRemove, true)
+        println("Removed ${enemyToRemove.enemyType.displayName} at: ${enemyToRemove.position}")
+    }
+
+    private fun findHighestSurfaceYAt(x: Float, z: Float): Float {
+        val blocksInColumn = sceneManager.activeChunkManager.getBlocksInColumn(x, z)
+        var highestY = 0f // Default to ground level
+        val tempBounds = BoundingBox()
+
+        for (gameBlock in blocksInColumn) {
+            if (!gameBlock.blockType.hasCollision) continue
+
+            val blockBounds = gameBlock.getBoundingBox(blockSize, tempBounds)
+
+            if (blockBounds.max.y > highestY) {
+                highestY = blockBounds.max.y
+            }
+        }
+        return highestY
     }
 
     fun createEnemy(position: Vector3, enemyType: EnemyType, behavior: EnemyBehavior): GameEnemy? {

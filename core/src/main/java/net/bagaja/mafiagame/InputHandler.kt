@@ -27,9 +27,6 @@ class InputHandler(
     private val sceneManager: SceneManager,
     private val roomTemplateManager: RoomTemplateManager,
     private val shaderEffectManager: ShaderEffectManager,
-    private val onLeftClick: (screenX: Int, screenY: Int) -> Unit,
-    private val onRightClickAttemptBlockRemove: (screenX: Int, screenY: Int) -> Boolean,
-    private val onFinePosMove: (deltaX: Float, deltaY: Float, deltaZ: Float) -> Unit
 ) {
     private var isRightMousePressed = false
     private var isLeftMousePressed = false
@@ -116,7 +113,21 @@ class InputHandler(
                     Input.Buttons.LEFT -> {
                         if (game.isEditorMode) {
                             isLeftMousePressed = true
-                            onLeftClick(screenX, screenY)
+                            val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+                            when (uiManager.selectedTool) {
+                                Tool.BLOCK -> blockSystem.handlePlaceAction(ray)
+                                Tool.PLAYER -> game.playerSystem.placePlayer(ray, sceneManager)
+                                Tool.OBJECT -> { objectSystem.handlePlaceAction(ray, objectSystem.currentSelectedObject) }
+                                Tool.ITEM -> itemSystem.handlePlaceAction(ray)
+                                Tool.CAR -> carSystem.handlePlaceAction(ray)
+                                Tool.HOUSE -> houseSystem.handlePlaceAction(ray)
+                                Tool.BACKGROUND -> backgroundSystem.handlePlaceAction(ray)
+                                Tool.PARALLAX -> parallaxSystem.handlePlaceAction(ray)
+                                Tool.INTERIOR -> interiorSystem.handlePlaceAction(ray)
+                                Tool.ENEMY -> enemySystem.handlePlaceAction(ray)
+                                Tool.NPC -> npcSystem.handlePlaceAction(ray)
+                                Tool.PARTICLE -> particleSystem.handlePlaceAction(ray)
+                            }
                             // Reset timer and track position for continuous placement
                             continuousActionTimer = 0f
                             lastPlacementX = screenX
@@ -131,21 +142,31 @@ class InputHandler(
                     }
                     Input.Buttons.RIGHT -> {
                         if (game.isEditorMode) {
-                            if (uiManager.selectedTool == Tool.OBJECT) {
-                                val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
-                                val raycastSystem = RaycastSystem(4f) // Assuming block size
-                                val spawner = raycastSystem.getSpawnerAtRay(ray, sceneManager.activeSpawners)
-                                if (spawner != null) {
-                                    // Check if debug mode is on (i.e., the purple cube is visible)
-                                    if (!objectSystem.debugMode) {
-                                        // Debug mode is OFF: Open the UI for configuration.
-                                        uiManager.showSpawnerUI(spawner)
-                                        return true // Consume the input, preventing removal or camera drag.
-                                    }
-                                }
-                            }
                             // Try to remove a block. If successful, consume the event.
-                            if (onRightClickAttemptBlockRemove(screenX, screenY)) {
+                            val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+
+                            // Handle cancelling teleporter linking first
+                            if (teleporterSystem.isLinkingMode) {
+                                teleporterSystem.cancelLinking()
+                                return true // Consume the click
+                            }
+
+                            var removed = false
+                            when (uiManager.selectedTool) {
+                                Tool.BLOCK -> removed = blockSystem.handleRemoveAction(ray)
+                                Tool.OBJECT -> removed = objectSystem.handleRemoveAction(ray)
+                                Tool.ITEM -> removed = itemSystem.handleRemoveAction(ray)
+                                Tool.CAR -> removed = carSystem.handleRemoveAction(ray)
+                                Tool.HOUSE -> removed = houseSystem.handleRemoveAction(ray)
+                                Tool.BACKGROUND -> removed = backgroundSystem.handleRemoveAction(ray)
+                                Tool.PARALLAX -> removed = parallaxSystem.handleRemoveAction(ray)
+                                Tool.INTERIOR -> removed = interiorSystem.handleRemoveAction(ray)
+                                Tool.ENEMY -> removed = enemySystem.handleRemoveAction(ray)
+                                Tool.NPC -> removed = npcSystem.handleRemoveAction(ray)
+                                Tool.PLAYER, Tool.PARTICLE -> { /* No removal action */ }
+                            }
+
+                            if (removed) {
                                 isRightMousePressed = true
                                 // Reset timer and track position for continuous removal
                                 continuousActionTimer = 0f
@@ -546,7 +567,21 @@ class InputHandler(
 
             // Only place if mouse has moved or enough time has passed
             if (currentMouseX != lastPlacementX || currentMouseY != lastPlacementY) {
-                onLeftClick(currentMouseX, currentMouseY)
+                val ray = cameraManager.camera.getPickRay(currentMouseX.toFloat(), currentMouseY.toFloat())
+                when (uiManager.selectedTool) {
+                    Tool.BLOCK -> blockSystem.handlePlaceAction(ray)
+                    Tool.PLAYER -> game.playerSystem.placePlayer(ray, sceneManager)
+                    Tool.OBJECT -> objectSystem.handlePlaceAction(ray, objectSystem.currentSelectedObject)
+                    Tool.ITEM -> itemSystem.handlePlaceAction(ray)
+                    Tool.CAR -> carSystem.handlePlaceAction(ray)
+                    Tool.HOUSE -> houseSystem.handlePlaceAction(ray)
+                    Tool.BACKGROUND -> backgroundSystem.handlePlaceAction(ray)
+                    Tool.PARALLAX -> parallaxSystem.handlePlaceAction(ray)
+                    Tool.INTERIOR -> interiorSystem.handlePlaceAction(ray)
+                    Tool.ENEMY -> enemySystem.handlePlaceAction(ray)
+                    Tool.NPC -> npcSystem.handlePlaceAction(ray)
+                    Tool.PARTICLE -> particleSystem.handlePlaceAction(ray)
+                }
                 lastPlacementX = currentMouseX
                 lastPlacementY = currentMouseY
                 continuousActionTimer = 0f
@@ -560,7 +595,23 @@ class InputHandler(
 
             // Only remove if mouse has moved or enough time has passed
             if (currentMouseX != lastRemovalX || currentMouseY != lastRemovalY) {
-                if (onRightClickAttemptBlockRemove(currentMouseX, currentMouseY)) {
+                val ray = cameraManager.camera.getPickRay(currentMouseX.toFloat(), currentMouseY.toFloat())
+                var removed = false
+                when (uiManager.selectedTool) {
+                    Tool.BLOCK -> removed = blockSystem.handleRemoveAction(ray)
+                    Tool.OBJECT -> removed = objectSystem.handleRemoveAction(ray)
+                    Tool.ITEM -> removed = itemSystem.handleRemoveAction(ray)
+                    Tool.CAR -> removed = carSystem.handleRemoveAction(ray)
+                    Tool.HOUSE -> removed = houseSystem.handleRemoveAction(ray)
+                    Tool.BACKGROUND -> removed = backgroundSystem.handleRemoveAction(ray)
+                    Tool.PARALLAX -> removed = parallaxSystem.handleRemoveAction(ray)
+                    Tool.INTERIOR -> removed = interiorSystem.handleRemoveAction(ray)
+                    Tool.ENEMY -> removed = enemySystem.handleRemoveAction(ray)
+                    Tool.NPC -> removed = npcSystem.handleRemoveAction(ray)
+                    Tool.PLAYER, Tool.PARTICLE -> { /* No removal action */ }
+                }
+
+                if (removed) {
                     lastRemovalX = currentMouseX
                     lastRemovalY = currentMouseY
                     continuousActionTimer = 0f
@@ -583,7 +634,7 @@ class InputHandler(
 
             // Only call if there's actual movement
             if (deltaX != 0f || deltaY != 0f || deltaZ != 0f) {
-                onFinePosMove(deltaX, deltaY, deltaZ)
+                game.handleFinePosMove(deltaX, deltaY, deltaZ)
                 continuousFineTimer = 0f
             }
         }

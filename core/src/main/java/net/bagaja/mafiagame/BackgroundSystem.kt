@@ -13,8 +13,11 @@ import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.collision.BoundingBox
+import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
 import kotlin.math.abs
+import kotlin.math.floor
 import kotlin.math.round
 
 class BackgroundSystem: IFinePositionable {
@@ -45,7 +48,15 @@ class BackgroundSystem: IFinePositionable {
     override var finePosMode = false
     override val fineStep = 0.25f
 
-    fun initialize() {
+    lateinit var sceneManager: SceneManager
+    private lateinit var raycastSystem: RaycastSystem
+    private val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
+    private val tempVec3 = Vector3()
+    private var blockSize: Float = 4f
+
+    fun initialize(blockSize: Float) {
+        this.blockSize = blockSize
+        this.raycastSystem = RaycastSystem(blockSize)
         // Load textures and create models for each background type
         for (backgroundType in BackgroundType.entries) {
             try {
@@ -70,6 +81,53 @@ class BackgroundSystem: IFinePositionable {
                 e.printStackTrace()
             }
         }
+    }
+
+    fun handlePlaceAction(ray: Ray) {
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            // Note: Background placement might not snap to the grid in the same way.
+            // This logic is copied directly from MafiaGame's placeBackground.
+            val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
+            val properY = findHighestSurfaceYAt(gridX, gridZ) // Backgrounds at block surface
+
+            val newBackground = addBackground(
+                gridX,
+                properY,
+                gridZ,
+                currentSelectedBackground
+            )
+
+            if (newBackground != null) {
+                sceneManager.game.lastPlacedInstance = newBackground
+                println("${currentSelectedBackground.displayName} placed successfully at: $gridX, $properY, $gridZ")
+            }
+        }
+    }
+
+    fun handleRemoveAction(ray: Ray): Boolean {
+        val backgroundToRemove = raycastSystem.getBackgroundAtRay(ray, gameBackgrounds)
+        if (backgroundToRemove != null) {
+            removeBackground(backgroundToRemove)
+            return true
+        }
+        return false
+    }
+
+    // --- Helper Function Copied from MafiaGame.kt ---
+    private fun findHighestSurfaceYAt(x: Float, z: Float): Float {
+        val blocksInColumn = sceneManager.activeChunkManager.getBlocksInColumn(x, z)
+        var highestY = 0f
+        val tempBounds = BoundingBox()
+
+        for (gameBlock in blocksInColumn) {
+            if (!gameBlock.blockType.hasCollision) continue
+            val blockBounds = gameBlock.getBoundingBox(blockSize, tempBounds)
+            if (blockBounds.max.y > highestY) {
+                highestY = blockBounds.max.y
+            }
+        }
+        return highestY
     }
 
     private fun createSimpleQuadModel(modelBuilder: ModelBuilder, material: Material, backgroundType: BackgroundType): Model {

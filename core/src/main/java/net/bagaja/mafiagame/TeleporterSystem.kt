@@ -16,6 +16,7 @@ class TeleporterSystem(
     private val objectSystem: ObjectSystem,
     private val uiManager: UIManager
 ) : IFinePositionable {
+    lateinit var sceneManager: SceneManager
     private val FULL_VISIBILITY_RADIUS = 5f
     private val FADE_OUT_RADIUS = 10f
 
