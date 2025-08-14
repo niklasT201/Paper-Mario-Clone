@@ -339,7 +339,7 @@ class MafiaGame : ApplicationAdapter() {
                     val exitDoorId = currentHouse.exitDoorId
                     if (exitDoorId == null) {
                         println("This house has no designated exit! This shouldn't happen in normal gameplay.")
-                        enterExitDoorPlacementMode(currentHouse)
+                        sceneManager.game.uiManager.enterExitDoorPlacementMode(currentHouse)
                         return
                     }
 
@@ -512,30 +512,6 @@ class MafiaGame : ApplicationAdapter() {
         showInvisibleBlockOutlines = !showInvisibleBlockOutlines
         val status = if (showInvisibleBlockOutlines) "ON" else "OFF"
         uiManager.updatePlacementInfo("Invisible Block Outlines: $status")
-    }
-
-    fun enterExitDoorPlacementMode(house: GameHouse) {
-        println("Entering EXIT DOOR PLACEMENT mode for house ${house.id}")
-        isPlacingExitDoorMode = true
-        houseRequiringDoor = house
-
-        // Force the UI and system to the DOOR_INTERIOR tool
-        uiManager.selectedTool = UIManager.Tool.INTERIOR
-        val doorIndex = InteriorType.entries.indexOf(InteriorType.DOOR_INTERIOR)
-        if (doorIndex != -1) {
-            interiorSystem.currentSelectedInteriorIndex = doorIndex
-            interiorSystem.currentSelectedInterior = InteriorType.DOOR_INTERIOR
-            uiManager.updateInteriorSelection() // Refresh the UI to show the door is selected
-        }
-
-        // Show a persistent message on the UI
-        uiManager.setPersistentMessage("PLACE THE EXIT DOOR (Press J to see options)")
-    }
-
-    fun exitDoorPlacementModeCompleted() {
-        isPlacingExitDoorMode = false
-        houseRequiringDoor = null
-        uiManager.clearPersistentMessage()
     }
 
     override fun render() {

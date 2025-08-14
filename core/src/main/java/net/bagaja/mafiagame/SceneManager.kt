@@ -561,7 +561,7 @@ class SceneManager(
         pendingHouse = null
 
         if (house.exitDoorId == null) {
-            game.enterExitDoorPlacementMode(house)
+            game.uiManager.enterExitDoorPlacementMode(house)
         }
 
         // Start fading back in to reveal the room.

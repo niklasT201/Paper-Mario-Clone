@@ -72,6 +72,11 @@ class UIManager(
         private set
     var selectedTool = Tool.BLOCK
 
+    var isPlacingExitDoorMode = false
+        private set
+    var houseRequiringDoor: GameHouse? = null
+        private set
+
     // Design constants
     private val ACCENT_COLOR = Color(0.2f, 0.7f, 1f, 1f) // Bright blue
     private val SECONDARY_COLOR = Color(0.8f, 0.4f, 1f, 1f) // Purple
@@ -1607,6 +1612,29 @@ class UIManager(
     fun showVisualSettings() {
         pauseMenuUI.hideInstantly()
         visualSettingsUI.show(stage)
+    }
+
+    fun enterExitDoorPlacementMode(house: GameHouse) {
+        println("Entering EXIT DOOR PLACEMENT mode for house ${house.id}")
+        isPlacingExitDoorMode = true
+        houseRequiringDoor = house
+
+        // Force the UI and system to the DOOR_INTERIOR tool
+        selectedTool = Tool.INTERIOR
+        val doorIndex = InteriorType.entries.indexOf(InteriorType.DOOR_INTERIOR)
+        if (doorIndex != -1) {
+            interiorSystem.currentSelectedInteriorIndex = doorIndex
+            interiorSystem.currentSelectedInterior = InteriorType.DOOR_INTERIOR
+            updateInteriorSelection() // Refresh the UI
+        }
+
+        setPersistentMessage("PLACE THE EXIT DOOR (Press J to see options)")
+    }
+
+    fun exitDoorPlacementModeCompleted() {
+        isPlacingExitDoorMode = false
+        houseRequiringDoor = null
+        clearPersistentMessage()
     }
 
     fun getStage(): Stage = stage

@@ -292,13 +292,14 @@ class InteriorSystem : IFinePositionable {
         println("${interiorType.displayName} placed at: $position")
 
         // Assign the door and exit placement mode
-        if (sceneManager.game.isPlacingExitDoorMode && interiorType == InteriorType.DOOR_INTERIOR) {
-            val house = sceneManager.game.houseRequiringDoor
+        val uiManager = sceneManager.game.uiManager
+        if (uiManager.isPlacingExitDoorMode && interiorType == InteriorType.DOOR_INTERIOR) {
+            val house = uiManager.houseRequiringDoor
             house?.exitDoorId = newInterior.id
             println("SUCCESS: Door ${newInterior.id} assigned as exit for house ${house?.id}")
 
-            // Exit the special mode by calling the public game method
-            sceneManager.game.exitDoorPlacementModeCompleted()
+            // Exit the special mode
+            uiManager.exitDoorPlacementModeCompleted()
         }
     }
 
