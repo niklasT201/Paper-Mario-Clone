@@ -9,6 +9,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Intersector
+import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
@@ -42,6 +43,7 @@ enum class PlayerState {
 }
 
 class PlayerSystem {
+    private lateinit var objectSystem: ObjectSystem
     // Player model and rendering
     private lateinit var playerTexture: Texture
     private lateinit var playerModel: Model
@@ -153,6 +155,11 @@ class PlayerSystem {
     private var footprintSpawnTimer = 0f
     private val FOOTPRINT_SPAWN_INTERVAL = 0.35f // One print every 0.35 seconds of movement
 
+    private lateinit var lightingManager: LightingManager
+    private var headlightLight: LightSource? = null
+    private val headlightForwardOffset = 5f // How far in front of the car center the light is
+    private val headlightVerticalOffset = 2.0f
+
     fun getPlayerBounds(): BoundingBox {
         return playerBounds
     }
@@ -160,6 +167,7 @@ class PlayerSystem {
     fun initialize(blockSize: Float, particleSystem: ParticleSystem, lightingManager: LightingManager, bloodPoolSystem: BloodPoolSystem, footprintSystem: FootprintSystem) {
         this.blockSize = blockSize
         this.particleSystem = particleSystem
+        this.lightingManager = lightingManager
         this.bloodPoolSystem = bloodPoolSystem
         this.footprintSystem = footprintSystem
         setupAnimationSystem()
@@ -174,12 +182,22 @@ class PlayerSystem {
         // Set initial weapon state
         currentMagazineCount = equippedWeapon.magazineSize
 
-        // ADDED: Create the muzzle flash light source once and keep it
-        // We create it with an ID of 0 or a special negative ID to signify it's a transient effect light
+        // Create the muzzle flash light source once and keep it
         val light = LightSource(id = -1, position = Vector3(), intensity = 0f, range = 0f)
         muzzleFlashLight = light
         // We add the PointLight to the environment so it can be rendered
         lightingManager.getEnvironment().add(light.createPointLight())
+
+        val carLight = LightSource(
+            id = -2, // A different negative ID to be safe
+            position = Vector3(),
+            intensity = 0f, // Start OFF
+            range = 45f,
+            color = Color(1f, 1f, 0.8f, 1f)
+        )
+        headlightLight = carLight
+        // Directly add its PointLight to the environment. It is now a transient effect.
+        lightingManager.getEnvironment().add(carLight.createPointLight())
     }
 
     private fun setupBillboardShader() {
@@ -665,6 +683,12 @@ class PlayerSystem {
     fun exitCar(sceneManager: SceneManager) {
         if (!isDriving || drivingCar == null) return
 
+        headlightLight?.let { light ->
+            light.intensity = 0f
+            light.updatePointLight() // Push the "off" state to the renderer
+            println("Headlight turned off.")
+        }
+
         val car = drivingCar!!
         car.modelInstance.userData = null
         val exitOffset = Vector3(-5f, 0f, 0f).rotate(Vector3.Y, car.direction)
@@ -765,7 +789,25 @@ class PlayerSystem {
     private fun handleCarMovement(deltaTime: Float, sceneManager: SceneManager, allCars: Array<GameCar>): Boolean {
         val car = drivingCar ?: return false
 
-        // If car is destroyed, do not process any movement
+        headlightLight?.let { light ->
+            val sunIntensity = lightingManager.getDayNightCycle().getSunIntensity()
+            val targetIntensity = if (sunIntensity < 0.25f && !car.isDestroyed) 120f else 0f
+            light.intensity = MathUtils.lerp(light.intensity, targetIntensity, deltaTime * 5f)
+
+            // Calculate the forward direction based on the CAR'S visual rotation
+            val forwardX = if (car.visualRotationY == 180f) 1f else -1f
+
+            // Position the light in front of the car
+            val lightPosition = car.position.cpy().add(
+                forwardX * headlightForwardOffset,
+                headlightVerticalOffset,
+                0f
+            )
+
+            light.position.set(lightPosition)
+            light.updatePointLight()
+        }
+
         if (car.isDestroyed) {
             car.setDrivingAnimationState(false) // Ensure it doesn't play driving animations
             return false // Return false to indicate no movement occurred

@@ -295,7 +295,7 @@ data class GameCar(
 
     val id: String = java.util.UUID.randomUUID().toString()
 
-    private var visualRotationY = 0f // Current visual rotation
+    var visualRotationY = 0f // Current visual rotation
     private var targetRotationY = 0f // Target visual rotation
     private val rotationSpeed = 360f // Degrees per second
     private var lastHorizontalDirection = 0f
