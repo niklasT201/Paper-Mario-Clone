@@ -357,7 +357,7 @@ class NPCSystem : IFinePositionable {
 
         if (npc.lastDamageType != DamageType.FIRE) {
             sceneManager.game.playerSystem.bloodPoolSystem.addPool(npc.position.cpy(), sceneManager)
-            sceneManager.boneSystem.spawnBones(npc.position.cpy(), sceneManager)
+            sceneManager.boneSystem.spawnBones(npc.position.cpy(), npc.facingRotationY, sceneManager)
         }
     }
 

@@ -260,7 +260,7 @@ class EnemySystem : IFinePositionable {
         // If not burned, spawn a blood pool and bones
         if (enemy.lastDamageType != DamageType.FIRE) {
             sceneManager.game.playerSystem.bloodPoolSystem.addPool(enemy.position.cpy(), sceneManager)
-            sceneManager.boneSystem.spawnBones(enemy.position.cpy(), sceneManager)
+            sceneManager.boneSystem.spawnBones(enemy.position.cpy(), enemy.facingRotationY, sceneManager)
         }
     }
 

@@ -91,14 +91,14 @@ class BoneSystem {
     /**
      * The main function to call on enemy/NPC death. Handles all randomization.
      */
-    fun spawnBones(deathPosition: Vector3, sceneManager: SceneManager) {
+    fun spawnBones(deathPosition: Vector3, facingRotationY: Float, sceneManager: SceneManager) {
         val groundY = sceneManager.findHighestSupportY(deathPosition.x, deathPosition.z, deathPosition.y, 0.1f, 4f)
         val bonesToSpawn = mutableListOf<GameBone>()
         val layingBoneTypes = listOf(BoneType.BONE_ONE, BoneType.BONE_TWO, BoneType.BROKEN_BONE)
 
         // Rule: 60% chance to spawn one skull
         if (Random.nextFloat() < 0.6f) {
-            createBone(BoneType.SKULL, groundY, deathPosition)?.let { bonesToSpawn.add(it) }
+            createBone(BoneType.SKULL, groundY, deathPosition, facingRotationY)?.let { bonesToSpawn.add(it) }
         }
 
         // Rule: Spawn 0 to 3 additional laying bones
@@ -110,12 +110,11 @@ class BoneSystem {
 
         // Add the created bones to the active scene
         if (bonesToSpawn.isNotEmpty()) {
-            // THE FIX: Use the spread operator (*) to pass the elements to the vararg method
             sceneManager.activeBones.addAll(*bonesToSpawn.toTypedArray())
         }
     }
 
-    private fun createBone(type: BoneType, groundY: Float, centerPos: Vector3): GameBone? {
+    private fun createBone(type: BoneType, groundY: Float, centerPos: Vector3, rotationY: Float = 0f): GameBone? {
         val model = boneModels[type] ?: return null
         val instance = ModelInstance(model).apply { userData = "effect" }
 
@@ -133,7 +132,10 @@ class BoneSystem {
         }
 
         instance.transform.setToTranslation(bonePosition)
-        if (!type.isStanding) {
+        if (type.isStanding) {
+            // This is a skull, apply the direction the character was facing.
+            instance.transform.rotate(Vector3.Y, rotationY)
+        } else {
             // Give laying bones a random rotation
             instance.transform.rotate(Vector3.Y, Random.nextFloat() * 360f)
         }

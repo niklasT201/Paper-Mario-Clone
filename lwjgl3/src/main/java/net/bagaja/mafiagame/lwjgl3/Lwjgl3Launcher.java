@@ -49,8 +49,8 @@ public class Lwjgl3Launcher {
 
 // changing room transition effect colors
 // edge houses
+// cars having light in front of them at night time
 // visual debug showing up when not in editor mode
-// skull showing in the direction, the enemy died when killed
 // blocks being visible behind transparent enemies etc.
 // improve UIManagers code base
 // weapon radius for fire and explosions
