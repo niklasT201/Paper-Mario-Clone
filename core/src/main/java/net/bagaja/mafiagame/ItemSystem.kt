@@ -211,14 +211,14 @@ class ItemSystem: IFinePositionable {
                 absY >= absX && absY >= absZ && relativePos.y > 0 -> {
                     Vector3(
                         hitBlock.position.x,
-                        hitBlock.position.y + blockSize / 2 + ItemSystem.ITEM_SURFACE_OFFSET, // 1f above the block surface
+                        hitBlock.position.y + blockSize / 2 + ITEM_SURFACE_OFFSET, // 1f above the block surface
                         hitBlock.position.z
                     )
                 }
                 // Hit side faces - place item at the side but on the same level as block top
                 else -> {
                     val blockTop = hitBlock.position.y + blockSize / 2
-                    Vector3(intersection.x, blockTop + ItemSystem.ITEM_SURFACE_OFFSET, intersection.z)
+                    Vector3(intersection.x, blockTop + ITEM_SURFACE_OFFSET, intersection.z)
                 }
             }
             addItemToScene(itemPosition)
@@ -278,22 +278,21 @@ class ItemSystem: IFinePositionable {
         for (item in gameItems) {
             if (item.isCollected) continue
 
-            // 1. Apply Gravity and Find Support for the item
-            val itemX = item.position.x
-            val itemZ = item.position.z
-            val itemCurrentY = item.position.y + ITEM_SURFACE_OFFSET // The item's origin is at its base
+            if (!finePosMode) {
+                // 1. Apply Gravity and Find Support for the item
+                val itemX = item.position.x
+                val itemZ = item.position.z
+                val itemCurrentY = item.position.y + ITEM_SURFACE_OFFSET // The item's origin is at its base
 
-            val supportY = sceneManager.findHighestSupportYForItem(itemX, itemZ, itemCurrentY, this.blockSize)
+                val supportY = sceneManager.findHighestSupportYForItem(itemX, itemZ, itemCurrentY, this.blockSize)
 
-            // Apply Gravity
-            val fallY = item.position.y - FALL_SPEED * deltaTime
-            val nextY = kotlin.math.max(supportY, fallY) // The item is either on the ground or falling.
+                // Apply Gravity
+                val fallY = item.position.y - FALL_SPEED * deltaTime
+                val nextY = kotlin.math.max(supportY, fallY) // The item is either on the ground or falling.
 
-            // 2. Update item position if it moved vertically
-            if (kotlin.math.abs(nextY - item.position.y) > 0.01f) {
+                // 2. Update item position if it moved vertically
                 item.position.y = nextY
             }
-            item.position.y = nextY
 
             // Update item animation (rotation and bobbing)
             item.update(deltaTime, camera.position, ITEM_SURFACE_OFFSET)

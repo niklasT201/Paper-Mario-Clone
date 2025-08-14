@@ -174,6 +174,45 @@ class CarSystem: IFinePositionable {
         billboardModelBatch.end()
     }
 
+    fun update(deltaTime: Float, sceneManager: SceneManager) {
+        val carIterator = sceneManager.activeCars.iterator()
+        while (carIterator.hasNext()) {
+            val car = carIterator.next()
+
+            // Let the car update its internal timers and animations
+            car.update(deltaTime)
+
+            // 1. Check if a drivable car should be destroyed
+            if (car.state == CarState.DRIVABLE && car.health <= 0) {
+                // If the player is driving this car, kick them out
+                if (sceneManager.playerSystem.isDriving && sceneManager.playerSystem.getControlledEntityPosition() == car.position) {
+                    sceneManager.playerSystem.exitCar(sceneManager)
+                }
+                val shouldSpawnFire = car.lastDamageType != DamageType.FIRE
+
+                // Trigger the destruction sequence
+                val newFireObjects = car.destroy(
+                    sceneManager.game.particleSystem,
+                    this, // Pass this CarSystem instance
+                    shouldSpawnFire,
+                    sceneManager.fireSystem,
+                    sceneManager.game.objectSystem, // Get systems from SceneManager's game reference
+                    sceneManager.game.lightingManager
+                )
+                sceneManager.activeObjects.addAll(newFireObjects)
+            }
+
+            // 2. Check if a faded-out car should be removed
+            if (car.isReadyForRemoval) {
+                if (sceneManager.playerSystem.isDriving && sceneManager.playerSystem.getControlledEntityPosition() == car.position) {
+                    sceneManager.playerSystem.exitCar(sceneManager)
+                }
+                carIterator.remove()
+                println("Removed wrecked car from scene: ${car.carType.displayName}")
+            }
+        }
+    }
+
     private fun createCarBillboard(modelBuilder: ModelBuilder, material: Material, carType: CarType): Model {
         // Calculate dimensions based on the car size
         val width = carType.width

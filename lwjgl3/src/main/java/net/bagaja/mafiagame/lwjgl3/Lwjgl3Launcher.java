@@ -56,7 +56,6 @@ public class Lwjgl3Launcher {
 // weapon radius for fire and explosions
 // damage gets less for higher radius
 // fire and explosion having the same radius, fire less damage than explosions
-// restructure code and remove code duplications and dumb hard coded stats
 // car maybe be able to step up half a block
 // optional weapon light
 // car spawner

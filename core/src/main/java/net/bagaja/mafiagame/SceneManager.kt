@@ -23,7 +23,7 @@ data class SceneTransition(
 
 class SceneManager(
     // It needs references to systems to create/manage objects
-    private val playerSystem: PlayerSystem,
+    val playerSystem: PlayerSystem,
     private val blockSystem: BlockSystem,
     private val objectSystem: ObjectSystem,
     private val itemSystem: ItemSystem,
@@ -36,7 +36,7 @@ class SceneManager(
     private val faceCullingSystem: FaceCullingSystem,
     val game: MafiaGame,
     private val particleSystem: ParticleSystem,
-    private val fireSystem: FireSystem,
+    val fireSystem: FireSystem,
     val boneSystem: BoneSystem
 ) {
     lateinit var teleporterSystem: TeleporterSystem

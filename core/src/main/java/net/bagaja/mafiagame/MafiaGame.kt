@@ -605,42 +605,7 @@ class MafiaGame : ApplicationAdapter() {
             footprintSystem.update(deltaTime, sceneManager.activeFootprints)
 
             // Handle car destruction and removals
-            val carIterator = sceneManager.activeCars.iterator()
-            while (carIterator.hasNext()) {
-                val car = carIterator.next()
-
-                // 1. Check if a drivable car should be destroyed
-                if (car.state == CarState.DRIVABLE && car.health <= 0) {
-                    // If the player is driving this car, kick them out
-                    if (playerSystem.isDriving && playerSystem.getControlledEntityPosition() == car.position) {
-                        playerSystem.exitCar(sceneManager)
-                    }
-                    val shouldSpawnFire = car.lastDamageType != DamageType.FIRE
-
-                    // Trigger the destruction sequence
-                    val newFireObjects = car.destroy(
-                        particleSystem,
-                        carSystem,
-                        shouldSpawnFire,
-                        fireSystem,
-                        objectSystem,
-                        lightingManager
-                    )
-
-                    sceneManager.activeObjects.addAll(newFireObjects)
-                }
-
-                // 2. Check if a faded-out car should be removed
-                if (car.isReadyForRemoval) {
-                    // If player is inside car
-                    if (playerSystem.isDriving && playerSystem.getControlledEntityPosition() == car.position) {
-                        playerSystem.exitCar(sceneManager)
-                    }
-
-                    carIterator.remove()
-                    println("Removed wrecked car from scene: ${car.carType.displayName}")
-                }
-            }
+            carSystem.update(deltaTime, sceneManager)
 
             // Update the lock indicator based on player, car, and house positions
             lockIndicatorSystem.update(playerSystem.getPosition(), sceneManager.activeCars, sceneManager.activeHouses)

@@ -320,7 +320,7 @@ class ObjectSystem: IFinePositionable {
                     gameObject = spawnerGameObject
                 )
                 sceneManager.activeSpawners.add(newSpawner)
-                //lastPlacedInstance = newSpawner // For fine positioning
+                sceneManager.game.lastPlacedInstance = newSpawner
                 println("Placed a new generic Spawner at $spawnerPosition")
 
                 // Immediately open the UI to configure the new spawner
@@ -343,7 +343,7 @@ class ObjectSystem: IFinePositionable {
             val newFire = fireSystem.addFire(firePosition, this, lightingManager)
             if (newFire != null) {
                 sceneManager.activeObjects.add(newFire.gameObject)
-                //lastPlacedInstance = newFire
+              sceneManager.game.lastPlacedInstance = newFire
                 println("Placed Spreading Fire object.")
             }
         }
@@ -353,7 +353,7 @@ class ObjectSystem: IFinePositionable {
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val newTeleporter = teleporterSystem.addTeleporterAt(tempVec3) ?: return
 
-            //lastPlacedInstance = newTeleporter
+            sceneManager.game.lastPlacedInstance = newTeleporter
 
             if (teleporterSystem.isLinkingMode) {
                 teleporterSystem.completeLinking(newTeleporter)
@@ -362,6 +362,7 @@ class ObjectSystem: IFinePositionable {
             }
         }
     }
+
     private fun findHighestSurfaceYAt(x: Float, z: Float): Float {
         val blocksInColumn = sceneManager.activeChunkManager.getBlocksInColumn(x, z)
         var highestY = 0f // Default to ground level
