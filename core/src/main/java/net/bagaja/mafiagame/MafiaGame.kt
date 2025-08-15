@@ -12,7 +12,7 @@ import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.utils.Array
 
 class MafiaGame : ApplicationAdapter() {
-    val isEditorMode = true
+    var isEditorMode = true
     val renderDistanceInChunks = 2
     private lateinit var modelBatch: ModelBatch
     private lateinit var shaderProvider: BillboardShaderProvider
@@ -40,6 +40,7 @@ class MafiaGame : ApplicationAdapter() {
 
     // Highlight System
     private lateinit var highlightSystem: HighlightSystem
+    lateinit var targetingIndicatorSystem: TargetingIndicatorSystem
     private lateinit var lockIndicatorSystem: LockIndicatorSystem
 
     private lateinit var faceCullingSystem: FaceCullingSystem
@@ -182,6 +183,9 @@ class MafiaGame : ApplicationAdapter() {
 
         highlightSystem = HighlightSystem(blockSize)
         highlightSystem.initialize()
+
+        targetingIndicatorSystem = TargetingIndicatorSystem()
+        targetingIndicatorSystem.initialize()
 
         // Pass the initial world data to the SceneManager
         sceneManager.initializeWorld(
@@ -514,6 +518,15 @@ class MafiaGame : ApplicationAdapter() {
         uiManager.updatePlacementInfo("Invisible Block Outlines: $status")
     }
 
+    fun toggleEditorMode() {
+        isEditorMode = !isEditorMode
+
+        // If we just switched OUT of editor mode, hide all editor-specific UI panels.
+        if (!isEditorMode) {
+            uiManager.hideAllEditorPanels()
+        }
+    }
+
     override fun render() {
         // Begin capturing the frame for post-processing
         shaderEffectManager.beginCapture()
@@ -613,6 +626,14 @@ class MafiaGame : ApplicationAdapter() {
                 sceneManager.activeEnemies,
                 sceneManager.activeNPCs,
                 particleSystem
+            )
+        } else if (!isEditorMode && !isPaused) {
+            // When not in editor mode, update the new targeting indicator instead
+            targetingIndicatorSystem.update(
+                cameraManager,
+                playerSystem,
+                sceneManager,
+                raycastSystem
             )
         }
 
@@ -732,6 +753,9 @@ class MafiaGame : ApplicationAdapter() {
                     sceneManager.activeChunkManager.getAllBlocks()
                 )
             }
+        } else {
+            // When not in editor mode, render the targeting indicator
+            targetingIndicatorSystem.render(cameraManager.camera, environment)
         }
 
         // Transition to 2D UI Rendering
@@ -780,6 +804,7 @@ class MafiaGame : ApplicationAdapter() {
         houseSystem.dispose()
         backgroundSystem.dispose()
         highlightSystem.dispose()
+        targetingIndicatorSystem.dispose()
         lockIndicatorSystem.dispose()
         lightingManager.dispose()
         parallaxBackgroundSystem.dispose()

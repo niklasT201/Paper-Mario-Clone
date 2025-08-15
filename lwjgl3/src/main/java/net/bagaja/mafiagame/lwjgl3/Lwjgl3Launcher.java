@@ -49,7 +49,8 @@ public class Lwjgl3Launcher {
 
 // changing room transition effect colors
 // edge houses
-// visual debug showing up when not in editor mode
+// improve enemy/npc falling
+// mouse pointer not visible when editor mode off and not in pause menu
 // blocks being visible behind transparent enemies etc.
 // improve UIManagers code base
 // weapon radius for fire and explosions
@@ -57,6 +58,11 @@ public class Lwjgl3Launcher {
 // fire and explosion having the same radius, fire less damage than explosions
 // car maybe be able to step up half a block
 // optional weapon light
+// Chain Reactions with Explosives & Fire
+// Spreading Fire
+// Environmental State Changes from Effects
+// Knockback from Explosions
+// Faction & Alert System
 // car spawner
 // car ai to drive around
 // maybe adding bouncy dynamite (1 bounce max)

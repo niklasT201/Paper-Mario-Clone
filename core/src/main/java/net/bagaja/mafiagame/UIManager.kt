@@ -1675,6 +1675,30 @@ class UIManager(
         pauseMenuUI.show()
     }
 
+    fun hideAllEditorPanels() {
+        // Hide the main UI panel
+        isUIVisible = false
+        mainTable.isVisible = false
+
+        // Hide all pop-up selection windows
+        hideBlockSelection()
+        hideObjectSelection()
+        hideItemSelection()
+        hideCarSelection()
+        hideHouseSelection()
+        hideBackgroundSelection()
+        hideParallaxSelection()
+        hideInteriorSelection()
+        hideEnemySelection()
+        hideNPCSelection()
+        hideParticleSelection()
+
+        // Hide settings windows
+        if (lightSourceUI.isVisible()) lightSourceUI.toggle()
+        if (skyCustomizationUI.isVisible()) skyCustomizationUI.toggle()
+        if (shaderEffectUI.isVisible()) shaderEffectUI.toggle()
+    }
+
     fun dispose() {
         blockSelectionUI.dispose()
         objectSelectionUI.dispose()

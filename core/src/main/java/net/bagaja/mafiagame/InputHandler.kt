@@ -318,6 +318,23 @@ class InputHandler(
                     return true
                 }
 
+                if (keycode == Input.Keys.Z) {
+                    if (!game.isEditorMode) {
+                        game.targetingIndicatorSystem.toggle()
+                        val status = if (game.targetingIndicatorSystem.isEnabled()) "ON" else "OFF"
+                        // Provide feedback to the player via the UI
+                        uiManager.updatePlacementInfo("Targeting Indicator: $status")
+                        return true // Consume the key press
+                    }
+                }
+
+                if (keycode == Input.Keys.F8) {
+                    game.toggleEditorMode()
+                    val modeStatus = if (game.isEditorMode) "EDITOR" else "GAME"
+                    uiManager.updatePlacementInfo("Mode switched to: $modeStatus")
+                    return true
+                }
+
                 // EDITOR MODE CHECK
                 if (game.isEditorMode) {
                     // Shader effect controls

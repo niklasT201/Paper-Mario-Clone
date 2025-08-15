@@ -599,6 +599,11 @@ class PlayerSystem {
         println("Player equipped: ${weaponType.displayName}")
     }
 
+    fun hasGunEquipped(): Boolean {
+        // A "gun" is any weapon that uses the SHOOTING action type.
+        return equippedWeapon.actionType == WeaponActionType.SHOOTING
+    }
+
     private fun canMoveToWithDoorCollision(x: Float, y: Float, z: Float, sceneManager: SceneManager): Boolean {
         val shrinkFor3D = 0.2f
         val shrinkFor2D = 0.8f
