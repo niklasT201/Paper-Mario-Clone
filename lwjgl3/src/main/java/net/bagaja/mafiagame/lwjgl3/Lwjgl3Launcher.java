@@ -61,7 +61,6 @@ public class Lwjgl3Launcher {
 // car ai to drive around
 // maybe adding bouncy dynamite (1 bounce max)
 // step up stair
-// enemies that get punched, spawn more blood drops and shot enemies leave a blood train behind them
 // visual throwing and explosion range
 // maybe improving billboard shader
 // placing 5 light sources creates room filling light visually, not actually. probably existing bc the area light disappears

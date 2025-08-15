@@ -1723,7 +1723,8 @@ class PlayerSystem {
                     type = randomEffect,
                     position = spawnPos,
                     baseDirection = null,
-                    surfaceNormal = groundNormal
+                    surfaceNormal = groundNormal,
+                    gravityOverride = 0f
                 )
             }
         }

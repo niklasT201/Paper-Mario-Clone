@@ -411,7 +411,8 @@ data class GameParticle(
     val swings: Boolean,
     val swingAmplitude: Float,
     val swingFrequency: Float,
-    var swingAngle: Float = 0f
+    var swingAngle: Float = 0f,
+    val gravity: Float
 ) {
     val material: Material = instance.materials.first()
     private val blendingAttribute: BlendingAttribute = material.get(BlendingAttribute.Type) as BlendingAttribute
@@ -419,7 +420,7 @@ data class GameParticle(
 
     fun update(deltaTime: Float) {
         // Basic physics
-        velocity.y += type.gravity * deltaTime
+        velocity.y += this.gravity * deltaTime
         position.add(velocity.x * deltaTime, velocity.y * deltaTime, velocity.z * deltaTime)
 
         // Animation
@@ -626,7 +627,8 @@ class ParticleSystem {
         surfaceNormal: Vector3? = null,
         initialRotation: Float? = null,
         targetRotation: Float? = null,
-        overrideScale: Float? = null
+        overrideScale: Float? = null,
+        gravityOverride: Float? = null
     ) {
         val model = particleModels[type] ?: return // Can't spawn if model isn't loaded
         val particleCount = type.particleCount.random()
@@ -676,6 +678,7 @@ class ParticleSystem {
 
             val freqVariance = (Random.nextFloat() - 0.5f) * 2f * type.swingFrequencyVariance
             val particleFrequency = (type.swingFrequency + freqVariance).coerceAtLeast(0.1f)
+            val finalGravity = gravityOverride ?: type.gravity
 
             val particle = GameParticle(
                 type = type,
@@ -688,7 +691,8 @@ class ParticleSystem {
                 scale = scale,
                 swings = willSwing,
                 swingAmplitude = particleAmplitude,
-                swingFrequency = particleFrequency
+                swingFrequency = particleFrequency,
+                gravity = finalGravity
             )
 
             // Handle surface orientation before setting up other animations

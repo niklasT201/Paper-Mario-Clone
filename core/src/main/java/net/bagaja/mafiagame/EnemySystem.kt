@@ -14,6 +14,7 @@ import com.badlogic.gdx.utils.Array
 import java.util.*
 import kotlin.math.max
 import kotlin.math.sin
+import kotlin.random.Random
 
 // --- ENUMERATIONS FOR ENEMY PROPERTIES ---
 
@@ -56,6 +57,9 @@ data class GameEnemy(
     var position: Vector3,
     var health: Float = enemyType.baseHealth
 ) {
+    var bleedTimer: Float = 0f // How long the bleeding effect lasts
+    var bloodDripSpawnTimer: Float = 0f // Timer to control the rate of drips
+
     // AI state properties
     var currentState: AIState = AIState.IDLE
     var stateTimer: Float = 0f
@@ -90,11 +94,20 @@ data class GameEnemy(
         return boundingBox
     }
 
+    companion object {
+        const val BLEED_DURATION = 1.0f // Bleeding lasts for 5 seconds
+        const val BLOOD_DRIP_INTERVAL = 0.7f // Spawn a drip every 0.25s of movement
+    }
+
     fun takeDamage(damage: Float, type: DamageType): Boolean {
         if (health <= 0) return false // Already dead, don't process more damage
 
         health -= damage
         // The type of the killing blow is what matters most.
+        if (health > 0 && (type == DamageType.GENERIC || type == DamageType.MELEE)) {
+            this.bleedTimer = BLEED_DURATION
+        }
+
         if (health <= 0) {
             lastDamageType = type
         }
@@ -299,6 +312,26 @@ class EnemySystem : IFinePositionable {
 
                 // Don't process any other logic for a dying enemy
                 continue
+            }
+
+            if (enemy.bleedTimer > 0f) {
+                enemy.bleedTimer -= deltaTime
+
+                // Check if the enemy is moving and it's time to spawn a drip
+                if (enemy.isMoving) {
+                    enemy.bloodDripSpawnTimer -= deltaTime
+                    if (enemy.bloodDripSpawnTimer <= 0f) {
+                        enemy.bloodDripSpawnTimer = GameEnemy.BLOOD_DRIP_INTERVAL
+
+                        // Spawn a drip at the enemy's position with a slight random offset
+                        val spawnPosition = enemy.position.cpy().add(
+                            (Random.nextFloat() - 0.5f) * 1f,  // Small horizontal offset
+                            (Random.nextFloat() - 0.5f) * 2f,  // Vertical offset around the torso
+                            (Random.nextFloat() - 0.5f) * 1f
+                        )
+                        sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BLOOD_DRIP, spawnPosition)
+                    }
+                }
             }
 
             enemy.isMoving = false

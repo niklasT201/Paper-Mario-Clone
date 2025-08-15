@@ -15,6 +15,7 @@ import java.util.*
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.sin
+import kotlin.random.Random
 
 enum class DamageReaction {
     FLEE,       // Runs away when damaged
@@ -82,6 +83,9 @@ data class GameNPC(
     var position: Vector3,
     var health: Float = npcType.baseHealth
 ) {
+    var bleedTimer: Float = 0f
+    var bloodDripSpawnTimer: Float = 0f
+
     // AI state properties
     var currentState: NPCState = NPCState.IDLE
     var stateTimer: Float = 0f
@@ -107,6 +111,11 @@ data class GameNPC(
     // Collision properties
     private val boundsSize = Vector3(npcType.width, npcType.height, npcType.width)
     private val boundingBox = BoundingBox()
+
+    companion object {
+        const val BLEED_DURATION = 1.0f
+        const val BLOOD_DRIP_INTERVAL = 0.7f
+    }
 
     fun updateVisuals() {
         modelInstance.transform.idt()
@@ -149,6 +158,11 @@ data class GameNPC(
 
         // Apply damage first, regardless of reaction
         health -= damage
+
+        // If not dead and was shot or hit with melee, start bleeding
+        if (health > 0 && (type == DamageType.GENERIC || type == DamageType.MELEE)) {
+            this.bleedTimer = BLEED_DURATION
+        }
 
         // The type of the killing blow is what matters.
         if (health <= 0) {
@@ -394,6 +408,26 @@ class NPCSystem : IFinePositionable {
                 continue
             }
 
+            if (npc.bleedTimer > 0f) {
+                npc.bleedTimer -= deltaTime
+
+                // Check if the NPC is moving and it's time to spawn a drip
+                if (npc.isMoving) {
+                    npc.bloodDripSpawnTimer -= deltaTime
+                    if (npc.bloodDripSpawnTimer <= 0f) {
+                        npc.bloodDripSpawnTimer = GameNPC.BLOOD_DRIP_INTERVAL
+
+                        // Spawn a drip at the NPC's position with a slight random offset
+                        val spawnPosition = npc.position.cpy().add(
+                            (Random.nextFloat() - 0.5f) * 1f,
+                            (Random.nextFloat() - 0.5f) * 2f,
+                            (Random.nextFloat() - 0.5f) * 1f
+                        )
+                        sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BLOOD_DRIP, spawnPosition)
+                    }
+                }
+            }
+
             // Reset moving flag
             npc.isMoving = false
             // ACTIVATION CHECK
@@ -532,8 +566,8 @@ class NPCSystem : IFinePositionable {
             NPCState.IDLE -> {
                 npc.stateTimer += deltaTime
                 if (npc.stateTimer > wanderPauseTime) {
-                    val randomAngle = (Random().nextFloat() * 2 * Math.PI).toFloat()
-                    val randomDist = Random().nextFloat() * wanderRadius
+                    val randomAngle = (Random.nextFloat() * 2 * Math.PI).toFloat()
+                    val randomDist = Random.nextFloat() * wanderRadius
                     val newTarget = Vector3(
                         npc.homePosition.x + cos(randomAngle) * randomDist,
                         npc.position.y,
