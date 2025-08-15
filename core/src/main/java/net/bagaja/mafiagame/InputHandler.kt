@@ -141,6 +141,12 @@ class InputHandler(
                         }
                     }
                     Input.Buttons.RIGHT -> {
+                        // Cancel a charged throw
+                        if (!game.isEditorMode && game.playerSystem.isChargingThrow()) {
+                            return true
+                        }
+
+                        // PRIORITY 2: Handle removal actions in Editor Mode.
                         if (game.isEditorMode) {
                             // Try to remove a block. If successful, consume the event.
                             val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())

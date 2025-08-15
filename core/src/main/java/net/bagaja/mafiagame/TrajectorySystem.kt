@@ -19,6 +19,7 @@ class TrajectorySystem : Disposable {
     private var arcModel: Model? = null
     private var arcInstance: ModelInstance? = null
     private var isVisible = false
+    private var isEnabled = true
 
     // Simulation parameters
     companion object {
@@ -31,12 +32,18 @@ class TrajectorySystem : Disposable {
         modelBatch = ModelBatch()
     }
 
+    fun toggle() {
+        isEnabled = !isEnabled
+    }
+
+    fun isEnabled(): Boolean = isEnabled
+
     /**
      * The main update function. It decides whether to show the arc and calculates its path.
      */
     fun update(playerSystem: PlayerSystem, sceneManager: SceneManager) {
         // Condition to show the arc: Player is charging a throwable weapon
-        if (playerSystem.isChargingThrow()) {
+        if (isEnabled && playerSystem.isChargingThrow()) {
             calculateAndBuildArc(playerSystem, sceneManager)
             isVisible = true
         } else {

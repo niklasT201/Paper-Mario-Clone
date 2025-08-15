@@ -75,7 +75,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var bloodPoolSystem: BloodPoolSystem
     private lateinit var footprintSystem: FootprintSystem
     private lateinit var boneSystem: BoneSystem
-    private lateinit var trajectorySystem: TrajectorySystem
+    lateinit var trajectorySystem: TrajectorySystem
 
     override fun create() {
         setupGraphics()
@@ -102,6 +102,14 @@ class MafiaGame : ApplicationAdapter() {
         // Initialize Shader Effect Manager
         shaderEffectManager = ShaderEffectManager()
         spawnerSystem = SpawnerSystem(particleSystem, itemSystem)
+        highlightSystem = HighlightSystem(blockSize)
+        highlightSystem.initialize()
+
+        targetingIndicatorSystem = TargetingIndicatorSystem()
+        targetingIndicatorSystem.initialize()
+
+        trajectorySystem = TrajectorySystem()
+        trajectorySystem.initialize()
 
         // Initialize UI Manager
         uiManager = UIManager(
@@ -181,15 +189,6 @@ class MafiaGame : ApplicationAdapter() {
         )
         inputHandler.initialize()
         raycastSystem = RaycastSystem(blockSize)
-
-        highlightSystem = HighlightSystem(blockSize)
-        highlightSystem.initialize()
-
-        targetingIndicatorSystem = TargetingIndicatorSystem()
-        targetingIndicatorSystem.initialize()
-
-        trajectorySystem = TrajectorySystem()
-        trajectorySystem.initialize()
 
         // Pass the initial world data to the SceneManager
         sceneManager.initializeWorld(

@@ -178,7 +178,13 @@ class UIManager(
         shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager)
         shaderEffectUI.initialize()
 
-        visualSettingsUI = VisualSettingsUI(skin, game.cameraManager, this)
+        visualSettingsUI = VisualSettingsUI(
+            skin,
+            game.cameraManager,
+            this,
+            game.targetingIndicatorSystem,
+            game.trajectorySystem
+        )
 
         pauseMenuUI = PauseMenuUI(skin, stage, this)
         pauseMenuUI.initialize()

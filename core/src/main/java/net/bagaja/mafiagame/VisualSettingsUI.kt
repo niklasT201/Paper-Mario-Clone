@@ -20,7 +20,9 @@ import kotlin.random.Random
 class VisualSettingsUI(
     private val skin: Skin,
     private val cameraManager: CameraManager,
-    private val uiManager: UIManager
+    private val uiManager: UIManager,
+    private val targetingIndicatorSystem: TargetingIndicatorSystem,
+    private val trajectorySystem: TrajectorySystem
 ) {
 
     private lateinit var mainContainer: Table
@@ -29,11 +31,15 @@ class VisualSettingsUI(
 
     private val fullscreenCheckbox: CheckBox
     private val letterboxCheckbox: CheckBox
+    private val indicatorCheckbox: CheckBox
+    private val trajectoryCheckbox: CheckBox
 
     init {
         // Initialize checkboxes with vintage styling
         fullscreenCheckbox = createVintageCheckbox(" Full Screen Operations")
         letterboxCheckbox = createVintageCheckbox(" Enable Letterbox (4:3 Ratio)")
+        indicatorCheckbox = createVintageCheckbox(" Show Targeting Indicator")
+        trajectoryCheckbox = createVintageCheckbox(" Show Trajectory Arc")
 
         initialize()
         setupListeners()
@@ -111,7 +117,9 @@ class VisualSettingsUI(
         // Checkbox options with vintage styling
         val checkboxTable = Table()
         checkboxTable.add(fullscreenCheckbox).left().padBottom(15f).row()
-        checkboxTable.add(letterboxCheckbox).left().padBottom(10f).row()
+        checkboxTable.add(letterboxCheckbox).left().padBottom(15f).row()
+        checkboxTable.add(indicatorCheckbox).left().padBottom(15f).row()
+        checkboxTable.add(trajectoryCheckbox).left().padBottom(10f).row()
 
         settingsTable.add(checkboxTable).fillX().row()
 
@@ -475,12 +483,26 @@ class VisualSettingsUI(
                 uiManager.toggleLetterbox()
             }
         })
+
+        indicatorCheckbox.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                targetingIndicatorSystem.toggle()
+            }
+        })
+
+        trajectoryCheckbox.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                trajectorySystem.toggle()
+            }
+        })
     }
 
     fun show(stage: Stage) {
         // Update checkbox states
         fullscreenCheckbox.isChecked = cameraManager.currentDisplayMode == CameraManager.DisplayMode.FULLSCREEN
         letterboxCheckbox.isChecked = uiManager.isLetterboxEnabled()
+        indicatorCheckbox.isChecked = targetingIndicatorSystem.isEnabled()
+        trajectoryCheckbox.isChecked = trajectorySystem.isEnabled()
 
         // Add to stage
         stage.addActor(overlay)

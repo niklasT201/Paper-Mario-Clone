@@ -427,6 +427,16 @@ class PlayerSystem {
             PlayerState.CHARGING_THROW -> {
                 throwChargeTime += deltaTime
 
+                // Check for the right mouse button to cancel the throw
+                if (Gdx.input.isButtonPressed(Input.Buttons.RIGHT)) {
+                    state = PlayerState.IDLE
+                    throwChargeTime = 0f
+                    // Give the player feedback that the throw was cancelled
+                    sceneManager.game.uiManager.updatePlacementInfo("Throw Cancelled")
+                    println("Throw cancelled by user.")
+                    return // Exit the state machine check for this frame
+                }
+
                 // Check if the button was released
                 if (!Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
                     //  Check if the button was held long enough to be a valid throw
