@@ -75,6 +75,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var bloodPoolSystem: BloodPoolSystem
     private lateinit var footprintSystem: FootprintSystem
     private lateinit var boneSystem: BoneSystem
+    private lateinit var trajectorySystem: TrajectorySystem
 
     override fun create() {
         setupGraphics()
@@ -186,6 +187,9 @@ class MafiaGame : ApplicationAdapter() {
 
         targetingIndicatorSystem = TargetingIndicatorSystem()
         targetingIndicatorSystem.initialize()
+
+        trajectorySystem = TrajectorySystem()
+        trajectorySystem.initialize()
 
         // Pass the initial world data to the SceneManager
         sceneManager.initializeWorld(
@@ -587,6 +591,10 @@ class MafiaGame : ApplicationAdapter() {
                 }
             }
 
+            if (!isEditorMode) {
+                trajectorySystem.update(playerSystem, sceneManager)
+            }
+
             playerSystem.update(deltaTime, sceneManager)
             enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
             npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
@@ -730,6 +738,10 @@ class MafiaGame : ApplicationAdapter() {
         // Render items
         itemSystem.render(cameraManager.camera, environment)
 
+        if (!isEditorMode) {
+            trajectorySystem.render(cameraManager.camera)
+        }
+
         modelBatch.end()
 
         teleporterSystem.renderNameplates(cameraManager.camera, playerSystem)
@@ -823,6 +835,7 @@ class MafiaGame : ApplicationAdapter() {
 
         // Dispose UIManager
         teleporterSystem.dispose()
+        trajectorySystem.dispose()
         uiManager.dispose()
     }
 }

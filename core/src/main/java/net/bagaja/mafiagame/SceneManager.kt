@@ -1,6 +1,7 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
@@ -103,6 +104,51 @@ class SceneManager(
 
     fun removeBlock(block: GameBlock) {
         activeChunkManager.removeBlock(block)
+    }
+
+    fun checkCollisionForRay(ray: Ray, maxDistance: Float): CollisionResult? {
+        val intersectionPoint = Vector3()
+        var closestResult: CollisionResult? = null
+        var closestDistSq = Float.MAX_VALUE
+        val maxDistanceSq = maxDistance * maxDistance
+
+        // 1. Check against Blocks
+        activeChunkManager.getAllBlocks().forEach { block ->
+            if (!block.blockType.hasCollision || !block.blockType.isVisible) return@forEach
+            val blockBounds = block.getBoundingBox(game.blockSize, BoundingBox())
+            if (Intersector.intersectRayBounds(ray, blockBounds, intersectionPoint)) {
+                val distSq = ray.origin.dst2(intersectionPoint)
+                if (distSq <= maxDistanceSq && distSq < closestDistSq) {
+                    // Simplified normal calculation for this purpose
+                    val normal = ray.direction.cpy().scl(-1f)
+                    closestResult = CollisionResult(HitObjectType.BLOCK, block, intersectionPoint.cpy(), normal)
+                    closestDistSq = distSq
+                }
+            }
+        }
+
+        // 2. Check against complex meshes (Houses, 3D Interiors)
+        val allMeshes = activeHouses.map { it to HitObjectType.HOUSE } +
+            activeInteriors.filter { it.interiorType.is3D && it.interiorType.hasCollision }.map { it to HitObjectType.INTERIOR }
+
+        for ((meshObject, type) in allMeshes) {
+            var hit = false
+            when (meshObject) {
+                is GameHouse -> if (meshObject.intersectsRay(ray, intersectionPoint)) hit = true
+                is GameInterior -> if (meshObject.intersectsRay(ray, intersectionPoint)) hit = true
+            }
+
+            if (hit) {
+                val distSq = ray.origin.dst2(intersectionPoint)
+                if (distSq <= maxDistanceSq && distSq < closestDistSq) {
+                    val normal = ray.direction.cpy().scl(-1f)
+                    closestResult = CollisionResult(type, meshObject, intersectionPoint.cpy(), normal)
+                    closestDistSq = distSq
+                }
+            }
+        }
+
+        return closestResult
     }
 
     fun findHighestSupportY(x: Float, z: Float, currentY: Float, checkRadius: Float, blockSize: Float): Float {

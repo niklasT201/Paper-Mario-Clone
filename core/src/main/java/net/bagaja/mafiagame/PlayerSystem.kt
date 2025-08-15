@@ -115,7 +115,8 @@ class PlayerSystem {
 
     private var state = PlayerState.IDLE
     private var attackTimer = 0f // Timer for how long the ATTACKING state lasts
-    private var throwChargeTime = 0f
+    var throwChargeTime = 0f
+        private set
 
     private var equippedWeapon: WeaponType = WeaponType.UNARMED
     private var weapons: List<WeaponType> = listOf(WeaponType.UNARMED)
@@ -328,6 +329,29 @@ class PlayerSystem {
         }
     }
 
+    fun isChargingThrow(): Boolean {
+        return state == PlayerState.CHARGING_THROW
+    }
+
+    // NEW: A helper to get the starting position for the arc, slightly in front of the player
+    fun getThrowableSpawnPosition(): Vector3 {
+        val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
+        return playerPosition.cpy().add(directionX * 1.5f, 1f, 0f)
+    }
+
+    // NEW: A helper to calculate the initial velocity based on the current charge time
+    fun getThrowableInitialVelocity(): Vector3 {
+        val minPower = 15f
+        val maxPower = 45f
+        val chargeTimeToMaxPower = 1.2f
+
+        val chargeRatio = (throwChargeTime / chargeTimeToMaxPower).coerceIn(0f, 1f)
+        val throwPower = minPower + (maxPower - minPower) * chargeRatio
+
+        val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
+        return Vector3(directionX, 1f, 0f).nor().scl(throwPower)
+    }
+
     private fun handleWeaponInput(deltaTime: Float, sceneManager: SceneManager) {
         isHoldingShootButton = Gdx.input.isButtonPressed(Input.Buttons.LEFT) &&
             equippedWeapon.actionType == WeaponActionType.SHOOTING
@@ -415,6 +439,8 @@ class PlayerSystem {
                     }
                     // Always return to idle after releasing the button
                     state = PlayerState.IDLE
+                    // Reset charge time when the throw is finished
+                    throwChargeTime = 0f
                 }
             }
         }
