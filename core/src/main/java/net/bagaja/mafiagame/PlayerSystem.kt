@@ -83,7 +83,7 @@ class PlayerSystem {
 
     // Player rotation for Paper Mario effect
     private var playerTargetRotationY = 0f
-    private var playerCurrentRotationY = 0f
+    var playerCurrentRotationY = 0f
     private val rotationSpeed = 360f
     private var lastMovementDirection = 0f
     private lateinit var playerBackTexture: Texture
@@ -118,7 +118,7 @@ class PlayerSystem {
     var throwChargeTime = 0f
         private set
 
-    private var equippedWeapon: WeaponType = WeaponType.UNARMED
+    var equippedWeapon: WeaponType = WeaponType.UNARMED
     private var weapons: List<WeaponType> = listOf(WeaponType.UNARMED)
     private var currentWeaponIndex = 0
     private var currentMagazineCount = 0
@@ -480,6 +480,12 @@ class PlayerSystem {
             val enemy = enemyIterator.next()
             if (hitBox.intersects(enemy.getBoundingBox())) {
                 println("Melee hit on enemy: ${enemy.enemyType.displayName}")
+
+                if (Random.nextFloat() < 0.75f) { // 75% chance to bleed
+                    val bloodSpawnPosition = enemy.position.cpy().add(0f, enemy.enemyType.height / 2f, 0f)
+                    spawnBloodEffects(bloodSpawnPosition, sceneManager)
+                }
+
                 if (enemy.takeDamage(equippedWeapon.damage, DamageType.MELEE) && enemy.currentState != AIState.DYING) {
                     sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                 }
@@ -492,6 +498,12 @@ class PlayerSystem {
             val npc = npcIterator.next()
             if (hitBox.intersects(npc.getBoundingBox())) {
                 println("Melee hit on NPC: ${npc.npcType.displayName}")
+
+                if (Random.nextFloat() < 0.75f) { // 75% chance to bleed
+                    val bloodSpawnPosition = npc.position.cpy().add(0f, npc.npcType.height / 2f, 0f)
+                    spawnBloodEffects(bloodSpawnPosition, sceneManager)
+                }
+
                 if (npc.takeDamage(equippedWeapon.damage, DamageType.MELEE) && npc.currentState != NPCState.DYING) {
                     sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                 }

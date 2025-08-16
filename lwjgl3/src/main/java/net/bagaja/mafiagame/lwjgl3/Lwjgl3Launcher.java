@@ -52,6 +52,7 @@ public class Lwjgl3Launcher {
 // improve enemy/npc falling
 // blocks being visible behind transparent enemies etc.
 // improve UIManagers code base
+// melee aread transparent
 // weapon radius for fire and explosions
 // damage gets less for higher radius
 // fire and explosion having the same radius, fire less damage than explosions

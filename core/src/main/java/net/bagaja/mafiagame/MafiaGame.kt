@@ -42,6 +42,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var highlightSystem: HighlightSystem
     lateinit var targetingIndicatorSystem: TargetingIndicatorSystem
     private lateinit var lockIndicatorSystem: LockIndicatorSystem
+    lateinit var meleeRangeIndicatorSystem: MeleeRangeIndicatorSystem
 
     private lateinit var faceCullingSystem: FaceCullingSystem
     private lateinit var occlusionSystem: OcclusionSystem
@@ -107,6 +108,9 @@ class MafiaGame : ApplicationAdapter() {
 
         targetingIndicatorSystem = TargetingIndicatorSystem()
         targetingIndicatorSystem.initialize()
+
+        meleeRangeIndicatorSystem = MeleeRangeIndicatorSystem()
+        meleeRangeIndicatorSystem.initialize()
 
         trajectorySystem = TrajectorySystem()
         trajectorySystem.initialize()
@@ -652,6 +656,8 @@ class MafiaGame : ApplicationAdapter() {
                 sceneManager,
                 raycastSystem
             )
+            // Update the new melee indicator
+            meleeRangeIndicatorSystem.update(playerSystem, sceneManager)
         }
 
         //shaderProvider.setEnvironment(environment)
@@ -777,6 +783,7 @@ class MafiaGame : ApplicationAdapter() {
         } else {
             // When not in editor mode, render the targeting indicator
             targetingIndicatorSystem.render(cameraManager.camera, environment)
+            meleeRangeIndicatorSystem.render(cameraManager.camera, environment)
         }
 
         // Transition to 2D UI Rendering
@@ -826,6 +833,7 @@ class MafiaGame : ApplicationAdapter() {
         backgroundSystem.dispose()
         highlightSystem.dispose()
         targetingIndicatorSystem.dispose()
+        meleeRangeIndicatorSystem.dispose()
         lockIndicatorSystem.dispose()
         lightingManager.dispose()
         parallaxBackgroundSystem.dispose()

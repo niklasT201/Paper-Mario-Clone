@@ -24,7 +24,8 @@ class VisualSettingsUI(
     private val cameraManager: CameraManager,
     private val uiManager: UIManager,
     private val targetingIndicatorSystem: TargetingIndicatorSystem,
-    private val trajectorySystem: TrajectorySystem
+    private val trajectorySystem: TrajectorySystem,
+    private val meleeRangeIndicatorSystem: MeleeRangeIndicatorSystem
 ) {
 
     private lateinit var mainContainer: Table
@@ -35,6 +36,7 @@ class VisualSettingsUI(
     private val letterboxCheckbox: CheckBox
     private val indicatorCheckbox: CheckBox
     private val trajectoryCheckbox: CheckBox
+    private lateinit var indicatorStyleButton: TextButton
 
     init {
         // Initialize checkboxes with vintage styling
@@ -50,6 +52,11 @@ class VisualSettingsUI(
     private fun initialize() {
         createSmokyOverlay()
         createNewspaperSettings()
+    }
+
+    private fun updateIndicatorButtonStyle() {
+        val style = meleeRangeIndicatorSystem.getCurrentStyle()
+        indicatorStyleButton.setText("Melee Ring: ${style.displayName}")
     }
 
     private fun createSmokyOverlay() {
@@ -124,6 +131,11 @@ class VisualSettingsUI(
         checkboxTable.add(trajectoryCheckbox).left().padBottom(10f).row()
 
         settingsTable.add(checkboxTable).fillX().row()
+
+        // Melee Indicator Style Button
+        indicatorStyleButton = createVintageButton("Melee Style: Solid", Color.valueOf("#654321"))
+        updateIndicatorButtonStyle() // Set initial text
+        settingsTable.add(indicatorStyleButton).width(320f).height(50f).padTop(20f).row()
 
         newspaperTable.add(settingsTable).width(380f).padBottom(25f).row()
 
@@ -499,6 +511,17 @@ class VisualSettingsUI(
                 trajectorySystem.toggle()
             }
         })
+
+        indicatorStyleButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                val nextStyle = when (meleeRangeIndicatorSystem.getCurrentStyle()) {
+                    IndicatorStyle.SOLID_CIRCLE -> IndicatorStyle.TEXTURED_RING
+                    IndicatorStyle.TEXTURED_RING -> IndicatorStyle.SOLID_CIRCLE
+                }
+                meleeRangeIndicatorSystem.setStyle(nextStyle)
+                updateIndicatorButtonStyle()
+            }
+        })
     }
 
     fun show(stage: Stage) {
@@ -507,6 +530,8 @@ class VisualSettingsUI(
         letterboxCheckbox.isChecked = uiManager.isLetterboxEnabled()
         indicatorCheckbox.isChecked = targetingIndicatorSystem.isEnabled()
         trajectoryCheckbox.isChecked = trajectorySystem.isEnabled()
+        updateIndicatorButtonStyle()
+        stage.addActor(overlay)
 
         // Add to stage
         stage.addActor(overlay)
