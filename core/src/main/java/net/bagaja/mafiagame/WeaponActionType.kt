@@ -53,6 +53,7 @@ enum class WeaponType(
     val actionType: WeaponActionType,
     val fireRatePerSecond: Float, // How many shots per second. 0 for non-shooting
     val damage: Float,
+    val meleeRange: Float,
     val magazineSize: Int, // 0 for infinite or non-applicable
     val requiresReload: Boolean,
     val allowsMovementWhileShooting: Boolean,
@@ -64,12 +65,37 @@ enum class WeaponType(
     UNARMED(
         displayName = "Unarmed",
         actionType = WeaponActionType.MELEE,
-        fireRatePerSecond = 0f,
-        damage = 5f,
+        fireRatePerSecond = 2.5f, // You can punch reasonably fast
+        damage = 8f,
+        meleeRange = 2.8f, // NEW: Smallest range
         magazineSize = 0,
         requiresReload = false,
         allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/pig_character.png",
+        bulletTexturePath = null
+    ),
+    KNIFE(
+        displayName = "Knife",
+        actionType = WeaponActionType.MELEE,
+        fireRatePerSecond = 2.0f,
+        damage = 40f,
+        meleeRange = 3.8f, // NEW: Medium range
+        magazineSize = 0,
+        requiresReload = false,
+        allowsMovementWhileShooting = true,
+        playerPoseTexturePath = "textures/player/weapons/knife/player_knife.png",
+        bulletTexturePath = null
+    ),
+    BASEBALL_BAT(
+        displayName = "Baseball Bat",
+        actionType = WeaponActionType.MELEE,
+        fireRatePerSecond = 1.5f,
+        damage = 30f,
+        meleeRange = 5.0f, // NEW: Largest range
+        magazineSize = 0,
+        requiresReload = false,
+        allowsMovementWhileShooting = true,
+        playerPoseTexturePath = "textures/player/weapons/baseball_bat/player_baseball_bat.png",
         bulletTexturePath = null
     ),
     TOMMY_GUN(
@@ -77,6 +103,7 @@ enum class WeaponType(
         actionType = WeaponActionType.SHOOTING,
         fireRatePerSecond = 10f, // High rate of fire
         damage = 15f,
+        meleeRange = 0f,
         magazineSize = 50,
         requiresReload = true,
         allowsMovementWhileShooting = false,
@@ -90,6 +117,7 @@ enum class WeaponType(
         actionType = WeaponActionType.SHOOTING,
         fireRatePerSecond = 3f, // Slower rate of fire
         damage = 25f,
+        meleeRange = 0f,
         magazineSize = 8,
         requiresReload = true,
         allowsMovementWhileShooting = true,
@@ -103,6 +131,7 @@ enum class WeaponType(
         actionType = WeaponActionType.SHOOTING,
         fireRatePerSecond = 12f,
         damage = 18f,
+        meleeRange = 0f,
         magazineSize = 100,
         requiresReload = true,
         allowsMovementWhileShooting = false, // Heavy weapon
@@ -116,6 +145,7 @@ enum class WeaponType(
         actionType = WeaponActionType.THROWABLE,
         fireRatePerSecond = 0.5f, // Throw speed
         damage = 50f, // Area damage
+        meleeRange = 0f,
         magazineSize = 0,
         requiresReload = false,
         allowsMovementWhileShooting = true,
@@ -127,34 +157,12 @@ enum class WeaponType(
         actionType = WeaponActionType.THROWABLE,
         fireRatePerSecond = 0.5f, // Throw speed
         damage = 100f, // Area damage
+        meleeRange = 0f,
         magazineSize = 0,
         requiresReload = false,
         allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/weapons/dynamite/player_dynamite.png",
         bulletTexturePath = null // Doesn't shoot a bullet
-    ),
-    KNIFE(
-        displayName = "Knife",
-        actionType = WeaponActionType.MELEE,
-        fireRatePerSecond = 2.0f, // Swing speed
-        damage = 40f,
-        magazineSize = 0,
-        requiresReload = false,
-        allowsMovementWhileShooting = true,
-        playerPoseTexturePath = "textures/player/weapons/knife/player_knife.png",
-        bulletTexturePath = null
-    ),
-
-    BASEBALL_BAT(
-        displayName = "Baseball Bat",
-        actionType = WeaponActionType.MELEE,
-        fireRatePerSecond = 1.5f, // Swing speed
-        damage = 30f,
-        magazineSize = 0,
-        requiresReload = false,
-        allowsMovementWhileShooting = true,
-        playerPoseTexturePath = "textures/player/weapons/baseball_bat/player_baseball_bat.png",
-        bulletTexturePath = null
     );
 
     // Calculated property for the cooldown timer

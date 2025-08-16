@@ -461,7 +461,7 @@ class PlayerSystem {
     }
 
     private fun performMeleeAttack(sceneManager: SceneManager) {
-        val attackRange = 4f  // How far the melee attack reaches
+        val attackRange = equippedWeapon.meleeRange // How far the melee attack reaches
         val attackWidth = 3f  // How wide the attack is
 
         // Determine direction
