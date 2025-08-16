@@ -50,7 +50,6 @@ public class Lwjgl3Launcher {
 // changing room transition effect colors
 // edge houses
 // improve enemy/npc falling
-// mouse pointer not visible when editor mode off and not in pause menu
 // blocks being visible behind transparent enemies etc.
 // improve UIManagers code base
 // weapon radius for fire and explosions

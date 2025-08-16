@@ -369,17 +369,16 @@ class PlayerSystem {
         // State Machine Logic
         when (state) {
             PlayerState.IDLE -> {
-                // Check for input to start an action
-                if (Gdx.input.isButtonPressed(Input.Buttons.LEFT) && fireRateTimer <= 0f) {
+                // If we are on cooldown, don't even check for input
+                if (fireRateTimer > 0f || equippedWeapon == WeaponType.UNARMED) {
+                    return
+                }
 
-                    if (equippedWeapon == WeaponType.UNARMED) {
-                        return
-                    }
-
-                    when (equippedWeapon.actionType) {
-                        WeaponActionType.SHOOTING -> {
-                            // TODO: Add check for magazine count here
-                            // if (currentMagazineCount > 0 || !equippedWeapon.requiresReload) {
+                when (equippedWeapon.actionType) {
+                    WeaponActionType.SHOOTING -> {
+                        // TODO: Add check for magazine count here
+                        // if (currentMagazineCount > 0 || !equippedWeapon.requiresReload) {
+                        if (Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
                             if (!isRotating) {
                                 spawnBullet()
                                 // currentMagazineCount--
@@ -391,7 +390,9 @@ class PlayerSystem {
                                 attackTimer = shootingPoseDuration
                             }
                         }
-                        WeaponActionType.MELEE -> {
+                    }
+                    WeaponActionType.MELEE -> {
+                        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
                             if (!isRotating) {
                                 val animName = when (equippedWeapon) {
                                     WeaponType.BASEBALL_BAT -> "attack_baseball_bat"
@@ -409,7 +410,10 @@ class PlayerSystem {
                                 }
                             }
                         }
-                        WeaponActionType.THROWABLE -> {
+                    }
+                    WeaponActionType.THROWABLE -> {
+                        // Check for input to start an action
+                        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
                             state = PlayerState.CHARGING_THROW
                             throwChargeTime = 0f
                         }

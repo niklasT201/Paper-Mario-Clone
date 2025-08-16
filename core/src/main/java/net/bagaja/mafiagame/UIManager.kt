@@ -1660,8 +1660,7 @@ class UIManager(
 
     fun togglePauseMenu() {
         if (visualSettingsUI.isVisible()) {
-            visualSettingsUI.hide()
-            pauseMenuUI.hideInstantly()
+            returnToPauseMenu()
             return
         }
 
@@ -1673,7 +1672,7 @@ class UIManager(
     }
 
     fun isPauseMenuVisible(): Boolean {
-        return pauseMenuUI.isVisible()
+        return pauseMenuUI.isVisible() || visualSettingsUI.isVisible()
     }
 
     fun returnToPauseMenu() {

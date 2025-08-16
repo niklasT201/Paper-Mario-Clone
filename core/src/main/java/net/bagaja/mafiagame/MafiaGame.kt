@@ -530,7 +530,17 @@ class MafiaGame : ApplicationAdapter() {
         }
     }
 
+    private fun updateCursorVisibility() {
+        val shouldCatchCursor = !isEditorMode && !uiManager.isPauseMenuVisible()
+
+        // if the current state doesn't match what it should be.
+        if (Gdx.input.isCursorCatched != shouldCatchCursor) {
+            Gdx.input.isCursorCatched = shouldCatchCursor
+        }
+    }
+
     override fun render() {
+        updateCursorVisibility()
         // Begin capturing the frame for post-processing
         shaderEffectManager.beginCapture()
 
