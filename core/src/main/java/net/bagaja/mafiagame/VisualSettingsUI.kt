@@ -196,7 +196,8 @@ class VisualSettingsUI(
     }
 
     private fun createSettingsBackground(): TextureRegionDrawable {
-        val pixmap = Pixmap(340, 120, Pixmap.Format.RGBA8888)
+        // I've increased the pixmap height slightly to accommodate the thicker border and new button
+        val pixmap = Pixmap(340, 250, Pixmap.Format.RGBA8888)
 
         // Slightly darker paper for settings section
         val paperColor = Color.valueOf("#F0EDE4")
@@ -205,9 +206,9 @@ class VisualSettingsUI(
 
         // Add subtle texture
         val textureColor = Color.valueOf("#E5E2D9")
-        for (i in 0 until 80) {
+        for (i in 0 until 120) { // More iterations for the larger area
             val x = Random.nextInt(340)
-            val y = Random.nextInt(120)
+            val y = Random.nextInt(250)
             pixmap.setColor(textureColor)
             pixmap.drawPixel(x, y)
         }
@@ -215,8 +216,13 @@ class VisualSettingsUI(
         // Elegant border
         val borderColor = Color.valueOf("#8B6914") // Dark gold
         pixmap.setColor(borderColor)
-        pixmap.drawRectangle(0, 0, 340, 120)
-        pixmap.drawRectangle(1, 1, 338, 118)
+        val borderThickness = 3 // Set the desired thickness here (e.g., 3 pixels)
+
+        // Draw the four rectangles that make up the thick border
+        pixmap.fillRectangle(0, 0, 340, borderThickness) // Top line
+        pixmap.fillRectangle(0, 250 - borderThickness, 340, borderThickness) // Bottom line
+        pixmap.fillRectangle(0, 0, borderThickness, 250) // Left line
+        pixmap.fillRectangle(340 - borderThickness, 0, borderThickness, 250) // Right line
 
         // Corner flourishes
         for (i in 0 until 10) {
@@ -224,8 +230,8 @@ class VisualSettingsUI(
             pixmap.drawLine(5 + i, 5, 5, 5 + i)
             pixmap.drawLine(334 - i, 5, 334, 5 + i)
             // Bottom corners
-            pixmap.drawLine(5 + i, 114, 5, 114 - i)
-            pixmap.drawLine(334 - i, 114, 334, 114 - i)
+            pixmap.drawLine(5 + i, 244, 5, 244 - i)
+            pixmap.drawLine(334 - i, 244, 334, 244 - i)
         }
 
         val texture = Texture(pixmap)
