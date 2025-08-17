@@ -36,6 +36,10 @@ class MeleeRangeIndicatorSystem {
     private var isVisible = false
     private var lastRange = -1f
     private var currentStyle = IndicatorStyle.SOLID_CIRCLE // Default style
+    private var isEnabledByUser = false
+
+    fun toggle() { isEnabledByUser = !isEnabledByUser }
+    fun isEnabled(): Boolean = isEnabledByUser
 
     companion object {
         private const val GROUND_OFFSET = 0.08f
@@ -165,7 +169,7 @@ class MeleeRangeIndicatorSystem {
     }
 
     fun render(camera: Camera, environment: Environment) {
-        if (!isVisible || indicatorInstance == null) return
+        if (!isVisible || !isEnabledByUser || indicatorInstance == null) return
         shaderProvider.setEnvironment(environment)
         modelBatch.begin(camera)
         modelBatch.render(indicatorInstance!!, environment)

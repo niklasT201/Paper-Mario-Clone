@@ -36,6 +36,7 @@ class VisualSettingsUI(
     private val letterboxCheckbox: CheckBox
     private val indicatorCheckbox: CheckBox
     private val trajectoryCheckbox: CheckBox
+    private lateinit var meleeRangeCheckbox: CheckBox
     private lateinit var indicatorStyleButton: TextButton
 
     init {
@@ -44,6 +45,7 @@ class VisualSettingsUI(
         letterboxCheckbox = createVintageCheckbox(" Enable Letterbox (4:3 Ratio)")
         indicatorCheckbox = createVintageCheckbox(" Show Targeting Indicator")
         trajectoryCheckbox = createVintageCheckbox(" Show Trajectory Arc")
+        meleeRangeCheckbox = createVintageCheckbox(" Show Melee Attack Range")
 
         initialize()
         setupListeners()
@@ -128,7 +130,8 @@ class VisualSettingsUI(
         checkboxTable.add(fullscreenCheckbox).left().padBottom(15f).row()
         checkboxTable.add(letterboxCheckbox).left().padBottom(15f).row()
         checkboxTable.add(indicatorCheckbox).left().padBottom(15f).row()
-        checkboxTable.add(trajectoryCheckbox).left().padBottom(10f).row()
+        checkboxTable.add(trajectoryCheckbox).left().padBottom(15f).row()
+        checkboxTable.add(meleeRangeCheckbox).left().padBottom(10f).row()
 
         settingsTable.add(checkboxTable).fillX().row()
 
@@ -518,6 +521,12 @@ class VisualSettingsUI(
             }
         })
 
+        meleeRangeCheckbox.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                meleeRangeIndicatorSystem.toggle()
+            }
+        })
+
         indicatorStyleButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 val nextStyle = when (meleeRangeIndicatorSystem.getCurrentStyle()) {
@@ -536,6 +545,7 @@ class VisualSettingsUI(
         letterboxCheckbox.isChecked = uiManager.isLetterboxEnabled()
         indicatorCheckbox.isChecked = targetingIndicatorSystem.isEnabled()
         trajectoryCheckbox.isChecked = trajectorySystem.isEnabled()
+        meleeRangeCheckbox.isChecked = meleeRangeIndicatorSystem.isEnabled()
         updateIndicatorButtonStyle()
         stage.addActor(overlay)
 
