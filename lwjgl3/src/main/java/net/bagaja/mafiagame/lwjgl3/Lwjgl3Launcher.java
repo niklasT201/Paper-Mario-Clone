@@ -50,9 +50,10 @@ public class Lwjgl3Launcher {
 // changing room transition effect colors
 // edge houses
 // improve enemy/npc falling
+// bring back sky color black
 // blocks being visible behind transparent enemies etc.
 // improve UIManagers code base
-// melee aread transparent
+// melee areas transparent
 // weapon radius for fire and explosions
 // damage gets less for higher radius
 // fire and explosion having the same radius, fire less damage than explosions
@@ -60,6 +61,7 @@ public class Lwjgl3Launcher {
 // optional weapon light
 // Chain Reactions with Explosives & Fire
 // Spreading Fire
+// lanterns use not visible light sources
 // Environmental State Changes from Effects
 // Knockback from Explosions
 // Faction & Alert System

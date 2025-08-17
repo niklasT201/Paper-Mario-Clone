@@ -754,7 +754,7 @@ class MafiaGame : ApplicationAdapter() {
         itemSystem.render(cameraManager.camera, environment)
 
         if (!isEditorMode) {
-            trajectorySystem.render(cameraManager.camera)
+            trajectorySystem.render(cameraManager.camera, environment)
         }
 
         modelBatch.end()
