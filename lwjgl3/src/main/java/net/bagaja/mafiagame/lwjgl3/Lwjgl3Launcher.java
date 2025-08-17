@@ -66,6 +66,7 @@ public class Lwjgl3Launcher {
 // Knockback from Explosions
 // Faction & Alert System
 // car spawner
+// shacky cam for explosions
 // car ai to drive around
 // maybe adding bouncy dynamite (1 bounce max)
 // step up stair

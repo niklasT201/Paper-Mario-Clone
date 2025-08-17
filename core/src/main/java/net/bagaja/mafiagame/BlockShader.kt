@@ -58,9 +58,10 @@ class BlockShader : BaseShader() {
     private val FRAGMENT_SHADER = """
         #ifdef GL_ES
         precision mediump float;
+        precision mediump int;
         #endif
 
-        #define MAX_POINT_LIGHTS 128
+        #define MAX_POINT_LIGHTS 8
         #define MAX_DIRECTIONAL_LIGHTS 2
 
         varying vec2 v_texCoords;
@@ -179,7 +180,7 @@ class BlockShader : BaseShader() {
             throw GdxRuntimeException("Block shader compilation failed:\n${program.log}")
         }
 
-        for (i in 0 until 128) {
+        for (i in 0 until 8) {
             u_pointLightPositions.add(register("u_pointLightPositions[$i]"))
             u_pointLightColors.add(register("u_pointLightColors[$i]"))
             u_pointLightIntensities.add(register("u_pointLightIntensities[$i]"))
@@ -292,11 +293,11 @@ class BlockShader : BaseShader() {
             }
         }
 
-        val numPointLights = pointLightsArray.size.coerceAtMost(128)
+        val numPointLights = pointLightsArray.size.coerceAtMost(8)
         set(u_numPointLights, numPointLights)
         //println("BlockShader: NumPointLights being sent to GLSL: $numPointLights")
 
-        for (i in 0 until 128) {
+        for (i in 0 until 8) {
             if (i < numPointLights) {
                 val light = pointLightsArray[i]
                 set(u_pointLightPositions[i], light.position)

@@ -71,13 +71,10 @@ class BillboardShader : BaseShader() {
         #define MED mediump
         #define HIGH highp
         precision mediump float;
-        #else
-        #define MED
-        #define LOWP
-        #define HIGH
+        precision mediump int;
         #endif
 
-        #define MAX_POINT_LIGHTS 128
+        #define MAX_POINT_LIGHTS 8
         #define MAX_DIRECTIONAL_LIGHTS 2
 
         varying vec2 v_texCoords;
@@ -197,7 +194,7 @@ class BillboardShader : BaseShader() {
         }
 
         // Register array uniforms (this part is fine)
-        for (i in 0 until 128) {
+        for (i in 0 until 8) {
             u_pointLightPositions.add(register("u_pointLightPositions[$i]"))
             u_pointLightColors.add(register("u_pointLightColors[$i]"))
             u_pointLightIntensities.add(register("u_pointLightIntensities[$i]"))
@@ -310,10 +307,10 @@ class BillboardShader : BaseShader() {
             }
         }
 
-        val numPointLights = pointLightsArray.size.coerceAtMost(128)
+        val numPointLights = pointLightsArray.size.coerceAtMost(8)
         set(u_numPointLights, numPointLights)
 
-        for (i in 0 until 128) {
+        for (i in 0 until 8) {
             if (i < numPointLights) {
                 val light = pointLightsArray[i]
                 set(u_pointLightPositions[i], light.position)
