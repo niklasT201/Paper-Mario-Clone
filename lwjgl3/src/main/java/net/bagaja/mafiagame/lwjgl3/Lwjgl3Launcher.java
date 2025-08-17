@@ -71,7 +71,6 @@ public class Lwjgl3Launcher {
 // step up stair
 // visual explosion range
 // maybe improving billboard shader
-// placing 5 light sources creates room filling light visually, not actually. probably existing bc the area light disappears
 // visible border of light sources
 // working collisions for ramp, pillar and corner
 // maybe adding player hiding tp point text behind it
@@ -92,8 +91,6 @@ public class Lwjgl3Launcher {
 // dialog system
 // mission starting, saving and ending
 // option for choosing door enter
-// blood system
-// black bars top/bottom or left/right (4/3)
 // player visible optional in cars
 // killed enemies drop items
 // enemies have an inventory and collect items

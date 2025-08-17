@@ -68,6 +68,10 @@ class UIManager(
     private lateinit var fpsLabel: Label
     private lateinit var fpsTable: Table
 
+    // Properties for cinematic bars
+    private lateinit var cinematicBarsTable: Table
+    private var isCinematicBarsVisible = false
+
     var isUIVisible = false
         private set
     var selectedTool = Tool.BLOCK
@@ -93,6 +97,7 @@ class UIManager(
     }
 
     fun isLetterboxEnabled(): Boolean = isLetterboxVisible
+    fun isCinematicBarsEnabled(): Boolean = isCinematicBarsVisible
 
     fun initialize() {
         stage = Stage(ScreenViewport())
@@ -113,6 +118,7 @@ class UIManager(
 
         setupMainUI()
         setupLetterboxUI()
+        setupCinematicBarsUI()
 
         persistentMessageLabel = Label("", skin, "title") // Use a prominent style like "title"
         persistentMessageLabel.setAlignment(Align.center)
@@ -307,6 +313,32 @@ class UIManager(
         updateLetterboxSize()
     }
 
+    private fun setupCinematicBarsUI() {
+        val pixmap = Pixmap(1, 1, Pixmap.Format.RGBA8888)
+        pixmap.setColor(Color.BLACK)
+        pixmap.fill()
+        val blackDrawable = TextureRegionDrawable(Texture(pixmap))
+        pixmap.dispose()
+
+        cinematicBarsTable = Table()
+        cinematicBarsTable.setFillParent(true)
+
+        // Row 1: Top bar image, grows to fill width
+        cinematicBarsTable.add(Image(blackDrawable)).growX()
+        cinematicBarsTable.row()
+        // Row 2: Empty spacer that pushes top/bottom bars to edges
+        cinematicBarsTable.add().expandY()
+        cinematicBarsTable.row()
+        // Row 3: Bottom bar image, grows to fill width
+        cinematicBarsTable.add(Image(blackDrawable)).growX()
+
+        cinematicBarsTable.isVisible = isCinematicBarsVisible
+        cinematicBarsTable.touchable = com.badlogic.gdx.scenes.scene2d.Touchable.disabled
+        stage.addActor(cinematicBarsTable)
+
+        updateCinematicBarsSize() // Set initial size
+    }
+
     private fun updateLetterboxSize() {
         val screenWidth = stage.width
         val screenHeight = stage.height
@@ -332,6 +364,17 @@ class UIManager(
             // If the screen isn't wide enough, hide the bars
             letterboxTable.isVisible = false
         }
+    }
+
+    private fun updateCinematicBarsSize() {
+        if (!::cinematicBarsTable.isInitialized) return
+
+        val screenHeight = stage.height
+        val barHeight = screenHeight * 0.08f // 8% of screen height is a good cinematic size
+
+        cinematicBarsTable.cells[0].height(barHeight) // Top bar cell
+        cinematicBarsTable.cells[2].height(barHeight) // Bottom bar cell
+        cinematicBarsTable.invalidateHierarchy()
     }
 
     private fun createEnhancedToolButton(tool: Tool, isSelected: Boolean): Table {
@@ -1616,6 +1659,11 @@ class UIManager(
         updateLetterboxSize()
     }
 
+    fun toggleCinematicBars() {
+        isCinematicBarsVisible = !isCinematicBarsVisible
+        cinematicBarsTable.isVisible = isCinematicBarsVisible
+    }
+
     fun showVisualSettings() {
         pauseMenuUI.hideInstantly()
         visualSettingsUI.show(stage)
@@ -1657,6 +1705,7 @@ class UIManager(
     fun resize(width: Int, height: Int) {
         stage.viewport.update(width, height, true)
         updateLetterboxSize()
+        updateCinematicBarsSize()
     }
 
     fun togglePauseMenu() {

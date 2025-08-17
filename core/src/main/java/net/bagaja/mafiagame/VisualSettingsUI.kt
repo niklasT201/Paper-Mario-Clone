@@ -34,15 +34,17 @@ class VisualSettingsUI(
 
     private val fullscreenCheckbox: CheckBox
     private val letterboxCheckbox: CheckBox
+    private val cinematicBarsCheckbox: CheckBox
     private val indicatorCheckbox: CheckBox
     private val trajectoryCheckbox: CheckBox
-    private lateinit var meleeRangeCheckbox: CheckBox
+    private var meleeRangeCheckbox: CheckBox
     private lateinit var indicatorStyleButton: TextButton
 
     init {
         // Initialize checkboxes with vintage styling
         fullscreenCheckbox = createVintageCheckbox(" Full Screen Operations")
         letterboxCheckbox = createVintageCheckbox(" Enable Letterbox (4:3 Ratio)")
+        cinematicBarsCheckbox = createVintageCheckbox(" Enable Cinematic Bars") // Renamed CheckBox initialized
         indicatorCheckbox = createVintageCheckbox(" Show Targeting Indicator")
         trajectoryCheckbox = createVintageCheckbox(" Show Trajectory Arc")
         meleeRangeCheckbox = createVintageCheckbox(" Show Melee Attack Range")
@@ -129,6 +131,7 @@ class VisualSettingsUI(
         val checkboxTable = Table()
         checkboxTable.add(fullscreenCheckbox).left().padBottom(15f).row()
         checkboxTable.add(letterboxCheckbox).left().padBottom(15f).row()
+        checkboxTable.add(cinematicBarsCheckbox).left().padBottom(15f).row()
         checkboxTable.add(indicatorCheckbox).left().padBottom(15f).row()
         checkboxTable.add(trajectoryCheckbox).left().padBottom(15f).row()
         checkboxTable.add(meleeRangeCheckbox).left().padBottom(10f).row()
@@ -199,8 +202,7 @@ class VisualSettingsUI(
     }
 
     private fun createSettingsBackground(): TextureRegionDrawable {
-        // I've increased the pixmap height slightly to accommodate the thicker border and new button
-        val pixmap = Pixmap(340, 250, Pixmap.Format.RGBA8888)
+        val pixmap = Pixmap(340, 280, Pixmap.Format.RGBA8888) // Increased height for new checkbox
 
         // Slightly darker paper for settings section
         val paperColor = Color.valueOf("#F0EDE4")
@@ -209,9 +211,9 @@ class VisualSettingsUI(
 
         // Add subtle texture
         val textureColor = Color.valueOf("#E5E2D9")
-        for (i in 0 until 120) { // More iterations for the larger area
+        for (i in 0 until 140) { // More iterations for the larger area
             val x = Random.nextInt(340)
-            val y = Random.nextInt(250)
+            val y = Random.nextInt(280)
             pixmap.setColor(textureColor)
             pixmap.drawPixel(x, y)
         }
@@ -223,9 +225,9 @@ class VisualSettingsUI(
 
         // Draw the four rectangles that make up the thick border
         pixmap.fillRectangle(0, 0, 340, borderThickness) // Top line
-        pixmap.fillRectangle(0, 250 - borderThickness, 340, borderThickness) // Bottom line
-        pixmap.fillRectangle(0, 0, borderThickness, 250) // Left line
-        pixmap.fillRectangle(340 - borderThickness, 0, borderThickness, 250) // Right line
+        pixmap.fillRectangle(0, 280 - borderThickness, 340, borderThickness) // Bottom line
+        pixmap.fillRectangle(0, 0, borderThickness, 280) // Left line
+        pixmap.fillRectangle(340 - borderThickness, 0, borderThickness, 280) // Right line
 
         // Corner flourishes
         for (i in 0 until 10) {
@@ -233,8 +235,8 @@ class VisualSettingsUI(
             pixmap.drawLine(5 + i, 5, 5, 5 + i)
             pixmap.drawLine(334 - i, 5, 334, 5 + i)
             // Bottom corners
-            pixmap.drawLine(5 + i, 244, 5, 244 - i)
-            pixmap.drawLine(334 - i, 244, 334, 244 - i)
+            pixmap.drawLine(5 + i, 274, 5, 274 - i)
+            pixmap.drawLine(334 - i, 274, 334, 274 - i)
         }
 
         val texture = Texture(pixmap)
@@ -507,6 +509,12 @@ class VisualSettingsUI(
             }
         })
 
+        cinematicBarsCheckbox.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                uiManager.toggleCinematicBars()
+            }
+        })
+
         // Targeting indicator listener
         indicatorCheckbox.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
@@ -543,6 +551,7 @@ class VisualSettingsUI(
         // Update checkbox states
         fullscreenCheckbox.isChecked = cameraManager.currentDisplayMode == CameraManager.DisplayMode.FULLSCREEN
         letterboxCheckbox.isChecked = uiManager.isLetterboxEnabled()
+        cinematicBarsCheckbox.isChecked = uiManager.isCinematicBarsEnabled()
         indicatorCheckbox.isChecked = targetingIndicatorSystem.isEnabled()
         trajectoryCheckbox.isChecked = trajectorySystem.isEnabled()
         meleeRangeCheckbox.isChecked = meleeRangeIndicatorSystem.isEnabled()
