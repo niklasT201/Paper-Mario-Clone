@@ -763,7 +763,16 @@ class BlockSystem {
 
     fun nextCameraVisibility() {
         val visibilities = CameraVisibility.entries.toTypedArray()
-        currentCameraVisibility = visibilities[(visibilities.indexOf(currentCameraVisibility) + 1) % visibilities.size]
+
+        // Find the index of the current selection
+        val currentIndex = visibilities.indexOf(currentCameraVisibility)
+
+        // Calculate the next index, wrapping around using the modulo operator
+        val nextIndex = (currentIndex + 1) % visibilities.size
+
+        // Set the new current visibility mode
+        currentCameraVisibility = visibilities[nextIndex]
+
         println("Block camera visibility set to: ${currentCameraVisibility.getDisplayName()}")
     }
 
