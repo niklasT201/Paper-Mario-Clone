@@ -588,6 +588,12 @@ class PlayerSystem {
         )
         activeBullets.add(bullet)
 
+        // Trigger camera shake for heavy weapons
+        if (equippedWeapon == WeaponType.MACHINE_GUN || equippedWeapon == WeaponType.TOMMY_GUN) {
+            // This will feel like a strong, satisfying kick for each shot.
+            particleSystem.sceneManager.cameraManager.startShake(duration = 0.22f, intensity = 0.35f)
+        }
+
         // Spawn the muzzle flash particle effect
         val muzzleFlashRightOffset = 0.7f
         val muzzleFlashLeftOffset = -0.01f
@@ -1471,6 +1477,19 @@ class PlayerSystem {
                     explosionOrigin = throwable.position.cpy()
                     spawnSmokeOnGround = false
                     println("Dynamite fuse ended mid-air. Exploding at last known position.")
+                }
+
+                val distanceToPlayer = explosionOrigin.dst(getPosition())
+                val maxShakeDistance = 45f
+
+                if (distanceToPlayer < maxShakeDistance) {
+                    val baseIntensity = 1.3f
+                    val baseDuration = 0.9f
+
+                    val intensity = baseIntensity * (1f - (distanceToPlayer / maxShakeDistance))
+                    val duration = baseDuration * (1f - (distanceToPlayer / maxShakeDistance))
+
+                    sceneManager.cameraManager.startShake(duration, intensity.coerceAtLeast(0.15f))
                 }
 
                 // Now the explosion correctly happens on the ground next to a wall, not in mid-air!

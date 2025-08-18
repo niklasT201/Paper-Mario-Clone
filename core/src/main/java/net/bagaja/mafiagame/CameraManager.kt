@@ -2,12 +2,62 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
+import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.OrthographicCamera
 import com.badlogic.gdx.graphics.PerspectiveCamera
 import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.math.Vector3
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.random.Random
+
+class CameraShake {
+    private var duration = 0f
+    private var intensity = 0f
+    private var timer = 0f
+    private val offset = Vector3()
+
+    fun start(duration: Float, intensity: Float) {
+        // Calculate the "effective" intensity of the shake that is currently active.
+        val progress = if (this.duration > 0f) timer / this.duration else 0f
+        val currentEffectiveIntensity = this.intensity * progress * progress
+
+        // If the new shake is weaker than the one currently running
+        if (intensity < currentEffectiveIntensity) {
+            this.timer += duration * 0.5f // Add half the duration of the small shake
+            return
+        }
+
+        // If the new shake is stronger than what's currently happening,
+        this.duration = duration
+        this.intensity = intensity
+        this.timer = duration
+    }
+
+    fun update(deltaTime: Float, camera: Camera): Vector3 {
+        if (timer > 0) {
+            timer -= deltaTime
+
+            // Calculate progress and fade out the intensity
+            val progress = timer / duration
+            val currentIntensity = intensity * progress * progress // Use progress^2 for a faster fade-out
+
+            // Generate random offsets
+            val shakeX = (Random.nextFloat() - 0.5f) * 2 * currentIntensity
+            val shakeY = (Random.nextFloat() - 0.5f) * 2 * currentIntensity
+
+            // Apply the shake along the camera's local axes for a more natural feel
+            offset.set(camera.direction).crs(camera.up).nor().scl(shakeX) // Right vector
+            offset.add(camera.up.cpy().nor().scl(shakeY)) // Up vector
+
+            // If the timer has just finished, reset the offset
+            if (timer <= 0) {
+                offset.set(0f, 0f, 0f)
+            }
+        }
+        return offset
+    }
+}
 
 class CameraManager {
     lateinit var camera: PerspectiveCamera
@@ -18,6 +68,8 @@ class CameraManager {
         private set
 
     lateinit var game: MafiaGame
+
+    private val cameraShake = CameraShake()
 
     // Camera modes
     enum class CameraMode {
@@ -110,6 +162,10 @@ class CameraManager {
         uiCamera.viewportHeight = height.toFloat()
         uiCamera.position.set(uiCamera.viewportWidth / 2f, uiCamera.viewportHeight / 2f, 0f)
         uiCamera.update()
+    }
+
+    fun startShake(duration: Float, intensity: Float) {
+        cameraShake.start(duration, intensity)
     }
 
     fun setDisplayMode(mode: DisplayMode) {
@@ -306,7 +362,16 @@ class CameraManager {
         currentPlayerCameraPosition.lerp(targetPlayerCameraPosition, playerCameraSmoothing * deltaTime)
 
         // Set camera position
-        camera.position.set(currentPlayerCameraPosition)
+        val finalCameraPosition = currentPlayerCameraPosition.cpy()
+
+        // 2. Update the camera shake effect and get the current offset
+        val shakeOffset = cameraShake.update(deltaTime, camera)
+
+        // 3. Add the shake offset to our final calculated position
+        finalCameraPosition.add(shakeOffset)
+
+        // 4. Now, set the camera's actual position
+        camera.position.set(finalCameraPosition)
 
         // Look at the player, but slightly above them for better view
         val lookAtOffset = if (isFollowingCar) carLookAtHeightOffset else playerLookAtHeightOffset
