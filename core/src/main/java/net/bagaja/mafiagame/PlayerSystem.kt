@@ -1472,11 +1472,13 @@ class PlayerSystem {
                     spawnSmokeOnGround = false
                     println("Dynamite fuse ended mid-air. Exploding at last known position.")
                 }
+
                 // Now the explosion correctly happens on the ground next to a wall, not in mid-air!
                 val validGroundPosition = getValidGroundImpactPosition(collisionResult, sceneManager, throwable.position)
                 val explosionCenterPosition = explosionOrigin.cpy().add(0f, 2.5f, 0f)
                 particleSystem.spawnEffect(ParticleEffectType.DYNAMITE_EXPLOSION, explosionCenterPosition)
 
+                // 2. Spawn multiple smoke plumes for a lingering effect.
                 val smokePlumeTypes = listOf(
                     ParticleEffectType.DUST_SMOKE_LIGHT,
                     ParticleEffectType.DUST_SMOKE_DEFAULT,
@@ -1520,7 +1522,22 @@ class PlayerSystem {
                     )
                 }
 
-                println("Dynamite effect originating at $validGroundPosition")
+                // 3. Spawn the explosion scorch mark on the ground.
+                val explosionAreaTypes = listOf(
+                    ParticleEffectType.DYNAMITE_EXPLOSION_AREA_ONE,
+                    ParticleEffectType.DYNAMITE_EXPLOSION_AREA_TWO
+                )
+                val selectedAreaType = explosionAreaTypes.random() // Randomly pick one of the two scorch marks.
+                val scorchMarkPosition = explosionOrigin.cpy().add(0f, 0.15f, 0f)
+
+                particleSystem.spawnEffect(
+                    type = selectedAreaType,
+                    position = scorchMarkPosition,
+                    surfaceNormal = Vector3.Y, // The ground's normal is straight up.
+                    gravityOverride = 0f       // Ensure it doesn't fall through the world.
+                )
+
+                println("Dynamite effect originating at $explosionOrigin")
 
                 // Area-of-effect damage logic
                 val explosionRadius = 12f

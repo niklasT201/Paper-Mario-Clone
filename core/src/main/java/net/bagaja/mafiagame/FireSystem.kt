@@ -37,6 +37,9 @@ data class GameFire(
     var currentScale: Float = initialScale
     var isBeingExtinguished: Boolean = false
 
+    var fireSpotSpawnTimer: Float = -1f // Timer, disabled by default
+    var hasSpawnedFireSpot: Boolean = false
+
     fun update(deltaTime: Float, particleSystem: ParticleSystem) {
         if (fadesOut && lifetime > 0) {
             lifetime -= deltaTime
@@ -162,6 +165,12 @@ class FireSystem {
             lifetime = nextFireLifetime
         )
 
+        // ADDED: If this is a permanent fire, set up its fire spot timer.
+        if (!newFire.fadesOut) {
+            // Random time between 7 and 15 seconds
+            newFire.fireSpotSpawnTimer = 7f + Random.nextFloat() * 8f
+        }
+
         // Apply the initial scale to the transform immediately
         newFire.gameObject.modelInstance.transform.scale(randomScale, randomScale, randomScale)
 
@@ -188,6 +197,31 @@ class FireSystem {
         while(iterator.hasNext()) {
             val fire = iterator.next()
             fire.update(deltaTime, particleSystem)
+
+            // Fire Spot Spawning Logic
+            if (fire.fireSpotSpawnTimer > 0 && !fire.hasSpawnedFireSpot && !fire.isBeingExtinguished) {
+                fire.fireSpotSpawnTimer -= deltaTime
+
+                if (fire.fireSpotSpawnTimer <= 0) {
+                    // Time to spawn the fire spot!
+                    val firePosition = fire.gameObject.position
+                    val groundY = sceneManager.findHighestSupportY(firePosition.x, firePosition.z, firePosition.y, 0.1f, sceneManager.game.blockSize)
+                    val spotPosition = Vector3(firePosition.x, groundY + 0.1f, firePosition.z)
+
+                    val fireVisualWidth = ObjectType.FIRE_SPREAD.width * fire.initialScale
+                    val spotScale = fireVisualWidth
+
+                    particleSystem.spawnEffect(
+                        type = ParticleEffectType.FIRE_BURN_SPOT,
+                        position = spotPosition,
+                        surfaceNormal = Vector3.Y, // It's on the ground, so normal is up
+                        gravityOverride = 0f,
+                        overrideScale = spotScale // Use the correctly calculated scale
+                    )
+
+                    fire.hasSpawnedFireSpot = true
+                }
+            }
 
             // Check if fire should be extinguished
             if (fire.canBeExtinguished) {

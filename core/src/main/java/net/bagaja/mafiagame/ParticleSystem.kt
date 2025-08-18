@@ -387,6 +387,27 @@ enum class ParticleEffectType(
         frameDuration = 0.1f, isLooping = false, particleLifetime = 0.7f, // A quick, powerful blast
         particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
         scale = 7f, scaleVariance = 1f, fadeIn = 0.0f, fadeOut = 0.3f
+    ),
+    DYNAMITE_EXPLOSION_AREA_ONE(
+        "Dynamite Scorch 1",
+        arrayOf("textures/particles/dynamite_explosion/explosion_area_one.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 25f,
+        particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
+        scale = 17f, scaleVariance = 1.0f, fadeIn = 0.3f, fadeOut = 4.0f
+    ),
+    DYNAMITE_EXPLOSION_AREA_TWO(
+        "Dynamite Scorch 2",
+        arrayOf("textures/particles/dynamite_explosion/explosion_area_two.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 25f,
+        particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
+        scale = 10f, scaleVariance = 1.0f, fadeIn = 0.3f, fadeOut = 4.0f
+    ),
+    FIRE_BURN_SPOT(
+        "Fire Burn Spot",
+        arrayOf("textures/particles/fire_spread/fire_spot.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 3600f,
+        particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
+        scale = 8f, scaleVariance = 0.5f, fadeIn = 7.0f, fadeOut = 0f
     );
 
     val isAnimated: Boolean get() = texturePaths.size > 1
@@ -419,9 +440,11 @@ data class GameParticle(
     private val rotationSpeed: Float = 360f // Degrees per second, matches player
 
     fun update(deltaTime: Float) {
-        // Basic physics
-        velocity.y += this.gravity * deltaTime
-        position.add(velocity.x * deltaTime, velocity.y * deltaTime, velocity.z * deltaTime)
+        if (!isSurfaceOriented) {
+            // Basic physics
+            velocity.y += this.gravity * deltaTime
+            position.add(velocity.x * deltaTime, velocity.y * deltaTime, velocity.z * deltaTime)
+        }
 
         // Animation
         if (type.isAnimated) {
@@ -435,7 +458,6 @@ data class GameParticle(
         life -= deltaTime
         updateOpacity()
 
-        // Update rotation if enabled
         if (animatesRotation) {
             updateRotation(deltaTime)
         }
@@ -445,8 +467,10 @@ data class GameParticle(
             updateSwinging()
         }
 
-        // Update the model's transform
-        updateTransform()
+        if (!isSurfaceOriented) {
+            // Update the model's transform
+            updateTransform()
+        }
     }
 
     private fun updateOpacity() {
@@ -488,26 +512,22 @@ data class GameParticle(
     }
 
     fun updateTransform() {
-        if (isSurfaceOriented) {
-            instance.transform.setTranslation(position)
-        } else {
-            // For billboard particles
-            instance.transform.idt() // Reset transform
-            instance.transform.setTranslation(position) // Set position
+        // For billboard particles
+        instance.transform.idt()
+        instance.transform.setTranslation(position) // Set position
 
-            // 1. Apply the base Y-axis rotation first (for facing left/right)
-            if (animatesRotation) {
-                instance.transform.rotate(Vector3.Y, currentRotationY) // Apply animated rotation
-            }
-
-            // 2. Apply the swing/rocking animation
-            if (this.swings) {
-                instance.transform.rotate(Vector3.Z, swingAngle)
-            }
-
-            // 3. Re-apply scale last
-            instance.transform.scale(scale, scale, scale) // Re-apply scale
+        // 1. Apply the base Y-axis rotation first (for facing left/right)
+        if (animatesRotation) {
+            instance.transform.rotate(Vector3.Y, currentRotationY) // Apply animated rotation
         }
+
+        // 2. Apply the swing/rocking animation
+        if (this.swings) {
+            instance.transform.rotate(Vector3.Z, swingAngle)
+        }
+
+        // 3. Re-apply scale last
+        instance.transform.scale(scale, scale, scale) // Re-apply scale
     }
 }
 
@@ -516,7 +536,8 @@ data class GameParticle(
  */
 class ParticleSystem {
     private val activeParticles = Array<GameParticle>()
-    private val particleModels = mutableMapOf<ParticleEffectType, Model>()
+    private val billboardParticleModels = mutableMapOf<ParticleEffectType, Model>()
+    private val groundParticleModels = mutableMapOf<ParticleEffectType, Model>()
 
     private val billboardModelBatch: ModelBatch
     private val billboardShaderProvider: BillboardShaderProvider = BillboardShaderProvider().apply {
@@ -555,21 +576,34 @@ class ParticleSystem {
                     IntAttribute.createCullFace(GL20.GL_NONE)
                 )
 
-                val model = modelBuilder.createRect(
-                    -0.5f, -0.5f, 0f,
-                    0.5f, -0.5f, 0f,
-                    0.5f,  0.5f, 0f,
-                    -0.5f,  0.5f, 0f,
-                    0f, 0f, 1f, // Normal facing forward
-                    material,
-                    (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
-                )
-                particleModels[type] = model
+                if (isGroundOrientedEffect(type)) {
+                    // Create a HORIZONTAL plane for splatters, scorch marks, etc.
+                    val model = modelBuilder.createRect(
+                        -0.5f, 0f, 0.5f, -0.5f, 0f, -0.5f,
+                        0.5f, 0f, -0.5f, 0.5f, 0f, 0.5f,
+                        0f, 1f, 0f, // Normal pointing up
+                        material,
+                        (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
+                    )
+                    groundParticleModels[type] = model
+                } else {
+                    // Create a VERTICAL plane for smoke, explosions, etc.
+                    val model = modelBuilder.createRect(
+                        -0.5f, -0.5f, 0f,
+                        0.5f, -0.5f, 0f,
+                        0.5f, 0.5f, 0f,
+                        -0.5f, 0.5f, 0f,
+                        0f, 0f, 1f, // Normal facing forward
+                        material,
+                        (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
+                    )
+                    billboardParticleModels[type] = model
+                }
             } catch (e: Exception) {
                 println("ERROR: Could not load particle resources for ${type.displayName}: ${e.message}")
             }
         }
-        println("Particle System initialized with ${particleModels.size} effect models.")
+        println("Particle System initialized with ${billboardParticleModels.size + groundParticleModels.size} effect models.")
     }
 
     fun handlePlaceAction(ray: Ray) {
@@ -630,7 +664,12 @@ class ParticleSystem {
         overrideScale: Float? = null,
         gravityOverride: Float? = null
     ) {
-        val model = particleModels[type] ?: return // Can't spawn if model isn't loaded
+        val model = if (isGroundOrientedEffect(type)) { // Can't spawn if model isn't loaded
+            groundParticleModels[type]
+        } else {
+            billboardParticleModels[type]
+        } ?: return
+
         val particleCount = type.particleCount.random()
 
         for (i in 0 until particleCount) {
@@ -640,7 +679,6 @@ class ParticleSystem {
             val lifeVariance = (Random.nextFloat() - 0.5f) * 2f * type.lifetimeVariance
             val life = (type.particleLifetime + lifeVariance).coerceAtLeast(0.1f)
 
-            // Create a unique animation system for each particle if needed
             val animSystem = AnimationSystem()
             if (type.isAnimated) {
                 animSystem.createAnimation(type.name, type.texturePaths, type.frameDuration, type.isLooping)
@@ -658,16 +696,13 @@ class ParticleSystem {
             velocity.scl(speed)
 
             // Calculate scale
-            val scale: Float
-            if (overrideScale != null) {
-                scale = overrideScale
-            } else if (type.scaleVariance > 0f && Random.nextFloat() < type.sizeRandomnessChance) {
+            val scale: Float = overrideScale ?: if (type.scaleVariance > 0f && Random.nextFloat() < type.sizeRandomnessChance) {
                 val sizeVariance = (Random.nextFloat() - 0.5f) * 2f * type.scaleVariance
                 // Ensure scale doesn't become zero or negative
-                scale = (type.scale + sizeVariance).coerceAtLeast(0.1f)
+                (type.scale + sizeVariance).coerceAtLeast(0.1f)
             } else {
                 // Fallback to the default base size
-                scale = type.scale
+                type.scale
             }
 
             // Per-particle randomization
@@ -695,21 +730,22 @@ class ParticleSystem {
                 gravity = finalGravity
             )
 
-            // Handle surface orientation before setting up other animations
-            if (isGroundOrientedEffect(type) && surfaceNormal != null) {
-                orientParticleToSurface(instance, surfaceNormal)
+            if (isGroundOrientedEffect(type)) {
                 particle.isSurfaceOriented = true
-            }
+                instance.transform.setToTranslation(particle.position)
+                instance.transform.rotate(Vector3.Y, Random.nextFloat() * 360f) // The "spinning plate" rotation
+                instance.transform.scale(particle.scale, particle.scale, particle.scale)
+            } else {
+                // Handle surface orientation before setting up other animations
+                if (initialRotation != null && targetRotation != null) {
+                    particle.animatesRotation = true
+                    particle.currentRotationY = initialRotation
+                    particle.targetRotationY = targetRotation
+                }
 
-            // Set up rotation animation
-            if (initialRotation != null && targetRotation != null) {
-                particle.animatesRotation = true
-                particle.currentRotationY = initialRotation
-                particle.targetRotationY = targetRotation
+                // Apply the initial transform
+                particle.updateTransform()
             }
-
-            // Apply the initial transform
-            particle.updateTransform()
 
             activeParticles.add(particle)
         }
@@ -720,38 +756,12 @@ class ParticleSystem {
             ParticleEffectType.BLOOD_SPLATTER_1,
             ParticleEffectType.BLOOD_SPLATTER_2,
             ParticleEffectType.BLOOD_SPLATTER_3,
-            ParticleEffectType.BOOT_PRINTS -> true
+            ParticleEffectType.BOOT_PRINTS,
+            ParticleEffectType.DYNAMITE_EXPLOSION_AREA_ONE,
+            ParticleEffectType.DYNAMITE_EXPLOSION_AREA_TWO,
+            ParticleEffectType.FIRE_BURN_SPOT -> true
             else -> false
         }
-    }
-
-    private fun orientParticleToSurface(instance: ModelInstance, surfaceNormal: Vector3) {
-        val transform = instance.transform
-        val position = Vector3()
-        transform.getTranslation(position)
-
-        // Reset rotation and set position
-        transform.idt()
-        transform.setTranslation(position)
-
-        // Create rotation to align with surface
-        val up = Vector3(0f, 0f, 1f) // Original particle "up" direction (facing camera)
-        val normal = Vector3(surfaceNormal).nor()
-
-        // Calculate rotation axis and angle
-        val rotationAxis = Vector3(up).crs(normal)
-        val angle = Math.acos(up.dot(normal).toDouble()).toFloat() * com.badlogic.gdx.math.MathUtils.radiansToDegrees
-
-        // Only rotate if there's a meaningful rotation needed
-        if (rotationAxis.len() > 0.001f) {
-            rotationAxis.nor()
-            transform.rotate(rotationAxis, angle)
-        }
-
-        // Apply scaling after rotation
-        val currentScale = Vector3()
-        transform.getScale(currentScale)
-        transform.scale(currentScale.x, currentScale.y, currentScale.z)
     }
 
     fun update(deltaTime: Float) {
@@ -804,8 +814,11 @@ class ParticleSystem {
     }
 
     fun dispose() {
-        particleModels.values.forEach { it.dispose() }
-        particleModels.clear()
+        billboardParticleModels.values.forEach { it.dispose() }
+        billboardParticleModels.clear()
+        groundParticleModels.values.forEach { it.dispose() }
+        groundParticleModels.clear()
+
         activeParticles.forEach { it.animationSystem.dispose() }
         activeParticles.clear()
         billboardModelBatch.dispose()
