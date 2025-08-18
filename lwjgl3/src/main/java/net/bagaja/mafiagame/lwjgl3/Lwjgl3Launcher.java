@@ -73,7 +73,6 @@ public class Lwjgl3Launcher {
 // visual explosion range
 // maybe improving billboard shader
 // visible border of light sources
-// faceculling for only one face blocks working correct
 // working collisions for ramp, pillar and corner
 // maybe adding player hiding tp point text behind it
 // visual reload/charging bar

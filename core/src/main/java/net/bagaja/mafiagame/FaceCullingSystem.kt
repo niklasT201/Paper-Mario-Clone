@@ -52,7 +52,12 @@ class FaceCullingSystem(private val blockSize: Float = 4f) {
             if (neighbor == null || !neighbor.blockType.isVisible) {
                 block.visibleFaces.add(localFace)
             } else {
-                if (neighbor.shape == BlockShape.FULL_BLOCK && neighbor.blockType.height >= block.blockType.height) {
+                // If the neighbor is a special visibility block (front/back only), we CANNOT cull our face.
+                if (neighbor.cameraVisibility != CameraVisibility.ALWAYS_VISIBLE) {
+                    block.visibleFaces.add(localFace)
+                }
+                // Only consider culling if the neighbor is a solid, always-visible, full block
+                else if (neighbor.shape == BlockShape.FULL_BLOCK && neighbor.blockType.height >= block.blockType.height) {
                     // Neighbor is a full block, so it completely covers our face
                 } else {
                     // Neighbor is a partial block
@@ -81,7 +86,12 @@ class FaceCullingSystem(private val blockSize: Float = 4f) {
                 // If there's no neighbor, this local face is visible.
                 block.visibleFaces.add(localFace)
             } else {
-                if (neighbor.shape == BlockShape.FULL_BLOCK && neighbor.blockType.height >= block.blockType.height) {
+                // If the neighbor is a special visibility block (front/back only)
+                if (neighbor.cameraVisibility != CameraVisibility.ALWAYS_VISIBLE) {
+                    block.visibleFaces.add(localFace)
+                }
+                // Only consider culling if the neighbor is a solid, always-visible, full block
+                else if (neighbor.shape == BlockShape.FULL_BLOCK && neighbor.blockType.height >= block.blockType.height) {
                     // Neighbor is a full block, so it completely covers our face
                 } else {
                     // Neighbor is a partial block
