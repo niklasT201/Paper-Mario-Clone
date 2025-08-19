@@ -166,9 +166,8 @@ class CarSystem: IFinePositionable {
         return highestY
     }
 
-    fun render(camera: Camera, environment: Environment, cars: com.badlogic.gdx.utils.Array<GameCar>, playerSystem: PlayerSystem) {
+    fun render(camera: Camera, environment: Environment, cars: com.badlogic.gdx.utils.Array<GameCar>) {
         billboardShaderProvider.setEnvironment(environment)
-
         billboardModelBatch.begin(camera)
 
         val scaleFactor = 0.85f // Scale characters down slightly to fit in the car
@@ -180,13 +179,16 @@ class CarSystem: IFinePositionable {
 
                 // Determine which ModelInstance to render based on the occupant's type
                 val occupantInstance: ModelInstance? = when (occupant) {
-                    is PlayerSystem -> playerSystem.playerInstance
+                    is PlayerSystem -> sceneManager.playerSystem.playerInstance
                     is GameEnemy -> occupant.modelInstance
                     is GameNPC -> occupant.modelInstance
                     else -> null
                 }
 
                 if (occupantInstance != null) {
+                    // If the car is flipping, skip rendering
+                    if (car.isFlipping) continue
+
                     // Calculate the occupant's world position by mirroring the offset when the car is flipped
                     val finalOffset = seat.localOffset.cpy()
                     if (car.visualRotationY == 180f) {
@@ -194,7 +196,7 @@ class CarSystem: IFinePositionable {
                     }
                     val finalOccupantPos = car.position.cpy().add(finalOffset)
 
-                    // Save the original transform to restore it later. This is crucial.
+                    // Save the original transform to restore it later.
                     val originalTransform = occupantInstance.transform.cpy()
 
                     // Apply the new transform for rendering inside the car
@@ -361,6 +363,9 @@ data class GameCar(
     val isReadyForRemoval: Boolean get() = state == CarState.FADING_OUT && fadeOutTimer <= 0f
     var lastDamageType: DamageType = DamageType.GENERIC
     val seats = com.badlogic.gdx.utils.Array<CarSeat>()
+
+    var isFlipping: Boolean = false
+        private set
 
     init {
         seats.add(CarSeat(Vector3(0.8f, 4.5f, -0.2f)))
@@ -600,6 +605,7 @@ data class GameCar(
         else if (rotationDifference < -180f) rotationDifference += 360f
 
         if (kotlin.math.abs(rotationDifference) > 1f) {
+            isFlipping = true // Set the flag to true because we are in motion
             val rotationStep = rotationSpeed * deltaTime
             if (rotationDifference > 0f) {
                 visualRotationY += kotlin.math.min(rotationStep, rotationDifference)
@@ -611,6 +617,7 @@ data class GameCar(
             if (visualRotationY >= 360f) visualRotationY -= 360f
             else if (visualRotationY < 0f) visualRotationY += 360f
         } else {
+            isFlipping = false // Set the flag to false
             // Snap to target if close enough
             visualRotationY = targetRotationY
         }
