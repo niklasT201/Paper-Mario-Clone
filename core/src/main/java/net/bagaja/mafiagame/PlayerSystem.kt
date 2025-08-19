@@ -47,7 +47,8 @@ class PlayerSystem {
     // Player model and rendering
     private lateinit var playerTexture: Texture
     private lateinit var playerModel: Model
-    private lateinit var playerInstance: ModelInstance
+    lateinit var playerInstance: ModelInstance
+    private var currentSeat: CarSeat? = null
     private lateinit var playerMaterial: Material
 
     // Custom shader for billboard lighting
@@ -733,23 +734,27 @@ class PlayerSystem {
             return
         }
 
-        isDriving = true
-        drivingCar = car
-        car.modelInstance.userData = "car"
+        val seat = car.addOccupant(this)
+        if (seat != null) {
+            isDriving = true
+            drivingCar = car
+            currentSeat = seat
+            car.modelInstance.userData = "car"
 
-        // If entering a wrecked car
-        if (car.isDestroyed) {
-            println("Player entered a wrecked car.")
-        } else {
+            // If entering a wrecked car
             println("Player entered car ${car.carType.displayName}")
+        } else {
+            println("Could not enter car: No seats available.")
         }
-
-        // Hide the player by setting its position to the car's position
-        playerPosition.set(car.position)
     }
 
     fun exitCar(sceneManager: SceneManager) {
         if (!isDriving || drivingCar == null) return
+
+        val car = drivingCar!!
+
+        // Remove player from the car's occupant list
+        car.removeOccupant(this)
 
         headlightLight?.let { light ->
             light.intensity = 0f
@@ -757,7 +762,6 @@ class PlayerSystem {
             println("Headlight turned off.")
         }
 
-        val car = drivingCar!!
         car.modelInstance.userData = null
         val exitOffset = Vector3(-5f, 0f, 0f).rotate(Vector3.Y, car.direction)
         val exitPosition = Vector3(car.position).add(exitOffset)
@@ -769,9 +773,12 @@ class PlayerSystem {
             println("Player exited car. Placed at $finalExitPos")
             isDriving = false
             drivingCar = null
+            currentSeat = null
         } else {
             println("Cannot exit car, path is blocked.")
             car.modelInstance.userData = "car"
+            // If exit fails, put the player back in the seat conceptually
+            car.addOccupant(this)
         }
     }
 
@@ -996,6 +1003,8 @@ class PlayerSystem {
     }
 
     private fun handlePlayerOnFootMovement(deltaTime: Float, sceneManager: SceneManager, particleSystem: ParticleSystem): Boolean {
+        // Disable on-foot movement and collision while driving
+        if (isDriving) return false
         val originalPosition = playerPosition.cpy()
         isMoving = false
         var currentMovementDirection = 0f
@@ -1847,6 +1856,8 @@ class PlayerSystem {
     }
 
     fun render(camera: Camera, environment: Environment) {
+        // Do not render the player separately if they are driving
+        if (isDriving) return
         // Set the environment for the billboard shader so it knows about the lights
         billboardShaderProvider.setEnvironment(environment)
         billboardModelBatch.begin(camera)

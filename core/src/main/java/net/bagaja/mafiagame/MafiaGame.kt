@@ -733,7 +733,7 @@ class MafiaGame : ApplicationAdapter() {
         }
 
         // Render cars first as they are mostly opaque
-        carSystem.render(cameraManager.camera, environment, sceneManager.activeCars)
+        carSystem.render(cameraManager.camera, environment, sceneManager.activeCars, playerSystem)
         lockIndicatorSystem.render(cameraManager.camera, environment)
 
         // Render effects that should appear BEHIND characters

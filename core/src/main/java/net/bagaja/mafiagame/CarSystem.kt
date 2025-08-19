@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
@@ -28,6 +29,11 @@ enum class DamageType {
     EXPLOSIVE,
     MELEE
 }
+
+data class CarSeat(
+    val localOffset: Vector3,
+    var occupant: Any? = null
+)
 
 class CarSystem: IFinePositionable {
     private val carModels = mutableMapOf<CarType, Model>()
@@ -160,14 +166,52 @@ class CarSystem: IFinePositionable {
         return highestY
     }
 
-    fun render(camera: Camera, environment: Environment, cars: com.badlogic.gdx.utils.Array<GameCar>) {
+    fun render(camera: Camera, environment: Environment, cars: com.badlogic.gdx.utils.Array<GameCar>, playerSystem: PlayerSystem) {
         billboardShaderProvider.setEnvironment(environment)
 
         billboardModelBatch.begin(camera)
-        for (car in cars) {
-            // The car's internal update no longer needs the texture passed to it
-            car.update(Gdx.graphics.deltaTime)
 
+        val scaleFactor = 0.85f // Scale characters down slightly to fit in the car
+
+        for (car in cars) {
+            // 1. RENDER OCCUPANTS (BEHIND THE CAR)
+            for (seat in car.seats) {
+                val occupant = seat.occupant ?: continue
+
+                // Determine which ModelInstance to render based on the occupant's type
+                val occupantInstance: ModelInstance? = when (occupant) {
+                    is PlayerSystem -> playerSystem.playerInstance
+                    is GameEnemy -> occupant.modelInstance
+                    is GameNPC -> occupant.modelInstance
+                    else -> null
+                }
+
+                if (occupantInstance != null) {
+                    // Calculate the occupant's world position by mirroring the offset when the car is flipped
+                    val finalOffset = seat.localOffset.cpy()
+                    if (car.visualRotationY == 180f) {
+                        finalOffset.x *= -1f // Mirror the X offset ONLY
+                    }
+                    val finalOccupantPos = car.position.cpy().add(finalOffset)
+
+                    // Save the original transform to restore it later. This is crucial.
+                    val originalTransform = occupantInstance.transform.cpy()
+
+                    // Apply the new transform for rendering inside the car
+                    occupantInstance.transform.setToTranslation(finalOccupantPos)
+                    // Add 180 degrees to the car's rotation to make the occupant face the same direction
+                    occupantInstance.transform.rotate(Vector3.Y, car.visualRotationY + 180f)
+                    occupantInstance.transform.scale(scaleFactor, scaleFactor, scaleFactor)
+
+                    // Render the occupant
+                    billboardModelBatch.render(occupantInstance, environment)
+
+                    // Restore the original transform so it doesn't affect other game logic
+                    occupantInstance.transform.set(originalTransform)
+                }
+            }
+
+            // 2. RENDER THE CAR ITSELF (IN FRONT OF OCCUPANTS)
             car.updateTransform()
             billboardModelBatch.render(car.modelInstance, environment)
         }
@@ -316,8 +360,38 @@ data class GameCar(
     val isDestroyed: Boolean get() = state == CarState.WRECKED || state == CarState.FADING_OUT
     val isReadyForRemoval: Boolean get() = state == CarState.FADING_OUT && fadeOutTimer <= 0f
     var lastDamageType: DamageType = DamageType.GENERIC
+    val seats = com.badlogic.gdx.utils.Array<CarSeat>()
 
-    fun initializeAnimations() {
+    init {
+        seats.add(CarSeat(Vector3(0.8f, 4.5f, -0.2f)))
+        // seats.add(CarSeat(Vector3(1.5f, 4.0f, 0f))) // Passenger seat
+
+        initializeAnimations()
+    }
+
+    private fun findAvailableSeat(): CarSeat? = seats.find { it.occupant == null }
+
+    fun addOccupant(character: Any): CarSeat? {
+        val seat = findAvailableSeat()
+        if (seat != null) {
+            seat.occupant = character
+            println("$character occupied a seat.")
+        } else {
+            println("No available seats in the car.")
+        }
+        return seat
+    }
+
+    fun removeOccupant(character: Any) {
+        // Use identity check (===) to ensure we remove the exact object instance
+        val seat = seats.find { it.occupant === character }
+        if (seat != null) {
+            seat.occupant = null
+            println("$character vacated a seat.")
+        }
+    }
+
+    private fun initializeAnimations() {
         // Only the default car has animations for now.
         if (carType != CarType.DEFAULT) return
 

@@ -93,7 +93,6 @@ public class Lwjgl3Launcher {
 // dialog system
 // mission starting, saving and ending
 // option for choosing door enter
-// player visible optional in cars
 // killed enemies drop items
 // enemies have an inventory and collect items
 // adding guns

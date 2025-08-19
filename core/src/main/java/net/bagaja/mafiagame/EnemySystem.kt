@@ -78,6 +78,31 @@ data class GameEnemy(
     private val boundsSize = Vector3(enemyType.width, enemyType.height, enemyType.width)
     private val boundingBox = BoundingBox()
 
+    @Transient var isInCar: Boolean = false
+    @Transient var drivingCar: GameCar? = null
+    @Transient var currentSeat: CarSeat? = null
+
+    fun enterCar(car: GameCar) {
+        val seat = car.addOccupant(this)
+        if (seat != null) {
+            isInCar = true
+            drivingCar = car
+            currentSeat = seat
+            println("${this.enemyType.displayName} entered a car.")
+        }
+    }
+
+    fun exitCar() {
+        val car = drivingCar ?: return
+        car.removeOccupant(this)
+        isInCar = false
+        // TODO: In the future, add logic here to place the enemy in a safe spot next to the car.
+        this.position.set(car.position.x - 5f, car.position.y, car.position.z)
+        println("${this.enemyType.displayName} exited a car.")
+        drivingCar = null
+        currentSeat = null
+    }
+
     fun updateVisuals() {
         modelInstance.transform.idt()
         modelInstance.transform.setTranslation(position)
@@ -285,6 +310,9 @@ class EnemySystem : IFinePositionable {
 
         while(iterator.hasNext()) {
             val enemy = iterator.next()
+
+            // Skip all AI, physics, and visual updates for enemies inside cars
+            if (enemy.isInCar) continue
 
             // DYING STATE LOGIC
             if (enemy.currentState == AIState.DYING) {
@@ -570,12 +598,14 @@ class EnemySystem : IFinePositionable {
         // Collect all enemy instances.
         renderableInstances.clear()
         for (enemy in enemies) {
-            renderableInstances.add(enemy.modelInstance)
+            // Only render enemies who are not in a car
+            if (!enemy.isInCar) {
+                renderableInstances.add(enemy.modelInstance)
+            }
         }
 
         // Render all enemies at once.
         billboardModelBatch.render(renderableInstances, environment)
-
         billboardModelBatch.end()
     }
 

@@ -117,6 +117,31 @@ data class GameNPC(
         const val BLOOD_DRIP_INTERVAL = 0.7f
     }
 
+    @Transient var isInCar: Boolean = false
+    @Transient var drivingCar: GameCar? = null
+    @Transient var currentSeat: CarSeat? = null
+
+    fun enterCar(car: GameCar) {
+        val seat = car.addOccupant(this)
+        if (seat != null) {
+            isInCar = true
+            drivingCar = car
+            currentSeat = seat
+            println("${this.npcType.displayName} entered a car.")
+        }
+    }
+
+    fun exitCar() {
+        val car = drivingCar ?: return
+        car.removeOccupant(this)
+        isInCar = false
+        // TODO: In the future, add logic here to place the NPC in a safe spot next to the car.
+        this.position.set(car.position.x - 5f, car.position.y, car.position.z)
+        println("${this.npcType.displayName} exited a car.")
+        drivingCar = null
+        currentSeat = null
+    }
+
     fun updateVisuals() {
         modelInstance.transform.idt()
         modelInstance.transform.setTranslation(position)
@@ -383,6 +408,9 @@ class NPCSystem : IFinePositionable {
 
         while(iterator.hasNext()) {
             val npc = iterator.next()
+
+            // Skip all AI, physics, and visual updates for NPCs inside cars
+            if (npc.isInCar) continue
 
             if (npc.currentState == NPCState.DYING) {
                 npc.fadeOutTimer -= deltaTime
@@ -686,12 +714,14 @@ class NPCSystem : IFinePositionable {
         // Collect all NPC instances.
         renderableInstances.clear()
         for (npc in npcs) {
-            renderableInstances.add(npc.modelInstance)
+            // Only render NPCs who are not in a car
+            if (!npc.isInCar) {
+                renderableInstances.add(npc.modelInstance)
+            }
         }
 
         // Render all NPCs at once.
         billboardModelBatch.render(renderableInstances, environment)
-
         billboardModelBatch.end()
     }
 
