@@ -419,6 +419,22 @@ data class GameCar(
         state = CarState.WRECKED
         wreckedTimer = WRECKED_DURATION
 
+        val sceneManager = carSystem.sceneManager
+        val playerSystem = sceneManager.playerSystem
+        val distanceToPlayer = this.position.dst(playerSystem.getControlledEntityPosition())
+        val maxShakeDistance = 50f // Explosions are felt from further away
+
+        if (distanceToPlayer < maxShakeDistance) {
+            // A powerful shake, similar to dynamite but slightly less intense
+            val baseIntensity = 1.1f
+            val baseDuration = 0.8f
+
+            val intensity = baseIntensity * (1f - (distanceToPlayer / maxShakeDistance))
+            val duration = baseDuration * (1f - (distanceToPlayer / maxShakeDistance))
+
+            sceneManager.cameraManager.startShake(duration, intensity.coerceAtLeast(0.1f))
+        }
+
         // 1. Spawn the explosion particle effect
         val explosionPos = position.cpy().add(0f, carType.height / 1.15f, 0f)
 

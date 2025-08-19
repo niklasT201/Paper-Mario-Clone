@@ -481,6 +481,11 @@ class PlayerSystem {
             if (hitBox.intersects(enemy.getBoundingBox())) {
                 println("Melee hit on enemy: ${enemy.enemyType.displayName}")
 
+                // SHAKE
+                val shakeIntensity = if (equippedWeapon == WeaponType.BASEBALL_BAT) 0.15f else 0.07f
+                val shakeDuration = if (equippedWeapon == WeaponType.BASEBALL_BAT) 0.12f else 0.08f
+                sceneManager.cameraManager.startShake(shakeDuration, shakeIntensity)
+
                 if (Random.nextFloat() < 0.75f) { // 75% chance to bleed
                     val bloodSpawnPosition = enemy.position.cpy().add(0f, enemy.enemyType.height / 2f, 0f)
                     spawnBloodEffects(bloodSpawnPosition, sceneManager)
@@ -1479,6 +1484,7 @@ class PlayerSystem {
                     println("Dynamite fuse ended mid-air. Exploding at last known position.")
                 }
 
+                // 1. Camera Shake
                 val distanceToPlayer = explosionOrigin.dst(getPosition())
                 val maxShakeDistance = 45f
 
@@ -1541,20 +1547,26 @@ class PlayerSystem {
                     )
                 }
 
-                // 3. Spawn the explosion scorch mark on the ground.
-                val explosionAreaTypes = listOf(
-                    ParticleEffectType.DYNAMITE_EXPLOSION_AREA_ONE,
-                    ParticleEffectType.DYNAMITE_EXPLOSION_AREA_TWO
-                )
-                val selectedAreaType = explosionAreaTypes.random() // Randomly pick one of the two scorch marks.
-                val scorchMarkPosition = explosionOrigin.cpy().add(0f, 0.15f, 0f)
+                // 4. Scorch Mark
+                if (collisionResult != null) {
+                    // 3. Spawn the explosion scorch mark on the ground.
+                    val explosionAreaTypes = listOf(
+                        ParticleEffectType.DYNAMITE_EXPLOSION_AREA_ONE,
+                        ParticleEffectType.DYNAMITE_EXPLOSION_AREA_TWO
+                    )
+                    val selectedAreaType = explosionAreaTypes.random() // Randomly pick one of the two scorch marks.
+                    val scorchMarkPosition = explosionOrigin.cpy().add(0f, 0.15f, 0f)
 
-                particleSystem.spawnEffect(
-                    type = selectedAreaType,
-                    position = scorchMarkPosition,
-                    surfaceNormal = Vector3.Y, // The ground's normal is straight up.
-                    gravityOverride = 0f       // Ensure it doesn't fall through the world.
-                )
+                    particleSystem.spawnEffect(
+                        type = selectedAreaType,
+                        position = scorchMarkPosition,
+                        surfaceNormal = Vector3.Y, // The ground's normal is straight up.
+                        gravityOverride = 0f       // Ensure it doesn't fall through the world.
+                    )
+                    println("Dynamite hit a surface, spawning scorch mark.")
+                } else {
+                    println("Dynamite exploded mid-air, no scorch mark spawned.")
+                }
 
                 println("Dynamite effect originating at $explosionOrigin")
 
