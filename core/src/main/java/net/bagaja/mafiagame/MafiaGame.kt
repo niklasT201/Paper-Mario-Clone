@@ -536,6 +536,11 @@ class MafiaGame : ApplicationAdapter() {
                 instance.gameObject.debugInstance?.transform?.setTranslation(instance.gameObject.position)
                 println("Moved Teleporter to ${instance.gameObject.position}")
             }
+            is GameEntryPoint -> {
+                instance.position.add(deltaX, deltaY, deltaZ)
+                instance.debugInstance.transform.setTranslation(instance.position)
+                println("Moved Entry Point to ${instance.position}")
+            }
             else -> println("Fine positioning not supported for this object type.")
         }
     }

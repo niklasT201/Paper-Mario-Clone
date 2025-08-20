@@ -164,6 +164,16 @@ class InputHandler(
                                 return true // Consume the click
                             }
 
+                            if (uiManager.selectedTool == Tool.HOUSE) {
+                                val entryPointToSelect = particleSystem.raycastSystem.getEntryPointAtRay(ray, sceneManager.activeEntryPoints)
+                                if (entryPointToSelect != null) {
+                                    game.lastPlacedInstance = entryPointToSelect
+                                    println("Selected Entry Point ${entryPointToSelect.id} for fine positioning.")
+                                    uiManager.updatePlacementInfo("Selected Entry Point for Fine Positioning (F key)")
+                                    return true // Consume the click, don't rotate camera
+                                }
+                            }
+
                             var removed = false
                             when (uiManager.selectedTool) {
                                 Tool.BLOCK -> removed = blockSystem.handleRemoveAction(ray)

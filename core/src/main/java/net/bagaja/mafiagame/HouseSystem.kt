@@ -132,6 +132,10 @@ class HouseSystem: IFinePositionable {
                 house.entryPointId = entryPoint.id
                 sceneManager.activeEntryPoints.add(entryPoint)
                 println("Custom entry point ${entryPoint.id} created for house ${house.id}")
+
+                // Update the last placed instance to be the new entry point
+                sceneManager.game.lastPlacedInstance = entryPoint
+
                 sceneManager.game.uiManager.exitEntryPointPlacementMode() // Exit the special mode
             }
         } else {
@@ -184,6 +188,15 @@ class HouseSystem: IFinePositionable {
     }
 
     private fun removeHouse(houseToRemove: GameHouse) {
+        // Check for and remove the associated entry point
+        houseToRemove.entryPointId?.let { entryId ->
+            val entryPointToRemove = sceneManager.activeEntryPoints.find { it.id == entryId }
+            if (entryPointToRemove != null) {
+                sceneManager.activeEntryPoints.removeValue(entryPointToRemove, true)
+                println("Removed custom entry point ${entryPointToRemove.id} associated with the house.")
+            }
+        }
+
         sceneManager.activeHouses.removeValue(houseToRemove, true)
         println("${houseToRemove.houseType.displayName} removed at: ${houseToRemove.position}")
     }

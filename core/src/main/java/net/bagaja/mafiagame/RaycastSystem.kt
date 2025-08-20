@@ -114,6 +114,25 @@ class RaycastSystem(private val blockSize: Float) {
         return closestHouse
     }
 
+    fun getEntryPointAtRay(ray: Ray, entryPoints: Array<GameEntryPoint>): GameEntryPoint? {
+        var closestEntryPoint: GameEntryPoint? = null
+        var closestDistance = Float.MAX_VALUE
+
+        for (entryPoint in entryPoints) {
+            val entryBounds = entryPoint.debugInstance.calculateBoundingBox(BoundingBox())
+            entryBounds.mul(entryPoint.debugInstance.transform) // Apply world transform
+
+            if (Intersector.intersectRayBounds(ray, entryBounds, intersection)) {
+                val distance = ray.origin.dst2(intersection)
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestEntryPoint = entryPoint
+                }
+            }
+        }
+        return closestEntryPoint
+    }
+
     fun getBackgroundAtRay(ray: Ray, gameBackgrounds: Array<GameBackground>): GameBackground? {
         var closestBackground: GameBackground? = null
         var closestDistance = Float.MAX_VALUE

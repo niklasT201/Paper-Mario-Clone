@@ -91,7 +91,6 @@ public class Lwjgl3Launcher {
 // map saving
 // dialog system
 // mission starting, saving and ending
-// option for choosing door enter
 // killed enemies drop items
 // enemies have an inventory and collect items
 // adding guns
