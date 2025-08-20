@@ -33,6 +33,7 @@ class SceneManager(
     val npcSystem: NPCSystem,
     private val roomTemplateManager: RoomTemplateManager,
     val cameraManager: CameraManager,
+    private val houseSystem: HouseSystem,
     private val transitionSystem: TransitionSystem,
     private val faceCullingSystem: FaceCullingSystem,
     val game: MafiaGame,
@@ -48,6 +49,7 @@ class SceneManager(
     val activeObjects = Array<GameObject>()
     val activeCars = Array<GameCar>()
     val activeHouses = Array<GameHouse>()
+    val activeEntryPoints = Array<GameEntryPoint>()
     val activeItems = Array<GameItem>()
     val activeInteriors = Array<GameInterior>()
     val activeEnemies = Array<GameEnemy>()
@@ -674,6 +676,7 @@ class SceneManager(
             objects = Array(activeObjects),
             cars = Array(activeCars),
             houses = Array(activeHouses),
+            entryPoints = Array(activeEntryPoints),
             items = Array(activeItems),
             enemies = Array(activeEnemies),
             npcs = Array(activeNPCs),
@@ -703,6 +706,7 @@ class SceneManager(
         activeObjects.addAll(state.objects)
         activeCars.addAll(state.cars)
         activeHouses.addAll(state.houses)
+        activeEntryPoints.addAll(state.entryPoints)
         activeItems.addAll(state.items)
         activeEnemies.addAll(state.enemies)
         activeNPCs.addAll(state.npcs)
@@ -1438,6 +1442,7 @@ class SceneManager(
         activeEnemies.clear()
         activeNPCs.clear()
         activeSpawners.clear()
+        activeEntryPoints.clear()
         teleporterSystem.activeTeleporters.clear()
         activeBloodPools.clear()
         activeFootprints.clear()
@@ -1453,6 +1458,7 @@ data class WorldState(
     val objects: Array<GameObject>,
     val cars: Array<GameCar>,
     val houses: Array<GameHouse>,
+    val entryPoints: Array<GameEntryPoint>,
     val items: Array<GameItem>,
     val enemies: Array<GameEnemy>,
     val npcs: Array<GameNPC>,

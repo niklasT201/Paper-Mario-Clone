@@ -112,6 +112,13 @@ class InputHandler(
                 when (button) {
                     Input.Buttons.LEFT -> {
                         if (game.isEditorMode) {
+                            // Check for special entry point placement mode
+                            if (uiManager.isPlacingEntryPointMode) {
+                                val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+                                houseSystem.handleEntryPointPlaceAction(ray, uiManager.houseRequiringEntryPoint!!)
+                                return true // Consume the click
+                            }
+
                             isLeftMousePressed = true
                             val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
                             when (uiManager.selectedTool) {
@@ -298,6 +305,12 @@ class InputHandler(
                 }
 
                 if (keycode == Input.Keys.ESCAPE) {
+                    // Check for cancelling entry point placement
+                    if (uiManager.isPlacingEntryPointMode) {
+                        uiManager.exitEntryPointPlacementMode()
+                        return true
+                    }
+
                     // First, handle cancelling any ongoing actions
                     if (game.teleporterSystem.isLinkingMode) {
                         game.teleporterSystem.cancelLinking()

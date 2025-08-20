@@ -81,6 +81,11 @@ class UIManager(
     var houseRequiringDoor: GameHouse? = null
         private set
 
+    var isPlacingEntryPointMode = false
+        private set
+    var houseRequiringEntryPoint: GameHouse? = null
+        private set
+
     // Design constants
     private val ACCENT_COLOR = Color(0.2f, 0.7f, 1f, 1f) // Bright blue
     private val SECONDARY_COLOR = Color(0.8f, 0.4f, 1f, 1f) // Purple
@@ -1689,6 +1694,20 @@ class UIManager(
     fun exitDoorPlacementModeCompleted() {
         isPlacingExitDoorMode = false
         houseRequiringDoor = null
+        clearPersistentMessage()
+    }
+
+    fun enterEntryPointPlacementMode(house: GameHouse) {
+        println("UI MANAGER: Entering Entry Point Placement mode for house ${house.id}")
+        isPlacingEntryPointMode = true
+        houseRequiringEntryPoint = house
+        setPersistentMessage("Click on the house model to place the entry point.\nPress ESC to cancel and use the default entrance.")
+    }
+
+    fun exitEntryPointPlacementMode() {
+        println("UI MANAGER: Exiting Entry Point Placement mode.")
+        isPlacingEntryPointMode = false
+        houseRequiringEntryPoint = null
         clearPersistentMessage()
     }
 

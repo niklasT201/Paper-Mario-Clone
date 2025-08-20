@@ -126,7 +126,7 @@ class MafiaGame : ApplicationAdapter() {
         faceCullingSystem = FaceCullingSystem(blockSize)
         sceneManager = SceneManager(
             playerSystem, blockSystem, objectSystem, itemSystem, interiorSystem,
-            enemySystem, npcSystem, roomTemplateManager, cameraManager, transitionSystem,
+            enemySystem, npcSystem, roomTemplateManager, cameraManager, houseSystem, transitionSystem,
             faceCullingSystem, this, particleSystem, fireSystem, boneSystem
         )
 
@@ -302,7 +302,7 @@ class MafiaGame : ApplicationAdapter() {
                     }
 
                     // Try to enter a house
-                    val closestHouse = sceneManager.activeHouses.minByOrNull { it.position.dst(playerPos) }
+                    val closestHouse = sceneManager.activeHouses.minByOrNull { it.position.dst2(playerPos) }
 
                     if (closestHouse != null) {
                         // First, check if the "house" is even enterable (e.g., not a stair model).
@@ -318,15 +318,36 @@ class MafiaGame : ApplicationAdapter() {
                         }
 
                         // We now calculate the HORIZONTAL distance, ignoring the Y-axis.
-                        val playerPos2D = Vector2(playerPos.x, playerPos.z)
-                        val housePos2D = Vector2(closestHouse.position.x, closestHouse.position.z)
+                        val entryPointPosition: Vector3
+                        val entryRadius: Float
+
+                        if (closestHouse.entryPointId != null) {
+                            // This house has a CUSTOM entry point
+                            val customEntryPoint = sceneManager.activeEntryPoints.find { it.id == closestHouse.entryPointId }
+                            if (customEntryPoint != null) {
+                                entryPointPosition = customEntryPoint.position
+                                entryRadius = 3.5f // Smaller radius for precise custom points
+                                println("Checking against custom entry point: ${customEntryPoint.id}")
+                            } else {
+                                // Fallback if ID is invalid (shouldn't happen)
+                                entryPointPosition = closestHouse.position.cpy().add(closestHouse.houseType.doorOffset)
+                                entryRadius = 5f
+                                println("Warning: House has invalid entryPointId. Using default offset.")
+                            }
+                        } else {
+                            // This house uses the DEFAULT hard-coded entry point
+                            entryPointPosition = closestHouse.position.cpy().add(closestHouse.houseType.doorOffset)
+                            entryRadius = 5f // Larger radius for less precise default points
+                            println("Checking against default door offset.")
+                        }
 
                         // Check the 2D distance on the ground plane.
-                        if (playerPos2D.dst(housePos2D) < 8f) {
+                        if (playerPos.dst(entryPointPosition) < entryRadius) {
                             // Success! The player is close enough horizontally.
+                            println("Player is close enough to the entry point. Entering house...")
                             sceneManager.transitionToInterior(closestHouse)
                         } else {
-                            println("No house nearby to enter. (Too far from the door)")
+                            println("Not close enough to the entry point.")
                         }
                     } else {
                         println("No houses in the scene.")
@@ -710,6 +731,7 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render light sources
         lightingManager.renderLightInstances(modelBatch, environment, objectSystem.debugMode)
+        houseSystem.renderEntryPoints(modelBatch, environment, objectSystem)
 
         for (house in sceneManager.activeHouses) {
             modelBatch.render(house.modelInstance, environment)

@@ -1,11 +1,16 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.Texture
-import com.badlogic.gdx.graphics.g3d.Model
-import com.badlogic.gdx.graphics.g3d.ModelInstance
+import com.badlogic.gdx.graphics.VertexAttributes
+import com.badlogic.gdx.graphics.g3d.*
+import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
+import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.loader.G3dModelLoader
+import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.Intersector
@@ -14,11 +19,20 @@ import com.badlogic.gdx.utils.JsonReader
 import java.util.*
 import kotlin.math.floor
 
+data class GameEntryPoint(
+    val id: String = UUID.randomUUID().toString(),
+    val houseId: String,
+    val position: Vector3,
+    val debugInstance: ModelInstance
+)
+
 class HouseSystem: IFinePositionable {
     private val houseModels = mutableMapOf<HouseType, Model>()
     private val houseTextures = mutableMapOf<HouseType, Texture>()
 
-    // Support for 3D models only
+    // Model for the entry point's debug visual
+    private var entryPointDebugModel: Model? = null
+
     private lateinit var modelLoader: G3dModelLoader
 
     var currentSelectedHouse = HouseType.HOUSE_1
@@ -48,6 +62,15 @@ class HouseSystem: IFinePositionable {
 
         // Initialize the 3D model loader
         modelLoader = G3dModelLoader(JsonReader())
+
+        // Create the debug model for entry points
+        val modelBuilder = ModelBuilder()
+        val debugMaterial = Material(
+            ColorAttribute.createDiffuse(Color.BLUE),
+            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.4f)
+        )
+        entryPointDebugModel = modelBuilder.createBox(3f, 5f, 3f, debugMaterial,
+            (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong())
 
         // Load textures and create models for each house type (3D only)
         for (houseType in HouseType.entries) {
@@ -90,12 +113,39 @@ class HouseSystem: IFinePositionable {
             }
 
             if (existingHouse == null) {
-                addHouse(gridX, properY, gridZ, currentSelectedHouse)
-                println("${currentSelectedHouse.displayName} placed at: $gridX, $properY, $gridZ")
+                val gameHouse = addHouse(gridX, properY, gridZ, currentSelectedHouse)
+                // After placing the house, enter the special placement mode for its entry point
+                if (gameHouse != null) {
+                    sceneManager.game.uiManager.enterEntryPointPlacementMode(gameHouse)
+                }
             } else {
                 println("House already exists near this position")
             }
         }
+    }
+
+    fun handleEntryPointPlaceAction(ray: Ray, house: GameHouse) {
+        if (house.intersectsRay(ray, tempVec3)) {
+            val entryPoint = createEntryPoint(tempVec3.cpy(), house.id)
+            if (entryPoint != null) {
+                // Link the house to this new entry point
+                house.entryPointId = entryPoint.id
+                sceneManager.activeEntryPoints.add(entryPoint)
+                println("Custom entry point ${entryPoint.id} created for house ${house.id}")
+                sceneManager.game.uiManager.exitEntryPointPlacementMode() // Exit the special mode
+            }
+        } else {
+            sceneManager.game.uiManager.updatePlacementInfo("Placement failed: You must click directly on the house model.")
+        }
+    }
+
+    private fun createEntryPoint(position: Vector3, houseId: String): GameEntryPoint? {
+        val model = entryPointDebugModel ?: return null
+        return GameEntryPoint(
+            houseId = houseId,
+            position = position,
+            debugInstance = ModelInstance(model)
+        )
     }
 
     fun handleRemoveAction(ray: Ray): Boolean {
@@ -107,8 +157,8 @@ class HouseSystem: IFinePositionable {
         return false
     }
 
-    private fun addHouse(x: Float, y: Float, z: Float, houseType: HouseType) {
-        val houseInstance = createHouseInstance(houseType) ?: return
+    private fun addHouse(x: Float, y: Float, z: Float, houseType: HouseType): GameHouse? {
+        val houseInstance = createHouseInstance(houseType) ?: return null
         val position = Vector3(x, y, z)
 
         val canHaveRoom = houseType.canHaveRoom
@@ -130,6 +180,7 @@ class HouseSystem: IFinePositionable {
         sceneManager.game.lastPlacedInstance = gameHouse
 
         println("Placed ${houseType.displayName}. Locked: ${gameHouse.isLocked}. Room Template ID: ${gameHouse.assignedRoomTemplateId ?: "None"}")
+        return gameHouse
     }
 
     private fun removeHouse(houseToRemove: GameHouse) {
@@ -189,14 +240,24 @@ class HouseSystem: IFinePositionable {
         }
     }
 
-    fun createHouseInstance(houseType: HouseType): ModelInstance? {
+    private fun createHouseInstance(houseType: HouseType): ModelInstance? {
         val model = houseModels[houseType]
         return model?.let { ModelInstance(it) }
+    }
+
+    fun renderEntryPoints(modelBatch: ModelBatch, environment: Environment, objectSystem: ObjectSystem) {
+        if (!objectSystem.debugMode) return
+
+        for (entryPoint in sceneManager.activeEntryPoints) {
+            entryPoint.debugInstance.transform.setToTranslation(entryPoint.position)
+            modelBatch.render(entryPoint.debugInstance, environment)
+        }
     }
 
     fun dispose() {
         houseModels.values.forEach { it.dispose() }
         houseTextures.values.forEach { it.dispose() }
+        entryPointDebugModel?.dispose() // NEW
     }
 }
 
@@ -209,7 +270,8 @@ data class GameHouse(
     val assignedRoomTemplateId: String? = null,
     var exitDoorId: String? = null,
     var rotationY: Float = 0f,
-    val id: String = UUID.randomUUID().toString()
+    val id: String = UUID.randomUUID().toString(),
+    var entryPointId: String? = null
 ) {
     // Data for Mesh Collision
     private val mesh = modelInstance.model.meshes.first() // Get the first mesh from the model
