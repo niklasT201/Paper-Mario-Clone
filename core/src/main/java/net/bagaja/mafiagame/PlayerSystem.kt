@@ -74,6 +74,7 @@ class PlayerSystem {
         const val FALL_SPEED = 25f
         const val MAX_STEP_HEIGHT = 1.1f
         const val CAR_MAX_STEP_HEIGHT = 4.1f
+        const val HEADLIGHT_INTENSITY = 75f
     }
 
     private lateinit var characterPhysicsSystem: CharacterPhysicsSystem
@@ -816,7 +817,7 @@ class PlayerSystem {
 
         headlightLight?.let { light ->
             val sunIntensity = lightingManager.getDayNightCycle().getSunIntensity()
-            val targetIntensity = if (sunIntensity < 0.25f && !car.isDestroyed) 120f else 0f
+            val targetIntensity = if (sunIntensity < 0.25f && !car.isDestroyed) HEADLIGHT_INTENSITY else 0f
             light.intensity = MathUtils.lerp(light.intensity, targetIntensity, deltaTime * 5f)
 
             // Calculate the forward direction based on the CAR'S visual rotation
@@ -960,6 +961,7 @@ class PlayerSystem {
         val desiredMovement = Vector3()
         if (Gdx.input.isKeyPressed(Input.Keys.A)) desiredMovement.x -= 1f
         if (Gdx.input.isKeyPressed(Input.Keys.D)) desiredMovement.x += 1f
+
         isPressingW = Gdx.input.isKeyPressed(Input.Keys.W)
         if (isPressingW) desiredMovement.z -= 1f
         if (Gdx.input.isKeyPressed(Input.Keys.S)) desiredMovement.z += 1f

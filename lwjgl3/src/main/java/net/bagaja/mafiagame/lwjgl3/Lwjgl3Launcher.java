@@ -49,7 +49,6 @@ public class Lwjgl3Launcher {
 
 // changing room transition effect colors
 // edge houses
-// improve enemy/npc falling
 // blocks being visible behind transparent enemies etc.
 // improve UIManagers code base
 // option for blocks having one visible face or two

@@ -17,7 +17,7 @@ class CharacterPhysicsSystem(private val sceneManager: SceneManager) {
     }
 
     private val tempBlockBounds = BoundingBox()
-    private val nearbyBlocks = Array<GameBlock>() // Re-usable array to avoid allocations
+    private val nearbyBlocks = Array<GameBlock>()
 
     fun update(component: PhysicsComponent, desiredMovement: Vector3, deltaTime: Float): Boolean {
         val originalPosition = component.position.cpy()
@@ -48,18 +48,13 @@ class CharacterPhysicsSystem(private val sceneManager: SceneManager) {
             }
         }
 
-        // --- 2. Vertical Movement Resolution with 9-POINT CHECK ---
-        // This is your robust logic, now generalized for any character.
+        // 2. Vertical Movement
         val xEdgeOffset = component.size.x / 2f * 0.9f
         val zEdgeOffset = component.size.z / 2f * 0.9f // Use component's Z size for depth
         val supportCandidates = mutableListOf<Float>()
         val checkRadius = 0.1f // A small radius for point checks
         val blockSize = sceneManager.game.blockSize
-
-        // Helper lambda to reduce code repetition
-        val checkSupport = { x: Float, z: Float ->
-            sceneManager.findStrictSupportY(x, z, originalPosition.y, checkRadius, blockSize)
-        }
+        val checkSupport = { x: Float, z: Float -> sceneManager.findStrictSupportY(x, z, originalPosition.y, checkRadius, blockSize) }
 
         // Perform all 9 checks to find the highest ground beneath the character's footprint
         supportCandidates.add(checkSupport(component.position.x, component.position.z)) // Center
@@ -74,13 +69,7 @@ class CharacterPhysicsSystem(private val sceneManager: SceneManager) {
 
         val maxSupportY = supportCandidates.maxOrNull() ?: 0f
         val footY = originalPosition.y - (component.size.y / 2f)
-
-        val effectiveSupportY = if (maxSupportY - footY <= MAX_STEP_HEIGHT) {
-            maxSupportY
-        } else {
-            // If the highest point is an unclimbable wall, use the support at the character's original center to prevent floating up walls.
-            sceneManager.findStrictSupportY(originalPosition.x, originalPosition.z, originalPosition.y, component.size.x / 2f, blockSize)
-        }
+        val effectiveSupportY = if (maxSupportY - footY <= MAX_STEP_HEIGHT) maxSupportY else sceneManager.findStrictSupportY(originalPosition.x, originalPosition.z, originalPosition.y, component.size.x / 2f, blockSize)
 
         val targetY = effectiveSupportY + (component.size.y / 2f)
         val fallY = component.position.y - FALL_SPEED * deltaTime
@@ -94,20 +83,13 @@ class CharacterPhysicsSystem(private val sceneManager: SceneManager) {
 
         if (component.isMoving) {
             component.walkAnimationTimer += deltaTime
-            val angleRad = sin(component.walkAnimationTimer * WOBBLE_FREQUENCY)
-            component.wobbleAngle = angleRad * WOBBLE_AMPLITUDE_DEGREES
+            component.wobbleAngle = sin(component.walkAnimationTimer * WOBBLE_FREQUENCY) * WOBBLE_AMPLITUDE_DEGREES
         } else {
-            if (kotlin.math.abs(component.wobbleAngle) > 0.1f) {
-                component.wobbleAngle *= (1.0f - deltaTime * 10f).coerceAtLeast(0f)
-            } else {
-                component.wobbleAngle = 0f
-            }
+            if (kotlin.math.abs(component.wobbleAngle) > 0.1f) component.wobbleAngle *= (1.0f - deltaTime * 10f).coerceAtLeast(0f) else component.wobbleAngle = 0f
             component.walkAnimationTimer = 0f
         }
 
-        if (moved) {
-            component.updateBounds()
-        }
+        if (moved) component.updateBounds()
         return moved
     }
 
@@ -116,29 +98,30 @@ class CharacterPhysicsSystem(private val sceneManager: SceneManager) {
      * Based on your robust player collision.
      */
     private fun canMoveTo(x: Float, y: Float, z: Float, component: PhysicsComponent): Boolean {
-        val checkBounds = BoundingBox()
-        checkBounds.set(
-            Vector3(x - component.size.x / 2, y - component.size.y / 2, z - component.size.z / 2),
-            Vector3(x + component.size.x / 2, y + component.size.y / 2, z + component.size.z / 2)
+        val shrinkFor3D = 0.2f
+        val shrinkFor2D = 0.8f
+
+        val boundsFor3D = BoundingBox()
+        boundsFor3D.set(
+            Vector3(x - (component.size.x / 2 - shrinkFor3D), y - component.size.y / 2, z - (component.size.z / 2 - shrinkFor3D)),
+            Vector3(x + (component.size.x / 2 - shrinkFor3D), y + component.size.y / 2, z + (component.size.z / 2 - shrinkFor3D))
         )
 
         // 1. Check against Blocks
         sceneManager.activeChunkManager.getBlocksAround(Vector3(x, y, z), 10f, nearbyBlocks)
         for (gameBlock in nearbyBlocks) {
             if (!gameBlock.blockType.hasCollision) continue
-            if (gameBlock.collidesWith(checkBounds)) {
+            if (gameBlock.collidesWith(boundsFor3D)) {
                 val footY = y - (component.size.y / 2f)
                 val blockTop = gameBlock.getBoundingBox(sceneManager.game.blockSize, tempBlockBounds).max.y
-                if (blockTop - footY <= MAX_STEP_HEIGHT) {
-                    continue // It's a valid step, not a wall
-                }
-                return false // It's a wall
+                if (blockTop - footY <= MAX_STEP_HEIGHT) continue
+                return false
             }
         }
 
         // 2. Check against Houses (complex meshes)
         for (house in sceneManager.activeHouses) {
-            if (house.collidesWithMesh(checkBounds)) return false
+            if (house.collidesWithMesh(boundsFor3D)) return false
         }
 
         // 3. Check against Interior Objects (RE-ADDED AND CORRECTED)
@@ -148,15 +131,11 @@ class CharacterPhysicsSystem(private val sceneManager: SceneManager) {
 
             // Differentiate collision logic for 3D vs 2D interior objects.
             if (interior.interiorType.is3D) {
-                if (interior.collidesWithMesh(checkBounds)) {
-                    return false
-                }
+                if (interior.collidesWithMesh(boundsFor3D)) return false
             } else {
                 // For 2D objects like doors, use the simpler rectangular check.
-                val characterRadius = component.size.x / 2f
-                if (interior.collidesWithPlayerRectangular2D(Vector3(x, y, z), characterRadius)) {
-                    return false
-                }
+                val characterRadius = (component.size.x / 2f) - shrinkFor2D
+                if (interior.collidesWithPlayer2D(Vector3(x, y, z), characterRadius)) return false
             }
         }
 
