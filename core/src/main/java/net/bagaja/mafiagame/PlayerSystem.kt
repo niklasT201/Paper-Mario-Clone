@@ -76,10 +76,10 @@ class PlayerSystem {
         const val CAR_MAX_STEP_HEIGHT = 4.1f
     }
 
+    private lateinit var characterPhysicsSystem: CharacterPhysicsSystem
+    private lateinit var physicsComponent: PhysicsComponent
+
     // Player position and movement
-    private val playerPosition = Vector3(0f, 2f, 0f)
-    private val playerSpeed = 8f
-    private val playerBounds = BoundingBox()
     val playerSize = Vector3(3f, 4f, 3f) //z = thickness
 
     // Player rotation for Paper Mario effect
@@ -163,15 +163,22 @@ class PlayerSystem {
     private val headlightVerticalOffset = 2.0f
 
     fun getPlayerBounds(): BoundingBox {
-        return playerBounds
+        return physicsComponent.bounds
     }
 
-    fun initialize(blockSize: Float, particleSystem: ParticleSystem, lightingManager: LightingManager, bloodPoolSystem: BloodPoolSystem, footprintSystem: FootprintSystem) {
+    fun initialize(blockSize: Float, particleSystem: ParticleSystem, lightingManager: LightingManager, bloodPoolSystem: BloodPoolSystem, footprintSystem: FootprintSystem, characterPhysicsSystem:CharacterPhysicsSystem) {
         this.blockSize = blockSize
         this.particleSystem = particleSystem
         this.lightingManager = lightingManager
         this.bloodPoolSystem = bloodPoolSystem
         this.footprintSystem = footprintSystem
+        this.characterPhysicsSystem = CharacterPhysicsSystem(particleSystem.sceneManager)
+        physicsComponent = PhysicsComponent(
+            position = Vector3(0f, 2f, 0f), // Default start position
+            size = this.playerSize,
+            speed = 8f // Player's specific speed
+        )
+
         setupAnimationSystem()
 
         // Load weapon
@@ -179,7 +186,7 @@ class PlayerSystem {
 
         setupBillboardShader()
         setupPlayerModel()
-        updatePlayerBounds()
+        physicsComponent.updateBounds()
 
         // Set initial weapon state
         currentMagazineCount = equippedWeapon.magazineSize
@@ -278,8 +285,8 @@ class PlayerSystem {
     }
 
     fun setPosition(newPosition: Vector3) {
-        playerPosition.set(newPosition)
-        updatePlayerBounds()
+        physicsComponent.position.set(newPosition)
+        physicsComponent.updateBounds()
         println("Player position set to: $newPosition")
     }
 
@@ -337,7 +344,7 @@ class PlayerSystem {
     // NEW: A helper to get the starting position for the arc, slightly in front of the player
     fun getThrowableSpawnPosition(): Vector3 {
         val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
-        return playerPosition.cpy().add(directionX * 1.5f, 1f, 0f)
+        return physicsComponent.position.cpy().add(directionX * 1.5f, 1f, 0f)
     }
 
     // NEW: A helper to calculate the initial velocity based on the current charge time
@@ -468,8 +475,7 @@ class PlayerSystem {
         // Determine direction
         val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
 
-        // Create a hitbox in front of the player
-        val hitBoxCenter = playerPosition.cpy().add(directionX * (attackRange / 2f), 0f, 0f)
+        val hitBoxCenter = physicsComponent.position.cpy().add(directionX * (attackRange / 2f), 0f, 0f)
         val hitBox = BoundingBox(
             Vector3(hitBoxCenter.x - (attackRange / 2f), hitBoxCenter.y - (playerSize.y / 2f), hitBoxCenter.z - (attackWidth / 2f)),
             Vector3(hitBoxCenter.x + (attackRange / 2f), hitBoxCenter.y + (playerSize.y / 2f), hitBoxCenter.z + (attackWidth / 2f))
@@ -479,7 +485,7 @@ class PlayerSystem {
         val enemyIterator = sceneManager.activeEnemies.iterator()
         while(enemyIterator.hasNext()) {
             val enemy = enemyIterator.next()
-            if (hitBox.intersects(enemy.getBoundingBox())) {
+            if (hitBox.intersects(enemy.physics.bounds)) {
                 println("Melee hit on enemy: ${enemy.enemyType.displayName}")
 
                 // SHAKE
@@ -502,11 +508,11 @@ class PlayerSystem {
         val npcIterator = sceneManager.activeNPCs.iterator()
         while(npcIterator.hasNext()) {
             val npc = npcIterator.next()
-            if (hitBox.intersects(npc.getBoundingBox())) {
+            if (hitBox.intersects(npc.physics.bounds)) { // CORRECTED
                 println("Melee hit on NPC: ${npc.npcType.displayName}")
 
                 if (Random.nextFloat() < 0.75f) { // 75% chance to bleed
-                    val bloodSpawnPosition = npc.position.cpy().add(0f, npc.npcType.height / 2f, 0f)
+                    val bloodSpawnPosition = npc.physics.position.cpy().add(0f, npc.npcType.height / 2f, 0f)
                     spawnBloodEffects(bloodSpawnPosition, sceneManager)
                 }
 
@@ -517,9 +523,7 @@ class PlayerSystem {
         }
 
         // Check against cars
-        val carIterator = sceneManager.activeCars.iterator()
-        while (carIterator.hasNext()) {
-            val car = carIterator.next()
+        for (car in sceneManager.activeCars) {
             if (hitBox.intersects(car.getBoundingBox())) {
                 println("Melee hit on car: ${car.carType.displayName}")
                 car.takeDamage(equippedWeapon.damage, DamageType.MELEE)
@@ -543,7 +547,7 @@ class PlayerSystem {
         // Throw at a 45-degree angle
         val initialVelocity = Vector3(directionX, 1f, 0f).nor().scl(throwPower)
 
-        val spawnPosition = playerPosition.cpy().add(directionX * 1.5f, 1f, 0f)
+        val spawnPosition = physicsComponent.position.cpy().add(directionX * 1.5f, 1f, 0f)
 
         val modelInstance = ModelInstance(model)
         modelInstance.userData = "effect"
@@ -580,7 +584,7 @@ class PlayerSystem {
         val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
         val velocity = Vector3(directionX * equippedWeapon.bulletSpeed, 0f, 0f)
         val bulletSpawnOffsetX = directionX * 1.5f
-        val bulletSpawnPos = playerPosition.cpy().add(bulletSpawnOffsetX, 0f, 0f)
+        val bulletSpawnPos = physicsComponent.position.cpy().add(bulletSpawnOffsetX, 0f, 0f)
 
         // Determine rotation
         val bulletRotation = if (directionX < 0) 180f else 0f
@@ -668,59 +672,11 @@ class PlayerSystem {
         return equippedWeapon.actionType == WeaponActionType.SHOOTING
     }
 
-    private fun canMoveToWithDoorCollision(x: Float, y: Float, z: Float, sceneManager: SceneManager): Boolean {
-        val shrinkFor3D = 0.2f
-        val shrinkFor2D = 0.8f
-
-        // Create player bounds for this check
-        val playerBoundsFor3D = BoundingBox()
-        playerBoundsFor3D.set(
-            Vector3(x - (playerSize.x / 2 - shrinkFor3D), y - playerSize.y / 2, z - (playerSize.z / 2 - shrinkFor3D)),
-            Vector3(x + (playerSize.x / 2 - shrinkFor3D), y + playerSize.y / 2, z + (playerSize.z / 2 - shrinkFor3D))
-        )
-
-        sceneManager.activeChunkManager.getBlocksAround(Vector3(x, y, z), 10f, nearbyBlocks)
-        for (gameBlock in nearbyBlocks) { // Loop over the smaller list
-            if (!gameBlock.blockType.hasCollision) continue
-            if (gameBlock.collidesWith(playerBoundsFor3D)) {
-                // Player is standing on the block, not colliding with its side.
-                val playerFootY = y - (playerSize.y / 2f)
-                val blockTop = gameBlock.getBoundingBox(blockSize, BoundingBox()).max.y
-
-                if (blockTop - playerFootY <= MAX_STEP_HEIGHT) {
-                    continue
-                }
-                return false
-            }
-        }
-        // Check house collisions
-        for (house in sceneManager.activeHouses) {
-            if (house.collidesWithMesh(playerBoundsFor3D)) {
-                return false
-            }
-        }
-
-        // Check interior collisions
-        for (interior in sceneManager.activeInteriors) {
-            if (!interior.interiorType.hasCollision) continue
-
-            if (interior.interiorType.is3D) {
-                // Use the standard player bounds for 3D interiors
-                if (interior.collidesWithMesh(playerBoundsFor3D)) return false
-            } else {
-                // It's a 2D interior!
-                val playerRadius = (playerSize.x / 2f) - shrinkFor2D
-                if (interior.collidesWithPlayer2D(Vector3(x, y, z), playerRadius)) return false
-            }
-        }
-        return true // No collision detected
-    }
-
     fun getControlledEntityPosition(): Vector3 {
         return if (isDriving && drivingCar != null) {
             drivingCar!!.position
         } else {
-            playerPosition
+            physicsComponent.position
         }
     }
 
@@ -755,20 +711,14 @@ class PlayerSystem {
 
         // Remove player from the car's occupant list
         car.removeOccupant(this)
-
-        headlightLight?.let { light ->
-            light.intensity = 0f
-            light.updatePointLight() // Push the "off" state to the renderer
-            println("Headlight turned off.")
-        }
-
+        headlightLight?.let { it.intensity = 0f; it.updatePointLight() }
         car.modelInstance.userData = null
-        val exitOffset = Vector3(-5f, 0f, 0f).rotate(Vector3.Y, car.direction)
+        val exitOffset = Vector3(-5f, 0f, 0f).rotate(Vector3.Y, car.visualRotationY) // Use visual rotation
         val exitPosition = Vector3(car.position).add(exitOffset)
         val safeY = calculateSafeYPositionForExit(exitPosition.x, exitPosition.z, car.position.y, sceneManager)
         val finalExitPos = Vector3(exitPosition.x, safeY, exitPosition.z)
 
-        if (canMoveToWithDoorCollision(finalExitPos.x, finalExitPos.y, finalExitPos.z, sceneManager)) {
+        if (characterPhysicsSystem.isPositionValid(finalExitPos, this.physicsComponent)) {
             setPosition(finalExitPos)
             println("Player exited car. Placed at $finalExitPos")
             isDriving = false
@@ -1005,144 +955,52 @@ class PlayerSystem {
     private fun handlePlayerOnFootMovement(deltaTime: Float, sceneManager: SceneManager, particleSystem: ParticleSystem): Boolean {
         // Disable on-foot movement and collision while driving
         if (isDriving) return false
-        val originalPosition = playerPosition.cpy()
-        isMoving = false
-        var currentMovementDirection = 0f
 
         // 1. Calculate desired horizontal movement
-        var deltaX = 0f
-        var deltaZ = 0f
-        if (Gdx.input.isKeyPressed(Input.Keys.A)) { deltaX -= playerSpeed * deltaTime; currentMovementDirection = -1f }
-        if (Gdx.input.isKeyPressed(Input.Keys.D)) { deltaX += playerSpeed * deltaTime; currentMovementDirection = 1f }
-
+        val desiredMovement = Vector3()
+        if (Gdx.input.isKeyPressed(Input.Keys.A)) desiredMovement.x -= 1f
+        if (Gdx.input.isKeyPressed(Input.Keys.D)) desiredMovement.x += 1f
         isPressingW = Gdx.input.isKeyPressed(Input.Keys.W)
-        if (isPressingW) { deltaZ -= playerSpeed * deltaTime }
-        if (Gdx.input.isKeyPressed(Input.Keys.S)) { deltaZ += playerSpeed * deltaTime }
+        if (isPressingW) desiredMovement.z -= 1f
+        if (Gdx.input.isKeyPressed(Input.Keys.S)) desiredMovement.z += 1f
 
-        if (isShooting && !equippedWeapon.allowsMovementWhileShooting) {
-            deltaX = 0f
-            deltaZ = 0f
+        if (state == PlayerState.ATTACKING && !equippedWeapon.allowsMovementWhileShooting) {
+            desiredMovement.set(0f, 0f, 0f)
         }
 
         // 2. Resolve X-axis movement
-        if (deltaX != 0f) {
-            val playerFootY = playerPosition.y - (playerSize.y / 2f)
-            val supportY = sceneManager.findHighestSupportY(playerPosition.x + deltaX, playerPosition.z, playerPosition.y, playerSize.x / 2f, blockSize)
-
-            // Check if the step is too high before attempting to move
-            if (supportY - playerFootY <= MAX_STEP_HEIGHT) {
-                if (canMoveToWithDoorCollision(playerPosition.x + deltaX, playerPosition.y, playerPosition.z, sceneManager)) {
-                    playerPosition.x += deltaX
-                }
-            }
-        }
+        val moved = characterPhysicsSystem.update(physicsComponent, desiredMovement, deltaTime)
 
         // 3. Resolve Z-axis movement second
-        if (deltaZ != 0f) {
-            // Use the potentially updated X position from the previous step
-            val playerFootY = playerPosition.y - (playerSize.y / 2f)
-            val supportY = sceneManager.findHighestSupportY(playerPosition.x, playerPosition.z + deltaZ, playerPosition.y, playerSize.x / 2f, blockSize)
+        isMoving = physicsComponent.isMoving
 
-            // Check if the step is too high
-            if (supportY - playerFootY <= MAX_STEP_HEIGHT) {
-                if (canMoveToWithDoorCollision(playerPosition.x, playerPosition.y, playerPosition.z + deltaZ, sceneManager)) {
-                    playerPosition.z += deltaZ
-                }
-            }
+        if (desiredMovement.x != 0f) {
+            lastMovementDirection = if (desiredMovement.x > 0) 1f else -1f
         }
+        playerTargetRotationY = if (lastMovementDirection < 0f) 180f else 0f
+        updatePlayerRotation(deltaTime)
+
+        if (isMoving && !lastIsMoving) animationSystem.playAnimation("walking")
+        else if (!isMoving && lastIsMoving) animationSystem.playAnimation("idle")
+        lastIsMoving = isMoving
 
         // 4. Resolve Y-axis movement (Gravity and Grounding) with MULTI-POINT CHECK
-        val xEdgeOffset = playerSize.x / 2f * 0.9f
-        val zEdgeOffset = playerSize.z / 2f * 0.9f
-        val supportCandidates = mutableListOf<Float>()
-
-        // Point 1: Center
-        supportCandidates.add(sceneManager.findStrictSupportY(playerPosition.x, playerPosition.z, originalPosition.y, 0.1f, blockSize))
-
-        // Point 2: Left Edge
-        val leftCheckX = playerPosition.x - xEdgeOffset
-        if (canMoveToWithDoorCollision(leftCheckX, playerPosition.y, playerPosition.z, sceneManager)) {
-            supportCandidates.add(sceneManager.findStrictSupportY(leftCheckX, playerPosition.z, originalPosition.y, 0.1f, blockSize))
-        }
-
-        // Point 3: Right Edge
-        val rightCheckX = playerPosition.x + xEdgeOffset
-        if (canMoveToWithDoorCollision(rightCheckX, playerPosition.y, playerPosition.z, sceneManager)) {
-            supportCandidates.add(sceneManager.findStrictSupportY(rightCheckX, playerPosition.z, originalPosition.y, 0.1f, blockSize))
-        }
-
-        // Point 4: Front Edge
-        val frontCheckZ = playerPosition.z - zEdgeOffset
-        if (canMoveToWithDoorCollision(playerPosition.x, playerPosition.y, frontCheckZ, sceneManager)) {
-            supportCandidates.add(sceneManager.findStrictSupportY(playerPosition.x, frontCheckZ, originalPosition.y, 0.1f, blockSize))
-        }
-
-        // Point 5: Back Edge
-        val backCheckZ = playerPosition.z + zEdgeOffset
-        if (canMoveToWithDoorCollision(playerPosition.x, playerPosition.y, backCheckZ, sceneManager)) {
-            supportCandidates.add(sceneManager.findStrictSupportY(playerPosition.x, backCheckZ, originalPosition.y, 0.1f, blockSize))
-        }
-
-        // Points 6-9: Corner Edges
-        if (canMoveToWithDoorCollision(leftCheckX, playerPosition.y, frontCheckZ, sceneManager)) { // Front-Left
-            supportCandidates.add(sceneManager.findStrictSupportY(leftCheckX, frontCheckZ, originalPosition.y, 0.1f, blockSize))
-        }
-        if (canMoveToWithDoorCollision(rightCheckX, playerPosition.y, frontCheckZ, sceneManager)) { // Front-Right
-            supportCandidates.add(sceneManager.findStrictSupportY(rightCheckX, frontCheckZ, originalPosition.y, 0.1f, blockSize))
-        }
-        if (canMoveToWithDoorCollision(leftCheckX, playerPosition.y, backCheckZ, sceneManager)) { // Back-Left
-            supportCandidates.add(sceneManager.findStrictSupportY(leftCheckX, backCheckZ, originalPosition.y, 0.1f, blockSize))
-        }
-        if (canMoveToWithDoorCollision(rightCheckX, playerPosition.y, backCheckZ, sceneManager)) { // Back-Right
-            supportCandidates.add(sceneManager.findStrictSupportY(rightCheckX, backCheckZ, originalPosition.y, 0.1f, blockSize))
-        }
-
-        val maxSupportY = supportCandidates.maxOrNull() ?: 0f
-        val finalSupportY = maxSupportY
-
-        val playerFootY = originalPosition.y - (playerSize.y / 2f)
-        val effectiveSupportY = if (finalSupportY - playerFootY <= MAX_STEP_HEIGHT) {
-            finalSupportY
-        } else {
-            // If the strict ground is too high, find support at the original center to prevent floating
-            sceneManager.findStrictSupportY(originalPosition.x, originalPosition.z, originalPosition.y, playerSize.x / 2f, blockSize)
-        }
-        val targetY = effectiveSupportY + (playerSize.y / 2f)
-        val fallY = playerPosition.y - FALL_SPEED * deltaTime
-        playerPosition.y = kotlin.math.max(targetY, fallY)
-
-        // 5. Update flags and visuals
-        val moved = !playerPosition.epsilonEquals(originalPosition, 0.001f)
-        isMoving = (originalPosition.x != playerPosition.x) || (originalPosition.z != playerPosition.z)
-
-        var movementRotation = playerCurrentRotationY
-
         if (isMoving) {
-            if (deltaX != 0f || deltaZ != 0f) {
-                movementRotation = com.badlogic.gdx.math.MathUtils.atan2(-deltaX, -deltaZ) * com.badlogic.gdx.math.MathUtils.radiansToDegrees + 90f
-            }
             // Player is moving
             continuousMovementTimer += deltaTime
 
             // Only check for wipe spawning if player moving for at least 1 second
-            if (continuousMovementTimer >= 0.3f) {
+            if (continuousMovementTimer >= 0.3f) { // Only spawn after a brief moment of sustained movement
                 wipeEffectTimer += deltaTime
                 if (wipeEffectTimer >= WIPE_EFFECT_INTERVAL) {
                     wipeEffectTimer = 0f // Reset timer
-
-                    // Spawn position
-                    val yOffset = 1.0f
-                    val zOffset = -0.5f
-                    val wipePosition = playerPosition.cpy().add(0f, -yOffset, zOffset)
-                    val wipeSize = 2.5f
-
-                    // Spawn the effect
+                    val wipePosition = physicsComponent.position.cpy().add(0f, -1.0f, -0.5f)
                     particleSystem.spawnEffect(
                         type = ParticleEffectType.MOVEMENT_WIPE,
                         position = wipePosition,
                         initialRotation = playerCurrentRotationY,
                         targetRotation = playerTargetRotationY,
-                        overrideScale = wipeSize
+                        overrideScale = 2.5f
                     )
                 }
             }
@@ -1152,11 +1010,12 @@ class PlayerSystem {
                     footprintSpawnTimer = 0f
 
                     // Find the ground position directly below the player
-                    val groundY = sceneManager.findHighestSupportY(playerPosition.x, playerPosition.z, playerPosition.y, playerSize.x / 2f, blockSize)
-                    val footprintPosition = Vector3(playerPosition.x, groundY, playerPosition.z)
+                    val groundY = sceneManager.findHighestSupportY(physicsComponent.position.x, physicsComponent.position.z, physicsComponent.position.y, physicsComponent.size.x / 2f, blockSize)
+                    val footprintPosition = Vector3(physicsComponent.position.x, groundY, physicsComponent.position.z)
+                    val movementRotation = MathUtils.atan2(-desiredMovement.x, -desiredMovement.z) * MathUtils.radiansToDegrees + 90f
 
                     // Spawn the footprint using the new system
-                    footprintSystem.spawnFootprint(footprintPosition, movementRotation, sceneManager) // <<< MODIFIED
+                    footprintSystem.spawnFootprint(footprintPosition, movementRotation, sceneManager)
                 }
             }
         } else {
@@ -1167,27 +1026,6 @@ class PlayerSystem {
             wipeEffectTimer = WIPE_EFFECT_INTERVAL
         }
 
-        // Handle animation and rotation
-        if (isMoving && !lastIsMoving) {
-            // No need for a separate animation, just update the texture directly
-            animationSystem.playAnimation("walking")
-        } else if (!isMoving && lastIsMoving) {
-            // Revert to normal walk/idle animations
-            animationSystem.playAnimation("idle")
-        }
-        lastIsMoving = isMoving
-
-        // Update target rotation based on horizontal movement
-        if (currentMovementDirection != 0f && currentMovementDirection != lastMovementDirection) {
-            playerTargetRotationY = if (currentMovementDirection < 0f) 180f else 0f
-            lastMovementDirection = currentMovementDirection
-        }
-
-        // Smoothly interpolate current rotation towards target rotation
-        updatePlayerRotation(deltaTime)
-
-        // Update player bounds if moved
-        if (moved) updatePlayerBounds()
         return moved
     }
 
@@ -1197,26 +1035,16 @@ class PlayerSystem {
             // Snap to grid
             val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
-            var highestBlockY = 0f
-            for (gameBlock in sceneManager.activeChunkManager.getBlocksInColumn(gridX, gridZ)) {
-                if (!gameBlock.blockType.hasCollision) continue
-                val blockTop = gameBlock.getBoundingBox(blockSize, BoundingBox()).max.y
-                if (blockTop > highestBlockY) highestBlockY = blockTop
-            }
+            val highestBlockY = sceneManager.findHighestSupportY(gridX, gridZ, 1000f, 0.1f, blockSize)
             val playerY = highestBlockY + playerSize.y / 2f
-            if (canMoveToWithDoorCollision(gridX, playerY, gridZ, sceneManager)) {
-                setPosition(Vector3(gridX, playerY, gridZ))
+            val potentialPosition = Vector3(gridX, playerY, gridZ)
+
+            if (characterPhysicsSystem.isPositionValid(potentialPosition, this.physicsComponent)) {
+                setPosition(potentialPosition)
                 return true
             }
         }
         return false
-    }
-
-    private fun updatePlayerBounds() {
-        playerBounds.set(
-            Vector3(playerPosition.x - playerSize.x / 2, playerPosition.y - playerSize.y / 2, playerPosition.z - playerSize.z / 2),
-            Vector3(playerPosition.x + playerSize.x / 2, playerPosition.y + playerSize.y / 2, playerPosition.z + playerSize.z / 2)
-        )
     }
 
     private fun updatePlayerRotation(deltaTime: Float) {
@@ -1418,7 +1246,7 @@ class PlayerSystem {
 
     private fun checkBloodPoolCollision(sceneManager: SceneManager) {
         var isTouchingBlood = false
-        val playerPos2D = Vector2(playerPosition.x, playerPosition.z)
+        val playerPos2D = Vector2(physicsComponent.position.x, physicsComponent.position.z)
 
         for (pool in sceneManager.activeBloodPools) {
             // Simple 2D distance check from player center to pool center
@@ -1770,21 +1598,13 @@ class PlayerSystem {
             sceneManager.activeCars.map { it to HitObjectType.CAR }
 
         for ((obj, type) in simpleObjects) {
-            if (type == HitObjectType.ENEMY) {
-                val enemy = obj as GameEnemy
-                if (enemy.currentState == AIState.DYING) {
-                    continue // Skip this enemy, it's already dead!
-                }
+            val bounds = when(obj) {
+                is GameEnemy -> if (obj.currentState == AIState.DYING) continue else obj.physics.bounds
+                is GameNPC -> if (obj.currentState == NPCState.DYING) continue else obj.physics.bounds
+                is GameObject -> obj.getBoundingBox()
+                is GameCar -> obj.getBoundingBox()
+                else -> continue
             }
-
-            if (type == HitObjectType.NPC) {
-                val npc = obj as GameNPC
-                if (npc.currentState == NPCState.DYING) {
-                    continue // Skip this NPC, it's already dead!
-                }
-            }
-
-            val bounds = (obj as? GameEnemy)?.getBoundingBox() ?: (obj as? GameNPC)?.getBoundingBox() ?: (obj as? GameObject)?.getBoundingBox() ?: (obj as? GameCar)?.getBoundingBox() ?: continue
 
             if (Intersector.intersectRayBounds(bulletRay, bounds, intersectionPoint)) {
                 val distSq = bulletRay.origin.dst2(intersectionPoint)
@@ -1849,7 +1669,7 @@ class PlayerSystem {
         playerInstance.transform.idt()
 
         // Set position
-        playerInstance.transform.setTranslation(playerPosition)
+        playerInstance.transform.setTranslation(physicsComponent.position)
 
         // Apply Y-axis rotation for Paper Mario effect
         playerInstance.transform.rotate(Vector3.Y, playerCurrentRotationY)
@@ -1880,7 +1700,7 @@ class PlayerSystem {
         billboardModelBatch.end()
     }
 
-    fun getPosition(): Vector3 = Vector3(playerPosition)
+    fun getPosition(): Vector3 = physicsComponent.position.cpy()
 
     private fun updatePlayerTexture(newTexture: Texture) {
         // This line is fine, it just keeps track of the current texture reference.

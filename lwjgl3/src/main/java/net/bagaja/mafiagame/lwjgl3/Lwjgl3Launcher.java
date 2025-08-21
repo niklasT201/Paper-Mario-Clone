@@ -50,11 +50,9 @@ public class Lwjgl3Launcher {
 // changing room transition effect colors
 // edge houses
 // improve enemy/npc falling
-// bring back sky color black
 // blocks being visible behind transparent enemies etc.
 // improve UIManagers code base
 // option for blocks having one visible face or two
-// explosion image only when colliding with a blocks
 // melee areas transparent
 // weapon radius for fire and explosions
 // damage gets less for higher radius

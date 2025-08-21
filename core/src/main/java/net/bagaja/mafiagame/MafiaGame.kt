@@ -52,6 +52,7 @@ class MafiaGame : ApplicationAdapter() {
 
     // 2D Player (but positioned in 3D space)
     lateinit var playerSystem: PlayerSystem
+    private lateinit var characterPhysicsSystem: CharacterPhysicsSystem
 
     private lateinit var spawnerSystem: SpawnerSystem
 
@@ -129,6 +130,7 @@ class MafiaGame : ApplicationAdapter() {
             enemySystem, npcSystem, roomTemplateManager, cameraManager, houseSystem, transitionSystem,
             faceCullingSystem, this, particleSystem, fireSystem, boneSystem
         )
+        characterPhysicsSystem = CharacterPhysicsSystem(sceneManager)
 
         blockSystem.sceneManager = sceneManager
         objectSystem.sceneManager = sceneManager
@@ -159,10 +161,10 @@ class MafiaGame : ApplicationAdapter() {
         backgroundSystem.initialize(blockSize)
         parallaxBackgroundSystem.initialize(blockSize)
         interiorSystem.initialize(blockSize)
-        enemySystem.initialize(blockSize)
-        npcSystem.initialize(blockSize)
+        enemySystem.initialize(blockSize, characterPhysicsSystem)
+        npcSystem.initialize(blockSize, characterPhysicsSystem)
         roomTemplateManager.initialize()
-        playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem, footprintSystem)
+        playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem, footprintSystem, characterPhysicsSystem)
         shaderEffectManager.initialize()
 
         // Initialize managers that depend on initialized systems

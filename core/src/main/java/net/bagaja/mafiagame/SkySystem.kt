@@ -36,14 +36,14 @@ class SkySystem {
             bottomColor = Color(1.0f, 0.8f, 0.4f, 1.0f)
         ),
         DayNightCycle.TimeOfDay.SUNSET to SkyColors(
-            topColor = Color(0.2f, 0.3f, 0.6f, 1.0f),
+            topColor = Color(0.08f, 0.05f, 0.2f, 1.0f),
             horizonColor = Color(1.0f, 0.4f, 0.2f, 1.0f),
             bottomColor = Color(1.0f, 0.7f, 0.3f, 1.0f)
         ),
         DayNightCycle.TimeOfDay.NIGHT to SkyColors(
-            topColor = Color(0.02f, 0.02f, 0.08f, 1.0f),
-            horizonColor = Color(0.05f, 0.05f, 0.15f, 1.0f),
-            bottomColor = Color(0.08f, 0.08f, 0.2f, 1.0f)
+            topColor = Color.BLACK.cpy(),
+            horizonColor = Color(0.01f, 0.01f, 0.04f, 1.0f),
+            bottomColor = Color(0.02f, 0.02f, 0.08f, 1.0f)
         )
     )
 

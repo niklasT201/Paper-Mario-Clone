@@ -261,7 +261,7 @@ class RaycastSystem(private val blockSize: Float) {
         var closestDistance = Float.MAX_VALUE
 
         for (enemy in gameEnemies) {
-            if (Intersector.intersectRayBounds(ray, enemy.getBoundingBox(), intersection)) {
+            if (Intersector.intersectRayBounds(ray, enemy.physics.bounds, intersection)) {
                 val distance = ray.origin.dst2(intersection)
                 if (distance < closestDistance) {
                     closestDistance = distance
@@ -277,7 +277,8 @@ class RaycastSystem(private val blockSize: Float) {
         var closestDistance = Float.MAX_VALUE
 
         for (npc in gameNPCs) {
-            if (Intersector.intersectRayBounds(ray, npc.getBoundingBox(), intersection)) {
+            // CORRECTED: Access the bounds through the physics component
+            if (Intersector.intersectRayBounds(ray, npc.physics.bounds, intersection)) {
                 val distance = ray.origin.dst2(intersection)
                 if (distance < closestDistance) {
                     closestDistance = distance

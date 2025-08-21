@@ -57,6 +57,8 @@ data class GameEnemy(
     var position: Vector3,
     var health: Float = enemyType.baseHealth
 ) {
+    @Transient lateinit var physics: PhysicsComponent
+
     var bleedTimer: Float = 0f // How long the bleeding effect lasts
     var bloodDripSpawnTimer: Float = 0f // Timer to control the rate of drips
 
@@ -144,6 +146,7 @@ data class GameEnemy(
 // --- ENEMY MANAGEMENT SYSTEM ---
 
 class EnemySystem : IFinePositionable {
+    private lateinit var characterPhysicsSystem: CharacterPhysicsSystem
     private val enemyModels = mutableMapOf<EnemyType, Model>()
     private val enemyTextures = mutableMapOf<EnemyType, Texture>()
     private lateinit var billboardModelBatch: ModelBatch
@@ -184,9 +187,10 @@ class EnemySystem : IFinePositionable {
     private val tempVec3 = Vector3()
     private var blockSize: Float = 4f
 
-    fun initialize(blockSize: Float) { // Modified to accept blockSize
+    fun initialize(blockSize: Float, characterPhysicsSystem: CharacterPhysicsSystem) {
         this.blockSize = blockSize
         this.raycastSystem = RaycastSystem(blockSize)
+        this.characterPhysicsSystem = characterPhysicsSystem
 
         billboardShaderProvider = BillboardShaderProvider()
         billboardModelBatch = ModelBatch(billboardShaderProvider)
@@ -278,12 +282,22 @@ class EnemySystem : IFinePositionable {
 
         instance.userData = "character"
 
-        return GameEnemy(
+        val enemy = GameEnemy(
             modelInstance = instance,
             enemyType = enemyType,
             behaviorType = behavior,
             position = position.cpy()
         )
+
+        // Create and attach the physics component
+        enemy.physics = PhysicsComponent(
+            position = position.cpy(),
+            size = Vector3(enemyType.width, enemyType.height, enemyType.width),
+            speed = enemyType.speed
+        )
+        enemy.physics.updateBounds()
+
+        return enemy
     }
 
     fun startDeathSequence(enemy: GameEnemy, sceneManager: SceneManager) {
@@ -308,7 +322,7 @@ class EnemySystem : IFinePositionable {
         val playerPos = playerSystem.getPosition()
         val iterator = sceneManager.activeEnemies.iterator() // Use iterator for safe removal
 
-        while(iterator.hasNext()) {
+        while (iterator.hasNext()) {
             val enemy = iterator.next()
 
             // Skip all AI, physics, and visual updates for enemies inside cars
@@ -319,24 +333,21 @@ class EnemySystem : IFinePositionable {
                 enemy.fadeOutTimer -= deltaTime
 
                 // Check if it's time to spawn ash
-                if (enemy.lastDamageType == DamageType.FIRE && !enemy.ashSpawned) {
+                if (enemy.lastDamageType == DamageType.FIRE && !enemy.ashSpawned && enemy.fadeOutTimer <= ASH_SPAWN_START_TIME) {
                     // Start spawning when fadeOutTimer is less than or equal to the ash fade-in time
-                    if (enemy.fadeOutTimer <= ASH_SPAWN_START_TIME) {
-                        val groundY = sceneManager.findHighestSupportY(enemy.position.x, enemy.position.z, enemy.position.y, 0.1f, blockSize)
-                        val ashPosition = Vector3(enemy.position.x, groundY + 0.86f, enemy.position.z) // Spawn on the ground + tiny offset for visibility
+                    val groundY = sceneManager.findHighestSupportY(enemy.position.x, enemy.position.z, enemy.position.y, 0.1f, blockSize)
+                    val ashPosition = Vector3(enemy.position.x, groundY + 0.86f, enemy.position.z)
 
-                        sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BURNED_ASH, ashPosition)
-                        enemy.ashSpawned = true // Spawn only once
-                    }
+                    sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BURNED_ASH, ashPosition)
+                    enemy.ashSpawned = true // Spawn only once
                 }
+
                 if (enemy.fadeOutTimer <= 0f) {
                     iterator.remove() // Completely faded out, now remove
                     continue
                 }
 
-                // Update opacity
-                val opacity = (enemy.fadeOutTimer / FADE_OUT_DURATION).coerceIn(0f, 1f)
-                enemy.blendingAttribute.opacity = opacity
+                enemy.blendingAttribute.opacity = (enemy.fadeOutTimer / FADE_OUT_DURATION).coerceIn(0f, 1f)
 
                 // Don't process any other logic for a dying enemy
                 continue
@@ -346,15 +357,15 @@ class EnemySystem : IFinePositionable {
                 enemy.bleedTimer -= deltaTime
 
                 // Check if the enemy is moving and it's time to spawn a drip
-                if (enemy.isMoving) {
+                if (enemy.physics.isMoving) {
                     enemy.bloodDripSpawnTimer -= deltaTime
                     if (enemy.bloodDripSpawnTimer <= 0f) {
                         enemy.bloodDripSpawnTimer = GameEnemy.BLOOD_DRIP_INTERVAL
 
                         // Spawn a drip at the enemy's position with a slight random offset
-                        val spawnPosition = enemy.position.cpy().add(
-                            (Random.nextFloat() - 0.5f) * 1f,  // Small horizontal offset
-                            (Random.nextFloat() - 0.5f) * 2f,  // Vertical offset around the torso
+                        val spawnPosition = enemy.physics.position.cpy().add(
+                            (Random.nextFloat() - 0.5f) * 1f, // Small horizontal offset
+                            (Random.nextFloat() - 0.5f) * 2f, // Vertical offset around the torso
                             (Random.nextFloat() - 0.5f) * 1f
                         )
                         sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BLOOD_DRIP, spawnPosition)
@@ -362,44 +373,30 @@ class EnemySystem : IFinePositionable {
                 }
             }
 
-            enemy.isMoving = false
-
-            // --- ACTIVATION CHECK ---
-            // Calculate the distance from the player to this enemy.
-            val distanceToPlayer = enemy.position.dst(playerPos)
-
             // If the enemy is outside our activation range, skip its update entirely.
+            val distanceToPlayer = enemy.physics.position.dst(playerPos)
             if (distanceToPlayer > activationRange) {
                 // To prevent enemies getting "stuck" in a state, reset them to IDLE if they deactivate.
                 if (enemy.currentState != AIState.IDLE) {
                     enemy.currentState = AIState.IDLE
                     enemy.targetPosition = null // Clear any old target
                 }
-                continue // <<< Skip to the next enemy in the loop
+                continue // Skip AI and physics for distant enemies
             }
 
             // Only apply physics if we are NOT in fine positioning mode.
             if (!finePosMode) {
-                applyPhysics(enemy, deltaTime, sceneManager, blockSize)
-            }
-            updateAI(enemy, playerPos, deltaTime, sceneManager)
-
-            if (enemy.isMoving) {
-                enemy.walkAnimationTimer += deltaTime
-                val angleRad = sin(enemy.walkAnimationTimer * WOBBLE_FREQUENCY)
-                enemy.wobbleAngle = angleRad * WOBBLE_AMPLITUDE_DEGREES
-            } else {
-                // Smoothly return to upright
-                if (kotlin.math.abs(enemy.wobbleAngle) > 0.1f) {
-                    enemy.wobbleAngle *= (1.0f - deltaTime * 10f).coerceAtLeast(0f)
-                } else {
-                    enemy.wobbleAngle = 0f
-                }
-                enemy.walkAnimationTimer = 0f
+                updateAI(enemy, playerPos, deltaTime, sceneManager)
             }
 
-            if (playerPos.x > enemy.position.x) {
-                // Player is to the right of the enemy, so enemy should face right.
+            // Player is to the right of the enemy, so enemy should face right.
+            enemy.position.set(enemy.physics.position) // Sync legacy position variable
+            enemy.isMoving = enemy.physics.isMoving     // Sync legacy moving flag
+
+            enemy.wobbleAngle = enemy.physics.wobbleAngle
+
+            // Face the player based on the new, correct position from the physics component
+            if (playerPos.x > enemy.physics.position.x) {
                 enemy.facingRotationY = 0f
             } else {
                 // Player is to the left of the enemy, so enemy should face left.
@@ -409,32 +406,6 @@ class EnemySystem : IFinePositionable {
             // Update the enemy's visual transform.
             enemy.updateVisuals()
         }
-    }
-
-    private fun applyPhysics(enemy: GameEnemy, deltaTime: Float, sceneManager: SceneManager, blockSize: Float) {
-        // 1. Find the highest solid ground directly beneath the enemy.
-        var highestSupportY = 0f // Default to ground level at Y=0
-        val blocksBeneath = sceneManager.activeChunkManager.getBlocksInColumn(enemy.position.x, enemy.position.z)
-
-        for (block in blocksBeneath) {
-            if (!block.blockType.hasCollision) continue
-
-            val blockTop = block.getBoundingBox(blockSize, tempBlockBounds).max.y
-
-            // We only care about surfaces that are actually below the enemy's feet.
-            if (blockTop <= enemy.position.y - (enemy.enemyType.height / 2f) + MAX_STEP_HEIGHT) {
-                if (blockTop > highestSupportY) {
-                    highestSupportY = blockTop
-                }
-            }
-        }
-
-        // 2. Determine the target Y position (where the enemy's center should be).
-        val targetY = highestSupportY + (enemy.enemyType.height / 2f)
-
-        // 3. Apply gravity.
-        val fallY = enemy.position.y - FALL_SPEED * deltaTime
-        enemy.position.y = max(targetY, fallY)
     }
 
     private fun updateAI(enemy: GameEnemy, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {
@@ -489,15 +460,8 @@ class EnemySystem : IFinePositionable {
     }
 
     private fun moveTowards(enemy: GameEnemy, target: Vector3, deltaTime: Float, sceneManager: SceneManager) {
-        val direction = Vector3(target).sub(enemy.position).nor()
-        val delta = direction.scl(enemy.enemyType.speed * deltaTime)
-        val nextPos = Vector3(enemy.position).add(delta)
-
-        // A basic collision check to prevent walking through walls
-        if (canEnemyMoveTo(nextPos, enemy, sceneManager)) {
-            enemy.position.set(nextPos)
-            enemy.isMoving = true
-        }
+        val direction = Vector3(target).sub(enemy.physics.position).nor()
+        characterPhysicsSystem.update(enemy.physics, direction, deltaTime)
     }
 
     private fun findHidingSpot(enemy: GameEnemy, playerPos: Vector3, sceneManager: SceneManager) {
@@ -537,56 +501,6 @@ class EnemySystem : IFinePositionable {
             closestHousePos != null -> closestHousePos
             else -> null
         }
-    }
-
-    private fun canEnemyMoveTo(newPosition: Vector3, enemy: GameEnemy, sceneManager: SceneManager): Boolean {
-        // Create the enemy's bounding box at the potential new position
-        val enemyBounds = enemy.getBoundingBox()
-        enemyBounds.set(
-            enemyBounds.min.set(newPosition.x - enemy.enemyType.width / 2f, newPosition.y - enemy.enemyType.height / 2f, newPosition.z - enemy.enemyType.width / 2f),
-            enemyBounds.max.set(newPosition.x + enemy.enemyType.width / 2f, newPosition.y + enemy.enemyType.height / 2f, newPosition.z + enemy.enemyType.width / 2f)
-        )
-
-        // Check against blocks with step-up logic
-        sceneManager.activeChunkManager.getBlocksAround(newPosition, 10f, nearbyBlocks)
-
-        // Loop over the small 'nearbyBlocks' array
-        for (block in nearbyBlocks) {
-            if (!block.blockType.hasCollision) continue
-
-            val blockBounds = block.getBoundingBox(4f, tempBlockBounds) // Use 4f as blockSize
-
-            if (enemyBounds.intersects(blockBounds)) {
-                // A collision occurred. Check if it's a step or a wall.
-                val enemyBottomY = enemyBounds.min.y
-                val blockTopY = blockBounds.max.y
-
-                // If the enemy's bottom is above or very close to the block's top, it's a valid surface, not a wall.
-                if (enemyBottomY >= blockTopY - 0.5f) { // 0.5f tolerance
-                    continue // It's a valid step, not a wall
-                }
-
-                // It's a real side collision with a wall.
-                return false
-            }
-        }
-
-        // Check against houses
-        sceneManager.activeHouses.forEach {
-            if (it.collidesWithMesh(enemyBounds)) {
-                return false
-            }
-        }
-
-        // Check against solid interior objects
-        sceneManager.activeInteriors.forEach { interior ->
-            if (interior.interiorType.hasCollision && interior.collidesWithMesh(enemyBounds)) {
-                return false
-            }
-        }
-
-        // If we passed all checks, the move is valid
-        return true
     }
 
     fun renderEnemies(camera: Camera, environment: Environment, enemies: Array<GameEnemy>) {

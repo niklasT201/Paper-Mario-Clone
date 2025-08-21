@@ -577,7 +577,7 @@ data class GameInterior(
         return collidesWithPlayerRectangular2D(playerPos, playerRadius)
     }
 
-    private fun collidesWithPlayerRectangular2D(playerPos: Vector3, playerRadius: Float): Boolean {
+    fun collidesWithPlayerRectangular2D(playerPos: Vector3, playerRadius: Float): Boolean {
         val objectHalfWidth = (interiorType.width * scale.x) * 0.5f
         // The 0.8f multiplier gives the flat object some "depth" for collision.
         val objectHalfDepth = (interiorType.depth * scale.z) * 0.8f

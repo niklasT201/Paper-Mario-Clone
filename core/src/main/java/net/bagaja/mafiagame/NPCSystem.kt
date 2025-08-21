@@ -83,6 +83,7 @@ data class GameNPC(
     var position: Vector3,
     var health: Float = npcType.baseHealth
 ) {
+    @Transient lateinit var physics: PhysicsComponent
     var bleedTimer: Float = 0f
     var bloodDripSpawnTimer: Float = 0f
 
@@ -147,14 +148,6 @@ data class GameNPC(
         modelInstance.transform.setTranslation(position)
         modelInstance.transform.rotate(Vector3.Y, facingRotationY)
         modelInstance.transform.rotate(Vector3.Z, wobbleAngle) // Rotate on Z-axis for the wobble
-    }
-
-    fun getBoundingBox(): BoundingBox {
-        boundingBox.set(
-            Vector3(position.x - boundsSize.x / 2, position.y - npcType.height / 2, position.z - boundsSize.z / 2),
-            Vector3(position.x + boundsSize.x / 2, position.y + npcType.height / 2, position.z + boundsSize.z / 2)
-        )
-        return boundingBox
     }
 
     /** Called when the player damages this NPC. This is the core of the "Iron Golem" logic. */
@@ -232,6 +225,7 @@ data class GameNPC(
 // --- NPC MANAGEMENT SYSTEM ---
 
 class NPCSystem : IFinePositionable {
+    private lateinit var characterPhysicsSystem: CharacterPhysicsSystem
     private val npcModels = mutableMapOf<NPCType, Model>()
     private val npcTextures = mutableMapOf<NPCType, Texture>()
     private lateinit var billboardModelBatch: ModelBatch
@@ -274,9 +268,10 @@ class NPCSystem : IFinePositionable {
     private val tempVec3 = Vector3()
     private var blockSize: Float = 4f
 
-    fun initialize(blockSize: Float) { // Modified to accept blockSize
+    fun initialize(blockSize: Float, characterPhysicsSystem: CharacterPhysicsSystem) {
         this.blockSize = blockSize
         this.raycastSystem = RaycastSystem(blockSize)
+        this.characterPhysicsSystem = characterPhysicsSystem
 
         billboardShaderProvider = BillboardShaderProvider()
         billboardModelBatch = ModelBatch(billboardShaderProvider)
@@ -376,11 +371,13 @@ class NPCSystem : IFinePositionable {
             position = position.cpy()
         )
 
-        // If an initial rotation is provided
-        newNpc.facingRotationY = if (initialRotation != 0f) initialRotation else this.currentRotation
-
-        // Immediately update the model's transform
-        newNpc.updateVisuals()
+        newNpc.physics = PhysicsComponent(
+            position = position.cpy(),
+            size = Vector3(npcType.width, npcType.height, npcType.width),
+            speed = npcType.speed
+        )
+        newNpc.physics.facingRotationY = initialRotation // Set initial facing direction
+        newNpc.physics.updateBounds()
 
         return newNpc
     }
@@ -415,14 +412,11 @@ class NPCSystem : IFinePositionable {
             if (npc.currentState == NPCState.DYING) {
                 npc.fadeOutTimer -= deltaTime
 
-                if (npc.lastDamageType == DamageType.FIRE && !npc.ashSpawned) {
-                    if (npc.fadeOutTimer <= ASH_SPAWN_START_TIME) {
-                        val groundY = sceneManager.findHighestSupportY(npc.position.x, npc.position.z, npc.position.y, 0.1f, blockSize)
-                        val ashPosition = Vector3(npc.position.x, groundY + 0.86f, npc.position.z) // Spawn on the ground + tiny offset
-
-                        sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BURNED_ASH, ashPosition)
-                        npc.ashSpawned = true
-                    }
+                if (npc.lastDamageType == DamageType.FIRE && !npc.ashSpawned && npc.fadeOutTimer <= ASH_SPAWN_START_TIME) {
+                    val groundY = sceneManager.findHighestSupportY(npc.position.x, npc.position.z, npc.position.y, 0.1f, blockSize)
+                    val ashPosition = Vector3(npc.position.x, groundY + 0.86f, npc.position.z)
+                    sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BURNED_ASH, ashPosition)
+                    npc.ashSpawned = true
                 }
 
                 if (npc.fadeOutTimer <= 0f) {
@@ -430,9 +424,7 @@ class NPCSystem : IFinePositionable {
                     continue
                 }
 
-                val opacity = (npc.fadeOutTimer / FADE_OUT_DURATION).coerceIn(0f, 1f)
-                npc.blendingAttribute.opacity = opacity
-
+                npc.blendingAttribute.opacity = (npc.fadeOutTimer / FADE_OUT_DURATION).coerceIn(0f, 1f)
                 continue
             }
 
@@ -440,13 +432,13 @@ class NPCSystem : IFinePositionable {
                 npc.bleedTimer -= deltaTime
 
                 // Check if the NPC is moving and it's time to spawn a drip
-                if (npc.isMoving) {
+                if (npc.physics.isMoving) {
                     npc.bloodDripSpawnTimer -= deltaTime
                     if (npc.bloodDripSpawnTimer <= 0f) {
                         npc.bloodDripSpawnTimer = GameNPC.BLOOD_DRIP_INTERVAL
 
                         // Spawn a drip at the NPC's position with a slight random offset
-                        val spawnPosition = npc.position.cpy().add(
+                        val spawnPosition = npc.physics.position.cpy().add(
                             (Random.nextFloat() - 0.5f) * 1f,
                             (Random.nextFloat() - 0.5f) * 2f,
                             (Random.nextFloat() - 0.5f) * 1f
@@ -457,9 +449,8 @@ class NPCSystem : IFinePositionable {
             }
 
             // Reset moving flag
-            npc.isMoving = false
+            val distanceToPlayer = npc.physics.position.dst(playerPos)
             // ACTIVATION CHECK
-            val distanceToPlayer = npc.position.dst(playerPos)
             if (distanceToPlayer > activationRange) {
                 // This NPC is too far away to matter
                 if (npc.currentState == NPCState.WANDERING || npc.currentState == NPCState.FOLLOWING) {
@@ -468,48 +459,17 @@ class NPCSystem : IFinePositionable {
                 }
                 continue
             }
+            npc.decayProvocation(deltaTime)
 
             if (!finePosMode) {
-                applyPhysics(npc, deltaTime, sceneManager, blockSize)
-            }
-            npc.decayProvocation(deltaTime)
-            updateAI(npc, playerPos, deltaTime, sceneManager)
-
-            if (npc.isMoving) {
-                // If moving, advance animation timer
-                npc.walkAnimationTimer += deltaTime
-                // Calculate wobble angle
-                val angleRad = sin(npc.walkAnimationTimer * WOBBLE_FREQUENCY)
-                npc.wobbleAngle = angleRad * WOBBLE_AMPLITUDE_DEGREES
-            } else {
-                // If not moving, smoothly return to an upright position
-                if (kotlin.math.abs(npc.wobbleAngle) > 0.1f) {
-                    // Interpolate back to 0. The '10f' is the speed of return.
-                    npc.wobbleAngle *= (1.0f - deltaTime * 10f).coerceAtLeast(0f)
-                } else {
-                    npc.wobbleAngle = 0f // Snap to 0 if very close
-                }
-                // Reset the timer when not moving
-                npc.walkAnimationTimer = 0f
+                updateAI(npc, playerPos, deltaTime, sceneManager)
             }
 
-            val shouldAutoRotate = npc.behaviorType != NPCBehavior.STATIONARY || npc.currentState == NPCState.PROVOKED
+            npc.position.set(npc.physics.position) // Sync legacy position
+            npc.isMoving = npc.physics.isMoving     // Sync legacy moving flag
 
-            if (shouldAutoRotate) {
-                val targetForFacing = when {
-                    npc.currentState == NPCState.PROVOKED -> playerPos
-                    npc.behaviorType == NPCBehavior.GUARD -> playerPos
-                    npc.behaviorType == NPCBehavior.WATCHER -> playerPos
-                    npc.currentState == NPCState.FOLLOWING -> playerPos
-                    else -> npc.targetPosition
-                }
-
-                if (targetForFacing != null) {
-                    // This logic now only applies to non-stationary NPCs
-                    if (targetForFacing.x > npc.position.x) npc.facingRotationY = 0f // Face right
-                    else npc.facingRotationY = 180f // Face left
-                }
-            }
+            npc.wobbleAngle = npc.physics.wobbleAngle
+            npc.facingRotationY = npc.physics.facingRotationY // The AI now controls this via the component
 
             npc.updateVisuals()
         }
@@ -520,73 +480,106 @@ class NPCSystem : IFinePositionable {
     }
 
     private fun updateAI(npc: GameNPC, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {
+        var desiredMovement = Vector3.Zero // Default to no movement
+
         if (npc.currentState == NPCState.FLEEING) {
             npc.stateTimer += deltaTime
 
             // Check if the flee duration is over
             if (npc.stateTimer >= fleeDuration) {
-                println("NPC ${npc.npcType.displayName} has calmed down.")
-                npc.currentState = NPCState.IDLE // Return to normal behavior
+                // Fleeing is over, return to idle
+                npc.currentState = NPCState.IDLE
                 npc.stateTimer = 0f
             } else {
-                // Keep fleeing
-                // 1. Calculate direction AWAY from the player
-                val awayDirection = npc.position.cpy().sub(playerPos).nor()
-                // 2. Set a target point in that direction
-                val fleeTarget = npc.position.cpy().add(awayDirection.scl(20f)) // Target a point 20 units away
-                // 3. Move towards that target
-                moveTowards(npc, fleeTarget, deltaTime, sceneManager)
+                // Calculate direction away from the player
+                val awayDirection = npc.physics.position.cpy().sub(playerPos).nor()
+                desiredMovement = awayDirection
             }
-            return // Skip other AI behaviors while fleeing
         }
-
-        // Hostility Overrides
-        if (npc.currentState == NPCState.PROVOKED) {
+        // State 2: Provoked/Hostile
+        else if (npc.currentState == NPCState.PROVOKED) {
             npc.stateTimer += deltaTime
-            if (npc.stateTimer > hostileCooldownTime || npc.position.dst(playerPos) > provokedChaseDistance) {
+            if (npc.stateTimer > hostileCooldownTime || npc.physics.position.dst(playerPos) > provokedChaseDistance) {
+                // Cooldown is over or player escaped
                 npc.currentState = NPCState.COOLDOWN
                 npc.provocationLevel = 0f // Forgiven!
                 npc.stateTimer = 0f
             } else {
-                if (npc.position.dst(playerPos) > stopProvokedChaseDistance) {
-                    moveTowards(npc, playerPos, deltaTime, sceneManager)
+                // Chase the player
+                if (npc.physics.position.dst(playerPos) > stopProvokedChaseDistance) {
+                    desiredMovement = playerPos.cpy().sub(npc.physics.position).nor()
                 }
             }
-            return // Skip normal behaviors
         }
 
         // A brief period after being hostile where the NPC does nothing.
-        if (npc.currentState == NPCState.COOLDOWN) {
+        else if (npc.currentState == NPCState.COOLDOWN) {
             npc.stateTimer += deltaTime
             if (npc.stateTimer > 5f) { // 5 second cooldown
                 npc.currentState = NPCState.IDLE
                 npc.stateTimer = 0f
             }
-            return // Skip normal behaviors
         }
 
         // Standard Behaviors
-        when (npc.behaviorType) {
-            NPCBehavior.STATIONARY -> npc.currentState = NPCState.IDLE
-            NPCBehavior.WATCHER -> npc.currentState = NPCState.IDLE
-            NPCBehavior.WANDER -> updateWanderAI(npc, deltaTime, sceneManager)
-            NPCBehavior.FOLLOW -> {
-                val distanceToPlayer = npc.position.dst(playerPos)
-                if (distanceToPlayer > playerFollowDistance) {
-                    npc.currentState = NPCState.FOLLOWING
-                    moveTowards(npc, playerPos, deltaTime, sceneManager)
-                } else if (distanceToPlayer < stopFollowingDistance) {
+        else {
+            when (npc.behaviorType) {
+                NPCBehavior.STATIONARY -> {
                     npc.currentState = NPCState.IDLE
-                } else if (npc.currentState == NPCState.FOLLOWING) {
-                    moveTowards(npc, playerPos, deltaTime, sceneManager)
+                    // No movement, facing direction is fixed from placement
                 }
-            }
-            NPCBehavior.GUARD -> { // This is a permanently hostile NPC
-                if (npc.position.dst(playerPos) > stopProvokedChaseDistance) {
-                    moveTowards(npc, playerPos, deltaTime, sceneManager)
+                NPCBehavior.WATCHER -> {
+                    npc.currentState = NPCState.IDLE
+                    // Face the player
+                    npc.physics.facingRotationY = if (playerPos.x > npc.physics.position.x) 0f else 180f
+                }
+                NPCBehavior.WANDER -> {
+                    if (npc.currentState == NPCState.IDLE) {
+                        npc.stateTimer += deltaTime
+                        if (npc.stateTimer > wanderPauseTime) {
+                            val randomAngle = (Random.nextFloat() * 2 * Math.PI).toFloat()
+                            val randomDist = Random.nextFloat() * wanderRadius
+                            npc.targetPosition = Vector3(
+                                npc.homePosition.x + cos(randomAngle) * randomDist,
+                                npc.position.y, // Y will be handled by physics
+                                npc.homePosition.z + sin(randomAngle) * randomDist
+                            )
+                            npc.currentState = NPCState.WANDERING
+                            npc.stateTimer = 0f
+                        }
+                    } else if (npc.currentState == NPCState.WANDERING) {
+                        val target = npc.targetPosition
+                        if (target == null || npc.physics.position.dst(target) < 1.5f) {
+                            npc.currentState = NPCState.IDLE
+                            npc.targetPosition = null
+                            npc.stateTimer = 0f
+                        } else {
+                            desiredMovement = target.cpy().sub(npc.physics.position).nor()
+                        }
+                    }
+                }
+                NPCBehavior.FOLLOW -> {
+                    val distanceToPlayer = npc.physics.position.dst(playerPos)
+                    if (distanceToPlayer > stopFollowingDistance) {
+                        npc.currentState = NPCState.FOLLOWING
+                        desiredMovement = playerPos.cpy().sub(npc.physics.position).nor()
+                    } else {
+                        npc.currentState = NPCState.IDLE
+                    }
+                }
+                NPCBehavior.GUARD -> { // Permanently hostile
+                    if (npc.physics.position.dst(playerPos) > stopProvokedChaseDistance) {
+                        desiredMovement = playerPos.cpy().sub(npc.physics.position).nor()
+                    }
                 }
             }
         }
+
+        if (!desiredMovement.isZero) {
+            npc.physics.facingRotationY = if (desiredMovement.x > 0) 0f else 180f
+        }
+
+        characterPhysicsSystem.update(npc.physics, desiredMovement, deltaTime)
     }
 
     private fun updateWanderAI(npc: GameNPC, deltaTime: Float, sceneManager: SceneManager) {
@@ -620,89 +613,9 @@ class NPCSystem : IFinePositionable {
         }
     }
 
-    // The following methods are adapted from your EnemySystem
-    private fun applyPhysics(npc: GameNPC, deltaTime: Float, sceneManager: SceneManager, blockSize: Float) {
-        // 1. Find the highest solid ground directly beneath the NPC.
-        var highestSupportY = 0f // Default to ground level at Y=0
-        val blocksBeneath = sceneManager.activeChunkManager.getBlocksInColumn(npc.position.x, npc.position.z)
-
-        for (block in blocksBeneath) {
-            if (!block.blockType.hasCollision) continue
-
-            val blockTop = block.getBoundingBox(blockSize, tempBlockBounds).max.y
-
-            // We only care about surfaces that are actually below the NPC's feet.
-            if (blockTop <= npc.position.y - (npc.npcType.height / 2f) + MAX_STEP_HEIGHT) {
-                if (blockTop > highestSupportY) {
-                    highestSupportY = blockTop
-                }
-            }
-        }
-
-        // 2. Determine the target Y position (where the NPC's center should be).
-        val targetY = highestSupportY + (npc.npcType.height / 2f)
-
-        // 3. Apply gravity.
-        val fallY = npc.position.y - FALL_SPEED * deltaTime
-        npc.position.y = max(targetY, fallY)
-    }
-
     private fun moveTowards(npc: GameNPC, target: Vector3, deltaTime: Float, sceneManager: SceneManager) {
-        val direction = Vector3(target).sub(npc.position).nor()
-        val delta = direction.scl(npc.npcType.speed * deltaTime)
-        val nextPos = Vector3(npc.position).add(delta)
-        if (canNpcMoveTo(nextPos, npc, sceneManager)) {
-            npc.position.set(nextPos)
-            npc.isMoving = true
-        }
-    }
-
-    private fun canNpcMoveTo(newPosition: Vector3, npc: GameNPC, sceneManager: SceneManager): Boolean {
-        val npcBounds = npc.getBoundingBox()
-        npcBounds.set(
-            npcBounds.min.set(newPosition.x - npc.npcType.width / 2f, newPosition.y - npc.npcType.height / 2f, newPosition.z - npc.npcType.width / 2f),
-            npcBounds.max.set(newPosition.x + npc.npcType.width / 2f, newPosition.y + npc.npcType.height / 2f, newPosition.z + npc.npcType.width / 2f)
-        )
-
-        // Check against blocks with step-up logic
-        sceneManager.activeChunkManager.getBlocksAround(newPosition, 10f, nearbyBlocks)
-
-        for (block in nearbyBlocks) {
-            if (!block.blockType.hasCollision) continue // Skips this block in the loop
-
-            val blockBounds = block.getBoundingBox(4f, tempBlockBounds)
-
-            if (npcBounds.intersects(blockBounds)) {
-                // A collision occurred. Check if it's a step or a wall.
-                val npcBottomY = npcBounds.min.y
-                val blockTopY = blockBounds.max.y
-
-                // If the NPC's bottom is above or very close to the block's top, it's a valid surface, not a wall
-                if (npcBottomY >= blockTopY - 0.5f) { // 0.5f tolerance
-                    continue // It's a valid step, not a wall.
-                }
-
-                // It's a real side collision with a wall.
-                return false
-            }
-        }
-
-        // Check against houses
-        sceneManager.activeHouses.forEach {
-            if (it.collidesWithMesh(npcBounds)) {
-                return false
-            }
-        }
-
-        // Check against solid interior objects
-        sceneManager.activeInteriors.forEach { interior ->
-            if (interior.interiorType.hasCollision && interior.collidesWithMesh(npcBounds)) {
-                return false
-            }
-        }
-
-        // If we passed all checks, the move is valid
-        return true
+        val direction = Vector3(target).sub(npc.physics.position).nor()
+        characterPhysicsSystem.update(npc.physics, direction, deltaTime)
     }
 
     fun renderNPCs(camera: Camera, environment: Environment, npcs: Array<GameNPC>) {
