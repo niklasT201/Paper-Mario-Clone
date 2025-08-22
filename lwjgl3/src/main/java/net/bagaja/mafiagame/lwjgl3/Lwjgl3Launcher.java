@@ -74,11 +74,6 @@ public class Lwjgl3Launcher {
 // maybe adding player hiding tp point text behind it
 // visual reload/charging bar
 // missing knife, baseball bat and fist animations
-// add player with revolver image
-// add player with shotgun image
-// add player with pistol image
-// fix player with tommy gun image
-// add new player with weapon images
 // player hitting with baseball bat
 // player stabbing with knife
 // player wipe is switching to vertical when pressing W or S

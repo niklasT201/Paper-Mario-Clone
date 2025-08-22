@@ -112,19 +112,103 @@ enum class WeaponType(
         bulletSpeed = 150f,
         bulletLifetime = 1.5f
     ),
-    PISTOL(
-        displayName = "Pistol",
+    LIGHT_TOMMY_GUN(
+        displayName = "Light Tommy Gun",
         actionType = WeaponActionType.SHOOTING,
-        fireRatePerSecond = 3f, // Slower rate of fire
-        damage = 25f,
+        fireRatePerSecond = 11f,
+        damage = 13f,
         meleeRange = 0f,
-        magazineSize = 8,
+        magazineSize = 40,
+        requiresReload = true,
+        allowsMovementWhileShooting = true, // Lighter, can move while shooting
+        playerPoseTexturePath = "textures/player/weapons/tommy_gun/player_light_tommy_gun.png",
+        bulletTexturePath = "textures/player/weapons/bullet_tile.png",
+        bulletSpeed = 160f,
+        bulletLifetime = 1.4f
+    ),
+    REVOLVER(
+        displayName = "Revolver",
+        actionType = WeaponActionType.SHOOTING,
+        fireRatePerSecond = 2f,
+        damage = 35f,
+        meleeRange = 0f,
+        magazineSize = 6,
         requiresReload = true,
         allowsMovementWhileShooting = true,
-        playerPoseTexturePath = "textures/player/weapons/tommy_gun/pig_character_tommy_gun.png",
+        playerPoseTexturePath = "textures/player/weapons/revolver/player_revolver.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 200f,
         bulletLifetime = 2.0f
+    ),
+    LIGHT_REVOLVER(
+        displayName = "Light Revolver",
+        actionType = WeaponActionType.SHOOTING,
+        fireRatePerSecond = 2.5f,
+        damage = 30f,
+        meleeRange = 0f,
+        magazineSize = 6,
+        requiresReload = true,
+        allowsMovementWhileShooting = true,
+        playerPoseTexturePath = "textures/player/weapons/revolver/player_light_revolver.png",
+        bulletTexturePath = "textures/player/weapons/bullet_tile.png",
+        bulletSpeed = 210f,
+        bulletLifetime = 2.0f
+    ),
+    SMALLER_REVOLVER(
+        displayName = "Smaller Revolver",
+        actionType = WeaponActionType.SHOOTING,
+        fireRatePerSecond = 3f,
+        damage = 25f,
+        meleeRange = 0f,
+        magazineSize = 5,
+        requiresReload = true,
+        allowsMovementWhileShooting = true,
+        playerPoseTexturePath = "textures/player/weapons/revolver/player_smaller_revolver.png",
+        bulletTexturePath = "textures/player/weapons/bullet_tile.png",
+        bulletSpeed = 190f,
+        bulletLifetime = 1.8f
+    ),
+    SHOTGUN(
+        displayName = "Shotgun",
+        actionType = WeaponActionType.SHOOTING,
+        fireRatePerSecond = 1f, // Slow pump-action
+        damage = 80f, // High damage
+        meleeRange = 0f,
+        magazineSize = 5,
+        requiresReload = true,
+        allowsMovementWhileShooting = false, // Heavy weapon
+        playerPoseTexturePath = "textures/player/weapons/shotgun/player_shotgun.png",
+        bulletTexturePath = "textures/player/weapons/bullet_tile.png",
+        bulletSpeed = 150f,
+        bulletLifetime = 0.5f // Short range
+    ),
+    LIGHT_SHOTGUN(
+        displayName = "Light Shotgun",
+        actionType = WeaponActionType.SHOOTING,
+        fireRatePerSecond = 1.2f,
+        damage = 70f,
+        meleeRange = 0f,
+        magazineSize = 6,
+        requiresReload = true,
+        allowsMovementWhileShooting = false,
+        playerPoseTexturePath = "textures/player/weapons/shotgun/player_light_shotgun.png",
+        bulletTexturePath = "textures/player/weapons/bullet_tile.png",
+        bulletSpeed = 160f,
+        bulletLifetime = 0.6f
+    ),
+    SMALL_SHOTGUN(
+        displayName = "Small Shotgun",
+        actionType = WeaponActionType.SHOOTING,
+        fireRatePerSecond = 1.5f,
+        damage = 60f,
+        meleeRange = 0f,
+        magazineSize = 2, // Sawed-off style
+        requiresReload = true,
+        allowsMovementWhileShooting = true, // Lighter, can move
+        playerPoseTexturePath = "textures/player/weapons/shotgun/player_small_shotgun.png",
+        bulletTexturePath = "textures/player/weapons/bullet_tile.png",
+        bulletSpeed = 140f,
+        bulletLifetime = 0.4f
     ),
     MACHINE_GUN(
         displayName = "Machine Gun",

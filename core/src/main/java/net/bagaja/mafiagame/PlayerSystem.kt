@@ -74,7 +74,7 @@ class PlayerSystem {
         const val FALL_SPEED = 25f
         const val MAX_STEP_HEIGHT = 1.1f
         const val CAR_MAX_STEP_HEIGHT = 4.1f
-        const val HEADLIGHT_INTENSITY = 75f
+        const val HEADLIGHT_INTENSITY = 18f
     }
 
     private lateinit var characterPhysicsSystem: CharacterPhysicsSystem
@@ -134,8 +134,7 @@ class PlayerSystem {
     private val minShotScale = 0.7f // The initial size of the particle on a quick tap
     private val maxShotScale = 2.0f // The maximum size limit for the particle
     private val chargeDurationForMaxScale = 10f
-    var isMuzzleFlashLightEnabled = true
-        private set
+    private var isMuzzleFlashLightEnabled = true
 
     private var muzzleFlashLight: LightSource? = null
     private var muzzleFlashTimer = 0f
@@ -150,8 +149,6 @@ class PlayerSystem {
     private var teleportCooldown = 0f
     lateinit var bloodPoolSystem: BloodPoolSystem
     private lateinit var footprintSystem: FootprintSystem
-    private val tempBlockBounds = BoundingBox()
-    private val nearbyBlocks = Array<GameBlock>()
 
     private var bloodyFootprintsTimer = 0f
     private val BLOODY_FOOTPRINT_COOLDOWN = 10f // Effect lasts 10 seconds after leaving a pool
@@ -160,7 +157,7 @@ class PlayerSystem {
 
     private lateinit var lightingManager: LightingManager
     private var headlightLight: LightSource? = null
-    private val headlightForwardOffset = 5f // How far in front of the car center the light is
+    private val headlightForwardOffset = 10f // How far in front of the car center the light is
     private val headlightVerticalOffset = 2.0f
 
     fun getPlayerBounds(): BoundingBox {

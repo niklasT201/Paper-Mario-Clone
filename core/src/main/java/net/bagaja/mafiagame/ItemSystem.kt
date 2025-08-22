@@ -452,18 +452,18 @@ enum class ItemType(
     BASEBALL_BAT("Baseball Bat", "textures/objects/items/weapons/baseball_bat.png", 2f, 15, WeaponType.BASEBALL_BAT),
 
     // Weapons
-    REVOLVER("Revolver", "textures/objects/items/weapons/revolver.png", 2f, 15, WeaponType.PISTOL),
-    REVOLVER_LIGHT("Light Revolver", "textures/objects/items/weapons/revolver_light.png", 2f, 12, WeaponType.PISTOL),
-    SMALLER_REVOLVER("Small Revolver", "textures/objects/items/weapons/smaller_revolver.png", 1.8f, 12, WeaponType.PISTOL),
+    REVOLVER("Revolver", "textures/objects/items/weapons/revolver.png", 2f, 15, WeaponType.REVOLVER),
+    REVOLVER_LIGHT("Light Revolver", "textures/objects/items/weapons/revolver_light.png", 2f, 12, WeaponType.LIGHT_REVOLVER),
+    SMALLER_REVOLVER("Small Revolver", "textures/objects/items/weapons/smaller_revolver.png", 1.8f, 12, WeaponType.SMALLER_REVOLVER),
 
-    SHOTGUN("Shotgun", "textures/objects/items/weapons/shotgun.png", 3f, 25),
-    SHOTGUN_LIGHT("Light Shotgun", "textures/objects/items/weapons/shotgun_light.png", 3f, 22),
-    SMALL_SHOTGUN("Small Shotgun", "textures/objects/items/weapons/small_shotgun.png", 2.5f, 20),
+    SHOTGUN("Shotgun", "textures/objects/items/weapons/shotgun.png", 3f, 25, WeaponType.SHOTGUN),
+    SHOTGUN_LIGHT("Light Shotgun", "textures/objects/items/weapons/shotgun_light.png", 3f, 22, WeaponType.LIGHT_SHOTGUN),
+    SMALL_SHOTGUN("Small Shotgun", "textures/objects/items/weapons/small_shotgun.png", 2.5f, 20, WeaponType.SMALL_SHOTGUN),
 
     MACHINE_GUN("Machine Gun", "textures/objects/items/weapons/machine_gun.png", 3.5f, 40, WeaponType.MACHINE_GUN),
 
     TOMMY_GUN("Tommy Gun", "textures/objects/items/weapons/tommy_gun.png", 3.5f, 35, WeaponType.TOMMY_GUN),
-    TOMMY_GUN_LIGHT("Light Tommy Gun", "textures/objects/items/weapons/tommy_gun_light.png", 3.5f, 32, WeaponType.TOMMY_GUN),
+    TOMMY_GUN_LIGHT("Light Tommy Gun", "textures/objects/items/weapons/tommy_gun_light.png", 3.5f, 32, WeaponType.LIGHT_TOMMY_GUN),
 
     KNIFE("Knife", "textures/objects/items/weapons/knife.png", 1.5f, 8, WeaponType.KNIFE),
 
