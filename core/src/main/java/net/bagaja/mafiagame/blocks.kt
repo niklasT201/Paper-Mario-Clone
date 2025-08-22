@@ -52,7 +52,13 @@ enum class BlockShape {
     WEDGE,
     CORNER_WEDGE,
     VERTICAL_SLAB,
-    PILLAR;
+    PILLAR,
+    PLANE_TOP,
+    PLANE_BOTTOM,
+    PLANE_FRONT,
+    PLANE_BACK,
+    PLANE_LEFT,
+    PLANE_RIGHT;
 
     fun getDisplayName(): String {
         return this.name.replace('_', ' ').lowercase(Locale.getDefault())
@@ -188,6 +194,12 @@ data class GameBlock(
             BlockShape.CORNER_WEDGE -> localFace == BlockFace.LEFT || localFace == BlockFace.BACK
             BlockShape.VERTICAL_SLAB -> false
             BlockShape.PILLAR -> false
+            BlockShape.PLANE_TOP -> localFace == BlockFace.TOP
+            BlockShape.PLANE_BOTTOM -> localFace == BlockFace.BOTTOM
+            BlockShape.PLANE_FRONT -> localFace == BlockFace.FRONT
+            BlockShape.PLANE_BACK -> localFace == BlockFace.BACK
+            BlockShape.PLANE_LEFT -> localFace == BlockFace.LEFT
+            BlockShape.PLANE_RIGHT -> localFace == BlockFace.RIGHT
         }
     }
 

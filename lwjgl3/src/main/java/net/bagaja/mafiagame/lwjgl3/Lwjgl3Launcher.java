@@ -51,7 +51,6 @@ public class Lwjgl3Launcher {
 // edge houses
 // blocks being visible behind transparent enemies etc.
 // improve UIManagers code base
-// option for blocks having one visible face or two
 // melee areas transparent
 // weapon radius for fire and explosions
 // damage gets less for higher radius

@@ -495,7 +495,7 @@ class BlockSystem {
                 Material(TextureAttribute.createDiffuse(it))
             } ?: Material(ColorAttribute.createDiffuse(Color.MAGENTA))
 
-            val newModel = createCustomModel(shape, material, textureRotation, topTextureRotation)
+            val newModel = createCustomModel(blockType, shape, material, textureRotation, topTextureRotation)
             if (newModel != null) {
                 customShapeModels[key] = newModel
             }
@@ -503,7 +503,7 @@ class BlockSystem {
         return customShapeModels[key]
     }
 
-    private fun createCustomModel(shape: BlockShape, material: Material, textureRotation: Float, topTextureRotation: Float): Model? {
+    private fun createCustomModel(blockType: BlockType, shape: BlockShape, material: Material, textureRotation: Float, topTextureRotation: Float): Model? {
         val attributes = (VertexAttributes.Usage.Position or
             VertexAttributes.Usage.Normal or
             VertexAttributes.Usage.TextureCoordinates).toLong()
@@ -541,16 +541,16 @@ class BlockSystem {
 
         return when (shape) {
             BlockShape.FULL_BLOCK -> {
-                modelBuilder.createBox(internalBlockSize, internalBlockSize, internalBlockSize, material, attributes)
+                modelBuilder.createBox(internalBlockSize, internalBlockSize * blockType.height, internalBlockSize, material, attributes)
             }
             BlockShape.SLAB_BOTTOM, BlockShape.SLAB_TOP -> {
-                modelBuilder.createBox(internalBlockSize, internalBlockSize / 2f, internalBlockSize, material, attributes)
+                modelBuilder.createBox(internalBlockSize, (internalBlockSize * blockType.height) / 2f, internalBlockSize, material, attributes)
             }
             BlockShape.VERTICAL_SLAB -> {
                 modelBuilder.begin()
                 val part = modelBuilder.part("v_slab_${textureRotation.toInt()}_${topTextureRotation.toInt()}",
                     GL20.GL_TRIANGLES, attributes, material)
-                val hx = internalBlockSize / 2f; val hy = internalBlockSize / 2f; val hz = internalBlockSize / 4f
+                val hx = internalBlockSize / 2f; val hy = (internalBlockSize * blockType.height) / 2f; val hz = internalBlockSize / 4f
 
                 val v_blf = Vector3(-hx, -hy,  hz); val v_brf = Vector3( hx, -hy,  hz)
                 val v_trf = Vector3( hx,  hy,  hz); val v_tlf = Vector3(-hx,  hy,  hz)
@@ -573,8 +573,8 @@ class BlockSystem {
                 modelBuilder.begin()
                 val part = modelBuilder.part("pillar", GL20.GL_TRIANGLES, attributes, material)
                 val half = internalBlockSize / 2f
-                val topY = half
-                val bottomY = -half
+                val topY = (internalBlockSize * blockType.height) / 2f
+                val bottomY = -topY
                 val cornerOffset = half * 0.414f
                 val topVerts = arrayOf(
                     Vector3(-half + cornerOffset, topY, -half), Vector3(half - cornerOffset,  topY, -half),
@@ -620,9 +620,10 @@ class BlockSystem {
                 modelBuilder.begin()
                 val part = modelBuilder.part("model", GL20.GL_TRIANGLES, attributes, material)
                 val half = internalBlockSize / 2f
-                val v0 = Vector3(-half, -half, +half); val v1 = Vector3(+half, -half, +half)
-                val v2 = Vector3(-half, +half, +half); val v3 = Vector3(+half, +half, +half)
-                val v4 = Vector3(-half, -half, -half); val v5 = Vector3(+half, -half, -half)
+                val halfHeight = (internalBlockSize * blockType.height) / 2f
+                val v0 = Vector3(-half, -halfHeight, +half); val v1 = Vector3(+half, -halfHeight, +half)
+                val v2 = Vector3(-half, +halfHeight, +half); val v3 = Vector3(+half, +halfHeight, +half)
+                val v4 = Vector3(-half, -halfHeight, -half); val v5 = Vector3(+half, -halfHeight, -half)
                 part.rect(v4, v5, v1, v0, Vector3(0f, -1f, 0f))
                 part.rect(v0, v1, v3, v2, Vector3(0f, 0f, 1f))
                 val l1 = part.vertex(v4, Vector3(-1f, 0f, 0f), null, Vector2(0f, 0f))
@@ -649,9 +650,11 @@ class BlockSystem {
                 modelBuilder.begin()
                 val part = modelBuilder.part("c_wedge_${textureRotation.toInt()}_${topTextureRotation.toInt()}", GL20.GL_TRIANGLES, attributes, material)
                 val half = internalBlockSize / 2f
-                val slabHeight = internalBlockSize
-                val v_bottom_corner = Vector3(-half, -half, -half); val v_bottom_x = Vector3(half, -half, -half)
-                val v_bottom_z = Vector3(-half, -half, half); val topY = -half + slabHeight
+                val bottomY = -(internalBlockSize * blockType.height) / 2f
+                val topY = (internalBlockSize * blockType.height) / 2f
+
+                val v_bottom_corner = Vector3(-half, bottomY, -half); val v_bottom_x = Vector3(half, bottomY, -half)
+                val v_bottom_z = Vector3(-half, bottomY, half);
                 val v_top_corner = Vector3(-half, topY, -half); val v_top_x = Vector3(half, topY, -half)
                 val v_top_z = Vector3(-half, topY, half)
 
@@ -683,6 +686,63 @@ class BlockSystem {
                 val slopedNormal = Vector3(v_bottom_z).sub(v_bottom_x).crs(Vector3(v_top_x).sub(v_bottom_x)).nor()
                 buildRectWithUVs(part, v_bottom_z, v_bottom_x, v_top_x, v_top_z, slopedNormal, r_uv00_side, r_uv10_side, r_uv11_side, r_uv01_side)
 
+                modelBuilder.end()
+            }
+            BlockShape.PLANE_TOP,
+            BlockShape.PLANE_BOTTOM,
+            BlockShape.PLANE_FRONT,
+            BlockShape.PLANE_BACK,
+            BlockShape.PLANE_LEFT,
+            BlockShape.PLANE_RIGHT -> {
+                modelBuilder.begin()
+                val part = modelBuilder.part(
+                    "${shape.name}_${textureRotation.toInt()}_${topTextureRotation.toInt()}",
+                    GL20.GL_TRIANGLES, attributes, material
+                )
+
+                val halfSize = internalBlockSize / 2f
+                val halfHeight = (internalBlockSize * blockType.height) / 2f
+
+                // Define the UV arrays based on rotation
+                val uvs_top = arrayOf(r_uv00_top, r_uv10_top, r_uv11_top, r_uv01_top)
+                val uvs_sides = arrayOf(r_uv00_side, r_uv10_side, r_uv11_side, r_uv01_side)
+                val uvs_bottom = arrayOf(uv00, uv10, uv11, uv01) // Bottom face doesn't rotate texture
+
+                // Select the correct UV set for the current plane shape
+                val final_uvs = when (shape) {
+                    BlockShape.PLANE_TOP -> uvs_top
+                    BlockShape.PLANE_BOTTOM -> uvs_bottom
+                    else -> uvs_sides
+                }
+
+                // Build the rect using the selected UVs
+                when (shape) {
+                    BlockShape.PLANE_TOP -> buildRectWithUVs(part,
+                        Vector3(-halfSize, halfHeight, halfSize), Vector3(halfSize, halfHeight, halfSize),
+                        Vector3(halfSize, halfHeight, -halfSize), Vector3(-halfSize, halfHeight, -halfSize),
+                        Vector3(0f, 1f, 0f), final_uvs[0], final_uvs[1], final_uvs[2], final_uvs[3])
+                    BlockShape.PLANE_BOTTOM -> buildRectWithUVs(part,
+                        Vector3(-halfSize, -halfHeight, -halfSize), Vector3(halfSize, -halfHeight, -halfSize),
+                        Vector3(halfSize, -halfHeight, halfSize), Vector3(-halfSize, -halfHeight, halfSize),
+                        Vector3(0f, -1f, 0f), final_uvs[0], final_uvs[1], final_uvs[2], final_uvs[3])
+                    BlockShape.PLANE_FRONT -> buildRectWithUVs(part,
+                        Vector3(-halfSize, -halfHeight, halfSize), Vector3(halfSize, -halfHeight, halfSize),
+                        Vector3(halfSize, halfHeight, halfSize), Vector3(-halfSize, halfHeight, halfSize),
+                        Vector3(0f, 0f, 1f), final_uvs[0], final_uvs[1], final_uvs[2], final_uvs[3])
+                    BlockShape.PLANE_BACK -> buildRectWithUVs(part,
+                        Vector3(halfSize, -halfHeight, -halfSize), Vector3(-halfSize, -halfHeight, -halfSize),
+                        Vector3(-halfSize, halfHeight, -halfSize), Vector3(halfSize, halfHeight, -halfSize),
+                        Vector3(0f, 0f, -1f), final_uvs[0], final_uvs[1], final_uvs[2], final_uvs[3])
+                    BlockShape.PLANE_LEFT -> buildRectWithUVs(part,
+                        Vector3(-halfSize, -halfHeight, -halfSize), Vector3(-halfSize, -halfHeight, halfSize),
+                        Vector3(-halfSize, halfHeight, halfSize), Vector3(-halfSize, halfHeight, -halfSize),
+                        Vector3(-1f, 0f, 0f), final_uvs[0], final_uvs[1], final_uvs[2], final_uvs[3])
+                    BlockShape.PLANE_RIGHT -> buildRectWithUVs(part,
+                        Vector3(halfSize, -halfHeight, halfSize), Vector3(halfSize, -halfHeight, -halfSize),
+                        Vector3(halfSize, halfHeight, -halfSize), Vector3(halfSize, halfHeight, halfSize),
+                        Vector3(1f, 0f, 0f), final_uvs[0], final_uvs[1], final_uvs[2], final_uvs[3])
+                    else -> {}
+                }
                 modelBuilder.end()
             }
         }
