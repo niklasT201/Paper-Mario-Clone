@@ -635,19 +635,19 @@ class PlayerSystem {
         // Muzzle Flashlight Logic
         if (isMuzzleFlashLightEnabled) {
             muzzleFlashLight?.let { light ->
-            // 1. Move the light to the muzzle flash position
-            light.position.set(muzzleFlashPosition)
+                // 1. Move the light to the muzzle flash position
+                light.position.set(muzzleFlashPosition)
 
-            // 2. Set its properties for the flash
-            light.intensity = 18f // A good, noticeable but not overwhelming brightness
-            light.range = 8f      // A small radius
-            light.color.set(1f, 0.75f, 0.4f, 1f) // orange/dark yellow
+                // 2. Set its properties for the flash
+                light.intensity = 18f // A good, noticeable but not overwhelming brightness
+                light.range = 8f      // A small radius
+                light.color.set(1f, 0.75f, 0.4f, 1f) // orange/dark yellow
 
-            // 3. Update the light in the rendering environment
-            light.updatePointLight()
+                // 3. Update the light in the rendering environment
+                light.updatePointLight()
 
-            // 4. Start the timer to turn it off
-            muzzleFlashTimer = 0.06f // The flash will last for a very short time
+                // 4. Start the timer to turn it off
+                muzzleFlashTimer = 0.06f // The flash will last for a very short time
             }
         }
     }
@@ -963,7 +963,7 @@ class PlayerSystem {
         if (isPressingW) desiredMovement.z -= 1f
         if (Gdx.input.isKeyPressed(Input.Keys.S)) desiredMovement.z += 1f
 
-        if (state == PlayerState.ATTACKING && !equippedWeapon.allowsMovementWhileShooting) {
+        if (isHoldingShootButton && !equippedWeapon.allowsMovementWhileShooting) {
             desiredMovement.set(0f, 0f, 0f)
         }
 

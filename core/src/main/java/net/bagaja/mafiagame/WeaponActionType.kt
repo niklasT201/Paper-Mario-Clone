@@ -65,9 +65,9 @@ enum class WeaponType(
     UNARMED(
         displayName = "Unarmed",
         actionType = WeaponActionType.MELEE,
-        fireRatePerSecond = 2.5f, // You can punch reasonably fast
+        fireRatePerSecond = 2.5f,
         damage = 8f,
-        meleeRange = 2.8f, // NEW: Smallest range
+        meleeRange = 2.8f,
         magazineSize = 0,
         requiresReload = false,
         allowsMovementWhileShooting = true,
@@ -79,10 +79,10 @@ enum class WeaponType(
         actionType = WeaponActionType.MELEE,
         fireRatePerSecond = 2.0f,
         damage = 40f,
-        meleeRange = 3.8f, // NEW: Medium range
+        meleeRange = 3.8f,
         magazineSize = 0,
         requiresReload = false,
-        allowsMovementWhileShooting = true,
+        allowsMovementWhileShooting = true, // Can move while knifing
         playerPoseTexturePath = "textures/player/weapons/knife/player_knife.png",
         bulletTexturePath = null
     ),
@@ -91,22 +91,22 @@ enum class WeaponType(
         actionType = WeaponActionType.MELEE,
         fireRatePerSecond = 1.5f,
         damage = 30f,
-        meleeRange = 5.0f, // NEW: Largest range
+        meleeRange = 5.0f,
         magazineSize = 0,
         requiresReload = false,
-        allowsMovementWhileShooting = true,
+        allowsMovementWhileShooting = true, // Can move while swinging
         playerPoseTexturePath = "textures/player/weapons/baseball_bat/player_baseball_bat.png",
         bulletTexturePath = null
     ),
     TOMMY_GUN(
         displayName = "Tommy Gun",
         actionType = WeaponActionType.SHOOTING,
-        fireRatePerSecond = 10f, // High rate of fire
+        fireRatePerSecond = 10f,
         damage = 15f,
         meleeRange = 0f,
         magazineSize = 50,
         requiresReload = true,
-        allowsMovementWhileShooting = false,
+        allowsMovementWhileShooting = true, // Exception: Can move
         playerPoseTexturePath = "textures/player/weapons/tommy_gun/pig_character_tommy_gun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 150f,
@@ -120,7 +120,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 40,
         requiresReload = true,
-        allowsMovementWhileShooting = true, // Lighter, can move while shooting
+        allowsMovementWhileShooting = false,
         playerPoseTexturePath = "textures/player/weapons/tommy_gun/player_light_tommy_gun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 160f,
@@ -134,7 +134,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 6,
         requiresReload = true,
-        allowsMovementWhileShooting = true,
+        allowsMovementWhileShooting = true, // Light weapon
         playerPoseTexturePath = "textures/player/weapons/revolver/player_revolver.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 200f,
@@ -148,7 +148,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 6,
         requiresReload = true,
-        allowsMovementWhileShooting = true,
+        allowsMovementWhileShooting = true, // Light weapon
         playerPoseTexturePath = "textures/player/weapons/revolver/player_light_revolver.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 210f,
@@ -171,8 +171,8 @@ enum class WeaponType(
     SHOTGUN(
         displayName = "Shotgun",
         actionType = WeaponActionType.SHOOTING,
-        fireRatePerSecond = 1f, // Slow pump-action
-        damage = 80f, // High damage
+        fireRatePerSecond = 1f,
+        damage = 80f,
         meleeRange = 0f,
         magazineSize = 5,
         requiresReload = true,
@@ -180,7 +180,7 @@ enum class WeaponType(
         playerPoseTexturePath = "textures/player/weapons/shotgun/player_shotgun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 150f,
-        bulletLifetime = 0.5f // Short range
+        bulletLifetime = 0.5f
     ),
     LIGHT_SHOTGUN(
         displayName = "Light Shotgun",
@@ -190,7 +190,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 6,
         requiresReload = true,
-        allowsMovementWhileShooting = false,
+        allowsMovementWhileShooting = false, // Heavy weapon
         playerPoseTexturePath = "textures/player/weapons/shotgun/player_light_shotgun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 160f,
@@ -202,9 +202,9 @@ enum class WeaponType(
         fireRatePerSecond = 1.5f,
         damage = 60f,
         meleeRange = 0f,
-        magazineSize = 2, // Sawed-off style
+        magazineSize = 2,
         requiresReload = true,
-        allowsMovementWhileShooting = true, // Lighter, can move
+        allowsMovementWhileShooting = true, // Heavy weapon
         playerPoseTexturePath = "textures/player/weapons/shotgun/player_small_shotgun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 140f,
@@ -227,26 +227,26 @@ enum class WeaponType(
     MOLOTOV(
         displayName = "Molotov",
         actionType = WeaponActionType.THROWABLE,
-        fireRatePerSecond = 0.5f, // Throw speed
-        damage = 50f, // Area damage
+        fireRatePerSecond = 0.5f,
+        damage = 50f,
         meleeRange = 0f,
         magazineSize = 0,
         requiresReload = false,
-        allowsMovementWhileShooting = true,
+        allowsMovementWhileShooting = true, // Can move while throwing
         playerPoseTexturePath = "textures/player/weapons/molotov/player_molotov.png",
-        bulletTexturePath = null // Doesn't shoot a bullet
+        bulletTexturePath = null
     ),
     DYNAMITE(
         displayName = "Dynamite",
         actionType = WeaponActionType.THROWABLE,
-        fireRatePerSecond = 0.5f, // Throw speed
-        damage = 100f, // Area damage
+        fireRatePerSecond = 0.5f,
+        damage = 100f,
         meleeRange = 0f,
         magazineSize = 0,
         requiresReload = false,
-        allowsMovementWhileShooting = true,
+        allowsMovementWhileShooting = true, // Can move while throwing
         playerPoseTexturePath = "textures/player/weapons/dynamite/player_dynamite.png",
-        bulletTexturePath = null // Doesn't shoot a bullet
+        bulletTexturePath = null
     );
 
     // Calculated property for the cooldown timer
