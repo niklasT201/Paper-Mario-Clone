@@ -15,7 +15,8 @@ import kotlin.math.sin
 // Step 1.1: Create an enum to define the different indicator styles
 enum class IndicatorStyle(val displayName: String) {
     SOLID_CIRCLE("Solid"),
-    TEXTURED_RING("Textured")
+    TEXTURED_RING("Textured"),
+    TEXTURED_RING_TRANSPARENT("Transparent")
 }
 
 class MeleeRangeIndicatorSystem {
@@ -30,7 +31,8 @@ class MeleeRangeIndicatorSystem {
 
     // --- Textures ---
     private lateinit var whitePixelTexture: Texture
-    private lateinit var ringTexture: Texture // For your custom texture
+    private lateinit var ringTexture: Texture
+    private lateinit var ringTextureTransparent: Texture
 
     // --- State Management ---
     private var isVisible = false
@@ -61,11 +63,12 @@ class MeleeRangeIndicatorSystem {
 
         // Step 1.2: Load your custom ring texture
         try {
-            // Note: I'm using the relative path your project expects.
             ringTexture = Texture(Gdx.files.internal("gui/highlight_circle.png"))
             ringTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
+            ringTextureTransparent = Texture(Gdx.files.internal("gui/highlight_circle_trans.png"))
+            ringTextureTransparent.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
         } catch (e: Exception) {
-            println("ERROR: Could not load 'gui/highlight_circle.png'. A fallback will be used.")
+            println("ERROR: Could not load ring textures. A fallback will be used.")
             // Create a fallback texture if yours is missing
             val fallbackPixmap = Pixmap(64, 64, Pixmap.Format.RGBA8888)
             fallbackPixmap.setColor(Color.WHITE)
@@ -102,9 +105,6 @@ class MeleeRangeIndicatorSystem {
 
         when (currentStyle) {
             IndicatorStyle.SOLID_CIRCLE -> {
-                // --- NEW, SAFER METHOD ---
-                // Create a cylinder with a very small height to act as a flat disc.
-                // This is a high-level helper and is much safer than manual part building.
                 val material = Material(
                     TextureAttribute.createDiffuse(whitePixelTexture),
                     ColorAttribute.createDiffuse(1f, 1f, 1f, 0.35f),
@@ -121,11 +121,12 @@ class MeleeRangeIndicatorSystem {
                 )
                 indicatorInstance = ModelInstance(solidCircleModel!!)
             }
-            IndicatorStyle.TEXTURED_RING -> {
-                // This method is already using a safe, high-level helper, so it remains the same.
+            IndicatorStyle.TEXTURED_RING, IndicatorStyle.TEXTURED_RING_TRANSPARENT -> {
                 val size = range * 2
+                // Select the correct texture based on the style
+                val textureToUse = if (currentStyle == IndicatorStyle.TEXTURED_RING) ringTexture else ringTextureTransparent
                 val material = Material(
-                    TextureAttribute.createDiffuse(ringTexture),
+                    TextureAttribute.createDiffuse(textureToUse),
                     BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
                     IntAttribute.createCullFace(GL20.GL_NONE) // Added this for consistency
                 )
@@ -183,5 +184,6 @@ class MeleeRangeIndicatorSystem {
         shaderProvider.dispose()
         whitePixelTexture.dispose()
         ringTexture.dispose()
+        ringTextureTransparent.dispose()
     }
 }

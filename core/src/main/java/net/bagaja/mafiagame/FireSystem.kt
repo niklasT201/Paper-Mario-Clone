@@ -27,7 +27,9 @@ data class GameFire(
     val initialScale: Float,
     val canBeExtinguished: Boolean,
     var fadesOut: Boolean,
-    var lifetime: Float
+    var lifetime: Float,
+    val canSpread: Boolean = false, // NEW: Can this fire type spread?
+    val generation: Int = 0 // NEW: How many times it has spread
 ) {
     private val material = gameObject.modelInstance.materials.first()
     private val blendingAttribute: BlendingAttribute? = material.get(BlendingAttribute.Type) as? BlendingAttribute
@@ -39,6 +41,7 @@ data class GameFire(
 
     var fireSpotSpawnTimer: Float = -1f // Timer, disabled by default
     var hasSpawnedFireSpot: Boolean = false
+    var spreadTimer: Float = 2.0f
 
     fun update(deltaTime: Float, particleSystem: ParticleSystem) {
         if (fadesOut && lifetime > 0) {
@@ -124,7 +127,15 @@ class FireSystem {
         billboardModelBatch = ModelBatch(billboardShaderProvider)
     }
 
-    fun addFire(position: Vector3, objectSystem: ObjectSystem, lightingManager: LightingManager, lightIntensityOverride: Float? = null, lightRangeOverride: Float? = null): GameFire? {
+    fun addFire(
+        position: Vector3,
+        objectSystem: ObjectSystem,
+        lightingManager: LightingManager,
+        lightIntensityOverride: Float? = null,
+        lightRangeOverride: Float? = null,
+        generation: Int = 0,
+        canSpread: Boolean = false
+    ): GameFire? {
         // If an override is provided
         val finalLightIntensity = lightIntensityOverride ?: ObjectType.FIRE_SPREAD.lightIntensity
         val finalLightRange = lightRangeOverride ?: ObjectType.FIRE_SPREAD.lightRange
@@ -162,7 +173,9 @@ class FireSystem {
             initialScale = randomScale,
             canBeExtinguished = nextFireCanBeExtinguished,
             fadesOut = nextFireFadesOut,
-            lifetime = nextFireLifetime
+            lifetime = nextFireLifetime,
+            canSpread = canSpread,
+            generation = generation
         )
 
         // ADDED: If this is a permanent fire, set up its fire spot timer.
@@ -197,6 +210,22 @@ class FireSystem {
         while(iterator.hasNext()) {
             val fire = iterator.next()
             fire.update(deltaTime, particleSystem)
+
+            if (fire.canSpread && !fire.isBeingExtinguished) {
+                fire.spreadTimer -= deltaTime
+                if (fire.spreadTimer <= 0f) {
+                    fire.spreadTimer = Random.nextFloat() * 1.5f + 1.0f // Check again in 1-2.5 seconds
+
+                    // The chance decreases with each generation.
+                    // Gen 0 (Molotov): 4%, Gen 1: 2%, Gen 2: 1.3%, etc.
+                    val baseSpreadChance = 0.04f
+                    val spreadChance = baseSpreadChance / (fire.generation + 1)
+
+                    if (Random.nextFloat() < spreadChance) {
+                        attemptToSpread(fire, sceneManager)
+                    }
+                }
+            }
 
             // Fire Spot Spawning Logic
             if (fire.fireSpotSpawnTimer > 0 && !fire.hasSpawnedFireSpot && !fire.isBeingExtinguished) {
@@ -284,6 +313,40 @@ class FireSystem {
             }
         }
         return expiredFires
+    }
+
+    private fun attemptToSpread(sourceFire: GameFire, sceneManager: SceneManager) {
+        val blockSize = sceneManager.game.blockSize
+        val offsets = listOf(
+            Vector3(blockSize, 0f, 0f), Vector3(-blockSize, 0f, 0f),
+            Vector3(0f, 0f, blockSize), Vector3(0f, 0f, -blockSize)
+            // Not spreading up/down for now to keep it simple and on the ground
+        )
+
+        val direction = offsets.random()
+        val potentialPosition = sourceFire.gameObject.position.cpy().add(direction)
+
+        // Check if the new position is valid (not inside a solid block)
+        if (sceneManager.isPositionValidForFire(potentialPosition)) {
+            println("Fire is spreading from generation ${sourceFire.generation}!")
+
+            // Configure the properties for the new fire
+            nextFireFadesOut = true
+            nextFireLifetime = 8f + Random.nextFloat() * 7f // Lasts 8-15 seconds
+            nextFireMinScale = 0.4f
+            nextFireMaxScale = 0.7f
+
+            // Add the new fire
+            addFire(
+                position = potentialPosition,
+                objectSystem = sceneManager.game.objectSystem,
+                lightingManager = sceneManager.game.lightingManager,
+                generation = sourceFire.generation + 1, // Crucial: increment generation
+                canSpread = true, // The new fire can also spread
+                lightIntensityOverride = 30f,
+                lightRangeOverride = 12f
+            )
+        }
     }
 
     fun render(camera: Camera, environment: Environment) {

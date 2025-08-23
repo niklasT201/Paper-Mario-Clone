@@ -1474,8 +1474,9 @@ class PlayerSystem {
                         position = validGroundPosition,
                         objectSystem = objectSystem,
                         lightingManager = lightingManager,
-                        lightIntensityOverride = 35f, // Dimmer light (default is 60)
-                        lightRangeOverride = 15f      // Smaller range (default is 25)
+                        canSpread = true, // <-- ADD THIS LINE
+                        lightIntensityOverride = 35f,
+                        lightRangeOverride = 15f
                     )
                     spawnedCount++
                 }
@@ -1493,8 +1494,9 @@ class PlayerSystem {
                             position = firePosition,
                             objectSystem = objectSystem,
                             lightingManager = lightingManager,
+                            canSpread = true,
                             lightIntensityOverride = 35f, // Dimmer light
-                            lightRangeOverride = 10f      // Smaller range
+                            lightRangeOverride = 10f // Smaller range
                         )
                         spawnedCount++
                     }

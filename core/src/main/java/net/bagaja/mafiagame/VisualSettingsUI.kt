@@ -539,7 +539,8 @@ class VisualSettingsUI(
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 val nextStyle = when (meleeRangeIndicatorSystem.getCurrentStyle()) {
                     IndicatorStyle.SOLID_CIRCLE -> IndicatorStyle.TEXTURED_RING
-                    IndicatorStyle.TEXTURED_RING -> IndicatorStyle.SOLID_CIRCLE
+                    IndicatorStyle.TEXTURED_RING -> IndicatorStyle.TEXTURED_RING_TRANSPARENT
+                    IndicatorStyle.TEXTURED_RING_TRANSPARENT -> IndicatorStyle.SOLID_CIRCLE
                 }
                 meleeRangeIndicatorSystem.setStyle(nextStyle)
                 updateIndicatorButtonStyle()

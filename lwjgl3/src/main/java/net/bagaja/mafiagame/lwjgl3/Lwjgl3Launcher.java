@@ -58,7 +58,6 @@ public class Lwjgl3Launcher {
 // car maybe be able to step up half a block
 // optional weapon light
 // Chain Reactions with Explosives & Fire
-// Spreading Fire
 // lanterns use not visible light sources
 // Environmental State Changes from Effects
 // Knockback from Explosions
