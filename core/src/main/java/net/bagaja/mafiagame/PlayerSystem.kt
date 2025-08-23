@@ -918,14 +918,11 @@ class PlayerSystem {
         for (block in sceneManager.activeChunkManager.getAllBlocks()) {
             if (!block.blockType.hasCollision) continue
 
-            // We need the block's standard bounding box, not a hypothetical one.
-            val blockBounds = block.getBoundingBox(blockSize, tempBlockBounds)
-
-            if (carBounds.intersects(blockBounds)) {
+          if (block.collidesWith(carBounds)) {
                 val carBottom = newPosition.y
-                val blockTop = blockBounds.max.y
+                val blockTop = block.getBoundingBox(blockSize, tempBlockBounds).max.y
 
-                if (carBounds.min.y >= blockBounds.max.y - 0.5f) {
+                if (carBounds.min.y >= blockTop - 0.5f) {
                     //   if (carBottom >= blockTop - 0.5f || blockTop - carBottom <= CAR_MAX_STEP_HEIGHT) { // old Version
                     continue
                 }

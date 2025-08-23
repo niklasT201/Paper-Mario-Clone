@@ -6,7 +6,6 @@ import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.*
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g3d.*
-import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.utils.Array
@@ -66,6 +65,7 @@ class MafiaGame : ApplicationAdapter() {
     var houseRequiringDoor: GameHouse? = null
 
     private var showInvisibleBlockOutlines = false
+    private var showBlockCollisionOutlines = false
 
     // Block size
     val blockSize = 4f
@@ -78,6 +78,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var footprintSystem: FootprintSystem
     private lateinit var boneSystem: BoneSystem
     lateinit var trajectorySystem: TrajectorySystem
+    private lateinit var blockDebugRenderer: BlockDebugRenderer
 
     override fun create() {
         setupGraphics()
@@ -115,6 +116,8 @@ class MafiaGame : ApplicationAdapter() {
 
         trajectorySystem = TrajectorySystem()
         trajectorySystem.initialize()
+        blockDebugRenderer = BlockDebugRenderer() // NEW
+        blockDebugRenderer.initialize()
 
         // Initialize UI Manager
         uiManager = UIManager(
@@ -562,6 +565,13 @@ class MafiaGame : ApplicationAdapter() {
         }
     }
 
+    fun toggleBlockCollisionOutlines() {
+        showBlockCollisionOutlines = !showBlockCollisionOutlines
+        val status = if (showBlockCollisionOutlines) "ON" else "OFF"
+        uiManager.updatePlacementInfo("Block Collision Outlines: $status")
+    }
+
+
     private fun updateCursorVisibility() {
         val shouldCatchCursor = !isEditorMode && !uiManager.isPauseMenuVisible()
 
@@ -801,6 +811,11 @@ class MafiaGame : ApplicationAdapter() {
                 interiorSystem.billboardModelBatch.end()
             }
 
+            // Render block collision wireframes if enabled
+            if (showBlockCollisionOutlines) {
+                blockDebugRenderer.render(cameraManager.camera, environment, sceneManager.activeChunkManager.getAllBlocks())
+            }
+
             if (showInvisibleBlockOutlines) {
                 highlightSystem.renderInvisibleBlockOutlines(
                     modelBatch,
@@ -882,6 +897,7 @@ class MafiaGame : ApplicationAdapter() {
         // Dispose UIManager
         teleporterSystem.dispose()
         trajectorySystem.dispose()
+        blockDebugRenderer.dispose()
         uiManager.dispose()
     }
 }

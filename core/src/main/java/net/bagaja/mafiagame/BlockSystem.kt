@@ -654,7 +654,7 @@ class BlockSystem {
                 val topY = (internalBlockSize * blockType.height) / 2f
 
                 val v_bottom_corner = Vector3(-half, bottomY, -half); val v_bottom_x = Vector3(half, bottomY, -half)
-                val v_bottom_z = Vector3(-half, bottomY, half);
+                val v_bottom_z = Vector3(-half, bottomY, half)
                 val v_top_corner = Vector3(-half, topY, -half); val v_top_x = Vector3(half, topY, -half)
                 val v_top_z = Vector3(-half, topY, half)
 
@@ -662,7 +662,7 @@ class BlockSystem {
                 val b1 = part.vertex(v_bottom_corner, Vector3.Y.cpy().scl(-1f), null, Vector2(0f, 0f))
                 val b2 = part.vertex(v_bottom_x, Vector3.Y.cpy().scl(-1f), null, Vector2(1f, 0f))
                 val b3 = part.vertex(v_bottom_z, Vector3.Y.cpy().scl(-1f), null, Vector2(0f, 1f))
-                part.triangle(b1, b2, b3)
+                part.triangle(b1, b3, b2)
 
                 // Top face (triangle) - Standard UVs
                 val top_uv_coords = arrayOf(Vector2(0f, 0f), Vector2(1f, 0f), Vector2(1f, 1f), Vector2(0f, 1f))

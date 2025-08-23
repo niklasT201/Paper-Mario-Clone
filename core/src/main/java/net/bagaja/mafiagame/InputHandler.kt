@@ -436,8 +436,15 @@ class InputHandler(
                             return true
                         }
                         Input.Keys.G -> {
-                            objectSystem.toggleDebugMode()
-                            game.toggleInvisibleBlockOutlines()
+                            // MODIFIED: Split the logic for the 'G' key
+                            if (uiManager.selectedTool == Tool.BLOCK) {
+                                // If the block tool is active, toggle the collision wireframes
+                                game.toggleBlockCollisionOutlines()
+                            } else {
+                                // Otherwise, perform the original debug action for objects and invisible blocks
+                                objectSystem.toggleDebugMode()
+                                game.toggleInvisibleBlockOutlines()
+                            }
                             return true
                         }
 

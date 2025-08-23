@@ -3,6 +3,7 @@ package net.bagaja.mafiagame
 import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
+import com.badlogic.gdx.math.collision.Ray
 import java.util.*
 
 enum class CameraVisibility {
@@ -40,7 +41,7 @@ enum class BlockRotationMode {
         return when (this) {
             GEOMETRY -> "Geometry"
             TEXTURE_SIDES -> "Texture (Sides)"
-            TEXTURE_TOP -> "Texture (Top)" // ADDED: Display name for the new mode
+            TEXTURE_TOP -> "Texture (Top)"
         }
     }
 }
@@ -89,6 +90,7 @@ data class GameBlock(
     private val v0 = Vector3()
     private val v1 = Vector3()
     private val v2 = Vector3()
+    private val triangleBounds = BoundingBox()
 
     init {
         if (shape != BlockShape.FULL_BLOCK && mesh != null) {
@@ -136,7 +138,7 @@ data class GameBlock(
 
     fun collidesWith(otherBounds: BoundingBox): Boolean {
         if (shape == BlockShape.FULL_BLOCK) {
-            // Fsimple AABB check
+            // simple AABB check
             val thisBounds = getBoundingBox(4f, BoundingBox()) // Assuming 4f is blockSize
             return thisBounds.intersects(otherBounds)
         }
@@ -148,7 +150,7 @@ data class GameBlock(
 
         val thisBounds = modelInstance.calculateBoundingBox(BoundingBox()).mul(modelInstance.transform)
         if (!thisBounds.intersects(otherBounds)) {
-            return false // Broad-phase check failed
+            return false // Broad-phase check failed, no need for expensive checks
         }
 
         for (i in indexShorts.indices step 3) {
@@ -168,17 +170,53 @@ data class GameBlock(
     }
 
     private fun intersectTriangleBounds(box: BoundingBox, v0: Vector3, v1: Vector3, v2: Vector3): Boolean {
-        // fast triangle-AABB intersection test
-        val minX = v0.x.coerceAtMost(v1.x.coerceAtMost(v2.x))
-        val minY = v0.y.coerceAtMost(v1.y.coerceAtMost(v2.y))
-        val minZ = v0.z.coerceAtMost(v1.z.coerceAtMost(v2.z))
-        val maxX = v0.x.coerceAtLeast(v1.x.coerceAtLeast(v2.x))
-        val maxY = v0.y.coerceAtLeast(v1.y.coerceAtLeast(v2.y))
-        val maxZ = v0.z.coerceAtLeast(v1.z.coerceAtLeast(v2.z))
+        // Broad-phase AABB check first
+        val triMinX = v0.x.coerceAtMost(v1.x.coerceAtMost(v2.x))
+        val triMinY = v0.y.coerceAtMost(v1.y.coerceAtMost(v2.y))
+        val triMinZ = v0.z.coerceAtMost(v1.z.coerceAtMost(v2.z))
+        val triMaxX = v0.x.coerceAtLeast(v1.x.coerceAtLeast(v2.x))
+        val triMaxY = v0.y.coerceAtLeast(v1.y.coerceAtLeast(v2.y))
+        val triMaxZ = v0.z.coerceAtLeast(v1.z.coerceAtLeast(v2.z))
 
-        return box.max.x >= minX && box.min.x <= maxX &&
-            box.max.y >= minY && box.min.y <= maxY &&
-            box.max.z >= minZ && box.min.z <= maxZ
+        // Create a temporary bounding box for the triangle and check for intersection
+        triangleBounds.set(Vector3(triMinX, triMinY, triMinZ), Vector3(triMaxX, triMaxY, triMaxZ))
+        if (!box.intersects(triangleBounds)) {
+            return false
+        }
+
+        // More precise checks
+        if (isPointInBounds(v0, box) || isPointInBounds(v1, box) || isPointInBounds(v2, box)) {
+            return true
+        }
+
+        if (lineIntersectsBounds(v0, v1, box) ||
+            lineIntersectsBounds(v1, v2, box) ||
+            lineIntersectsBounds(v2, v0, box)) {
+            return true
+        }
+
+        return false
+    }
+
+    private fun isPointInBounds(point: Vector3, bounds: BoundingBox): Boolean {
+        return point.x >= bounds.min.x && point.x <= bounds.max.x &&
+            point.y >= bounds.min.y && point.y <= bounds.max.y &&
+            point.z >= bounds.min.z && point.z <= bounds.max.z
+    }
+
+    private fun lineIntersectsBounds(start: Vector3, end: Vector3, bounds: BoundingBox): Boolean {
+        val direction = Vector3(end).sub(start)
+        val length = direction.len()
+        if (length < 0.0001f) return false // It's just a point
+        direction.nor()
+        val ray = Ray(start, direction)
+        val intersection = Vector3()
+
+        if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, bounds, intersection)) {
+            // Check if the intersection point is within the line segment's length
+            return start.dst2(intersection) <= length * length
+        }
+        return false
     }
 
     fun isFaceSolid(worldFace: BlockFace): Boolean {

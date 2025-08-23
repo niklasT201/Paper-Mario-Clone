@@ -66,7 +66,6 @@ public class Lwjgl3Launcher {
 // step up stair
 // maybe improving billboard shader
 // visible border of light sources
-// working collisions for ramp, pillar and corner
 // maybe adding player hiding tp point text behind it
 // visual reload/charging bar
 // missing knife, baseball bat and fist animations
