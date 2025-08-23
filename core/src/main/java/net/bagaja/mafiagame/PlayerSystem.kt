@@ -567,13 +567,17 @@ class PlayerSystem {
         isMuzzleFlashLightEnabled = !isMuzzleFlashLightEnabled
         println("Muzzle Flash Light toggled: ${if (isMuzzleFlashLightEnabled) "ON" else "OFF"}")
         // If we turn it off, make sure any active flash is immediately extinguished
-        if (!isMuzzleFlashLightEnabled) {
-            muzzleFlashLight?.let {
-                it.intensity = 0f
-                it.updatePointLight()
+        if (!isMuzzleFlashLightEnabled && muzzleFlashTimer > 0f) {
+            muzzleFlashLight?.let { light ->
+                light.intensity = 0f
+                light.updatePointLight()
             }
             muzzleFlashTimer = 0f
         }
+    }
+
+    fun isMuzzleFlashLightEnabled(): Boolean {
+        return isMuzzleFlashLightEnabled
     }
 
     private fun spawnBullet() {

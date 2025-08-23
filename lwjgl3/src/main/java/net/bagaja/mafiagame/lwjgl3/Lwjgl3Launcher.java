@@ -51,12 +51,10 @@ public class Lwjgl3Launcher {
 // edge houses
 // blocks being visible behind transparent enemies etc.
 // improve UIManagers code base
-// melee areas transparent
 // weapon radius for fire and explosions
 // damage gets less for higher radius
 // fire and explosion having the same radius, fire less damage than explosions
 // car maybe be able to step up half a block
-// optional weapon light
 // Chain Reactions with Explosives & Fire
 // lanterns use not visible light sources
 // Environmental State Changes from Effects

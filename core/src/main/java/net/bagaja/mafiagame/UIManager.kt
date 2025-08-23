@@ -195,7 +195,8 @@ class UIManager(
             this,
             game.targetingIndicatorSystem,
             game.trajectorySystem,
-            game.meleeRangeIndicatorSystem
+            game.meleeRangeIndicatorSystem,
+            game.playerSystem
         )
 
         pauseMenuUI = PauseMenuUI(skin, stage, this)

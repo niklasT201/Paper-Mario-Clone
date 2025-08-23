@@ -25,7 +25,8 @@ class VisualSettingsUI(
     private val uiManager: UIManager,
     private val targetingIndicatorSystem: TargetingIndicatorSystem,
     private val trajectorySystem: TrajectorySystem,
-    private val meleeRangeIndicatorSystem: MeleeRangeIndicatorSystem
+    private val meleeRangeIndicatorSystem: MeleeRangeIndicatorSystem,
+    private val playerSystem: PlayerSystem
 ) {
 
     private lateinit var mainContainer: Table
@@ -38,6 +39,7 @@ class VisualSettingsUI(
     private val indicatorCheckbox: CheckBox
     private val trajectoryCheckbox: CheckBox
     private var meleeRangeCheckbox: CheckBox
+    private val muzzleFlashCheckbox: CheckBox
     private lateinit var indicatorStyleButton: TextButton
 
     init {
@@ -48,6 +50,7 @@ class VisualSettingsUI(
         indicatorCheckbox = createVintageCheckbox(" Show Targeting Indicator")
         trajectoryCheckbox = createVintageCheckbox(" Show Trajectory Arc")
         meleeRangeCheckbox = createVintageCheckbox(" Show Melee Attack Range")
+        muzzleFlashCheckbox = createVintageCheckbox(" Enable Muzzle Flash Light")
 
         initialize()
         setupListeners()
@@ -134,7 +137,8 @@ class VisualSettingsUI(
         checkboxTable.add(cinematicBarsCheckbox).left().padBottom(15f).row()
         checkboxTable.add(indicatorCheckbox).left().padBottom(15f).row()
         checkboxTable.add(trajectoryCheckbox).left().padBottom(15f).row()
-        checkboxTable.add(meleeRangeCheckbox).left().padBottom(10f).row()
+        checkboxTable.add(meleeRangeCheckbox).left().padBottom(15f).row()
+        checkboxTable.add(muzzleFlashCheckbox).left().padBottom(10f).row()
 
         settingsTable.add(checkboxTable).fillX().row()
 
@@ -535,6 +539,12 @@ class VisualSettingsUI(
             }
         })
 
+        muzzleFlashCheckbox.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                playerSystem.toggleMuzzleFlashLight()
+            }
+        })
+
         indicatorStyleButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 val nextStyle = when (meleeRangeIndicatorSystem.getCurrentStyle()) {
@@ -556,6 +566,7 @@ class VisualSettingsUI(
         indicatorCheckbox.isChecked = targetingIndicatorSystem.isEnabled()
         trajectoryCheckbox.isChecked = trajectorySystem.isEnabled()
         meleeRangeCheckbox.isChecked = meleeRangeIndicatorSystem.isEnabled()
+        muzzleFlashCheckbox.isChecked = playerSystem.isMuzzleFlashLightEnabled()
         updateIndicatorButtonStyle()
         stage.addActor(overlay)
 
