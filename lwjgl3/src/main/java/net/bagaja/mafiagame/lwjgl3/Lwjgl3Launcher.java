@@ -50,7 +50,6 @@ public class Lwjgl3Launcher {
 // changing room transition effect colors
 // edge houses
 // blocks being visible behind transparent enemies etc.
-// improve UIManagers code base
 // weapon radius for fire and explosions
 // damage gets less for higher radius
 // fire and explosion having the same radius, fire less damage than explosions
