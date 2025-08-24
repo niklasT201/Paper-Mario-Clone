@@ -2,6 +2,7 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.math.Intersector
+import com.badlogic.gdx.math.Plane
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
@@ -71,6 +72,10 @@ class SceneManager(
     // Helper objects for physics/raycasting
     private val tempBlockBounds = BoundingBox()
     private val tempStairBounds = BoundingBox()
+    private val wedgePlane = Plane()
+    private val p1 = Vector3()
+    private val p2 = Vector3()
+    private val p3 = Vector3()
 
     // --- INITIALIZATION ---
     fun initializeWorld(
@@ -153,23 +158,67 @@ class SceneManager(
         return closestResult
     }
 
+    private fun calculateWedgeSupportY(wedge: GameBlock, x: Float, z: Float): Float {
+        val modelInstance = wedge.modelInstance ?: return -Float.MAX_VALUE
+        val transform = modelInstance.transform
+        val halfSize = game.blockSize / 2f
+        val topY = (game.blockSize * wedge.blockType.height) / 2f
+
+        // 1. Define the local-space vertices of the sloped top face
+        val v_top_corner = p1.set(-halfSize, topY, -halfSize)
+        val v_top_x = p2.set(halfSize, topY, -halfSize)
+        val v_top_z = p3.set(-halfSize, topY, halfSize)
+
+        // 2. Transform them into world space
+        v_top_corner.mul(transform)
+        v_top_x.mul(transform)
+        v_top_z.mul(transform)
+
+        // 3. Create a mathematical plane from the three world-space points
+        wedgePlane.set(v_top_corner, v_top_x, v_top_z)
+
+        // 4. Calculate the Y value on the plane for the given X and Z
+        if (wedgePlane.normal.y == 0f) return -Float.MAX_VALUE // Avoid division by zero
+        val supportY = (-wedgePlane.normal.x * x - wedgePlane.normal.z * z - wedgePlane.d) / wedgePlane.normal.y
+
+        // 5. Final check: ensure the point (x,z) is actually within the triangle's 2D footprint.
+        if (Intersector.isPointInTriangle(x, z, v_top_corner.x, v_top_corner.z, v_top_x.x, v_top_x.z, v_top_z.x, v_top_z.z)) {
+            return supportY
+        }
+
+        return -Float.MAX_VALUE // Return a very low number if not on the triangle
+    }
+
+    private fun getSupportYForBlock(block: GameBlock, x: Float, z: Float, checkRadius: Float): Float {
+        if (block.shape == BlockShape.CORNER_WEDGE) {
+            // This will return the exact Y on the sloped plane, or a very low number if (x,z) is outside the triangle.
+            return calculateWedgeSupportY(block, x, z)
+        } else {
+            val blockBounds = block.getBoundingBox(game.blockSize, tempBlockBounds)
+            val horizontalOverlap = (x + checkRadius > blockBounds.min.x && x - checkRadius < blockBounds.max.x) &&
+                (z + checkRadius > blockBounds.min.z && z - checkRadius < blockBounds.max.z)
+
+            // Return the top of the box if we overlap, otherwise a very low number.
+            return if (horizontalOverlap) blockBounds.max.y else -Float.MAX_VALUE
+        }
+    }
+
     fun findHighestSupportY(x: Float, z: Float, currentY: Float, checkRadius: Float, blockSize: Float): Float {
         var highestSupportY = 0f // Default to ground level
-
-        // This uses the player's dimensions, which is okay since SceneManager has a reference to playerSystem.
         val entityFootY = currentY - (playerSystem.playerSize.y / 2f)
         val checkRange = 10f
 
-        // 1. Check Blocks using the efficient column query
+        // 1. Check Blocks
         val blocksInColumn = activeChunkManager.getBlocksInColumn(x, z)
         for (block in blocksInColumn) {
             if (!block.blockType.hasCollision) continue
 
-            val blockBounds = block.getBoundingBox(blockSize, tempBlockBounds)
-            val blockTop = blockBounds.max.y
+            // Get the potential support Y
+            val potentialSupportY = getSupportYForBlock(block, x, z, checkRadius)
 
-            if (blockTop <= entityFootY + PlayerSystem.MAX_STEP_HEIGHT && blockTop > highestSupportY) {
-                highestSupportY = blockTop
+            // support must be reasonably close to the player's feet
+            if (potentialSupportY <= entityFootY + PlayerSystem.MAX_STEP_HEIGHT && potentialSupportY > highestSupportY) {
+                highestSupportY = potentialSupportY
             }
         }
 
@@ -261,17 +310,17 @@ class SceneManager(
         var highestSupportY = 0f // Default to ground level
         val entityFootY = currentY - (playerSystem.playerSize.y / 2f)
 
-        // 1. Check Blocks using the efficient column query
+        // 1. Check Blocks
         val blocksInColumn = activeChunkManager.getBlocksInColumn(x, z)
         for (block in blocksInColumn) {
             if (!block.blockType.hasCollision) continue
 
-            val blockBounds = block.getBoundingBox(blockSize, tempBlockBounds)
-            val blockTop = blockBounds.max.y
+            // Get the potential support Y
+            val potentialSupportY = getSupportYForBlock(block, x, z, checkRadius)
 
-            // STRICT CHECK: The support must be at or below the entity's feet.
-            if (blockTop <= entityFootY + 0.01f && blockTop > highestSupportY) { // Added a tiny tolerance
-                highestSupportY = blockTop
+            // support must be at or below the player's feet
+            if (potentialSupportY <= entityFootY + 0.01f && potentialSupportY > highestSupportY) {
+                highestSupportY = potentialSupportY
             }
         }
 

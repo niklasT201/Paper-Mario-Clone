@@ -658,13 +658,13 @@ class BlockSystem {
                 val v_top_corner = Vector3(-half, topY, -half); val v_top_x = Vector3(half, topY, -half)
                 val v_top_z = Vector3(-half, topY, half)
 
-                // Bottom face (triangle) - Standard UVs
+                // Bottom face (triangle)
                 val b1 = part.vertex(v_bottom_corner, Vector3.Y.cpy().scl(-1f), null, Vector2(0f, 0f))
                 val b2 = part.vertex(v_bottom_x, Vector3.Y.cpy().scl(-1f), null, Vector2(1f, 0f))
                 val b3 = part.vertex(v_bottom_z, Vector3.Y.cpy().scl(-1f), null, Vector2(0f, 1f))
                 part.triangle(b1, b3, b2)
 
-                // Top face (triangle) - Standard UVs
+                // Top face (triangle) - Rotated UVs for the top
                 val top_uv_coords = arrayOf(Vector2(0f, 0f), Vector2(1f, 0f), Vector2(1f, 1f), Vector2(0f, 1f))
                 val steps = (topTextureRotation / 90f).toInt().let { if (it < 0) it + 4 else it } % 4
                 val uv_corner = top_uv_coords[(0 + steps) % 4]
@@ -676,15 +676,19 @@ class BlockSystem {
                 val t3 = part.vertex(v_top_x, Vector3.Y, null, uv_x_axis)
                 part.triangle(t1, t2, t3)
 
-                // Back face (rectangle) - Rotated UVs
+                // Back face (rectangle)
                 buildRectWithUVs(part, v_bottom_x, v_bottom_corner, v_top_corner, v_top_x, Vector3(0f, 0f, -1f), r_uv00_side, r_uv10_side, r_uv11_side, r_uv01_side)
-
-                // Left face (rectangle) - Rotated UVs
+                // Left face (rectangle)
                 buildRectWithUVs(part, v_bottom_corner, v_bottom_z, v_top_z, v_top_corner, Vector3(-1f, 0f, 0f), r_uv00_side, r_uv10_side, r_uv11_side, r_uv01_side)
 
-                // Sloped face - Rotated UVs
+                // Sloped face - Corrected UV mapping for proper texturing
                 val slopedNormal = Vector3(v_bottom_z).sub(v_bottom_x).crs(Vector3(v_top_x).sub(v_bottom_x)).nor()
-                buildRectWithUVs(part, v_bottom_z, v_bottom_x, v_top_x, v_top_z, slopedNormal, r_uv00_side, r_uv10_side, r_uv11_side, r_uv01_side)
+                val s1 = part.vertex(v_bottom_z, slopedNormal, null, r_uv00_side)
+                val s2 = part.vertex(v_bottom_x, slopedNormal, null, r_uv10_side)
+                val s3 = part.vertex(v_top_x, slopedNormal, null, r_uv11_side)
+                val s4 = part.vertex(v_top_z, slopedNormal, null, r_uv01_side)
+                part.triangle(s1, s2, s3)
+                part.triangle(s3, s4, s1)
 
                 modelBuilder.end()
             }
