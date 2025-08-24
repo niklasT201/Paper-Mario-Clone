@@ -436,7 +436,15 @@ class InputHandler(
                             return true
                         }
                         Input.Keys.G -> {
-                            // MODIFIED: Split the logic for the 'G' key
+                            val shiftPressed = Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)
+                            if (shiftPressed) {
+                                if (uiManager.selectedTool == Tool.OBJECT) {
+                                    game.lightingManager.toggleLightAreaVisibility()
+                                    val status = if (game.lightingManager.isLightAreaVisible) "ON" else "OFF"
+                                    uiManager.updatePlacementInfo("Light Area Visibility: $status")
+                                    return true // Consume the input so the original 'G' action doesn't run
+                                }
+                            }
                             if (uiManager.selectedTool == Tool.BLOCK) {
                                 // If the block tool is active, toggle the collision wireframes
                                 game.toggleBlockCollisionOutlines()

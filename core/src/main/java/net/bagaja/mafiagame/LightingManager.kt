@@ -1,12 +1,12 @@
 package net.bagaja.mafiagame
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Camera
 import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.VertexAttributes
-import com.badlogic.gdx.graphics.g3d.Environment
-import com.badlogic.gdx.graphics.g3d.Material
-import com.badlogic.gdx.graphics.g3d.ModelBatch
-import com.badlogic.gdx.graphics.g3d.ModelInstance
+import com.badlogic.gdx.graphics.g3d.*
+import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.environment.DirectionalLight
 import com.badlogic.gdx.graphics.g3d.environment.PointLight
@@ -38,6 +38,11 @@ class LightingManager {
     private var timeOverrideProgress: Float? = null
     private var isBuildModeBright = false
 
+    var isLightAreaVisible = false
+        private set
+    private var lightAreaModel: Model? = null
+    private var lightAreaInstance: ModelInstance? = null
+
     fun setGrayscaleMode(enabled: Boolean) {
         isGrayscaleMode = enabled
     }
@@ -56,6 +61,20 @@ class LightingManager {
 
         // Set initial lighting based on the starting time
         updateLighting()
+
+        // Create model for the light area visual
+        val areaMaterial = Material(
+            ColorAttribute.createDiffuse(1f, 1f, 0.2f, 0.25f), // Yellow, 25% transparent
+            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+        )
+        // Create a sphere with a diameter of 1 unit
+        lightAreaModel = modelBuilder.createSphere(1f, 1f, 1f, 24, 24, areaMaterial,
+            (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong())
+        lightAreaInstance = ModelInstance(lightAreaModel!!)
+    }
+
+    fun toggleLightAreaVisibility() {
+        isLightAreaVisible = !isLightAreaVisible
     }
 
     private fun createSunModel() {
@@ -246,6 +265,30 @@ class LightingManager {
             val (invisibleInstance, debugInstance) = instances
             modelBatch.render(debugInstance, environment)
         }
+    }
+
+    fun renderLightAreas(modelBatch: ModelBatch) {
+        if (!isLightAreaVisible || lightAreaInstance == null) {
+            return
+        }
+
+        // Enable blending for transparency
+        Gdx.gl.glEnable(GL20.GL_BLEND)
+        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+        Gdx.gl.glDepthMask(false)
+
+        for (lightSource in lightSources.values) {
+            if (lightSource.isEnabled) {
+                val scale = lightSource.range * 2f // Scale diameter to match the light's range
+                lightAreaInstance!!.transform.setToTranslation(lightSource.position)
+                lightAreaInstance!!.transform.scale(scale, scale, scale)
+                modelBatch.render(lightAreaInstance!!)
+            }
+        }
+
+        // Restore the default OpenGL state
+        Gdx.gl.glDepthMask(true)
+        Gdx.gl.glDisable(GL20.GL_BLEND)
     }
 
     private fun updateFlickeringLights(deltaTime: Float) {

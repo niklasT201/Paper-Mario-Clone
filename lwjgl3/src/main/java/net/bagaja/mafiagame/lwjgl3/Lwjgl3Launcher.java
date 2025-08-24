@@ -57,6 +57,7 @@ public class Lwjgl3Launcher {
 // car maybe be able to step up half a block
 // Chain Reactions with Explosives & Fire
 // lanterns use not visible light sources
+// fire using not real light sources like muzzle flash and headlights
 // Environmental State Changes from Effects
 // Knockback from Explosions
 // Faction & Alert System
@@ -65,7 +66,6 @@ public class Lwjgl3Launcher {
 // maybe adding bouncy dynamite (1 bounce max)
 // step up stair
 // maybe improving billboard shader
-// visible border of light sources
 // maybe adding player hiding tp point text behind it
 // visual reload/charging bar
 // missing knife, baseball bat and fist animations

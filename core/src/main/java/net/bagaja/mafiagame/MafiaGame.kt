@@ -748,6 +748,9 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render light sources
         lightingManager.renderLightInstances(modelBatch, environment, objectSystem.debugMode)
+        if (isEditorMode) {
+            lightingManager.renderLightAreas(modelBatch)
+        }
         houseSystem.renderEntryPoints(modelBatch, environment, objectSystem)
 
         for (house in sceneManager.activeHouses) {
