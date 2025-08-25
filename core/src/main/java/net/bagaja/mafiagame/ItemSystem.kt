@@ -305,7 +305,7 @@ class ItemSystem: IFinePositionable {
                 // Check if the collected item corresponds to a weapon
                 item.itemType.correspondingWeapon?.let { weaponToEquip ->
                     // If it does, tell the player system to equip it
-                    playerSystem.equipWeapon(weaponToEquip)
+                    playerSystem.equipWeapon(weaponToEquip, item.ammo)
                 }
             }
         }
@@ -362,10 +362,11 @@ data class GameItem(
     val modelInstance: ModelInstance,
     val itemType: ItemType,
     val position: Vector3,
-    var rotationSpeed: Float = 90f, // Degrees per second
+    var rotationSpeed: Float = 90f,
     private var totalTime: Float = 0f,
-    private var bobOffset: Float = 0f, // Random offset for bobbing animation
-    var isCollected: Boolean = false
+    private var bobOffset: Float = 0f,
+    var isCollected: Boolean = false,
+    var ammo: Int = itemType.ammoAmount // NEW: Give each item its own ammo count, defaulting to the type's base amount.
 ) {
     init {
         // Random bobbing offset so items don't all bob in sync

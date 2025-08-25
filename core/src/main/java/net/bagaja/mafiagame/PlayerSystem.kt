@@ -712,7 +712,7 @@ class PlayerSystem {
         }
     }
 
-    fun equipWeapon(weaponType: WeaponType) {
+    fun equipWeapon(weaponType: WeaponType, ammoToGive: Int? = null) { // MODIFIED: Add optional ammo parameter
         if (!weapons.contains(weaponType)) {
             // A mutable list is needed to add items
             val mutableWeapons = weapons.toMutableList()
@@ -724,6 +724,12 @@ class PlayerSystem {
         this.currentMagazineCount = weaponType.magazineSize
         isReloading = false
         reloadTimer = 0f
+
+        // NEW: Add the ammo from the picked-up item to reserves
+        if (ammoToGive != null && ammoToGive > 0) {
+            addAmmo(weaponType, ammoToGive)
+        }
+
         println("Player equipped: ${weaponType.displayName}. Magazine loaded with $currentMagazineCount rounds.")
     }
 

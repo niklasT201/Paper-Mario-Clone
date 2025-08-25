@@ -950,8 +950,12 @@ class SceneManager(
                         newSpawner.maxItems = element.spawnerMaxItems ?: newSpawner.maxItems
 
                         newSpawner.weaponItemType = element.spawnerWeaponItemType ?: newSpawner.weaponItemType
-                        newSpawner.minAmmo = element.spawnerMinAmmo ?: newSpawner.minAmmo
-                        newSpawner.maxAmmo = element.spawnerMaxAmmo ?: newSpawner.maxAmmo
+
+                        // Load the ammo settings from the template element
+                        newSpawner.ammoSpawnMode = element.ammoSpawnMode ?: newSpawner.ammoSpawnMode
+                        newSpawner.setAmmoValue = element.setAmmoValue ?: newSpawner.setAmmoValue
+                        newSpawner.randomMinAmmo = element.randomMinAmmo ?: newSpawner.randomMinAmmo
+                        newSpawner.randomMaxAmmo = element.randomMaxAmmo ?: newSpawner.randomMaxAmmo
 
                         newParticleSpawners.add(newSpawner)
                     }
@@ -1210,8 +1214,12 @@ class SceneManager(
 
                 // Weapon properties
                 spawnerWeaponItemType = spawner.weaponItemType,
-                spawnerMinAmmo = spawner.minAmmo,
-                spawnerMaxAmmo = spawner.maxAmmo
+
+                // Save the new ammo settings
+                ammoSpawnMode = spawner.ammoSpawnMode,
+                setAmmoValue = spawner.setAmmoValue,
+                randomMinAmmo = spawner.randomMinAmmo,
+                randomMaxAmmo = spawner.randomMaxAmmo
             ))
         }
 
@@ -1396,8 +1404,12 @@ class SceneManager(
                         newSpawner.maxItems = element.spawnerMaxItems ?: newSpawner.maxItems
 
                         newSpawner.weaponItemType = element.spawnerWeaponItemType ?: newSpawner.weaponItemType
-                        newSpawner.minAmmo = element.spawnerMinAmmo ?: newSpawner.minAmmo
-                        newSpawner.maxAmmo = element.spawnerMaxAmmo ?: newSpawner.maxAmmo
+
+                        // Load the ammo settings from the template element
+                        newSpawner.ammoSpawnMode = element.ammoSpawnMode ?: newSpawner.ammoSpawnMode
+                        newSpawner.setAmmoValue = element.setAmmoValue ?: newSpawner.setAmmoValue
+                        newSpawner.randomMinAmmo = element.randomMinAmmo ?: newSpawner.randomMinAmmo
+                        newSpawner.randomMaxAmmo = element.randomMaxAmmo ?: newSpawner.randomMaxAmmo
 
                         activeSpawners.add(newSpawner)
                     }

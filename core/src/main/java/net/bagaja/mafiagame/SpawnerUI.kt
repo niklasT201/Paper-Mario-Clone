@@ -49,9 +49,14 @@ class SpawnerUI(
 
     // Weapon Settings
     private val weaponSelectBox: SelectBox<String>
-    private val minAmmoField: TextField
-    private val maxAmmoField: TextField
     private val weaponPreviewImage: Image
+
+    private val ammoModeSelectBox: SelectBox<String>
+    private val setAmmoField: TextField
+    private val randomMinAmmoField: TextField
+    private val randomMaxAmmoField: TextField
+    private val setAmmoTable: Table // A table to hold the "Set" UI
+    private val randomAmmoTable: Table // A table to hold the "Random" UI
 
 
     private val applyButton: TextButton
@@ -62,23 +67,23 @@ class SpawnerUI(
     private val previewTextures = mutableMapOf<String, Texture>()
 
     init {
-        // Pre-load all preview textures
+        // Pre-load all preview textures for performance
         ParticleEffectType.entries.forEach { type ->
             try {
                 previewTextures[type.name] = Texture(Gdx.files.internal(type.texturePaths.first()))
-            } catch (e: Exception) { /* ignore */ }
+            } catch (e: Exception) { /* ignore missing textures */ }
         }
         ItemType.entries.forEach { type ->
             try {
                 previewTextures[type.name] = Texture(Gdx.files.internal(type.texturePath))
-            } catch (e: Exception) { /* ignore */ }
+            } catch (e: Exception) { /* ignore missing textures */ }
         }
 
-
+        // --- Main Window Setup ---
         window.isModal = false
         window.isMovable = true
-        window.setSize(500f, 480f)
-        window.setPosition(stage.width / 2f - 250f, stage.height / 2f - 240f)
+        window.setSize(500f, 520f) // Slightly increased height for new fields
+        window.setPosition(stage.width / 2f - 250f, stage.height / 2f - 260f)
         window.align(Align.top)
         window.padTop(40f)
 
@@ -137,7 +142,6 @@ class SpawnerUI(
         itemSettingsTable.add(Label("Max Items:", skin)).left()
         itemSettingsTable.add(maxItemsField).width(80f).left().row()
 
-
         // --- Build Weapon Tab ---
         weaponPreviewImage = Image()
         val weaponNames = GdxArray(ItemType.entries.filter { it.correspondingWeapon != null }.map { it.displayName }.toTypedArray())
@@ -148,13 +152,36 @@ class SpawnerUI(
         weaponEffectFields.add(Label("Weapon Type:", skin)).left().row()
         weaponEffectFields.add(weaponSelectBox).expandX().fillX().row()
         weaponSettingsTable.add(weaponEffectFields).grow()
-        minAmmoField = TextField("", skin)
-        maxAmmoField = TextField("", skin)
-        weaponSettingsTable.row().padTop(10f)
-        weaponSettingsTable.add(Label("Min Ammo:", skin)).left()
-        weaponSettingsTable.add(minAmmoField).width(80f).left().row()
-        weaponSettingsTable.add(Label("Max Ammo:", skin)).left()
-        weaponSettingsTable.add(maxAmmoField).width(80f).left().row()
+
+        // NEW: Ammo Settings UI
+        weaponSettingsTable.row().padTop(15f)
+        val ammoSettingsTable = Table()
+        ammoSettingsTable.add(Label("Ammo Mode:", skin)).left().padRight(10f)
+
+        val ammoModes = GdxArray(AmmoSpawnMode.entries.map { it.name }.toTypedArray())
+        ammoModeSelectBox = SelectBox(skin)
+        ammoModeSelectBox.items = ammoModes
+        ammoSettingsTable.add(ammoModeSelectBox).left().row()
+        weaponSettingsTable.add(ammoSettingsTable).colspan(2).left().row()
+
+        // "Set" value UI (initially hidden)
+        setAmmoTable = Table()
+        setAmmoField = TextField("", skin)
+        setAmmoTable.add(Label("Set Amount:", skin)).padRight(10f)
+        setAmmoTable.add(setAmmoField).width(80f)
+        setAmmoTable.isVisible = false
+        weaponSettingsTable.add(setAmmoTable).colspan(2).left().padTop(5f).row()
+
+        // "Random" value UI (initially hidden)
+        randomAmmoTable = Table()
+        randomMinAmmoField = TextField("", skin)
+        randomMaxAmmoField = TextField("", skin)
+        randomAmmoTable.add(Label("Random Min:", skin)).padRight(10f)
+        randomAmmoTable.add(randomMinAmmoField).width(60f).padRight(10f)
+        randomAmmoTable.add(Label("Max:", skin)).padRight(10f)
+        randomAmmoTable.add(randomMaxAmmoField).width(60f)
+        randomAmmoTable.isVisible = false
+        weaponSettingsTable.add(randomAmmoTable).colspan(2).left().padTop(5f).row()
 
         // Add the tab content tables to the window, but only one will be visible at a time
         window.add(particleSettingsTable).colspan(2).fillX().padBottom(15f).row()
@@ -224,10 +251,23 @@ class SpawnerUI(
             override fun changed(event: ChangeEvent?, actor: Actor?) { if (weaponTabButton.isChecked) showTab(SpawnerType.WEAPON) }
         })
 
+        ammoModeSelectBox.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                updateAmmoFieldVisibility()
+            }
+        })
+
         // Preview image listeners
         effectSelectBox.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { updatePreviewImages() }})
         itemSelectBox.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { updatePreviewImages() }})
         weaponSelectBox.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { updatePreviewImages() }})
+    }
+
+    private fun updateAmmoFieldVisibility() {
+        val selectedMode = AmmoSpawnMode.valueOf(ammoModeSelectBox.selected)
+        setAmmoTable.isVisible = selectedMode == AmmoSpawnMode.SET
+        randomAmmoTable.isVisible = selectedMode == AmmoSpawnMode.RANDOM
+        window.pack() // Adjust window size to fit the new fields
     }
 
     private fun showTab(type: SpawnerType) {
@@ -257,8 +297,12 @@ class SpawnerUI(
 
         // Populate weapon fields
         weaponSelectBox.selected = spawner.weaponItemType.displayName
-        minAmmoField.text = spawner.minAmmo.toString()
-        maxAmmoField.text = spawner.maxAmmo.toString()
+
+        // NEW: Populate ammo fields
+        ammoModeSelectBox.selected = spawner.ammoSpawnMode.name
+        setAmmoField.text = spawner.setAmmoValue.toString()
+        randomMinAmmoField.text = spawner.randomMinAmmo.toString()
+        randomMaxAmmoField.text = spawner.randomMaxAmmo.toString()
 
         // Set the correct tab
         when (spawner.spawnerType) {
@@ -268,6 +312,7 @@ class SpawnerUI(
         }
         showTab(spawner.spawnerType)
         updatePreviewImages()
+        updateAmmoFieldVisibility() // NEW: Update visibility when showing the window
 
         window.toFront()
         window.isVisible = true
@@ -309,9 +354,16 @@ class SpawnerUI(
                 spawner.spawnerType = SpawnerType.WEAPON
                 val selectedWeaponName = weaponSelectBox.selected
                 spawner.weaponItemType = ItemType.entries.find { it.displayName == selectedWeaponName } ?: spawner.weaponItemType
-                val newMin = minAmmoField.text.toIntOrNull()?.coerceAtLeast(1) ?: spawner.minAmmo
-                spawner.minAmmo = newMin
-                spawner.maxAmmo = maxAmmoField.text.toIntOrNull()?.coerceAtLeast(newMin) ?: spawner.maxAmmo
+
+                // Apply NEW ammo settings using the correct UI fields
+                spawner.ammoSpawnMode = AmmoSpawnMode.valueOf(ammoModeSelectBox.selected)
+                spawner.setAmmoValue = setAmmoField.text.toIntOrNull()?.coerceAtLeast(0) ?: spawner.setAmmoValue
+
+                val newMin = randomMinAmmoField.text.toIntOrNull()?.coerceAtLeast(0) ?: spawner.randomMinAmmo
+                spawner.randomMinAmmo = newMin
+
+                // CORRECTED LINE: This now uses 'randomMaxAmmoField' as it should.
+                spawner.randomMaxAmmo = randomMaxAmmoField.text.toIntOrNull()?.coerceAtLeast(newMin) ?: spawner.randomMaxAmmo
             }
         }
     }

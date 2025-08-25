@@ -9,6 +9,12 @@ enum class SpawnerType {
     PARTICLE, ITEM, WEAPON
 }
 
+enum class AmmoSpawnMode {
+    FIXED, // Uses the default value from the weapon's ItemType
+    SET,   // Uses a specific value set in the spawner
+    RANDOM // Uses a random value between a min/max
+}
+
 /**
  * MODIFIED: Data class to hold all spawner instance data. Replaces GameParticleSpawner.
  */
@@ -38,8 +44,12 @@ data class GameSpawner(
 
     // Weapon-specific settings
     var weaponItemType: ItemType = ItemType.REVOLVER, // Spawns the item corresponding to the weapon
-    var minAmmo: Int = 6,
-    var maxAmmo: Int = 12
+
+    // Ammo settings
+    var ammoSpawnMode: AmmoSpawnMode = AmmoSpawnMode.FIXED,
+    var setAmmoValue: Int = 12,
+    var randomMinAmmo: Int = 6,
+    var randomMaxAmmo: Int = 18
 )
 
 /**
@@ -127,21 +137,35 @@ class SpawnerSystem(
     }
 
     private fun spawnWeaponPickup(spawner: GameSpawner) {
-        // A "weapon spawner" creates the corresponding weapon *item* for the player to pick up.
         val weaponItem = itemSystem.createItem(spawner.position, spawner.weaponItemType)
         if (weaponItem != null) {
+            // Calculate ammo based on the spawner's settings
+            val ammoToGive = when (spawner.ammoSpawnMode) {
+                AmmoSpawnMode.FIXED -> {
+                    // Use the default ammo amount from the item's definition
+                    spawner.weaponItemType.ammoAmount
+                }
+                AmmoSpawnMode.SET -> {
+                    // Use the specific value set on the spawner
+                    spawner.setAmmoValue
+                }
+                AmmoSpawnMode.RANDOM -> {
+                    // Generate a random amount within the spawner's defined range
+                    if (spawner.randomMinAmmo >= spawner.randomMaxAmmo) {
+                        spawner.randomMinAmmo
+                    } else {
+                        Random.nextInt(spawner.randomMinAmmo, spawner.randomMaxAmmo + 1)
+                    }
+                }
+            }
+
+            // Set the calculated ammo on the individual item instance
+            weaponItem.ammo = ammoToGive
+
             sceneManager.activeItems.add(weaponItem)
             itemSystem.setActiveItems(sceneManager.activeItems)
 
-            // NEW: Placeholder logic for ammunition.
-            // When the player picks up this 'weaponItem', you'll check its type in PlayerSystem.
-            // Then, you can add the ammo amount to the player's inventory for that weapon.
-            val ammoToGive = if (spawner.minAmmo >= spawner.maxAmmo) {
-                spawner.minAmmo
-            } else {
-                Random.nextInt(spawner.minAmmo, spawner.maxAmmo + 1)
-            }
-            println("Weapon spawner created ${weaponItem.itemType.displayName}. It should grant $ammoToGive ammo on pickup.")
+            println("Weapon spawner created ${weaponItem.itemType.displayName}. It will grant $ammoToGive ammo on pickup.")
         }
     }
 
