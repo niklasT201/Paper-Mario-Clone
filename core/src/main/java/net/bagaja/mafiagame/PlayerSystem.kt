@@ -55,7 +55,7 @@ class PlayerSystem {
     private lateinit var billboardShaderProvider: BillboardShaderProvider
     private lateinit var billboardModelBatch: ModelBatch
 
-    var health: Float = 100f
+    private var health: Float = 100f
         private set
     private val maxHealth: Float = 100f
 
@@ -123,13 +123,15 @@ class PlayerSystem {
 
     private var state = PlayerState.IDLE
     private var attackTimer = 0f // Timer for how long the ATTACKING state lasts
-    var throwChargeTime = 0f
+    private var throwChargeTime = 0f
+        private set
+    private val ammoReserves = mutableMapOf<WeaponType, Int>()
+    private var currentMagazineCount = 0
         private set
 
     var equippedWeapon: WeaponType = WeaponType.UNARMED
     private var weapons: List<WeaponType> = listOf(WeaponType.UNARMED)
     private var currentWeaponIndex = 0
-    private var currentMagazineCount = 0
 
     private var isShooting = false
     private val shootingPoseDuration = 0.2f
@@ -345,13 +347,50 @@ class PlayerSystem {
         return state == PlayerState.CHARGING_THROW
     }
 
-    // NEW: A helper to get the starting position for the arc, slightly in front of the player
+    private fun addAmmo(weaponType: WeaponType, amount: Int) {
+        if (weaponType.actionType == WeaponActionType.SHOOTING) {
+            val currentAmmo = ammoReserves.getOrDefault(weaponType, 0)
+            ammoReserves[weaponType] = currentAmmo + amount
+            println("Added $amount ammo for ${weaponType.displayName}. Total: ${ammoReserves[weaponType]}")
+        }
+    }
+
+    private fun reload() {
+        if (!equippedWeapon.requiresReload) return // Can't reload this weapon type
+
+        val ammoNeeded = equippedWeapon.magazineSize - currentMagazineCount
+        if (ammoNeeded <= 0) return // Magazine is already full
+
+        val ammoAvailable = ammoReserves.getOrDefault(equippedWeapon, 0)
+        if (ammoAvailable <= 0) {
+            println("Out of reserve ammo for ${equippedWeapon.displayName}!")
+            // TODO: Play an "empty" sound effect here
+            return
+        }
+
+        val ammoToMove = minOf(ammoNeeded, ammoAvailable)
+        currentMagazineCount += ammoToMove
+        ammoReserves[equippedWeapon] = ammoAvailable - ammoToMove
+
+        println("Reloaded! Magazine: $currentMagazineCount. Reserves: ${ammoReserves[equippedWeapon]}")
+        // TODO: Play a reload sound effect here
+        // TODO: Set a reload timer so the player can't shoot instantly
+    }
+
+    private fun canShoot(): Boolean {
+        // If the weapon requires a reload, we check the magazine.
+        if (equippedWeapon.requiresReload) {
+            return currentMagazineCount > 0
+        }
+        // Otherwise (like a shotgun), we check the total reserve ammo.
+        return ammoReserves.getOrDefault(equippedWeapon, 0) > 0
+    }
+
     fun getThrowableSpawnPosition(): Vector3 {
         val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
         return physicsComponent.position.cpy().add(directionX * 1.5f, 1f, 0f)
     }
 
-    // NEW: A helper to calculate the initial velocity based on the current charge time
     fun getThrowableInitialVelocity(): Vector3 {
         val minPower = 15f
         val maxPower = 45f
@@ -388,19 +427,22 @@ class PlayerSystem {
 
                 when (equippedWeapon.actionType) {
                     WeaponActionType.SHOOTING -> {
-                        // TODO: Add check for magazine count here
-                        // if (currentMagazineCount > 0 || !equippedWeapon.requiresReload) {
-                        if (Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
+                        if (canShoot() && Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
                             if (!isRotating) {
-                                spawnBullet()
-                                // currentMagazineCount--
-                                // } else {
-                                // TODO: Play an "empty clip" sound effect
-                                // }
+                                spawnBullet() // This function will now handle ammo reduction
                                 fireRateTimer = equippedWeapon.fireCooldown
                                 state = PlayerState.ATTACKING
                                 attackTimer = shootingPoseDuration
                             }
+                        } else if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+                            // Player tried to shoot but couldn't (e.g., empty magazine)
+                            println("Click! (Out of ammo or empty magazine)")
+                            // TODO: Play an "empty clip" sound effect here
+                        }
+
+                        // Reload logic
+                        if (Gdx.input.isKeyJustPressed(Input.Keys.R)) {
+                            reload()
                         }
                     }
                     WeaponActionType.MELEE -> {
@@ -587,6 +629,14 @@ class PlayerSystem {
     }
 
     private fun spawnBullet() {
+        if (equippedWeapon.requiresReload) {
+            currentMagazineCount--
+        } else {
+            // For weapons like shotguns, decrement from the main reserve
+            val currentReserve = ammoReserves.getOrDefault(equippedWeapon, 0)
+            ammoReserves[equippedWeapon] = maxOf(0, currentReserve - 1)
+        }
+
         val bulletModel = bulletModels[equippedWeapon.bulletTexturePath] ?: return
 
         val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
@@ -672,7 +722,12 @@ class PlayerSystem {
 
         this.equippedWeapon = weaponType
         this.currentMagazineCount = weaponType.magazineSize
-        println("Player equipped: ${weaponType.displayName}")
+        println("Player equipped: ${weaponType.displayName}. Magazine loaded with $currentMagazineCount rounds.")
+
+        addAmmo(WeaponType.REVOLVER, 24)
+        addAmmo(WeaponType.TOMMY_GUN, 150)
+        addAmmo(WeaponType.MACHINE_GUN, 200)
+        addAmmo(WeaponType.SHOTGUN, 12)
     }
 
     fun hasGunEquipped(): Boolean {

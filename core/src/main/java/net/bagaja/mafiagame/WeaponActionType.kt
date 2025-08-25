@@ -94,7 +94,7 @@ enum class WeaponType(
         meleeRange = 5.0f,
         magazineSize = 0,
         requiresReload = false,
-        allowsMovementWhileShooting = true, // Can move while swinging
+        allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/weapons/baseball_bat/player_baseball_bat.png",
         bulletTexturePath = null
     ),
@@ -106,7 +106,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 50,
         requiresReload = true,
-        allowsMovementWhileShooting = true, // Exception: Can move
+        allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/weapons/tommy_gun/pig_character_tommy_gun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 150f,
@@ -134,7 +134,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 6,
         requiresReload = true,
-        allowsMovementWhileShooting = true, // Light weapon
+        allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/weapons/revolver/player_revolver.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 200f,
@@ -148,7 +148,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 6,
         requiresReload = true,
-        allowsMovementWhileShooting = true, // Light weapon
+        allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/weapons/revolver/player_light_revolver.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 210f,
@@ -174,9 +174,9 @@ enum class WeaponType(
         fireRatePerSecond = 1f,
         damage = 80f,
         meleeRange = 0f,
-        magazineSize = 5,
+        magazineSize = 3,
         requiresReload = true,
-        allowsMovementWhileShooting = false, // Heavy weapon
+        allowsMovementWhileShooting = false,
         playerPoseTexturePath = "textures/player/weapons/shotgun/player_shotgun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 150f,
@@ -186,11 +186,11 @@ enum class WeaponType(
         displayName = "Light Shotgun",
         actionType = WeaponActionType.SHOOTING,
         fireRatePerSecond = 1.2f,
-        damage = 70f,
+        damage = 30f,
         meleeRange = 0f,
-        magazineSize = 6,
-        requiresReload = true,
-        allowsMovementWhileShooting = false, // Heavy weapon
+        magazineSize = 0,
+        requiresReload = false,
+        allowsMovementWhileShooting = false,
         playerPoseTexturePath = "textures/player/weapons/shotgun/player_light_shotgun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 160f,
@@ -200,11 +200,11 @@ enum class WeaponType(
         displayName = "Small Shotgun",
         actionType = WeaponActionType.SHOOTING,
         fireRatePerSecond = 1.5f,
-        damage = 60f,
+        damage = 15f,
         meleeRange = 0f,
-        magazineSize = 2,
-        requiresReload = true,
-        allowsMovementWhileShooting = true, // Heavy weapon
+        magazineSize = 0,
+        requiresReload = false,
+        allowsMovementWhileShooting = true, // Light weapon
         playerPoseTexturePath = "textures/player/weapons/shotgun/player_small_shotgun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 140f,
@@ -216,7 +216,7 @@ enum class WeaponType(
         fireRatePerSecond = 12f,
         damage = 18f,
         meleeRange = 0f,
-        magazineSize = 100,
+        magazineSize = 100, // Very large magazine
         requiresReload = true,
         allowsMovementWhileShooting = false, // Heavy weapon
         playerPoseTexturePath = "textures/player/weapons/machine_gun/pig_character_machine_gun.png",
