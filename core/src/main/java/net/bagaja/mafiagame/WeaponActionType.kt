@@ -56,6 +56,7 @@ enum class WeaponType(
     val meleeRange: Float,
     val magazineSize: Int, // 0 for infinite or non-applicable
     val requiresReload: Boolean,
+    val reloadTime: Float,
     val allowsMovementWhileShooting: Boolean,
     val playerPoseTexturePath: String,
     val bulletTexturePath: String?,
@@ -70,6 +71,7 @@ enum class WeaponType(
         meleeRange = 2.8f,
         magazineSize = 0,
         requiresReload = false,
+        reloadTime = 0.0f,
         allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/pig_character.png",
         bulletTexturePath = null
@@ -82,6 +84,7 @@ enum class WeaponType(
         meleeRange = 3.8f,
         magazineSize = 0,
         requiresReload = false,
+        reloadTime = 0.0f,
         allowsMovementWhileShooting = true, // Can move while knifing
         playerPoseTexturePath = "textures/player/weapons/knife/player_knife.png",
         bulletTexturePath = null
@@ -94,6 +97,7 @@ enum class WeaponType(
         meleeRange = 5.0f,
         magazineSize = 0,
         requiresReload = false,
+        reloadTime = 0.0f,
         allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/weapons/baseball_bat/player_baseball_bat.png",
         bulletTexturePath = null
@@ -106,6 +110,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 50,
         requiresReload = true,
+        reloadTime = 2.8f,
         allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/weapons/tommy_gun/pig_character_tommy_gun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
@@ -120,6 +125,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 40,
         requiresReload = true,
+        reloadTime = 2.5f,
         allowsMovementWhileShooting = false,
         playerPoseTexturePath = "textures/player/weapons/tommy_gun/player_light_tommy_gun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
@@ -134,6 +140,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 6,
         requiresReload = true,
+        reloadTime = 1.8f,
         allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/weapons/revolver/player_revolver.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
@@ -148,6 +155,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 6,
         requiresReload = true,
+        reloadTime = 1.6f,
         allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/weapons/revolver/player_light_revolver.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
@@ -162,6 +170,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 5,
         requiresReload = true,
+        reloadTime = 1.5f,
         allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/weapons/revolver/player_smaller_revolver.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
@@ -176,6 +185,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 3,
         requiresReload = true,
+        reloadTime = 1.5f,
         allowsMovementWhileShooting = false,
         playerPoseTexturePath = "textures/player/weapons/shotgun/player_shotgun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
@@ -190,6 +200,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 0,
         requiresReload = false,
+        reloadTime = 0.0f,
         allowsMovementWhileShooting = false,
         playerPoseTexturePath = "textures/player/weapons/shotgun/player_light_shotgun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
@@ -204,6 +215,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 0,
         requiresReload = false,
+        reloadTime = 0.0f,
         allowsMovementWhileShooting = true, // Light weapon
         playerPoseTexturePath = "textures/player/weapons/shotgun/player_small_shotgun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
@@ -218,6 +230,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 100, // Very large magazine
         requiresReload = true,
+        reloadTime = 3.5f,
         allowsMovementWhileShooting = false, // Heavy weapon
         playerPoseTexturePath = "textures/player/weapons/machine_gun/pig_character_machine_gun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
@@ -232,6 +245,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 0,
         requiresReload = false,
+        reloadTime = 0.0f,
         allowsMovementWhileShooting = true, // Can move while throwing
         playerPoseTexturePath = "textures/player/weapons/molotov/player_molotov.png",
         bulletTexturePath = null
@@ -244,6 +258,7 @@ enum class WeaponType(
         meleeRange = 0f,
         magazineSize = 0,
         requiresReload = false,
+        reloadTime = 0.0f,
         allowsMovementWhileShooting = true, // Can move while throwing
         playerPoseTexturePath = "textures/player/weapons/dynamite/player_dynamite.png",
         bulletTexturePath = null

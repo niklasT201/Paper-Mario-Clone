@@ -128,6 +128,8 @@ class PlayerSystem {
     private val ammoReserves = mutableMapOf<WeaponType, Int>()
     private var currentMagazineCount = 0
         private set
+    private var isReloading = false
+    private var reloadTimer = 0f
 
     var equippedWeapon: WeaponType = WeaponType.UNARMED
     private var weapons: List<WeaponType> = listOf(WeaponType.UNARMED)
@@ -356,7 +358,7 @@ class PlayerSystem {
     }
 
     private fun reload() {
-        if (!equippedWeapon.requiresReload) return // Can't reload this weapon type
+        if (!equippedWeapon.requiresReload || isReloading) return // Can't reload this weapon type or if already reloading
 
         val ammoNeeded = equippedWeapon.magazineSize - currentMagazineCount
         if (ammoNeeded <= 0) return // Magazine is already full
@@ -368,13 +370,11 @@ class PlayerSystem {
             return
         }
 
-        val ammoToMove = minOf(ammoNeeded, ammoAvailable)
-        currentMagazineCount += ammoToMove
-        ammoReserves[equippedWeapon] = ammoAvailable - ammoToMove
-
-        println("Reloaded! Magazine: $currentMagazineCount. Reserves: ${ammoReserves[equippedWeapon]}")
+        // Start the reload process
+        isReloading = true
+        reloadTimer = equippedWeapon.reloadTime
+        println("Reloading... (${equippedWeapon.reloadTime}s)")
         // TODO: Play a reload sound effect here
-        // TODO: Set a reload timer so the player can't shoot instantly
     }
 
     private fun canShoot(): Boolean {
@@ -427,7 +427,7 @@ class PlayerSystem {
 
                 when (equippedWeapon.actionType) {
                     WeaponActionType.SHOOTING -> {
-                        if (canShoot() && Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
+                        if (canShoot() && !isReloading && Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
                             if (!isRotating) {
                                 spawnBullet() // This function will now handle ammo reduction
                                 fireRateTimer = equippedWeapon.fireCooldown
@@ -722,6 +722,8 @@ class PlayerSystem {
 
         this.equippedWeapon = weaponType
         this.currentMagazineCount = weaponType.magazineSize
+        isReloading = false
+        reloadTimer = 0f
         println("Player equipped: ${weaponType.displayName}. Magazine loaded with $currentMagazineCount rounds.")
     }
 
@@ -1135,6 +1137,22 @@ class PlayerSystem {
     }
 
     fun update(deltaTime: Float, sceneManager: SceneManager) {
+        // Handle Reload Timer
+        if (isReloading) {
+            reloadTimer -= deltaTime
+            if (reloadTimer <= 0f) {
+                isReloading = false
+                // Finish the reload by moving ammo from reserves to magazine
+                val ammoNeeded = equippedWeapon.magazineSize - currentMagazineCount
+                val ammoAvailable = ammoReserves.getOrDefault(equippedWeapon, 0)
+                val ammoToMove = minOf(ammoNeeded, ammoAvailable)
+
+                currentMagazineCount += ammoToMove
+                ammoReserves[equippedWeapon] = ammoAvailable - ammoToMove
+                println("Reload finished! Magazine: $currentMagazineCount")
+            }
+        }
+
         // Timer for the muzzle flash
         if (muzzleFlashTimer > 0f) {
             muzzleFlashTimer -= deltaTime

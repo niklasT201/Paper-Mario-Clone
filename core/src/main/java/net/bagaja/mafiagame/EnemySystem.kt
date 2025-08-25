@@ -45,6 +45,7 @@ enum class AIState {
     FLEEING,    // Moving away from the player (Coward)
     SEARCHING,  // Looking for a hiding spot (Coward)
     HIDING,      // Reached a hiding spot (Coward)
+    RELOADING,
     DYING
 }
 
@@ -61,6 +62,7 @@ data class GameEnemy(
 
     var attackTimer: Float = 0f
     var equippedWeapon: WeaponType = WeaponType.UNARMED
+    var currentMagazineCount: Int = 0
     var ammo: Int = 0
     var bleedTimer: Float = 0f // How long the bleeding effect lasts
     var bloodDripSpawnTimer: Float = 0f // Timer to control the rate of drips
@@ -307,6 +309,10 @@ class EnemySystem : IFinePositionable {
                 enemy.ammo = 0
             }
         }
+        // Initialize the first magazine
+        val ammoToLoad = minOf(enemy.ammo, enemy.equippedWeapon.magazineSize)
+        enemy.currentMagazineCount = ammoToLoad
+        enemy.ammo -= ammoToLoad
 
         // Create and attach the physics component
         enemy.physics = PhysicsComponent(
@@ -433,10 +439,40 @@ class EnemySystem : IFinePositionable {
     }
 
     private fun updateAI(enemy: GameEnemy, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {
+        // Handle Reloading State ---
+        if (enemy.currentState == AIState.RELOADING) {
+            enemy.stateTimer -= deltaTime
+            if (enemy.stateTimer <= 0f) {
+                // Finished reloading
+                val ammoNeeded = enemy.equippedWeapon.magazineSize - enemy.currentMagazineCount
+                val ammoAvailable = enemy.ammo
+                val ammoToMove = minOf(ammoNeeded, ammoAvailable)
+
+                enemy.currentMagazineCount += ammoToMove
+                enemy.ammo -= ammoToMove
+                println("${enemy.enemyType.displayName} finished reloading!")
+                enemy.currentState = AIState.IDLE // Go back to idle to decide next action
+            }
+            return // Don't process other AI while reloading
+        }
+
         when (enemy.behaviorType) {
             EnemyBehavior.STATIONARY_SHOOTER -> {
-                enemy.currentState = AIState.IDLE
-                // In the future, this is where you'd add shooting logic
+                if (enemy.attackTimer <= 0f) {
+                    if (enemy.currentMagazineCount > 0) {
+                        // Has ammo, can shoot
+                        println("${enemy.enemyType.displayName} shoots!")
+                        // TODO: Spawn a bullet projectile from the enemy
+                        sceneManager.game.playerSystem.takeDamage(enemy.equippedWeapon.damage) // For now, just deal damage
+                        enemy.currentMagazineCount--
+                        enemy.attackTimer = enemy.equippedWeapon.fireCooldown
+                    } else if (enemy.ammo > 0) {
+                        // Out of magazine, but has reserves. RELOAD.
+                        println("${enemy.enemyType.displayName} is reloading...")
+                        enemy.currentState = AIState.RELOADING
+                        enemy.stateTimer = enemy.equippedWeapon.reloadTime
+                    }
+                }
             }
             EnemyBehavior.AGGRESSIVE_RUSHER -> {
                 val distanceToPlayer = enemy.position.dst(playerPos)
