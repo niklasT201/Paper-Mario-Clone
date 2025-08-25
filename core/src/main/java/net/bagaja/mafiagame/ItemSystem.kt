@@ -348,6 +348,9 @@ class ItemSystem: IFinePositionable {
     }
 
     fun getAllItems(): Array<GameItem> = gameItems
+    fun getTextureForItem(itemType: ItemType): Texture? {
+        return itemTextures[itemType]
+    }
 
     fun dispose() {
         itemModels.values.forEach { it.dispose() }

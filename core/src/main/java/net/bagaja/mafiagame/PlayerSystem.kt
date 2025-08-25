@@ -1810,6 +1810,14 @@ class PlayerSystem {
         return animationSystem.isAnimationFinished()
     }
 
+    fun getCurrentMagazineCount(): Int {
+        return currentMagazineCount
+    }
+
+    fun getCurrentReserveAmmo(): Int {
+        return ammoReserves.getOrDefault(equippedWeapon, 0)
+    }
+
     fun dispose() {
         playerModel.dispose()
         playerBackTexture.dispose()

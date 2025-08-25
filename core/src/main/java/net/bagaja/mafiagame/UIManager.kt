@@ -17,6 +17,7 @@ import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
+import com.badlogic.gdx.utils.Scaling
 import com.badlogic.gdx.utils.viewport.ScreenViewport
 import kotlin.math.cos
 import kotlin.math.sin
@@ -71,6 +72,14 @@ class UIManager(
     private lateinit var playerImageTexture: Texture
     private lateinit var gameHudTable: Table
     private lateinit var healthBar: ProgressBar
+    private lateinit var weaponIconImage: Image
+    private lateinit var fistTexture: Texture
+    private var lastEquippedWeapon: WeaponType? = null
+    private lateinit var weaponIconContainer: Container<Image>
+    private lateinit var weaponUiTexture: Texture
+    private lateinit var ammoUiContainer: Stack
+    private lateinit var magazineAmmoLabel: Label
+    private lateinit var reserveAmmoLabel: Label
 
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
@@ -197,6 +206,8 @@ class UIManager(
         try {
             wantedPosterTexture = Texture(Gdx.files.internal("gui/wanted_ui.png"))
             playerImageTexture = Texture(Gdx.files.internal("gui/player_ui.png"))
+            fistTexture = Texture(Gdx.files.internal("textures/objects/items/weapons/fist.png"))
+            weaponUiTexture = Texture(Gdx.files.internal("gui/weapon_ui.png"))
         } catch (e: Exception) {
             println("ERROR: Could not load HUD textures. Creating placeholders. Details: ${e.message}")
             val pixmap = Pixmap(100, 120, Pixmap.Format.RGBA8888)
@@ -205,6 +216,7 @@ class UIManager(
             if (!::wantedPosterTexture.isInitialized) wantedPosterTexture = Texture(pixmap)
             if (!::playerImageTexture.isInitialized) playerImageTexture = Texture(pixmap)
             pixmap.dispose()
+            if (!::fistTexture.isInitialized) fistTexture = Texture(pixmap)
         }
 
         val wantedImage = Image(wantedPosterTexture)
@@ -243,12 +255,41 @@ class UIManager(
         wantedStack.add(playerImageContainer)  // Layer 2: The player image
         wantedStack.add(healthBarTable)        // Layer 3: The health bar on top
 
+        // Create and configure the weapon icon UI element
+        weaponIconImage = Image()
+        weaponIconImage.setScaling(Scaling.fit)
+        weaponIconContainer = Container(weaponIconImage)
+        weaponIconContainer.size(80f, 80f) // Keep the 80x80 container, Scaling.fit will handle the rest.
+        weaponIconContainer.align(Align.center)
+
+        // Create the ammo display labels
+        magazineAmmoLabel = Label("00", skin, "title")
+        magazineAmmoLabel.color = Color.valueOf("#F5F1E8")
+        reserveAmmoLabel = Label("/ 00", skin, "default")
+        reserveAmmoLabel.color = Color.valueOf("#D3C9B6")
+
+        val ammoLabelTable = Table()
+        ammoLabelTable.add(magazineAmmoLabel).padLeft(25f).padBottom(8f).padRight(5f)
+        ammoLabelTable.add(reserveAmmoLabel).expandX().left().padBottom(6f)
+
+        // Create the Stack for the ammo UI
+        ammoUiContainer = Stack()
+        ammoUiContainer.add(Image(weaponUiTexture))
+        ammoUiContainer.add(ammoLabelTable)
+
+        // Create a vertical table to hold the weapon icon AND the ammo display
+        val weaponInfoTable = Table()
+        weaponInfoTable.add(weaponIconContainer).row()
+        weaponInfoTable.add(ammoUiContainer).width(200f).height(80f).padTop(10f) // Increased size from 128x64
+
+        // Main HUD Layout
         gameHudTable = Table()
         gameHudTable.setFillParent(true)
         gameHudTable.top().left()
         gameHudTable.pad(20f)
 
-        gameHudTable.add(wantedStack).width(180f).height(240f).left()
+        gameHudTable.add(wantedStack).width(180f).height(240f).top().left()
+        gameHudTable.add(weaponInfoTable).padLeft(15f).top().padTop(15f)
 
         stage.addActor(gameHudTable)
         gameHudTable.isVisible = !game.isEditorMode
@@ -779,14 +820,67 @@ class UIManager(
 
     fun getStage(): Stage = stage
 
+    private fun updateAmmoDisplay() {
+        val weapon = game.playerSystem.equippedWeapon
+
+        // Check if the weapon is a shooting type
+        if (weapon.actionType == WeaponActionType.SHOOTING) {
+            ammoUiContainer.isVisible = true // Show the ammo UI
+
+            // Get the latest ammo counts from the PlayerSystem
+            val magCount = game.playerSystem.getCurrentMagazineCount()
+            val reserveCount = game.playerSystem.getCurrentReserveAmmo()
+
+            // Update the labels with padded numbers (e.g., "06" instead of "6")
+            magazineAmmoLabel.setText(magCount.toString().padStart(2, '0'))
+            reserveAmmoLabel.setText("/ ${reserveCount.toString().padStart(2, '0')}")
+        } else {
+            // If it's not a shooting weapon, hide the ammo UI
+            ammoUiContainer.isVisible = false
+        }
+    }
+
+    private fun updateWeaponIcon() {
+        val currentWeapon = game.playerSystem.equippedWeapon
+
+        if (currentWeapon == WeaponType.UNARMED) {
+            // Special case for unarmed: use the fist texture
+            weaponIconImage.drawable = TextureRegionDrawable(fistTexture)
+            return
+        }
+
+        // Find the ItemType that corresponds to the equipped weapon
+        val itemType = ItemType.entries.find { it.correspondingWeapon == currentWeapon }
+        if (itemType != null) {
+            // Get the texture from the ItemSystem
+            val weaponTexture = itemSystem.getTextureForItem(itemType)
+            if (weaponTexture != null) {
+                weaponIconImage.drawable = TextureRegionDrawable(weaponTexture)
+            } else {
+                // Hide the icon if the texture couldn't be found
+                weaponIconImage.drawable = null
+            }
+        } else {
+            // Hide the icon if no corresponding item type exists
+            weaponIconImage.drawable = null
+        }
+    }
+
     fun render() {
         // Update HUD visibility and values based on game state
         if (::gameHudTable.isInitialized) {
             gameHudTable.isVisible = !game.isEditorMode && !isPauseMenuVisible()
 
-            // NEW: Update health bar value every frame
+            // Update health bar value every frame
             if (gameHudTable.isVisible) {
                 healthBar.value = game.playerSystem.getHealthPercentage()
+
+                if (game.playerSystem.equippedWeapon != lastEquippedWeapon) {
+                    updateWeaponIcon()
+                    lastEquippedWeapon = game.playerSystem.equippedWeapon
+                }
+
+                updateAmmoDisplay()
             }
         }
 
@@ -825,6 +919,12 @@ class UIManager(
         shaderEffectUI.dispose()
         particleSelectionUI.dispose()
         pauseMenuUI.dispose()
+        if (::fistTexture.isInitialized) {
+            fistTexture.dispose()
+        }
+        if (::weaponUiTexture.isInitialized) {
+            weaponUiTexture.dispose()
+        }
         stage.dispose()
         skin.dispose()
     }
