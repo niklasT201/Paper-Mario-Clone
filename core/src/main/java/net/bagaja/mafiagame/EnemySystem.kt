@@ -60,6 +60,8 @@ data class GameEnemy(
     @Transient lateinit var physics: PhysicsComponent
 
     var attackTimer: Float = 0f
+    var equippedWeapon: WeaponType = WeaponType.UNARMED
+    var ammo: Int = 0
     var bleedTimer: Float = 0f // How long the bleeding effect lasts
     var bloodDripSpawnTimer: Float = 0f // Timer to control the rate of drips
 
@@ -285,6 +287,26 @@ class EnemySystem : IFinePositionable {
             behaviorType = behavior,
             position = position.cpy()
         )
+
+        // Assign a weapon based on enemy type
+        when (enemyType) {
+            EnemyType.NOUSE_THUG -> {
+                enemy.equippedWeapon = WeaponType.REVOLVER
+                enemy.ammo = 18 // Give him 3 full clips
+            }
+            EnemyType.CORRUPT_DETECTIVE -> {
+                enemy.equippedWeapon = WeaponType.LIGHT_TOMMY_GUN
+                enemy.ammo = 80 // Two clips
+            }
+            EnemyType.MAFIA_BOSS -> {
+                enemy.equippedWeapon = WeaponType.MACHINE_GUN
+                enemy.ammo = 200 // Two full magazines
+            }
+            else -> {
+                enemy.equippedWeapon = WeaponType.UNARMED // Default to unarmed
+                enemy.ammo = 0
+            }
+        }
 
         // Create and attach the physics component
         enemy.physics = PhysicsComponent(

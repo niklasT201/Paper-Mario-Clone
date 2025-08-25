@@ -723,11 +723,6 @@ class PlayerSystem {
         this.equippedWeapon = weaponType
         this.currentMagazineCount = weaponType.magazineSize
         println("Player equipped: ${weaponType.displayName}. Magazine loaded with $currentMagazineCount rounds.")
-
-        addAmmo(WeaponType.REVOLVER, 24)
-        addAmmo(WeaponType.TOMMY_GUN, 150)
-        addAmmo(WeaponType.MACHINE_GUN, 200)
-        addAmmo(WeaponType.SHOTGUN, 12)
     }
 
     fun hasGunEquipped(): Boolean {

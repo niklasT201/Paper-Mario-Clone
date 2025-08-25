@@ -49,6 +49,7 @@ public class Lwjgl3Launcher {
 
 // changing room transition effect colors
 // edge houses
+// weapon item spawner now adds ammunition, random or set how much
 // blocks being visible behind transparent enemies etc.
 // weapon radius for fire and explosions
 // damage gets less for higher radius

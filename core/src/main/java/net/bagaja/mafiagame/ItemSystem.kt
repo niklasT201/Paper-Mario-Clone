@@ -442,32 +442,33 @@ enum class ItemType(
     val displayName: String,
     val texturePath: String,
     val width: Float,
-    val value: Int = 1, // For future scoring/inventory system
-    val correspondingWeapon: WeaponType? = null
+    val value: Int = 1,
+    val correspondingWeapon: WeaponType? = null,
+    val ammoAmount: Int = 0
 ) {
     // Non-weapon items
     MONEY_STACK("Money Stack", "textures/objects/items/money_stack.png", 2f, 10),
 
     // Melee weapon
-    BASEBALL_BAT("Baseball Bat", "textures/objects/items/weapons/baseball_bat.png", 2f, 15, WeaponType.BASEBALL_BAT),
+    BASEBALL_BAT("Baseball Bat", "textures/objects/items/weapons/baseball_bat.png", 2f, 15, WeaponType.BASEBALL_BAT, 0),
 
     // Weapons
-    REVOLVER("Revolver", "textures/objects/items/weapons/revolver.png", 2f, 15, WeaponType.REVOLVER),
-    REVOLVER_LIGHT("Light Revolver", "textures/objects/items/weapons/revolver_light.png", 2f, 12, WeaponType.LIGHT_REVOLVER),
-    SMALLER_REVOLVER("Small Revolver", "textures/objects/items/weapons/smaller_revolver.png", 1.8f, 12, WeaponType.SMALLER_REVOLVER),
+    REVOLVER("Revolver", "textures/objects/items/weapons/revolver.png", 2f, 15, WeaponType.REVOLVER, 12),
+    REVOLVER_LIGHT("Light Revolver", "textures/objects/items/weapons/revolver_light.png", 2f, 12, WeaponType.LIGHT_REVOLVER, 12),
+    SMALLER_REVOLVER("Small Revolver", "textures/objects/items/weapons/smaller_revolver.png", 1.8f, 12, WeaponType.SMALLER_REVOLVER, 10),
 
-    SHOTGUN("Shotgun", "textures/objects/items/weapons/shotgun.png", 3f, 25, WeaponType.SHOTGUN),
-    SHOTGUN_LIGHT("Light Shotgun", "textures/objects/items/weapons/shotgun_light.png", 3f, 22, WeaponType.LIGHT_SHOTGUN),
-    SMALL_SHOTGUN("Small Shotgun", "textures/objects/items/weapons/small_shotgun.png", 2.5f, 20, WeaponType.SMALL_SHOTGUN),
+    SHOTGUN("Shotgun", "textures/objects/items/weapons/shotgun.png", 3f, 25, WeaponType.SHOTGUN, 8),
+    SHOTGUN_LIGHT("Light Shotgun", "textures/objects/items/weapons/shotgun_light.png", 3f, 22, WeaponType.LIGHT_SHOTGUN, 10),
+    SMALL_SHOTGUN("Small Shotgun", "textures/objects/items/weapons/small_shotgun.png", 2.5f, 20, WeaponType.SMALL_SHOTGUN, 4),
 
-    MACHINE_GUN("Machine Gun", "textures/objects/items/weapons/machine_gun.png", 3.5f, 40, WeaponType.MACHINE_GUN),
+    MACHINE_GUN("Machine Gun", "textures/objects/items/weapons/machine_gun.png", 3.5f, 40, WeaponType.MACHINE_GUN, 100),
 
-    TOMMY_GUN("Tommy Gun", "textures/objects/items/weapons/tommy_gun.png", 3.5f, 35, WeaponType.TOMMY_GUN),
-    TOMMY_GUN_LIGHT("Light Tommy Gun", "textures/objects/items/weapons/tommy_gun_light.png", 3.5f, 32, WeaponType.LIGHT_TOMMY_GUN),
+    TOMMY_GUN("Tommy Gun", "textures/objects/items/weapons/tommy_gun.png", 3.5f, 35, WeaponType.TOMMY_GUN, 50),
+    TOMMY_GUN_LIGHT("Light Tommy Gun", "textures/objects/items/weapons/tommy_gun_light.png", 3.5f, 32, WeaponType.LIGHT_TOMMY_GUN, 40),
 
-    KNIFE("Knife", "textures/objects/items/weapons/knife.png", 1.5f, 8, WeaponType.KNIFE),
+    KNIFE("Knife", "textures/objects/items/weapons/knife.png", 1.5f, 8, WeaponType.KNIFE, 0),
 
     // Explosives
-    DYNAMITE("Dynamite", "textures/objects/items/weapons/dynamite.png", 2f, 10, WeaponType.DYNAMITE),
-    MOLOTOV("Molotov", "textures/objects/items/weapons/molotov.png", 1.5f, 10, WeaponType.MOLOTOV);
+    DYNAMITE("Dynamite", "textures/objects/items/weapons/dynamite.png", 2f, 10, WeaponType.DYNAMITE, 5),
+    MOLOTOV("Molotov", "textures/objects/items/weapons/molotov.png", 1.5f, 10, WeaponType.MOLOTOV, 5);
 }
