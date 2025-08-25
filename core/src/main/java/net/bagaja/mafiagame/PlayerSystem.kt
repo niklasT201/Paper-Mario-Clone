@@ -56,6 +56,7 @@ class PlayerSystem {
     private lateinit var billboardModelBatch: ModelBatch
 
     var health: Float = 100f
+        private set
     private val maxHealth: Float = 100f
 
     fun takeDamage(amount: Float) {
@@ -68,6 +69,11 @@ class PlayerSystem {
                 // You can add logic here for player death/respawn
             }
         }
+    }
+
+    fun getHealthPercentage(): Float {
+        if (maxHealth <= 0) return 0f
+        return (health / maxHealth) * 100f
     }
 
     companion object {

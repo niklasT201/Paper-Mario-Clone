@@ -59,6 +59,7 @@ data class GameEnemy(
 ) {
     @Transient lateinit var physics: PhysicsComponent
 
+    var attackTimer: Float = 0f
     var bleedTimer: Float = 0f // How long the bleeding effect lasts
     var bloodDripSpawnTimer: Float = 0f // Timer to control the rate of drips
 
@@ -152,8 +153,6 @@ class EnemySystem : IFinePositionable {
     private lateinit var billboardModelBatch: ModelBatch
     private lateinit var billboardShaderProvider: BillboardShaderProvider
     private val renderableInstances = Array<ModelInstance>()
-    private val WOBBLE_AMPLITUDE_DEGREES = 5f
-    private val WOBBLE_FREQUENCY = 6f
 
     // UI selection state
     var currentSelectedEnemyType = EnemyType.NOUSE_THUG
@@ -164,6 +163,8 @@ class EnemySystem : IFinePositionable {
     var currentBehaviorIndex = 0
 
     // AI constants
+    private val ATTACK_RANGE = 2.5f // How close the enemy needs to be to attack
+    private val ATTACK_COOLDOWN = 1.0f // Enemy can attack once per second
     private val detectionRange = 25f // When cowards start fleeing
     private val hideSearchRadius = 40f
     private val hideDistance = 15f
@@ -171,12 +172,8 @@ class EnemySystem : IFinePositionable {
     private val activationRange = 150f
 
     // Physics constants
-    private val FALL_SPEED = 25f
-    private val MAX_STEP_HEIGHT = 4.0f
     override var finePosMode: Boolean = false
     override val fineStep: Float = 0.25f
-    private val tempBlockBounds = BoundingBox()
-    private val nearbyBlocks = Array<GameBlock>()
 
     private val FADE_OUT_DURATION = 1.5f
     private val ASH_SPAWN_START_TIME = 1.5f // Must match the ash particle's fadeIn time
@@ -325,6 +322,11 @@ class EnemySystem : IFinePositionable {
         while (iterator.hasNext()) {
             val enemy = iterator.next()
 
+            // Decrement the attack timer
+            if (enemy.attackTimer > 0f) {
+                enemy.attackTimer -= deltaTime
+            }
+
             // Skip all AI, physics, and visual updates for enemies inside cars
             if (enemy.isInCar) continue
 
@@ -415,7 +417,19 @@ class EnemySystem : IFinePositionable {
                 // In the future, this is where you'd add shooting logic
             }
             EnemyBehavior.AGGRESSIVE_RUSHER -> {
-                if (enemy.position.dst(playerPos) > stopChasingDistance) {
+                val distanceToPlayer = enemy.position.dst(playerPos)
+
+                if (distanceToPlayer <= ATTACK_RANGE) {
+                    // Close enough to attack
+                    enemy.currentState = AIState.IDLE // Stop moving
+                    if (enemy.attackTimer <= 0f) {
+                        // Time to attack!
+                        println("${enemy.enemyType.displayName} attacks player!")
+                        sceneManager.game.playerSystem.takeDamage(10f) // Deal 10 damage
+                        enemy.attackTimer = ATTACK_COOLDOWN // Reset cooldown
+                    }
+                } else if (distanceToPlayer > stopChasingDistance) {
+                    // Too far, chase the player
                     enemy.currentState = AIState.CHASING
                     moveTowards(enemy, playerPos, deltaTime, sceneManager)
                 } else {

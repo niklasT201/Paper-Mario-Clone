@@ -20,6 +20,7 @@ import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.viewport.ScreenViewport
 import kotlin.math.cos
 import kotlin.math.sin
+import kotlin.random.Random
 
 class UIManager(
     private val game: MafiaGame,
@@ -65,6 +66,12 @@ class UIManager(
     private var isLetterboxVisible = false
     private var isCinematicBarsVisible = false
 
+    private lateinit var wantedPosterTable: Table
+    private lateinit var wantedPosterTexture: Texture
+    private lateinit var playerImageTexture: Texture
+    private lateinit var gameHudTable: Table
+    private lateinit var healthBar: ProgressBar
+
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
     private lateinit var placementInfoLabel: Label
@@ -105,6 +112,7 @@ class UIManager(
         setupMainUI()
         setupLetterboxUI()
         setupCinematicBarsUI()
+        setupGameHUD()
 
         // Setup persistent message
         persistentMessageLabel = layoutBuilder.createPersistentMessageLabel()
@@ -182,6 +190,68 @@ class UIManager(
 
         // Set initial visibility for the main UI panel
         mainTable.isVisible = isUIVisible && game.isEditorMode
+    }
+
+    private fun setupGameHUD() {
+        // --- Wanted Poster and Player Image Setup ---
+        try {
+            wantedPosterTexture = Texture(Gdx.files.internal("gui/wanted_ui.png"))
+            playerImageTexture = Texture(Gdx.files.internal("gui/player_ui.png"))
+        } catch (e: Exception) {
+            println("ERROR: Could not load HUD textures. Creating placeholders. Details: ${e.message}")
+            val pixmap = Pixmap(100, 120, Pixmap.Format.RGBA8888)
+            pixmap.setColor(Color.SCARLET)
+            pixmap.fill()
+            if (!::wantedPosterTexture.isInitialized) wantedPosterTexture = Texture(pixmap)
+            if (!::playerImageTexture.isInitialized) playerImageTexture = Texture(pixmap)
+            pixmap.dispose()
+        }
+
+        val wantedImage = Image(wantedPosterTexture)
+        val playerImage = Image(playerImageTexture)
+
+        // Health Bar Style Setup
+        val progressBarStyle = ProgressBar.ProgressBarStyle()
+        val pixmap = Pixmap(100, 24, Pixmap.Format.RGBA8888)
+        val outlineThickness = 4
+        pixmap.setColor(Color.BLACK)
+        pixmap.fill()
+        pixmap.setColor(0.3f, 0f, 0f, 0.8f)
+        pixmap.fillRectangle(outlineThickness, outlineThickness, pixmap.width - outlineThickness * 2, pixmap.height - outlineThickness * 2)
+        progressBarStyle.background = TextureRegionDrawable(Texture(pixmap))
+        pixmap.setColor(Color(0.7f, 0f, 0f, 1f))
+        pixmap.fill()
+        progressBarStyle.knobBefore = TextureRegionDrawable(Texture(pixmap))
+        pixmap.dispose()
+
+        healthBar = ProgressBar(0f, 100f, 1f, false, progressBarStyle)
+        healthBar.value = game.playerSystem.getHealthPercentage()
+
+        // 1. Container for the player image to control its size and position
+        val playerImageContainer = Container(playerImage)
+        playerImageContainer.size(140f, 250f) // Make the player image larger
+        playerImageContainer.top().padTop(11f)  // Re-center it within the poster
+
+        // 2. A new Table to hold and position the health bar at the bottom
+        val healthBarTable = Table()
+        healthBarTable.bottom() // Align content to the bottom
+        healthBarTable.add(healthBar).width(130f).height(20f).padBottom(29f)
+
+        // 3. Assemble the Stack. Order matters: bottom layer is added first.
+        val wantedStack = Stack()
+        wantedStack.add(wantedImage)           // Layer 1: The poster background
+        wantedStack.add(playerImageContainer)  // Layer 2: The player image
+        wantedStack.add(healthBarTable)        // Layer 3: The health bar on top
+
+        gameHudTable = Table()
+        gameHudTable.setFillParent(true)
+        gameHudTable.top().left()
+        gameHudTable.pad(20f)
+
+        gameHudTable.add(wantedStack).width(180f).height(240f).left()
+
+        stage.addActor(gameHudTable)
+        gameHudTable.isVisible = !game.isEditorMode
     }
 
     private fun setupMainUI() {
@@ -710,6 +780,16 @@ class UIManager(
     fun getStage(): Stage = stage
 
     fun render() {
+        // Update HUD visibility and values based on game state
+        if (::gameHudTable.isInitialized) {
+            gameHudTable.isVisible = !game.isEditorMode && !isPauseMenuVisible()
+
+            // NEW: Update health bar value every frame
+            if (gameHudTable.isVisible) {
+                healthBar.value = game.playerSystem.getHealthPercentage()
+            }
+        }
+
         pauseMenuUI.update(Gdx.graphics.deltaTime)
         skyCustomizationUI.update()
         shaderEffectUI.update()
@@ -724,6 +804,14 @@ class UIManager(
     }
 
     fun dispose() {
+        // --- Dispose the textures ---
+        if (::wantedPosterTexture.isInitialized) {
+            wantedPosterTexture.dispose()
+        }
+        if (::playerImageTexture.isInitialized) {
+            playerImageTexture.dispose()
+        }
+        // --- END ---
         blockSelectionUI.dispose()
         objectSelectionUI.dispose()
         itemSelectionUI.dispose()
