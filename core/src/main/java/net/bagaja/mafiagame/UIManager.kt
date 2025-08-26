@@ -79,6 +79,7 @@ class UIManager(
     private lateinit var ammoUiContainer: Stack
     private lateinit var magazineAmmoLabel: Label
     private lateinit var reserveAmmoLabel: Label
+    private lateinit var healthDebugLabel: Label
     private lateinit var healthBarEmptyTexture: Texture
     private lateinit var healthBarFullTexture: Texture
 
@@ -232,6 +233,12 @@ class UIManager(
         healthBar = ProgressBar(0f, 100f, 1f, false, customProgressBarStyle)
         healthBar.value = game.playerSystem.getHealthPercentage()
 
+        // Create and position the debug label
+        healthDebugLabel = Label("", skin, "default") // Simple default font
+        healthDebugLabel.color = Color.WHITE // Make it easy to see
+        val healthDebugLabelTable = Table()
+        healthDebugLabelTable.add(healthDebugLabel)
+
         // 2. A new Table to hold and position the health bar at the bottom
         val healthBarTable = Table()
         healthBarTable.bottom() // Align content to the bottom
@@ -239,8 +246,9 @@ class UIManager(
 
         // 3. Assemble the Stack. Order matters: bottom layer is added first.
         val wantedStack = Stack()
-        wantedStack.add(Image(wantedPosterTexture)) // Layer 1: Your new poster image
-        wantedStack.add(healthBarTable)             // Layer 2: The health bar, overlaid on top
+        wantedStack.add(Image(wantedPosterTexture))
+        wantedStack.add(healthBarTable)
+        wantedStack.add(healthDebugLabelTable)
 
         // Create and configure the weapon icon UI element
         weaponIconImage = Image()
@@ -272,7 +280,7 @@ class UIManager(
         // Create a vertical table to hold the weapon icon AND the ammo display
         val weaponInfoTable = Table()
         weaponInfoTable.add(weaponIconContainer).row()
-        weaponInfoTable.add(ammoUiContainer).width(200f).height(100f).padTop(-5f).padLeft(75f) // Increased size from 128x64
+        weaponInfoTable.add(ammoUiContainer).width(180f).height(72f).padTop(0f).padLeft(85f)
 
         // Main HUD Layout
         gameHudTable = Table()
@@ -866,6 +874,10 @@ class UIManager(
             // Update health bar value every frame
             if (gameHudTable.isVisible) {
                 healthBar.value = game.playerSystem.getHealthPercentage()
+
+                val hp = game.playerSystem.getHealth().toInt()
+                val maxHp = game.playerSystem.getMaxHealth().toInt()
+                healthDebugLabel.setText("$hp / $maxHp")
 
                 if (game.playerSystem.equippedWeapon != lastEquippedWeapon) {
                     updateWeaponIcon()

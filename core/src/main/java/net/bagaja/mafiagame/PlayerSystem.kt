@@ -1818,6 +1818,9 @@ class PlayerSystem {
         return ammoReserves.getOrDefault(equippedWeapon, 0)
     }
 
+    fun getHealth(): Float = health
+    fun getMaxHealth(): Float = maxHealth
+
     fun dispose() {
         playerModel.dispose()
         playerBackTexture.dispose()
