@@ -69,7 +69,6 @@ class UIManager(
 
     private lateinit var wantedPosterTable: Table
     private lateinit var wantedPosterTexture: Texture
-    private lateinit var playerImageTexture: Texture
     private lateinit var gameHudTable: Table
     private lateinit var healthBar: ProgressBar
     private lateinit var weaponIconImage: Image
@@ -80,6 +79,8 @@ class UIManager(
     private lateinit var ammoUiContainer: Stack
     private lateinit var magazineAmmoLabel: Label
     private lateinit var reserveAmmoLabel: Label
+    private lateinit var healthBarEmptyTexture: Texture
+    private lateinit var healthBarFullTexture: Texture
 
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
@@ -204,8 +205,7 @@ class UIManager(
     private fun setupGameHUD() {
         // --- Wanted Poster and Player Image Setup ---
         try {
-            wantedPosterTexture = Texture(Gdx.files.internal("gui/wanted_ui.png"))
-            playerImageTexture = Texture(Gdx.files.internal("gui/player_ui.png"))
+            wantedPosterTexture = Texture(Gdx.files.internal("gui/wanted_poster.png"))
             fistTexture = Texture(Gdx.files.internal("textures/objects/items/weapons/fist.png"))
             weaponUiTexture = Texture(Gdx.files.internal("gui/weapon_ui.png"))
         } catch (e: Exception) {
@@ -214,62 +214,54 @@ class UIManager(
             pixmap.setColor(Color.SCARLET)
             pixmap.fill()
             if (!::wantedPosterTexture.isInitialized) wantedPosterTexture = Texture(pixmap)
-            if (!::playerImageTexture.isInitialized) playerImageTexture = Texture(pixmap)
-            pixmap.dispose()
             if (!::fistTexture.isInitialized) fistTexture = Texture(pixmap)
+            if (!::weaponUiTexture.isInitialized) weaponUiTexture = Texture(pixmap)
+            pixmap.dispose()
         }
 
-        val wantedImage = Image(wantedPosterTexture)
-        val playerImage = Image(playerImageTexture)
-
         // Health Bar Style Setup
-        val progressBarStyle = ProgressBar.ProgressBarStyle()
-        val pixmap = Pixmap(100, 24, Pixmap.Format.RGBA8888)
-        val outlineThickness = 4
-        pixmap.setColor(Color.BLACK)
-        pixmap.fill()
-        pixmap.setColor(0.3f, 0f, 0f, 0.8f)
-        pixmap.fillRectangle(outlineThickness, outlineThickness, pixmap.width - outlineThickness * 2, pixmap.height - outlineThickness * 2)
-        progressBarStyle.background = TextureRegionDrawable(Texture(pixmap))
-        pixmap.setColor(Color(0.7f, 0f, 0f, 1f))
-        pixmap.fill()
-        progressBarStyle.knobBefore = TextureRegionDrawable(Texture(pixmap))
-        pixmap.dispose()
+        healthBarEmptyTexture = Texture(Gdx.files.internal("gui/healthbar_empty.png"))
+        healthBarFullTexture = Texture(Gdx.files.internal("gui/healthbar_full.png"))
 
-        healthBar = ProgressBar(0f, 100f, 1f, false, progressBarStyle)
+        val backgroundDrawable = TextureRegionDrawable(healthBarEmptyTexture)
+        val fillDrawable = TextureRegionDrawable(healthBarFullTexture)
+
+        val customProgressBarStyle = ProgressBar.ProgressBarStyle(backgroundDrawable, fillDrawable)
+
+        // Create the health bar with your new custom style
+        healthBar = ProgressBar(0f, 100f, 1f, false, customProgressBarStyle)
         healthBar.value = game.playerSystem.getHealthPercentage()
-
-        // 1. Container for the player image to control its size and position
-        val playerImageContainer = Container(playerImage)
-        playerImageContainer.size(140f, 250f) // Make the player image larger
-        playerImageContainer.top().padTop(11f)  // Re-center it within the poster
 
         // 2. A new Table to hold and position the health bar at the bottom
         val healthBarTable = Table()
         healthBarTable.bottom() // Align content to the bottom
-        healthBarTable.add(healthBar).width(130f).height(20f).padBottom(29f)
+        healthBarTable.add(healthBar).width(130f).height(20f).padBottom(12f).padRight(14f)
 
         // 3. Assemble the Stack. Order matters: bottom layer is added first.
         val wantedStack = Stack()
-        wantedStack.add(wantedImage)           // Layer 1: The poster background
-        wantedStack.add(playerImageContainer)  // Layer 2: The player image
-        wantedStack.add(healthBarTable)        // Layer 3: The health bar on top
+        wantedStack.add(Image(wantedPosterTexture)) // Layer 1: Your new poster image
+        wantedStack.add(healthBarTable)             // Layer 2: The health bar, overlaid on top
 
         // Create and configure the weapon icon UI element
         weaponIconImage = Image()
         weaponIconImage.setScaling(Scaling.fit)
         weaponIconContainer = Container(weaponIconImage)
-        weaponIconContainer.size(80f, 80f) // Keep the 80x80 container, Scaling.fit will handle the rest.
-        weaponIconContainer.align(Align.center)
+        weaponIconContainer.size(100f, 80f)
+        weaponIconContainer.align(Align.left)
 
         // Create the ammo display labels
         magazineAmmoLabel = Label("00", skin, "title")
         magazineAmmoLabel.color = Color.valueOf("#F5F1E8")
-        reserveAmmoLabel = Label("/ 00", skin, "default")
+        reserveAmmoLabel = Label("/ 00", skin, "title")
         reserveAmmoLabel.color = Color.valueOf("#D3C9B6")
 
+         magazineAmmoLabel.fontScaleX = 1.1f
+         magazineAmmoLabel.fontScaleY = 1.1f
+         reserveAmmoLabel.fontScaleX = 1.1f
+         reserveAmmoLabel.fontScaleY = 1.1f
+
         val ammoLabelTable = Table()
-        ammoLabelTable.add(magazineAmmoLabel).padLeft(25f).padBottom(8f).padRight(5f)
+        ammoLabelTable.add(magazineAmmoLabel).padLeft(95f).padBottom(8f).padRight(5f)
         ammoLabelTable.add(reserveAmmoLabel).expandX().left().padBottom(6f)
 
         // Create the Stack for the ammo UI
@@ -280,7 +272,7 @@ class UIManager(
         // Create a vertical table to hold the weapon icon AND the ammo display
         val weaponInfoTable = Table()
         weaponInfoTable.add(weaponIconContainer).row()
-        weaponInfoTable.add(ammoUiContainer).width(200f).height(80f).padTop(10f) // Increased size from 128x64
+        weaponInfoTable.add(ammoUiContainer).width(200f).height(100f).padTop(-5f).padLeft(75f) // Increased size from 128x64
 
         // Main HUD Layout
         gameHudTable = Table()
@@ -289,7 +281,7 @@ class UIManager(
         gameHudTable.pad(20f)
 
         gameHudTable.add(wantedStack).width(180f).height(240f).top().left()
-        gameHudTable.add(weaponInfoTable).padLeft(15f).top().padTop(15f)
+        gameHudTable.add(weaponInfoTable).padLeft(-80f).top().padTop(15f)
 
         stage.addActor(gameHudTable)
         gameHudTable.isVisible = !game.isEditorMode
@@ -898,14 +890,9 @@ class UIManager(
     }
 
     fun dispose() {
-        // --- Dispose the textures ---
         if (::wantedPosterTexture.isInitialized) {
             wantedPosterTexture.dispose()
         }
-        if (::playerImageTexture.isInitialized) {
-            playerImageTexture.dispose()
-        }
-        // --- END ---
         blockSelectionUI.dispose()
         objectSelectionUI.dispose()
         itemSelectionUI.dispose()
@@ -924,6 +911,12 @@ class UIManager(
         }
         if (::weaponUiTexture.isInitialized) {
             weaponUiTexture.dispose()
+        }
+        if (::healthBarEmptyTexture.isInitialized) {
+            healthBarEmptyTexture.dispose()
+        }
+        if (::healthBarFullTexture.isInitialized) {
+            healthBarFullTexture.dispose()
         }
         stage.dispose()
         skin.dispose()
