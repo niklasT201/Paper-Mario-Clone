@@ -236,6 +236,7 @@ class UIManager(
         // Create and position the debug label
         healthDebugLabel = Label("", skin, "default") // Simple default font
         healthDebugLabel.color = Color.WHITE // Make it easy to see
+        healthDebugLabel.isVisible = false
         val healthDebugLabelTable = Table()
         healthDebugLabelTable.add(healthDebugLabel)
 
@@ -269,7 +270,7 @@ class UIManager(
          reserveAmmoLabel.fontScaleY = 1.1f
 
         val ammoLabelTable = Table()
-        ammoLabelTable.add(magazineAmmoLabel).padLeft(95f).padBottom(8f).padRight(5f)
+        ammoLabelTable.add(magazineAmmoLabel).padLeft(160f).padBottom(8f)
         ammoLabelTable.add(reserveAmmoLabel).expandX().left().padBottom(6f)
 
         // Create the Stack for the ammo UI

@@ -49,6 +49,12 @@ public class Lwjgl3Launcher {
 
 // changing room transition effect colors
 // edge houses
+// health bar moving left when health is 0
+// adding money counter
+// option to see full current health
+// option to switch between two player huds
+// magazine/reverse text more on the right and bigger
+// 0 ammunition removes the weapon and goes back to fist
 // blocks being visible behind transparent enemies etc.
 // weapon radius for fire and explosions
 // damage gets less for higher radius
