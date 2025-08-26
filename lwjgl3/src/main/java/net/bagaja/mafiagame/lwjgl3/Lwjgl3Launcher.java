@@ -49,7 +49,6 @@ public class Lwjgl3Launcher {
 
 // changing room transition effect colors
 // edge houses
-// health bar moving left when health is 0
 // adding money counter
 // option to see full current health
 // option to switch between two player huds

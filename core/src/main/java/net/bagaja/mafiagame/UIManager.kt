@@ -227,7 +227,8 @@ class UIManager(
         val backgroundDrawable = TextureRegionDrawable(healthBarEmptyTexture)
         val fillDrawable = TextureRegionDrawable(healthBarFullTexture)
 
-        val customProgressBarStyle = ProgressBar.ProgressBarStyle(backgroundDrawable, fillDrawable)
+        val customProgressBarStyle = ProgressBar.ProgressBarStyle(backgroundDrawable, null)
+        customProgressBarStyle.knobBefore = fillDrawable
 
         // Create the health bar with your new custom style
         healthBar = ProgressBar(0f, 100f, 1f, false, customProgressBarStyle)
@@ -243,7 +244,7 @@ class UIManager(
         // 2. A new Table to hold and position the health bar at the bottom
         val healthBarTable = Table()
         healthBarTable.bottom() // Align content to the bottom
-        healthBarTable.add(healthBar).width(130f).height(20f).padBottom(12f).padRight(14f)
+        healthBarTable.add(healthBar).width(150f).height(20f).padBottom(12f).padRight(1f)
 
         // 3. Assemble the Stack. Order matters: bottom layer is added first.
         val wantedStack = Stack()
