@@ -23,6 +23,11 @@ import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
 
+enum class HudStyle(val displayName: String) {
+    WANTED_POSTER("Poster"),
+    MINIMALIST("Minimalist")
+}
+
 class UIManager(
     private val game: MafiaGame,
     private val blockSystem: BlockSystem,
@@ -83,6 +88,24 @@ class UIManager(
     private lateinit var healthBarEmptyTexture: Texture
     private lateinit var healthBarFullTexture: Texture
 
+    private var currentHudStyle = HudStyle.WANTED_POSTER
+
+    // HUD Tables
+    private lateinit var wantedPosterHudTable: Table
+    private lateinit var minimalistHudTable: Table
+
+    // Minimalist HUD elements
+    private lateinit var weaponIconImageMinimalist: Image
+    private lateinit var ammoLabelMinimalist: Label
+    private lateinit var healthBarMinimalist: ProgressBar
+
+    // Money Display elements
+    private lateinit var moneyDisplayTable: Table
+    private lateinit var moneyValueLabel: Label
+    private var moneyDisplayAction: com.badlogic.gdx.scenes.scene2d.Action? = null
+    private lateinit var moneyStackTexture: Texture
+    private var isMoneyDisplayVisible = false
+
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
     private lateinit var placementInfoLabel: Label
@@ -90,7 +113,7 @@ class UIManager(
     private lateinit var fpsLabel: Label
     private lateinit var fpsTable: Table
 
-    var isUIVisible = false
+    private var isUIVisible = false
         private set
     var selectedTool = Tool.BLOCK
 
@@ -123,7 +146,8 @@ class UIManager(
         setupMainUI()
         setupLetterboxUI()
         setupCinematicBarsUI()
-        setupGameHUD()
+        setupGameHUD() // This function will now build BOTH HUDs
+        setupMoneyDisplay()
 
         // Setup persistent message
         persistentMessageLabel = layoutBuilder.createPersistentMessageLabel()
@@ -204,11 +228,13 @@ class UIManager(
     }
 
     private fun setupGameHUD() {
-        // --- Wanted Poster and Player Image Setup ---
+        // Load Textures
         try {
             wantedPosterTexture = Texture(Gdx.files.internal("gui/wanted_poster.png"))
             fistTexture = Texture(Gdx.files.internal("textures/objects/items/weapons/fist.png"))
             weaponUiTexture = Texture(Gdx.files.internal("gui/weapon_ui.png"))
+            healthBarEmptyTexture = Texture(Gdx.files.internal("gui/healthbar_empty.png"))
+            healthBarFullTexture = Texture(Gdx.files.internal("gui/healthbar_full.png"))
         } catch (e: Exception) {
             println("ERROR: Could not load HUD textures. Creating placeholders. Details: ${e.message}")
             val pixmap = Pixmap(100, 120, Pixmap.Format.RGBA8888)
@@ -220,81 +246,72 @@ class UIManager(
             pixmap.dispose()
         }
 
-        // Health Bar Style Setup
-        healthBarEmptyTexture = Texture(Gdx.files.internal("gui/healthbar_empty.png"))
-        healthBarFullTexture = Texture(Gdx.files.internal("gui/healthbar_full.png"))
+        // --- Create Health Bar Style (reusable for both HUDs) ---
+        val healthBarBackground = TextureRegionDrawable(healthBarEmptyTexture)
+        val healthBarFill = TextureRegionDrawable(healthBarFullTexture)
+        val healthBarStyle = ProgressBar.ProgressBarStyle(healthBarBackground, null)
+        healthBarStyle.knobBefore = healthBarFill
 
-        val backgroundDrawable = TextureRegionDrawable(healthBarEmptyTexture)
-        val fillDrawable = TextureRegionDrawable(healthBarFullTexture)
+        // 1. BUILD WANTED POSTER HUD
+        wantedPosterHudTable = Table()
+        wantedPosterHudTable.setFillParent(true)
+        wantedPosterHudTable.top().left().pad(20f)
 
-        val customProgressBarStyle = ProgressBar.ProgressBarStyle(backgroundDrawable, null)
-        customProgressBarStyle.knobBefore = fillDrawable
+        // Health Bar for Poster
+        healthBar = ProgressBar(0f, 100f, 1f, false, healthBarStyle)
+        val healthBarTable = Table().apply {
+            bottom()
+            add(healthBar).width(150f).height(20f).padBottom(12f).padRight(1f)
+        }
 
-        // Create the health bar with your new custom style
-        healthBar = ProgressBar(0f, 100f, 1f, false, customProgressBarStyle)
-        healthBar.value = game.playerSystem.getHealthPercentage()
-
-        // Create and position the debug label
-        healthDebugLabel = Label("", skin, "default") // Simple default font
-        healthDebugLabel.color = Color.WHITE // Make it easy to see
-        healthDebugLabel.isVisible = false
-        val healthDebugLabelTable = Table()
-        healthDebugLabelTable.add(healthDebugLabel)
-
-        // 2. A new Table to hold and position the health bar at the bottom
-        val healthBarTable = Table()
-        healthBarTable.bottom() // Align content to the bottom
-        healthBarTable.add(healthBar).width(150f).height(20f).padBottom(12f).padRight(1f)
-
-        // 3. Assemble the Stack. Order matters: bottom layer is added first.
+        // Wanted Poster Stack
         val wantedStack = Stack()
         wantedStack.add(Image(wantedPosterTexture))
         wantedStack.add(healthBarTable)
-        wantedStack.add(healthDebugLabelTable)
 
-        // Create and configure the weapon icon UI element
-        weaponIconImage = Image()
-        weaponIconImage.setScaling(Scaling.fit)
-        weaponIconContainer = Container(weaponIconImage)
-        weaponIconContainer.size(100f, 80f)
-        weaponIconContainer.align(Align.left)
+        // Weapon Icon and Ammo UI
+        weaponIconImage = Image().apply { setScaling(Scaling.fit) }
+        weaponIconContainer = Container(weaponIconImage).size(100f, 80f).align(Align.left)
 
-        // Create the ammo display labels
-        magazineAmmoLabel = Label("00", skin, "title")
-        magazineAmmoLabel.color = Color.valueOf("#F5F1E8")
-        reserveAmmoLabel = Label("/ 00", skin, "title")
-        reserveAmmoLabel.color = Color.valueOf("#D3C9B6")
+        magazineAmmoLabel = Label("00", skin, "title").apply { color = Color.valueOf("#F5F1E8"); fontScaleX = 1.1f; fontScaleY = 1.1f }
+        reserveAmmoLabel = Label("/00", skin, "title").apply { color = Color.valueOf("#D3C9B6"); fontScaleX = 1.1f; fontScaleY = 1.1f }
 
-        magazineAmmoLabel.fontScaleX = 1.1f
-        magazineAmmoLabel.fontScaleY = 1.1f
-        reserveAmmoLabel.fontScaleX = 1.1f
-        reserveAmmoLabel.fontScaleY = 1.1f
-
+        // Ammo Label Table (using your original padding)
         val ammoLabelTable = Table()
-        ammoLabelTable.add(magazineAmmoLabel).padLeft(85f).padBottom(12f) // Reduced from 160f
-        ammoLabelTable.add(reserveAmmoLabel).padBottom(12f) // Removed .expandX()
+        ammoLabelTable.add(magazineAmmoLabel).padLeft(85f).padBottom(12f)
+        ammoLabelTable.add(reserveAmmoLabel).padBottom(12f)
 
-        // Create the Stack for the ammo UI
-        ammoUiContainer = Stack()
-        ammoUiContainer.add(Image(weaponUiTexture))
-        ammoUiContainer.add(ammoLabelTable)
+        ammoUiContainer = Stack(Image(weaponUiTexture), ammoLabelTable)
 
-        // Create a vertical table to hold the weapon icon AND the ammo display
+        // Weapon Info Table
         val weaponInfoTable = Table()
         weaponInfoTable.add(weaponIconContainer).row()
         weaponInfoTable.add(ammoUiContainer).width(180f).height(72f).padTop(0f).padLeft(85f)
 
-        // Main HUD Layout
-        gameHudTable = Table()
-        gameHudTable.setFillParent(true)
-        gameHudTable.top().left()
-        gameHudTable.pad(20f)
+        // Add to main poster table (using your original layout)
+        wantedPosterHudTable.add(wantedStack).width(180f).height(240f).top().left()
+        wantedPosterHudTable.add(weaponInfoTable).padLeft(-80f).top().padTop(15f)
 
-        gameHudTable.add(wantedStack).width(180f).height(240f).top().left()
-        gameHudTable.add(weaponInfoTable).padLeft(-80f).top().padTop(15f)
+        // 2. BUILD MINIMALIST HUD
+        minimalistHudTable = Table()
+        minimalistHudTable.setFillParent(true)
+        minimalistHudTable.top().left().pad(20f)
 
-        stage.addActor(gameHudTable)
-        gameHudTable.isVisible = !game.isEditorMode
+        weaponIconImageMinimalist = Image().apply { setScaling(Scaling.fit) }
+        ammoLabelMinimalist = Label("00/00", skin, "title") // Using "title" style as requested
+        healthBarMinimalist = ProgressBar(0f, 100f, 1f, false, healthBarStyle)
+
+        val topRow = Table()
+        topRow.add(weaponIconImageMinimalist).size(64f)
+        topRow.add(ammoLabelMinimalist).padLeft(15f).bottom()
+
+        minimalistHudTable.add(topRow).left().row()
+        minimalistHudTable.add(healthBarMinimalist).width(150f).height(25f).padTop(10f).left()
+
+        // 3. ADD TO STAGE & SET INITIAL VISIBILITY
+        stage.addActor(wantedPosterHudTable)
+        stage.addActor(minimalistHudTable)
+        setHudStyle(currentHudStyle) // Apply the default style
     }
 
     private fun setupMainUI() {
@@ -868,25 +885,107 @@ class UIManager(
         }
     }
 
+    private fun setupMoneyDisplay() {
+        try {
+            moneyStackTexture = Texture(Gdx.files.internal("textures/objects/items/money_stack.png"))
+        } catch (e: Exception) {
+            // Fallback
+            val pixmap = Pixmap(32, 32, Pixmap.Format.RGBA8888); pixmap.setColor(Color.GREEN); pixmap.fill();
+            moneyStackTexture = Texture(pixmap); pixmap.dispose()
+        }
+
+        moneyDisplayTable = Table()
+        val moneyIcon = Image(moneyStackTexture).apply { setScaling(Scaling.fit) }
+        val dollarLabel = Label("$", skin, "title")
+        moneyValueLabel = Label("0", skin, "title")
+
+        moneyDisplayTable.add(moneyIcon).size(40f)
+        moneyDisplayTable.add(dollarLabel).padLeft(10f)
+        moneyDisplayTable.add(moneyValueLabel).padLeft(5f)
+
+        // Position it off-screen to the right
+        moneyDisplayTable.setPosition(stage.width, stage.height - 80f)
+        moneyDisplayTable.isVisible = false // Start hidden
+        stage.addActor(moneyDisplayTable)
+    }
+
+    fun setHudStyle(newStyle: HudStyle) {
+        currentHudStyle = newStyle
+        wantedPosterHudTable.isVisible = (newStyle == HudStyle.WANTED_POSTER) && !game.isEditorMode && !isPauseMenuVisible()
+        minimalistHudTable.isVisible = (newStyle == HudStyle.MINIMALIST) && !game.isEditorMode && !isPauseMenuVisible()
+    }
+
+    fun getCurrentHudStyle(): HudStyle = currentHudStyle
+
+    fun showMoneyUpdate(newAmount: Int) {
+        moneyValueLabel.setText(newAmount.toString())
+        moneyDisplayTable.pack() // Recalculate size based on new text
+
+        // Stop any previous animation sequence. This is key to resetting the timer.
+        moneyDisplayTable.clearActions()
+
+        val yPos = stage.height - 80f
+
+        if (isMoneyDisplayVisible) {
+            // The display is already on-screen. Just reset its timer.
+            moneyDisplayTable.addAction(Actions.sequence(
+                Actions.delay(2.5f), // Stay for the full duration again
+                Actions.moveTo(stage.width, yPos, 0.4f, Interpolation.swingIn),
+                Actions.run {
+                    moneyDisplayTable.isVisible = false
+                    isMoneyDisplayVisible = false // Mark as off-screen
+                }
+            ))
+        } else {
+            // The display is off-screen. Play the full slide-in animation.
+            isMoneyDisplayVisible = true // Mark as on-screen
+            moneyDisplayTable.isVisible = true
+
+            val startX = stage.width
+            val targetX = stage.width - moneyDisplayTable.width - 30f
+
+            moneyDisplayTable.setPosition(startX, yPos)
+
+            moneyDisplayTable.addAction(Actions.sequence(
+                Actions.moveTo(targetX, yPos, 0.4f, Interpolation.swingOut),
+                Actions.delay(2.5f),
+                Actions.moveTo(startX, yPos, 0.4f, Interpolation.swingIn),
+                Actions.run {
+                    moneyDisplayTable.isVisible = false
+                    isMoneyDisplayVisible = false // Mark as off-screen
+                }
+            ))
+        }
+    }
+
     fun render() {
         // Update HUD visibility and values based on game state
-        if (::gameHudTable.isInitialized) {
-            gameHudTable.isVisible = !game.isEditorMode && !isPauseMenuVisible()
+        val shouldShowHud = !game.isEditorMode && !isPauseMenuVisible()
+        wantedPosterHudTable.isVisible = shouldShowHud && currentHudStyle == HudStyle.WANTED_POSTER
+        minimalistHudTable.isVisible = shouldShowHud && currentHudStyle == HudStyle.MINIMALIST
 
+        if (shouldShowHud) {
             // Update health bar value every frame
-            if (gameHudTable.isVisible) {
-                healthBar.value = game.playerSystem.getHealthPercentage()
+            healthBar.value = game.playerSystem.getHealthPercentage()
 
-                val hp = game.playerSystem.getHealth().toInt()
-                val maxHp = game.playerSystem.getMaxHealth().toInt()
-                healthDebugLabel.setText("$hp / $maxHp")
+            if (game.playerSystem.equippedWeapon != lastEquippedWeapon) {
+                updateWeaponIcon() // This updates the main icon
+                lastEquippedWeapon = game.playerSystem.equippedWeapon
+            }
 
-                if (game.playerSystem.equippedWeapon != lastEquippedWeapon) {
-                    updateWeaponIcon()
-                    lastEquippedWeapon = game.playerSystem.equippedWeapon
-                }
+            updateAmmoDisplay()
 
-                updateAmmoDisplay()
+            // Update Minimalist HUD
+            healthBarMinimalist.value = game.playerSystem.getHealthPercentage()
+            weaponIconImageMinimalist.drawable = weaponIconImage.drawable // Reuse the same drawable
+            val weapon = game.playerSystem.equippedWeapon
+            if (weapon.actionType == WeaponActionType.SHOOTING) {
+                val mag = game.playerSystem.getCurrentMagazineCount()
+                val res = game.playerSystem.getCurrentReserveAmmo()
+                ammoLabelMinimalist.setText("${mag.toString().padStart(2, '0')} / ${res.toString().padStart(2, '0')}")
+                ammoLabelMinimalist.isVisible = true
+            } else {
+                ammoLabelMinimalist.isVisible = false
             }
         }
 

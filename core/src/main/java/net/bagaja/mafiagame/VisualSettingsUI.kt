@@ -41,6 +41,7 @@ class VisualSettingsUI(
     private var meleeRangeCheckbox: CheckBox
     private val muzzleFlashCheckbox: CheckBox
     private lateinit var indicatorStyleButton: TextButton
+    private lateinit var hudStyleButton: TextButton
 
     init {
         // Initialize checkboxes with vintage styling
@@ -146,6 +147,8 @@ class VisualSettingsUI(
         indicatorStyleButton = createVintageButton("Melee Style: Solid", Color.valueOf("#654321"))
         updateIndicatorButtonStyle() // Set initial text
         settingsTable.add(indicatorStyleButton).width(320f).height(50f).padTop(20f).row()
+        hudStyleButton = createVintageButton("HUD Style: Poster", Color.valueOf("#654321"))
+        settingsTable.add(hudStyleButton).width(320f).height(50f).padTop(10f).row()
 
         newspaperTable.add(settingsTable).width(380f).padBottom(25f).row()
 
@@ -497,6 +500,11 @@ class VisualSettingsUI(
         return Image(texture)
     }
 
+    private fun updateHudStyleButtonText() {
+        val style = uiManager.getCurrentHudStyle()
+        hudStyleButton.setText("HUD Style: ${style.displayName}")
+    }
+
     private fun setupListeners() {
         // Fullscreen checkbox listener
         fullscreenCheckbox.addListener(object : ClickListener() {
@@ -556,6 +564,17 @@ class VisualSettingsUI(
                 updateIndicatorButtonStyle()
             }
         })
+
+        hudStyleButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                val nextStyle = when (uiManager.getCurrentHudStyle()) {
+                    HudStyle.WANTED_POSTER -> HudStyle.MINIMALIST
+                    HudStyle.MINIMALIST -> HudStyle.WANTED_POSTER
+                }
+                uiManager.setHudStyle(nextStyle)
+                updateHudStyleButtonText()
+            }
+        })
     }
 
     fun show(stage: Stage) {
@@ -568,6 +587,7 @@ class VisualSettingsUI(
         meleeRangeCheckbox.isChecked = meleeRangeIndicatorSystem.isEnabled()
         muzzleFlashCheckbox.isChecked = playerSystem.isMuzzleFlashLightEnabled()
         updateIndicatorButtonStyle()
+        updateHudStyleButtonText()
         stage.addActor(overlay)
 
         // Add to stage

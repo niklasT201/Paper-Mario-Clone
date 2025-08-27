@@ -303,14 +303,18 @@ class ItemSystem: IFinePositionable {
 
             // Only check for collision if the pickup delay has expired.
             if (item.pickupDelay <= 0f && item.checkCollision(playerSystem.getPosition(), 2f)) {
+                if (item.itemType == ItemType.MONEY_STACK) {
+                    playerSystem.addMoney(item.itemType.value)
+                    // The item will be marked for removal below, but don't equip anything
+                } else {
+                    // Check if the collected item corresponds to a weapon
+                    item.itemType.correspondingWeapon?.let { weaponToEquip ->
+                        // If it does, tell the player system to equip it
+                        playerSystem.equipWeapon(weaponToEquip, item.ammo)
+                    }
+                }
                 item.collect()
                 itemsToRemove.add(item)
-
-                // Check if the collected item corresponds to a weapon
-                item.itemType.correspondingWeapon?.let { weaponToEquip ->
-                    // If it does, tell the player system to equip it
-                    playerSystem.equipWeapon(weaponToEquip, item.ammo)
-                }
             }
         }
 

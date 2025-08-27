@@ -49,9 +49,7 @@ public class Lwjgl3Launcher {
 
 // changing room transition effect colors
 // edge houses
-// adding money counter
 // option to see full current health
-// option to switch between two player huds
 // blocks being visible behind transparent enemies etc.
 // weapon radius for fire and explosions
 // damage gets less for higher radius
@@ -82,8 +80,6 @@ public class Lwjgl3Launcher {
 // mission starting, saving and ending
 // killed enemies drop items
 // enemies have an inventory and collect items
-// adding guns
-// adding health
 // adding multiple city areas
 
 // maybe, not intended for now:

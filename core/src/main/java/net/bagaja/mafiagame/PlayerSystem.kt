@@ -43,8 +43,6 @@ enum class PlayerState {
 }
 
 class PlayerSystem {
-    private lateinit var objectSystem: ObjectSystem
-    // Player model and rendering
     private lateinit var playerTexture: Texture
     private lateinit var playerModel: Model
     lateinit var playerInstance: ModelInstance
@@ -58,6 +56,8 @@ class PlayerSystem {
     private var health: Float = 100f
         private set
     private val maxHealth: Float = 100f
+    private var money: Int = 0
+    private lateinit var sceneManager: SceneManager
 
     fun takeDamage(amount: Float) {
         if (health > 0) {
@@ -175,13 +175,14 @@ class PlayerSystem {
         return physicsComponent.bounds
     }
 
-    fun initialize(blockSize: Float, particleSystem: ParticleSystem, lightingManager: LightingManager, bloodPoolSystem: BloodPoolSystem, footprintSystem: FootprintSystem, characterPhysicsSystem:CharacterPhysicsSystem) {
+    fun initialize(blockSize: Float, particleSystem: ParticleSystem, lightingManager: LightingManager, bloodPoolSystem: BloodPoolSystem, footprintSystem: FootprintSystem, characterPhysicsSystem: CharacterPhysicsSystem, sceneManager: SceneManager) {
         this.blockSize = blockSize
         this.particleSystem = particleSystem
         this.lightingManager = lightingManager
         this.bloodPoolSystem = bloodPoolSystem
         this.footprintSystem = footprintSystem
-        this.characterPhysicsSystem = CharacterPhysicsSystem(particleSystem.sceneManager)
+        this.characterPhysicsSystem = characterPhysicsSystem
+        this.sceneManager = sceneManager
         physicsComponent = PhysicsComponent(
             position = Vector3(0f, 2f, 0f), // Default start position
             size = this.playerSize,
@@ -1239,6 +1240,16 @@ class PlayerSystem {
         println("Player teleported!")
 
         return true // Teleport was successful
+    }
+
+    fun getMoney(): Int = money
+
+    fun addMoney(amount: Int) {
+        if (amount <= 0) return
+        money += amount
+        println("Player collected $amount. Total money: $money")
+        // Notify the UI manager about the change
+        sceneManager.game.uiManager.showMoneyUpdate(money)
     }
 
     fun update(deltaTime: Float, sceneManager: SceneManager) {

@@ -167,7 +167,7 @@ class MafiaGame : ApplicationAdapter() {
         enemySystem.initialize(blockSize, characterPhysicsSystem)
         npcSystem.initialize(blockSize, characterPhysicsSystem)
         roomTemplateManager.initialize()
-        playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem, footprintSystem, characterPhysicsSystem)
+        playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem, footprintSystem, characterPhysicsSystem, sceneManager)
         shaderEffectManager.initialize()
 
         // Initialize managers that depend on initialized systems
