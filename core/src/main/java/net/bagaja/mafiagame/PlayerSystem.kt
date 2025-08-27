@@ -128,11 +128,12 @@ class PlayerSystem {
     private val ammoReserves = mutableMapOf<WeaponType, Int>()
     private var currentMagazineCount = 0
         private set
+    private val currentMagazineCounts = mutableMapOf<WeaponType, Int>()
     private var isReloading = false
     private var reloadTimer = 0f
 
     var equippedWeapon: WeaponType = WeaponType.UNARMED
-    private var weapons: List<WeaponType> = listOf(WeaponType.UNARMED)
+    private var weapons: MutableList<WeaponType> = mutableListOf(WeaponType.UNARMED)
     private var currentWeaponIndex = 0
 
     private var isShooting = false
@@ -580,6 +581,12 @@ class PlayerSystem {
     private fun spawnThrowable() {
         val model = throwableModels[equippedWeapon] ?: return
 
+        // --- START: MODIFIED SECTION ---
+        // First, consume one throwable from the reserves.
+        val currentAmmo = ammoReserves.getOrDefault(equippedWeapon, 0)
+        ammoReserves[equippedWeapon] = (currentAmmo - 1).coerceAtLeast(0)
+        // --- END: MODIFIED SECTION ---
+
         // Throw Physics Calculation
         val minPower = 15f
         val maxPower = 45f
@@ -608,7 +615,11 @@ class PlayerSystem {
 
         activeThrowables.add(throwable)
 
-        println("Threw ${equippedWeapon.displayName} with power $throwPower")
+        println("Threw ${equippedWeapon.displayName} with power ${throwPower}")
+
+        // --- ADD THIS LINE AT THE END ---
+        // After throwing, check if that was the last one.
+        checkAndRemoveWeaponIfOutOfAmmo()
     }
 
     fun toggleMuzzleFlashLight() {
@@ -710,27 +721,115 @@ class PlayerSystem {
                 muzzleFlashTimer = 0.06f // The flash will last for a very short time
             }
         }
+        checkAndRemoveWeaponIfOutOfAmmo()
     }
 
-    fun equipWeapon(weaponType: WeaponType, ammoToGive: Int? = null) { // MODIFIED: Add optional ammo parameter
-        if (!weapons.contains(weaponType)) {
-            // A mutable list is needed to add items
-            val mutableWeapons = weapons.toMutableList()
-            mutableWeapons.add(weaponType)
-            weapons = mutableWeapons
+    fun equipWeapon(weaponType: WeaponType, ammoToGive: Int? = null) {
+        if (weaponType == WeaponType.UNARMED) {
+            currentWeaponIndex = weapons.indexOf(WeaponType.UNARMED)
+        } else {
+            if (!weapons.contains(weaponType)) {
+                // A mutable list is needed to add items
+                weapons.add(weaponType)
+            }
+            currentWeaponIndex = weapons.indexOf(weaponType)
         }
 
         this.equippedWeapon = weaponType
-        this.currentMagazineCount = weaponType.magazineSize
+        this.currentMagazineCount = currentMagazineCounts.getOrDefault(weaponType, weaponType.magazineSize)
+
         isReloading = false
         reloadTimer = 0f
 
-        // NEW: Add the ammo from the picked-up item to reserves
+        // Add the ammo from the picked-up item to reserves
         if (ammoToGive != null && ammoToGive > 0) {
             addAmmo(weaponType, ammoToGive)
         }
 
         println("Player equipped: ${weaponType.displayName}. Magazine loaded with $currentMagazineCount rounds.")
+    }
+
+    fun dropEquippedWeapon(sceneManager: SceneManager, itemSystem: ItemSystem) {
+        // Prevent dropping while driving or if unarmed.
+        if (isDriving || equippedWeapon == WeaponType.UNARMED) {
+            return
+        }
+
+        val weaponToDrop = equippedWeapon
+        println("Player dropped ${weaponToDrop.displayName}.")
+
+        val itemTypeToSpawn = ItemType.entries.find { it.correspondingWeapon == weaponToDrop }
+
+        if (itemTypeToSpawn != null) {
+            val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
+            val spawnOffset = Vector3(directionX * 2.5f, 0f, 0f)
+            val spawnPosition = getPosition().add(spawnOffset)
+
+            val newItem = itemSystem.createItem(spawnPosition, itemTypeToSpawn)
+            if (newItem != null) {
+                newItem.pickupDelay = 0.5f
+                newItem.ammo = ammoReserves.getOrDefault(weaponToDrop, 0)
+
+                sceneManager.activeItems.add(newItem)
+                itemSystem.setActiveItems(sceneManager.activeItems)
+            }
+        }
+
+        removeWeaponFromInventory(weaponToDrop)
+        switchToPreviousWeapon()
+    }
+
+    private fun removeWeaponFromInventory(weaponType: WeaponType) {
+        if (weaponType == WeaponType.UNARMED) return // Cannot remove fists
+
+        weapons.remove(weaponType)
+        ammoReserves.remove(weaponType)
+        currentMagazineCounts.remove(weaponType)
+    }
+
+    fun switchToNextWeapon() {
+        if (weapons.size <= 1) return // Can't switch if you only have fists
+
+        // SAVE the current weapon's magazine state BEFORE switching
+        currentMagazineCounts[equippedWeapon] = currentMagazineCount
+
+        currentWeaponIndex = (currentWeaponIndex + 1) % weapons.size
+        equipWeapon(weapons[currentWeaponIndex])
+    }
+
+    private fun switchToPreviousWeapon() {
+        if (weapons.size <= 1) return // Can't switch if you only have fists
+
+        // SAVE the current weapon's magazine state BEFORE switching
+        currentMagazineCounts[equippedWeapon] = currentMagazineCount
+
+        currentWeaponIndex--
+        if (currentWeaponIndex < 0) {
+            currentWeaponIndex = weapons.size - 1
+        }
+        equipWeapon(weapons[currentWeaponIndex])
+    }
+
+    private fun checkAndRemoveWeaponIfOutOfAmmo() {
+        val weaponToCheck = equippedWeapon
+
+        if (weaponToCheck.actionType == WeaponActionType.MELEE) {
+            return
+        }
+
+        val magCount = getCurrentMagazineCount()
+        val reserveCount = getCurrentReserveAmmo()
+
+        // If both magazine and reserves are empty, the weapon is useless
+        if (magCount <= 0 && reserveCount <= 0) {
+            println("${weaponToCheck.displayName} is completely out of ammo. Removing from inventory.")
+
+            // Remove the weapon from the player's list
+            removeWeaponFromInventory(weaponToCheck)
+
+            // Switch to the previous weapon in the list
+            switchToPreviousWeapon()
+        }
     }
 
     fun hasGunEquipped(): Boolean {

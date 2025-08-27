@@ -94,8 +94,12 @@ class TargetingIndicatorSystem {
         sceneManager: SceneManager,
         raycastSystem: RaycastSystem
     ) {
+        val equippedWeapon = playerSystem.equippedWeapon
+        val shouldBeVisible = equippedWeapon.actionType == WeaponActionType.SHOOTING ||
+            (equippedWeapon.actionType == WeaponActionType.MELEE && equippedWeapon != WeaponType.UNARMED)
+
         // First, check all conditions for the indicator to be visible.
-        if (!isEnabledByUser || !playerSystem.hasGunEquipped()) {
+        if (!isEnabledByUser || !shouldBeVisible) {
             isVisible = false
             return
         }

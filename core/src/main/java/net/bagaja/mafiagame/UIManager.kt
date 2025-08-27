@@ -265,14 +265,14 @@ class UIManager(
         reserveAmmoLabel = Label("/ 00", skin, "title")
         reserveAmmoLabel.color = Color.valueOf("#D3C9B6")
 
-         magazineAmmoLabel.fontScaleX = 1.1f
-         magazineAmmoLabel.fontScaleY = 1.1f
-         reserveAmmoLabel.fontScaleX = 1.1f
-         reserveAmmoLabel.fontScaleY = 1.1f
+        magazineAmmoLabel.fontScaleX = 1.1f
+        magazineAmmoLabel.fontScaleY = 1.1f
+        reserveAmmoLabel.fontScaleX = 1.1f
+        reserveAmmoLabel.fontScaleY = 1.1f
 
         val ammoLabelTable = Table()
-        ammoLabelTable.add(magazineAmmoLabel).padLeft(160f).padBottom(8f)
-        ammoLabelTable.add(reserveAmmoLabel).expandX().left().padBottom(6f)
+        ammoLabelTable.add(magazineAmmoLabel).padLeft(85f).padBottom(12f) // Reduced from 160f
+        ammoLabelTable.add(reserveAmmoLabel).padBottom(12f) // Removed .expandX()
 
         // Create the Stack for the ammo UI
         ammoUiContainer = Stack()
@@ -835,7 +835,7 @@ class UIManager(
 
             // Update the labels with padded numbers (e.g., "06" instead of "6")
             magazineAmmoLabel.setText(magCount.toString().padStart(2, '0'))
-            reserveAmmoLabel.setText("/ ${reserveCount.toString().padStart(2, '0')}")
+            reserveAmmoLabel.setText("/${reserveCount.toString().padStart(2, '0')}")
         } else {
             // If it's not a shooting weapon, hide the ammo UI
             ammoUiContainer.isVisible = false

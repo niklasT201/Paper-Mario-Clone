@@ -278,6 +278,10 @@ class ItemSystem: IFinePositionable {
         for (item in gameItems) {
             if (item.isCollected) continue
 
+            if (item.pickupDelay > 0f) {
+                item.pickupDelay -= deltaTime
+            }
+
             if (!finePosMode) {
                 // 1. Apply Gravity and Find Support for the item
                 val itemX = item.position.x
@@ -297,8 +301,8 @@ class ItemSystem: IFinePositionable {
             // Update item animation (rotation and bobbing)
             item.update(deltaTime, camera.position, ITEM_SURFACE_OFFSET)
 
-            // Check collision with player
-            if (item.checkCollision(playerSystem.getPosition(), 2f)) {
+            // Only check for collision if the pickup delay has expired.
+            if (item.pickupDelay <= 0f && item.checkCollision(playerSystem.getPosition(), 2f)) {
                 item.collect()
                 itemsToRemove.add(item)
 
@@ -369,7 +373,8 @@ data class GameItem(
     private var totalTime: Float = 0f,
     private var bobOffset: Float = 0f,
     var isCollected: Boolean = false,
-    var ammo: Int = itemType.ammoAmount // NEW: Give each item its own ammo count, defaulting to the type's base amount.
+    var ammo: Int = itemType.ammoAmount,
+    var pickupDelay: Float = 0f
 ) {
     init {
         // Random bobbing offset so items don't all bob in sync
