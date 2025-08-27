@@ -104,8 +104,6 @@ class UIManager(
     private lateinit var moneyValueLabel: Label
     private var moneyDisplayAction: com.badlogic.gdx.scenes.scene2d.Action? = null
     private lateinit var moneyStackTexture: Texture
-    private var isMoneyDisplayVisible = false
-
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
     private lateinit var placementInfoLabel: Label
@@ -921,39 +919,38 @@ class UIManager(
         moneyValueLabel.setText(newAmount.toString())
         moneyDisplayTable.pack() // Recalculate size based on new text
 
-        // Stop any previous animation sequence. This is key to resetting the timer.
+        // Always stop any previous animation sequence
         moneyDisplayTable.clearActions()
 
         val yPos = stage.height - 80f
+        val targetX = stage.width - moneyDisplayTable.width - 30f // The final on-screen X position
+        val startX = stage.width // The off-screen X position to the right
 
-        if (isMoneyDisplayVisible) {
-            // The display is already on-screen. Just reset its timer.
+        // Make sure the actor is visible to start any new animation.
+        moneyDisplayTable.isVisible = true
+
+        // Check if the table is already on-screen by checking its current X coordinate.
+        val isAlreadyOnScreen = moneyDisplayTable.x < startX
+
+        // Define the sequence for sliding out and hiding
+        val slideOutSequence = Actions.sequence(
+            Actions.moveTo(startX, yPos, 0.4f, Interpolation.swingIn),
+            Actions.run { moneyDisplayTable.isVisible = false }
+        )
+
+        if (isAlreadyOnScreen) {
+            moneyDisplayTable.setPosition(targetX, yPos)
             moneyDisplayTable.addAction(Actions.sequence(
-                Actions.delay(2.5f), // Stay for the full duration again
-                Actions.moveTo(stage.width, yPos, 0.4f, Interpolation.swingIn),
-                Actions.run {
-                    moneyDisplayTable.isVisible = false
-                    isMoneyDisplayVisible = false // Mark as off-screen
-                }
+                Actions.delay(2.5f),
+                slideOutSequence
             ))
         } else {
-            // The display is off-screen. Play the full slide-in animation.
-            isMoneyDisplayVisible = true // Mark as on-screen
-            moneyDisplayTable.isVisible = true
-
-            val startX = stage.width
-            val targetX = stage.width - moneyDisplayTable.width - 30f
-
-            moneyDisplayTable.setPosition(startX, yPos)
-
+            // The display is completely off-screen. Play the full "slide in" animation.
+            moneyDisplayTable.setPosition(startX, yPos) // Ensure it starts off-screen
             moneyDisplayTable.addAction(Actions.sequence(
-                Actions.moveTo(targetX, yPos, 0.4f, Interpolation.swingOut),
-                Actions.delay(2.5f),
-                Actions.moveTo(startX, yPos, 0.4f, Interpolation.swingIn),
-                Actions.run {
-                    moneyDisplayTable.isVisible = false
-                    isMoneyDisplayVisible = false // Mark as off-screen
-                }
+                Actions.moveTo(targetX, yPos, 0.4f, Interpolation.swingOut), // Slide in
+                Actions.delay(2.5f), // Wait
+                slideOutSequence // Slide out
             ))
         }
     }
