@@ -366,11 +366,11 @@ class InputHandler(
 
                 if (!game.isEditorMode) {
                     when (keycode) {
-                        Input.Keys.Q -> {
-                            // Drop the current weapon
-                            game.playerSystem.dropEquippedWeapon(sceneManager, itemSystem)
-                            return true
-                        }
+//                        Input.Keys.Q -> {
+//                            // Drop the current weapon
+//                            game.playerSystem.dropEquippedWeapon(sceneManager, itemSystem)
+//                            return true
+//                        }
                         Input.Keys.E -> {
                             // Cycle to the next weapon
                             game.playerSystem.switchToNextWeapon()

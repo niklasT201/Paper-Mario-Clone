@@ -28,8 +28,8 @@ data class GameFire(
     val canBeExtinguished: Boolean,
     var fadesOut: Boolean,
     var lifetime: Float,
-    val canSpread: Boolean = false, // NEW: Can this fire type spread?
-    val generation: Int = 0 // NEW: How many times it has spread
+    val canSpread: Boolean = false,
+    val generation: Int = 0
 ) {
     private val material = gameObject.modelInstance.materials.first()
     private val blendingAttribute: BlendingAttribute? = material.get(BlendingAttribute.Type) as? BlendingAttribute
@@ -163,13 +163,14 @@ class FireSystem {
         lightingManager.addLightSource(customLightSource, lightInstances)
 
         val randomScale = nextFireMinScale + Random.nextFloat() * (nextFireMaxScale - nextFireMinScale)
+        val effectiveDamageRadius = (fireObject.objectType.width / 2f) * 1.1f
 
         val newFire = GameFire(
             gameObject = fireObject,
             isLooping = nextFireIsLooping,
             dealsDamage = nextFireDealsDamage,
             damagePerSecond = nextFireDamagePerSecond,
-            damageRadius = nextFireDamageRadius,
+            damageRadius = effectiveDamageRadius,
             initialScale = randomScale,
             canBeExtinguished = nextFireCanBeExtinguished,
             fadesOut = nextFireFadesOut,
@@ -178,7 +179,7 @@ class FireSystem {
             generation = generation
         )
 
-        // ADDED: If this is a permanent fire, set up its fire spot timer.
+        // If this is a permanent fire, set up its fire spot timer.
         if (!newFire.fadesOut) {
             // Random time between 7 and 15 seconds
             newFire.fireSpotSpawnTimer = 7f + Random.nextFloat() * 8f
@@ -214,10 +215,7 @@ class FireSystem {
             if (fire.canSpread && !fire.isBeingExtinguished) {
                 fire.spreadTimer -= deltaTime
                 if (fire.spreadTimer <= 0f) {
-                    fire.spreadTimer = Random.nextFloat() * 1.5f + 1.0f // Check again in 1-2.5 seconds
-
-                    // The chance decreases with each generation.
-                    // Gen 0 (Molotov): 4%, Gen 1: 2%, Gen 2: 1.3%, etc.
+                    fire.spreadTimer = Random.nextFloat() * 1.5f + 1.0f
                     val baseSpreadChance = 0.04f
                     val spreadChance = baseSpreadChance / (fire.generation + 1)
 
@@ -245,7 +243,7 @@ class FireSystem {
                         position = spotPosition,
                         surfaceNormal = Vector3.Y, // It's on the ground, so normal is up
                         gravityOverride = 0f,
-                        overrideScale = spotScale // Use the correctly calculated scale
+                        overrideScale = spotScale
                     )
 
                     fire.hasSpawnedFireSpot = true
@@ -272,18 +270,25 @@ class FireSystem {
             // Damage logic
             if (fire.dealsDamage && !fire.isBeingExtinguished) {
                 // Get the position from the GameObject, which is always correct.
-                val fireDamage = fire.damagePerSecond * deltaTime
-                val fireRadius = fire.damageRadius * fire.currentScale / fire.initialScale
+                val baseDamagePerSecond = fire.damagePerSecond
+                val fireRadius = fire.damageRadius * (fire.currentScale / fire.initialScale)
 
                 // Damage Player
-                if (fire.gameObject.position.dst(playerSystem.getPosition()) < fireRadius) {
-                    playerSystem.takeDamage(fireDamage)
+                val playerPosition = playerSystem.getPosition()
+                val distanceToPlayer = fire.gameObject.position.dst(playerPosition)
+                if (distanceToPlayer < fireRadius) {
+                    val damageMultiplier = 1.0f - (distanceToPlayer / fireRadius)
+                    val damageThisFrame = baseDamagePerSecond * damageMultiplier * deltaTime
+                    playerSystem.takeDamage(damageThisFrame)
                 }
 
                 // Damage Cars
                 for (car in sceneManager.activeCars) {
-                    if (fire.gameObject.position.dst(car.position) < fireRadius) {
-                        car.takeDamage(fireDamage, DamageType.FIRE)
+                    val distanceToCar = fire.gameObject.position.dst(car.position)
+                    if (distanceToCar < fireRadius) {
+                        val damageMultiplier = 1.0f - (distanceToCar / fireRadius)
+                        val damageThisFrame = baseDamagePerSecond * damageMultiplier * deltaTime
+                        car.takeDamage(damageThisFrame, DamageType.FIRE)
                     }
                 }
 
@@ -291,8 +296,11 @@ class FireSystem {
                 val enemyIterator = sceneManager.activeEnemies.iterator()
                 while (enemyIterator.hasNext()) {
                     val enemy = enemyIterator.next()
-                    if (fire.gameObject.position.dst(enemy.position) < fireRadius) {
-                        if (enemy.takeDamage(fireDamage, DamageType.FIRE) && enemy.currentState != AIState.DYING) {
+                    val distanceToEnemy = fire.gameObject.position.dst(enemy.position)
+                    if (distanceToEnemy < fireRadius) {
+                        val damageMultiplier = 1.0f - (distanceToEnemy / fireRadius)
+                        val damageThisFrame = baseDamagePerSecond * damageMultiplier * deltaTime
+                        if (enemy.takeDamage(damageThisFrame, DamageType.FIRE) && enemy.currentState != AIState.DYING) {
                             // Enemy died from fire, spawn a blood pool and remove them
                             sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
@@ -303,8 +311,11 @@ class FireSystem {
                 val npcIterator = sceneManager.activeNPCs.iterator()
                 while (npcIterator.hasNext()) {
                     val npc = npcIterator.next()
-                    if (fire.gameObject.position.dst(npc.position) < fireRadius) {
-                        if (npc.takeDamage(fireDamage, DamageType.FIRE) && npc.currentState != NPCState.DYING) {
+                    val distanceToNPC = fire.gameObject.position.dst(npc.position)
+                    if (distanceToNPC < fireRadius) {
+                        val damageMultiplier = 1.0f - (distanceToNPC / fireRadius)
+                        val damageThisFrame = baseDamagePerSecond * damageMultiplier * deltaTime
+                        if (npc.takeDamage(damageThisFrame, DamageType.FIRE) && npc.currentState != NPCState.DYING) {
                             // NPC died from fire, spawn a blood pool and remove them
                             sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }

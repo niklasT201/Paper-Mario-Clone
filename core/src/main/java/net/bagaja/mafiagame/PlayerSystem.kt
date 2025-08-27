@@ -1489,6 +1489,16 @@ class PlayerSystem {
         }
     }
 
+    private fun calculateFalloffDamage(baseDamage: Float, distance: Float, maxRadius: Float): Float {
+        if (distance >= maxRadius || maxRadius <= 0f) {
+            return 0f
+        }
+        // A simple linear falloff. Damage is 100% at the center, 0% at the edge.
+        val multiplier = 1.0f - (distance / maxRadius)
+        return baseDamage * multiplier
+    }
+
+
     private fun handleThrowableImpact(
         throwable: ThrowableEntity,
         collisionResult: CollisionResult?,
@@ -1511,7 +1521,7 @@ class PlayerSystem {
                     println("Dynamite fuse ended mid-air. Exploding at last known position.")
                 }
 
-                // 1. Camera Shake
+                // Camera Shake
                 val distanceToPlayer = explosionOrigin.dst(getPosition())
                 val maxShakeDistance = 45f
 
@@ -1566,12 +1576,7 @@ class PlayerSystem {
                     }
 
                     val smokeScale = 2.5f + Random.nextFloat() * (3.0f - 1f)
-
-                    particleSystem.spawnEffect(
-                        type = randomSmokeType,
-                        position = smokePosition,
-                        overrideScale = smokeScale
-                    )
+                    particleSystem.spawnEffect(type = randomSmokeType, position = smokePosition, overrideScale = smokeScale)
                 }
 
                 // 4. Scorch Mark
@@ -1590,9 +1595,6 @@ class PlayerSystem {
                         surfaceNormal = Vector3.Y, // The ground's normal is straight up.
                         gravityOverride = 0f       // Ensure it doesn't fall through the world.
                     )
-                    println("Dynamite hit a surface, spawning scorch mark.")
-                } else {
-                    println("Dynamite exploded mid-air, no scorch mark spawned.")
                 }
 
                 println("Dynamite effect originating at $explosionOrigin")
@@ -1603,37 +1605,43 @@ class PlayerSystem {
 
                 // Damage cars
                 for (car in sceneManager.activeCars) {
-                    if (car.position.dst(validGroundPosition) < explosionRadius) {
-                        car.takeDamage(explosionDamage, DamageType.EXPLOSIVE)
+                    val distanceToCar = car.position.dst(validGroundPosition)
+                    if (distanceToCar < explosionRadius) {
+                        val actualDamage = calculateFalloffDamage(explosionDamage, distanceToCar, explosionRadius)
+                        car.takeDamage(actualDamage, DamageType.EXPLOSIVE)
                     }
                 }
                 // Damage enemies
-                val enemyIterator = sceneManager.activeEnemies.iterator()
-                while(enemyIterator.hasNext()) {
-                    val enemy = enemyIterator.next()
-                    if (enemy.position.dst(validGroundPosition) < explosionRadius) {
-                        // MODIFIED: Use the new death sequence
-                        if (enemy.takeDamage(explosionDamage, DamageType.EXPLOSIVE) && enemy.currentState != AIState.DYING) {
+                sceneManager.activeEnemies.forEach { enemy ->
+                    val distanceToEnemy = enemy.position.dst(validGroundPosition)
+                    if (distanceToEnemy < explosionRadius) {
+                        val actualDamage = calculateFalloffDamage(explosionDamage, distanceToEnemy, explosionRadius)
+                        if (enemy.takeDamage(actualDamage, DamageType.EXPLOSIVE) && enemy.currentState != AIState.DYING) {
                             sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
                     }
                 }
                 // Damage NPCs
-                val npcIterator = sceneManager.activeNPCs.iterator()
-                while(npcIterator.hasNext()) {
-                    val npc = npcIterator.next()
-                    if (npc.position.dst(validGroundPosition) < explosionRadius) {
-                        if (npc.takeDamage(explosionDamage, DamageType.EXPLOSIVE) && npc.currentState != NPCState.DYING) {
+                sceneManager.activeNPCs.forEach { npc ->
+                    val distanceToNPC = npc.position.dst(validGroundPosition)
+                    if (distanceToNPC < explosionRadius) {
+                        val actualDamage = calculateFalloffDamage(explosionDamage, distanceToNPC, explosionRadius)
+                        if (npc.takeDamage(actualDamage, DamageType.EXPLOSIVE) && npc.currentState != NPCState.DYING) {
                             sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }
                     }
+                }
+                // Damage Player
+                val distanceToPlayerSelf = getPosition().dst(validGroundPosition)
+                if (distanceToPlayerSelf < explosionRadius) {
+                    val actualDamage = calculateFalloffDamage(explosionDamage, distanceToPlayerSelf, explosionRadius)
+                    takeDamage(actualDamage)
                 }
             }
             WeaponType.MOLOTOV -> {
                 // If the Molotov's lifetime ended without hitting anything, do nothing
                 if (collisionResult == null) {
-                    println("Molotov fizzled out mid-air. No fire spawned.")
-                    return // Exit the function immediately.
+                    return
                 }
 
                 // If we are here, the Molotov DID hit something. Proceed with spawning fire.
@@ -1665,7 +1673,7 @@ class PlayerSystem {
                         position = validGroundPosition,
                         objectSystem = objectSystem,
                         lightingManager = lightingManager,
-                        canSpread = true, // <-- ADD THIS LINE
+                        canSpread = true,
                         lightIntensityOverride = 35f,
                         lightRangeOverride = 15f
                     )
