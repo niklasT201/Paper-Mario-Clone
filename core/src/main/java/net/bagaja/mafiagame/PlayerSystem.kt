@@ -1264,6 +1264,12 @@ class PlayerSystem {
         onFireDamagePerSecond = dps
     }
 
+    private fun applyKnockback(force: Vector3) {
+        if (!isDriving) {
+            physicsComponent.knockbackVelocity.set(force)
+        }
+    }
+
     fun update(deltaTime: Float, sceneManager: SceneManager) {
 
         // HANDLE ON FIRE STATE (DAMAGE & VISUALS)
@@ -1551,15 +1557,11 @@ class PlayerSystem {
                 val spawnSmokeOnGround: Boolean
 
                 if (collisionResult != null) {
-                    // hit something solid
                     explosionOrigin = getValidGroundImpactPosition(collisionResult, sceneManager, throwable.position)
                     spawnSmokeOnGround = true
-                    println("Dynamite hit a surface. Exploding from ground.")
                 } else {
-                    // exploded mid-air
                     explosionOrigin = throwable.position.cpy()
                     spawnSmokeOnGround = false
-                    println("Dynamite fuse ended mid-air. Exploding at last known position.")
                 }
 
                 // Camera Shake
@@ -1677,6 +1679,29 @@ class PlayerSystem {
                 if (distanceToPlayerSelf < explosionRadius) {
                     val actualDamage = calculateFalloffDamage(explosionDamage, distanceToPlayerSelf, explosionRadius)
                     takeDamage(actualDamage)
+
+                    // Knockback
+                    val maxKnockbackForce = 35.0f // Increased force since it's a velocity
+                    val upwardLift = 0.7f         // How much the player is pushed upwards. Adjust for more/less airtime.
+
+                    // Calculate the knockback strength based on distance
+                    val knockbackStrength = maxKnockbackForce * (1.0f - (distanceToPlayerSelf / explosionRadius))
+
+                    if (knockbackStrength > 0) {
+                        // Calculate the direction vector
+                        val knockbackDirection = getPosition().sub(explosionOrigin)
+                        knockbackDirection.y = upwardLift
+
+                        if (knockbackDirection.len2() > 0.001f) {
+                            knockbackDirection.nor()
+
+                            // Create the final knockback vector and apply it
+                            val knockbackVector = knockbackDirection.scl(knockbackStrength)
+                            applyKnockback(knockbackVector)
+
+                            println("Player knocked back with velocity: $knockbackVector")
+                        }
+                    }
                 }
             }
             WeaponType.MOLOTOV -> {

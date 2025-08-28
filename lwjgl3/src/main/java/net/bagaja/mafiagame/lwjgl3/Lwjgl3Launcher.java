@@ -56,7 +56,6 @@ public class Lwjgl3Launcher {
 // lanterns use not visible light sources
 // fire using not real light sources like muzzle flash and headlights
 // Environmental State Changes from Effects
-// Knockback from Explosions
 // Faction & Alert System
 // car spawner
 // car ai to drive around

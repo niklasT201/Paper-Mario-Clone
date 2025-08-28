@@ -11,6 +11,7 @@ data class PhysicsComponent(
 
     // Internal state managed by the physics system
     var velocity: Vector3 = Vector3(),
+    var knockbackVelocity: Vector3 = Vector3(),
     var isGrounded: Boolean = false,
     var isMoving: Boolean = false,
 

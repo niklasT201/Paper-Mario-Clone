@@ -14,6 +14,7 @@ class CharacterPhysicsSystem(private val sceneManager: SceneManager) {
         const val MAX_STEP_HEIGHT = 1.1f
         private const val WOBBLE_AMPLITUDE_DEGREES = 5f
         private const val WOBBLE_FREQUENCY = 6f
+        private const val KNOCKBACK_DRAG = 5.0f
     }
 
     private val tempBlockBounds = BoundingBox()
@@ -23,11 +24,15 @@ class CharacterPhysicsSystem(private val sceneManager: SceneManager) {
         val originalPosition = component.position.cpy()
         component.isMoving = false
 
-        val moveAmount = component.speed * deltaTime
-        val deltaX = desiredMovement.x * moveAmount
-        val deltaZ = desiredMovement.z * moveAmount
+        // 1. Calculate total movement from player input AND knockback
+        val playerMoveAmount = component.speed * deltaTime
+        val playerMovement = desiredMovement.cpy().scl(playerMoveAmount)
+        val knockbackMovement = component.knockbackVelocity.cpy().scl(deltaTime)
+        val totalMovement = playerMovement.add(knockbackMovement)
+        val deltaX = totalMovement.x
+        val deltaZ = totalMovement.z
 
-        // --- 1. Horizontal Movement Resolution (X then Z) ---
+        // 1. Horizontal Movement Resolution (X then Z)
         if (deltaX != 0f) {
             val footY = component.position.y - (component.size.y / 2f)
             val supportY = sceneManager.findHighestSupportY(component.position.x + deltaX, component.position.z, component.position.y, component.size.x / 2f, sceneManager.game.blockSize)
@@ -72,12 +77,15 @@ class CharacterPhysicsSystem(private val sceneManager: SceneManager) {
         val effectiveSupportY = if (maxSupportY - footY <= MAX_STEP_HEIGHT) maxSupportY else sceneManager.findStrictSupportY(originalPosition.x, originalPosition.z, originalPosition.y, component.size.x / 2f, blockSize)
 
         val targetY = effectiveSupportY + (component.size.y / 2f)
+
+        // APPLY VERTICAL KNOCKBACK AND GRAVITY
+        component.position.y += totalMovement.y // Apply vertical part of knockback
         val fallY = component.position.y - FALL_SPEED * deltaTime
         component.position.y = max(targetY, fallY)
 
         component.isGrounded = component.position.y <= targetY + 0.1f
 
-        // --- 3. Finalize State & Animation ---
+        // 3. Finalize State & Animation
         val moved = !component.position.epsilonEquals(originalPosition, 0.001f)
         component.isMoving = (originalPosition.x != component.position.x) || (originalPosition.z != component.position.z)
 
@@ -87,6 +95,13 @@ class CharacterPhysicsSystem(private val sceneManager: SceneManager) {
         } else {
             if (kotlin.math.abs(component.wobbleAngle) > 0.1f) component.wobbleAngle *= (1.0f - deltaTime * 10f).coerceAtLeast(0f) else component.wobbleAngle = 0f
             component.walkAnimationTimer = 0f
+        }
+
+        // DECAY KNOCKBACK VELOCITY
+        if (component.knockbackVelocity.len2() > 0.01f) {
+            component.knockbackVelocity.scl(1.0f - (KNOCKBACK_DRAG * deltaTime))
+        } else {
+            component.knockbackVelocity.set(Vector3.Zero)
         }
 
         if (moved) component.updateBounds()
