@@ -83,6 +83,10 @@ data class GameNPC(
     var position: Vector3,
     var health: Float = npcType.baseHealth
 ) {
+    var isOnFire: Boolean = false
+    var onFireTimer: Float = 0f
+    var initialOnFireDuration: Float = 0f
+    var onFireDamagePerSecond: Float = 0f
     @Transient lateinit var physics: PhysicsComponent
     var bleedTimer: Float = 0f
     var bloodDripSpawnTimer: Float = 0f
@@ -397,6 +401,14 @@ class NPCSystem : IFinePositionable {
         }
     }
 
+    fun setOnFire(npc: GameNPC, duration: Float, dps: Float) {
+        if (npc.isOnFire) return // Already on fire
+        npc.isOnFire = true
+        npc.onFireTimer = duration
+        npc.initialOnFireDuration = duration
+        npc.onFireDamagePerSecond = dps
+    }
+
     fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float) {
         if (playerSystem.isDriving) return
 
@@ -405,6 +417,29 @@ class NPCSystem : IFinePositionable {
 
         while(iterator.hasNext()) {
             val npc = iterator.next()
+
+            // HANDLE ON FIRE STATE (DAMAGE & VISUALS)
+            if (npc.isOnFire) {
+                npc.onFireTimer -= deltaTime
+                if (npc.onFireTimer <= 0) {
+                    npc.isOnFire = false
+                } else {
+                    // Damage falloff over the duration of the effect
+                    val progress = (npc.onFireTimer / npc.initialOnFireDuration).coerceIn(0f, 1f)
+                    val currentDps = npc.onFireDamagePerSecond * progress
+                    val damageThisFrame = currentDps * deltaTime
+
+                    if (npc.takeDamage(damageThisFrame, DamageType.FIRE) && npc.currentState != NPCState.DYING) {
+                        sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
+                    }
+
+                    // Spawn flame particles on the NPC
+                    if (Random.nextFloat() < 0.3f) { // 30% chance each frame
+                        val particlePos = npc.position.cpy().add(0f, npc.npcType.height * 0.5f, 0f)
+                        sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.FIRE_FLAME, particlePos)
+                    }
+                }
+            }
 
             // Skip all AI, physics, and visual updates for NPCs inside cars
             if (npc.isInCar) continue
@@ -482,7 +517,22 @@ class NPCSystem : IFinePositionable {
     private fun updateAI(npc: GameNPC, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {
         var desiredMovement = Vector3.Zero // Default to no movement
 
-        if (npc.currentState == NPCState.FLEEING) {
+        if (npc.isOnFire) {
+            // Find the closest fire to run away from
+            val closestFire = sceneManager.game.fireSystem.activeFires.minByOrNull { it.gameObject.position.dst2(npc.position) }
+            if (closestFire != null) {
+                val awayDirection = npc.physics.position.cpy().sub(closestFire.gameObject.position).nor()
+                desiredMovement = awayDirection
+            } else {
+                // No fire found? Just run in a random direction.
+                if (npc.targetPosition == null || npc.physics.position.dst2(npc.targetPosition!!) < 4f) {
+                    npc.targetPosition = npc.position.cpy().add((Random.nextFloat() - 0.5f) * 20f, 0f, (Random.nextFloat() - 0.5f) * 20f)
+                }
+                desiredMovement = npc.targetPosition!!.cpy().sub(npc.physics.position).nor()
+            }
+        }
+
+        else if (npc.currentState == NPCState.FLEEING) {
             npc.stateTimer += deltaTime
 
             // Check if the flee duration is over

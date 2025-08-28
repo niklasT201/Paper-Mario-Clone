@@ -108,6 +108,12 @@ class FireSystem {
     var nextFireLifetime = 20f
     var nextFireCanBeExtinguished = true // By default, fire can be put out
 
+    companion object {
+        const val ON_FIRE_BASE_DPS = 20f
+        const val ON_FIRE_MIN_DURATION = 3.0f
+        const val ON_FIRE_MAX_DURATION = 6.0f
+    }
+
     fun initialize() {
         fireAnimationFrames = arrayOf(
             "textures/particles/fire_spread/fire_spread_frame_one.png",
@@ -278,8 +284,12 @@ class FireSystem {
                 val distanceToPlayer = fire.gameObject.position.dst(playerPosition)
                 if (distanceToPlayer < fireRadius) {
                     val damageMultiplier = 1.0f - (distanceToPlayer / fireRadius)
-                    val damageThisFrame = baseDamagePerSecond * damageMultiplier * deltaTime
-                    playerSystem.takeDamage(damageThisFrame)
+                    val directDamageThisFrame = baseDamagePerSecond * damageMultiplier * deltaTime
+                    playerSystem.takeDamage(directDamageThisFrame)
+
+                    // 2. Set the player on fire
+                    val fireDuration = Random.nextFloat() * (ON_FIRE_MAX_DURATION - ON_FIRE_MIN_DURATION) + ON_FIRE_MIN_DURATION
+                    playerSystem.setOnFire(fireDuration, ON_FIRE_BASE_DPS)
                 }
 
                 // Damage Cars
@@ -287,38 +297,42 @@ class FireSystem {
                     val distanceToCar = fire.gameObject.position.dst(car.position)
                     if (distanceToCar < fireRadius) {
                         val damageMultiplier = 1.0f - (distanceToCar / fireRadius)
-                        val damageThisFrame = baseDamagePerSecond * damageMultiplier * deltaTime
-                        car.takeDamage(damageThisFrame, DamageType.FIRE)
+                        val directDamageThisFrame = baseDamagePerSecond * damageMultiplier * deltaTime
+                        car.takeDamage(directDamageThisFrame, DamageType.FIRE)
                     }
                 }
 
                 // Damage Enemies
-                val enemyIterator = sceneManager.activeEnemies.iterator()
-                while (enemyIterator.hasNext()) {
-                    val enemy = enemyIterator.next()
+                sceneManager.activeEnemies.forEach { enemy ->
                     val distanceToEnemy = fire.gameObject.position.dst(enemy.position)
                     if (distanceToEnemy < fireRadius) {
                         val damageMultiplier = 1.0f - (distanceToEnemy / fireRadius)
-                        val damageThisFrame = baseDamagePerSecond * damageMultiplier * deltaTime
-                        if (enemy.takeDamage(damageThisFrame, DamageType.FIRE) && enemy.currentState != AIState.DYING) {
+                        val directDamageThisFrame = baseDamagePerSecond * damageMultiplier * deltaTime
+                        if (enemy.takeDamage(directDamageThisFrame, DamageType.FIRE) && enemy.currentState != AIState.DYING) {
                             // Enemy died from fire, spawn a blood pool and remove them
                             sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
+
+                        // 2. Set the enemy on fire
+                        val fireDuration = Random.nextFloat() * (ON_FIRE_MAX_DURATION - ON_FIRE_MIN_DURATION) + ON_FIRE_MIN_DURATION
+                        sceneManager.enemySystem.setOnFire(enemy, fireDuration, ON_FIRE_BASE_DPS)
                     }
                 }
 
                 // Damage NPCs
-                val npcIterator = sceneManager.activeNPCs.iterator()
-                while (npcIterator.hasNext()) {
-                    val npc = npcIterator.next()
+                sceneManager.activeNPCs.forEach { npc ->
                     val distanceToNPC = fire.gameObject.position.dst(npc.position)
                     if (distanceToNPC < fireRadius) {
                         val damageMultiplier = 1.0f - (distanceToNPC / fireRadius)
-                        val damageThisFrame = baseDamagePerSecond * damageMultiplier * deltaTime
-                        if (npc.takeDamage(damageThisFrame, DamageType.FIRE) && npc.currentState != NPCState.DYING) {
+                        val directDamageThisFrame = baseDamagePerSecond * damageMultiplier * deltaTime
+                        if (npc.takeDamage(directDamageThisFrame, DamageType.FIRE) && npc.currentState != NPCState.DYING) {
                             // NPC died from fire, spawn a blood pool and remove them
                             sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }
+
+                        // 2. Set the NPC on fire
+                        val fireDuration = Random.nextFloat() * (ON_FIRE_MAX_DURATION - ON_FIRE_MIN_DURATION) + ON_FIRE_MIN_DURATION
+                        sceneManager.npcSystem.setOnFire(npc, fireDuration, ON_FIRE_BASE_DPS)
                     }
                 }
             }

@@ -56,6 +56,10 @@ class PlayerSystem {
     private var health: Float = 100f
         private set
     private val maxHealth: Float = 100f
+    private var isOnFire: Boolean = false
+    private var onFireTimer: Float = 0f
+    private var initialOnFireDuration: Float = 0f
+    private var onFireDamagePerSecond: Float = 0f
     private var money: Int = 0
     private lateinit var sceneManager: SceneManager
 
@@ -1252,7 +1256,35 @@ class PlayerSystem {
         sceneManager.game.uiManager.showMoneyUpdate(money)
     }
 
+    fun setOnFire(duration: Float, dps: Float) {
+        if (isOnFire) return // Already on fire
+        isOnFire = true
+        onFireTimer = duration
+        initialOnFireDuration = duration
+        onFireDamagePerSecond = dps
+    }
+
     fun update(deltaTime: Float, sceneManager: SceneManager) {
+
+        // HANDLE ON FIRE STATE (DAMAGE & VISUALS)
+        if (this.isOnFire) {
+            this.onFireTimer -= deltaTime
+            if (this.onFireTimer <= 0) {
+                this.isOnFire = false
+            } else {
+                // Damage falloff over the duration of the effect
+                val progress = (this.onFireTimer / this.initialOnFireDuration).coerceIn(0f, 1f)
+                val currentDps = this.onFireDamagePerSecond * progress
+                val damageThisFrame = currentDps * deltaTime
+                this.takeDamage(damageThisFrame)
+
+                // Spawn flame particles on the player
+                if (Random.nextFloat() < 0.3f) { // 30% chance each frame
+                    val particlePos = this.getPosition().add(0f, this.playerSize.y * 0.5f, 0f)
+                    this.particleSystem.spawnEffect(ParticleEffectType.FIRE_FLAME, particlePos)
+                }
+            }
+        }
         // Handle Reload Timer
         if (isReloading) {
             reloadTimer -= deltaTime

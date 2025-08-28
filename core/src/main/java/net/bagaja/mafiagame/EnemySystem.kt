@@ -58,6 +58,10 @@ data class GameEnemy(
     var position: Vector3,
     var health: Float = enemyType.baseHealth
 ) {
+    var isOnFire: Boolean = false
+    var onFireTimer: Float = 0f
+    var initialOnFireDuration: Float = 0f
+    var onFireDamagePerSecond: Float = 0f
     @Transient lateinit var physics: PhysicsComponent
 
     var attackTimer: Float = 0f
@@ -341,14 +345,45 @@ class EnemySystem : IFinePositionable {
         }
     }
 
+    fun setOnFire(enemy: GameEnemy, duration: Float, dps: Float) {
+        if (enemy.isOnFire) return // Already on fire, don't re-apply
+        enemy.isOnFire = true
+        enemy.onFireTimer = duration
+        enemy.initialOnFireDuration = duration
+        enemy.onFireDamagePerSecond = dps
+    }
+
     fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float) {
         if (playerSystem.isDriving) return // Don't update AI if player is safe in a car
 
         val playerPos = playerSystem.getPosition()
-        val iterator = sceneManager.activeEnemies.iterator() // Use iterator for safe removal
+        val iterator = sceneManager.activeEnemies.iterator()
 
         while (iterator.hasNext()) {
             val enemy = iterator.next()
+
+            // HANDLE ON FIRE STATE (DAMAGE & VISUALS)
+            if (enemy.isOnFire) {
+                enemy.onFireTimer -= deltaTime
+                if (enemy.onFireTimer <= 0) {
+                    enemy.isOnFire = false
+                } else {
+                    // Damage falloff over the duration of the effect
+                    val progress = (enemy.onFireTimer / enemy.initialOnFireDuration).coerceIn(0f, 1f)
+                    val currentDps = enemy.onFireDamagePerSecond * progress
+                    val damageThisFrame = currentDps * deltaTime
+
+                    if (enemy.takeDamage(damageThisFrame, DamageType.FIRE) && enemy.currentState != AIState.DYING) {
+                        sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
+                    }
+
+                    // Spawn flame particles on the enemy
+                    if (Random.nextFloat() < 0.3f) { // 30% chance each frame
+                        val particlePos = enemy.position.cpy().add(0f, enemy.enemyType.height * 0.5f, 0f)
+                        sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.FIRE_FLAME, particlePos)
+                    }
+                }
+            }
 
             // Decrement the attack timer
             if (enemy.attackTimer > 0f) {
@@ -439,6 +474,23 @@ class EnemySystem : IFinePositionable {
     }
 
     private fun updateAI(enemy: GameEnemy, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {
+        if (enemy.isOnFire) {
+            // Find the closest fire to run away from
+            val closestFire = sceneManager.game.fireSystem.activeFires.minByOrNull { it.gameObject.position.dst2(enemy.position) }
+            if (closestFire != null) {
+                val awayDirection = enemy.physics.position.cpy().sub(closestFire.gameObject.position).nor()
+                characterPhysicsSystem.update(enemy.physics, awayDirection, deltaTime)
+            } else {
+                // No fire found? Just run in a random direction.
+                if (enemy.targetPosition == null || enemy.physics.position.dst2(enemy.targetPosition!!) < 4f) {
+                    enemy.targetPosition = enemy.position.cpy().add((Random.nextFloat() - 0.5f) * 20f, 0f, (Random.nextFloat() - 0.5f) * 20f)
+                }
+                val awayDirection = enemy.targetPosition!!.cpy().sub(enemy.physics.position).nor()
+                characterPhysicsSystem.update(enemy.physics, awayDirection, deltaTime)
+            }
+            return // Override all other AI
+        }
+
         // Handle Reloading State ---
         if (enemy.currentState == AIState.RELOADING) {
             enemy.stateTimer -= deltaTime
