@@ -1278,10 +1278,19 @@ class PlayerSystem {
                 val damageThisFrame = currentDps * deltaTime
                 this.takeDamage(damageThisFrame)
 
-                // Spawn flame particles on the player
-                if (Random.nextFloat() < 0.3f) { // 30% chance each frame
-                    val particlePos = this.getPosition().add(0f, this.playerSize.y * 0.5f, 0f)
+                // 1% chance for big head on fire effect
+                if (Random.nextFloat() < 0.01f) {
+                    val particlePos = this.getPosition().add(0f, this.playerSize.y * 0.8f, 0f)
                     this.particleSystem.spawnEffect(ParticleEffectType.FIRE_FLAME, particlePos)
+                }
+
+                // Frequent, smaller body flames
+                if (Random.nextFloat() < 0.6f) {
+                    val halfWidth = this.playerSize.x / 2f
+                    val offsetX = (Random.nextFloat() - 0.5f) * (halfWidth * 1.5f)
+                    val particlePos = this.getPosition().add(offsetX, -this.playerSize.y * 0.2f, 0f)
+
+                    this.particleSystem.spawnEffect(ParticleEffectType.BODY_FLAME, particlePos)
                 }
             }
         }

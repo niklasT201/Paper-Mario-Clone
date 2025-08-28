@@ -433,10 +433,19 @@ class NPCSystem : IFinePositionable {
                         sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                     }
 
-                    // Spawn flame particles on the NPC
-                    if (Random.nextFloat() < 0.3f) { // 30% chance each frame
-                        val particlePos = npc.position.cpy().add(0f, npc.npcType.height * 0.5f, 0f)
+                    // 1% chance for big head on fire effect
+                    if (Random.nextFloat() < 0.01f) {
+                        val particlePos = npc.position.cpy().add(0f, npc.npcType.height * 0.8f, 0f)
                         sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.FIRE_FLAME, particlePos)
+                    }
+
+                    // Frequent, smaller body flames
+                    if (Random.nextFloat() < 0.6f) {
+                        val halfWidth = npc.npcType.width / 2f
+                        val offsetX = (Random.nextFloat() - 0.5f) * (halfWidth * 1.5f)
+                        val particlePos = npc.position.cpy().add(offsetX, -npc.npcType.height * 0.2f, 0f)
+
+                        sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BODY_FLAME, particlePos)
                     }
                 }
             }

@@ -377,10 +377,21 @@ class EnemySystem : IFinePositionable {
                         sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                     }
 
-                    // Spawn flame particles on the enemy
-                    if (Random.nextFloat() < 0.3f) { // 30% chance each frame
-                        val particlePos = enemy.position.cpy().add(0f, enemy.enemyType.height * 0.5f, 0f)
+                    // 1% chance for big head on fire effect
+                    if (Random.nextFloat() < 0.01f) {
+                        val particlePos = enemy.position.cpy().add(0f, enemy.enemyType.height * 0.8f, 0f)
                         sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.FIRE_FLAME, particlePos)
+                    }
+
+                    // Frequent, smaller body flames
+                    if (Random.nextFloat() < 0.6f) {
+                        val halfWidth = enemy.enemyType.width / 2f
+                        val offsetX = (Random.nextFloat() - 0.5f) * (halfWidth * 1.5f)
+
+                        // Spawn around the character's torso
+                        val particlePos = enemy.position.cpy().add(offsetX, -enemy.enemyType.height * 0.2f, 0f)
+
+                        sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BODY_FLAME, particlePos)
                     }
                 }
             }

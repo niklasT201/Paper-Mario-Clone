@@ -289,6 +289,13 @@ enum class ParticleEffectType(
         particleCount = 1..1, initialSpeed = 0.5f, speedVariance = 0.2f, gravity = 2f, // Flames go up
         scale = 1.5f, scaleVariance = 0.3f, fadeOut = 1.0f
     ),
+    BODY_FLAME(
+        "Body Flame",
+        arrayOf("textures/particles/fire_flame.png"), // <-- CORRECTED: Using the detailed flame texture
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 0.5f, lifetimeVariance = 0.2f,
+        particleCount = 1..1, initialSpeed = 1.0f, speedVariance = 0.5f, gravity = 3.5f, // Rises quickly
+        scale = 0.6f, scaleVariance = 0.25f, fadeIn = 0.05f, fadeOut = 0.3f
+    ),
     FIRE_SPREAD(
         displayName = "Spreading Fire",
         texturePaths = arrayOf(
