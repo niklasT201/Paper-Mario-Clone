@@ -409,6 +409,12 @@ class NPCSystem : IFinePositionable {
         npc.onFireDamagePerSecond = dps
     }
 
+    fun applyKnockback(npc: GameNPC, force: Vector3) {
+        if (!npc.isInCar) {
+            npc.physics.knockbackVelocity.set(force)
+        }
+    }
+
     fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float) {
         if (playerSystem.isDriving) return
 

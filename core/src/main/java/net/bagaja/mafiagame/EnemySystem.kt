@@ -353,6 +353,12 @@ class EnemySystem : IFinePositionable {
         enemy.onFireDamagePerSecond = dps
     }
 
+    fun applyKnockback(enemy: GameEnemy, force: Vector3) {
+        if (!enemy.isInCar) {
+            enemy.physics.knockbackVelocity.set(force)
+        }
+    }
+
     fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float) {
         if (playerSystem.isDriving) return // Don't update AI if player is safe in a car
 

@@ -1645,6 +1645,8 @@ class PlayerSystem {
                 // Area-of-effect damage logic
                 val explosionRadius = 12f
                 val explosionDamage = throwable.weaponType.damage
+                val maxKnockbackForce = 35.0f
+                val upwardLift = 0.7f
 
                 // Damage cars
                 for (car in sceneManager.activeCars) {
@@ -1658,31 +1660,47 @@ class PlayerSystem {
                 sceneManager.activeEnemies.forEach { enemy ->
                     val distanceToEnemy = enemy.position.dst(validGroundPosition)
                     if (distanceToEnemy < explosionRadius) {
+                        // Apply Damage
                         val actualDamage = calculateFalloffDamage(explosionDamage, distanceToEnemy, explosionRadius)
                         if (enemy.takeDamage(actualDamage, DamageType.EXPLOSIVE) && enemy.currentState != AIState.DYING) {
                             sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
+
+                        // Apply Knockback
+                        val knockbackStrength = maxKnockbackForce * (1.0f - (distanceToEnemy / explosionRadius))
+                        if (knockbackStrength > 0) {
+                            val knockbackDirection = enemy.position.cpy().sub(explosionOrigin).apply { y = upwardLift }.nor()
+                            val knockbackVector = knockbackDirection.scl(knockbackStrength)
+                            sceneManager.enemySystem.applyKnockback(enemy, knockbackVector)
+                        }
                     }
                 }
+
                 // Damage NPCs
                 sceneManager.activeNPCs.forEach { npc ->
                     val distanceToNPC = npc.position.dst(validGroundPosition)
                     if (distanceToNPC < explosionRadius) {
+                        // Apply Damage
                         val actualDamage = calculateFalloffDamage(explosionDamage, distanceToNPC, explosionRadius)
                         if (npc.takeDamage(actualDamage, DamageType.EXPLOSIVE) && npc.currentState != NPCState.DYING) {
                             sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }
+
+                        // Apply Knockback
+                        val knockbackStrength = maxKnockbackForce * (1.0f - (distanceToNPC / explosionRadius))
+                        if (knockbackStrength > 0) {
+                            val knockbackDirection = npc.position.cpy().sub(explosionOrigin).apply { y = upwardLift }.nor()
+                            val knockbackVector = knockbackDirection.scl(knockbackStrength)
+                            sceneManager.npcSystem.applyKnockback(npc, knockbackVector)
+                        }
                     }
                 }
+
                 // Damage Player
                 val distanceToPlayerSelf = getPosition().dst(validGroundPosition)
                 if (distanceToPlayerSelf < explosionRadius) {
                     val actualDamage = calculateFalloffDamage(explosionDamage, distanceToPlayerSelf, explosionRadius)
                     takeDamage(actualDamage)
-
-                    // Knockback
-                    val maxKnockbackForce = 35.0f // Increased force since it's a velocity
-                    val upwardLift = 0.7f         // How much the player is pushed upwards. Adjust for more/less airtime.
 
                     // Calculate the knockback strength based on distance
                     val knockbackStrength = maxKnockbackForce * (1.0f - (distanceToPlayerSelf / explosionRadius))
