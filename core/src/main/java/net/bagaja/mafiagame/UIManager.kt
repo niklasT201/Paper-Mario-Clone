@@ -297,7 +297,7 @@ class UIManager(
         minimalistHudTable.top().left().pad(20f)
 
         weaponIconImageMinimalist = Image().apply { setScaling(Scaling.fit) }
-        ammoLabelMinimalist = Label("00/00", skin, "title") // Using "title" style as requested
+        ammoLabelMinimalist = Label("00/00", skin, "default").apply { setFontScale(0.8f) }
         healthBarMinimalist = ProgressBar(0f, 100f, 1f, false, healthBarStyle)
 
         // Create and style health label
@@ -310,11 +310,14 @@ class UIManager(
         healthGroup.add(healthBarMinimalist).width(150f).height(25f)
 
         // Group 2: Weapon (vertical)
-        val weaponGroup = Table()
-        weaponGroup.add(weaponIconImageMinimalist).size(64f).center().row()
-        weaponGroup.add(ammoLabelMinimalist).center().padTop(2f)
+        val weaponStack = Stack()
+        weaponStack.add(Container(weaponIconImageMinimalist).size(64f))
 
-        minimalistHudTable.add(weaponGroup).top().left()
+        val ammoContainer = Container(ammoLabelMinimalist)
+        ammoContainer.align(Align.bottomRight) // Aligns the label to the bottom-right corner of the icon
+        weaponStack.add(ammoContainer)
+
+        minimalistHudTable.add(weaponStack).width(90f).top().left()
         minimalistHudTable.add(healthGroup).top().left().padLeft(20f)
 
         // 3. ADD TO STAGE & SET INITIAL VISIBILITY
