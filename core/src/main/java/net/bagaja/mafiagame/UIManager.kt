@@ -93,6 +93,7 @@ class UIManager(
     // HUD Tables
     private lateinit var wantedPosterHudTable: Table
     private lateinit var minimalistHudTable: Table
+    private lateinit var healthLabelMinimalist: Label
 
     // Minimalist HUD elements
     private lateinit var weaponIconImageMinimalist: Image
@@ -299,12 +300,21 @@ class UIManager(
         ammoLabelMinimalist = Label("00/00", skin, "title") // Using "title" style as requested
         healthBarMinimalist = ProgressBar(0f, 100f, 1f, false, healthBarStyle)
 
+        // Create and style health label
+        healthLabelMinimalist = Label("100/100", skin, "default")
+        healthLabelMinimalist.color = Color.valueOf("#a83e26")
+
+        // Create a Table to hold the label and bar vertically
+        val healthTable = Table()
+        healthTable.add(healthLabelMinimalist).center().padBottom(2f).row() // Add label to the first row
+        healthTable.add(healthBarMinimalist).width(150f).height(25f)       // Add health bar to the second row
+
         val topRow = Table()
         topRow.add(weaponIconImageMinimalist).size(64f)
         topRow.add(ammoLabelMinimalist).padLeft(15f).bottom()
 
         minimalistHudTable.add(topRow).left().row()
-        minimalistHudTable.add(healthBarMinimalist).width(150f).height(25f).padTop(10f).left()
+        minimalistHudTable.add(healthTable).left().padTop(10f)
 
         // 3. ADD TO STAGE & SET INITIAL VISIBILITY
         stage.addActor(wantedPosterHudTable)
@@ -979,6 +989,11 @@ class UIManager(
 
             // Update Minimalist HUD
             healthBarMinimalist.value = game.playerSystem.getHealthPercentage()
+
+            val currentHealth = game.playerSystem.getHealth().toInt()
+            val maxHealth = game.playerSystem.getMaxHealth().toInt()
+            healthLabelMinimalist.setText("$currentHealth/$maxHealth")
+
             weaponIconImageMinimalist.drawable = weaponIconImage.drawable // Reuse the same drawable
             val weapon = game.playerSystem.equippedWeapon
             if (weapon.actionType == WeaponActionType.SHOOTING) {
