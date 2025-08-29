@@ -49,6 +49,8 @@ public class Lwjgl3Launcher {
 
 // changing room transition effect colors
 // edge houses
+// adding cash trucks
+// using new animation images
 // option to see full current health
 // blocks being visible behind transparent enemies etc.
 // car maybe be able to step up half a block
@@ -64,9 +66,6 @@ public class Lwjgl3Launcher {
 // maybe improving billboard shader
 // maybe adding player hiding tp point text behind it
 // visual reload/charging bar
-// missing knife, baseball bat and fist animations
-// player hitting with baseball bat
-// player stabbing with knife
 // player wipe is switching to vertical when pressing W or S
 // only new wipes rotating with players direction not old ones too
 // south park like animation

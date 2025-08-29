@@ -249,17 +249,39 @@ class PlayerSystem {
         animationSystem.createAnimation("idle", idleFrames, 1.0f, true)
         playerBackTexture = Texture(Gdx.files.internal("textures/player/pig_character_back.png"))
 
+        // Punch Animation
+        animationSystem.createAnimation(
+            "attack_punch",
+            arrayOf(
+                "textures/player/weapons/punch/player_punch_one.png",
+                "textures/player/weapons/punch/player_punch_two.png",
+                "textures/player/weapons/punch/player_punch_three.png"
+            ),
+            0.15f,
+            false
+        )
+
+        // Baseball Bat Animation (updated)
         animationSystem.createAnimation(
             "attack_baseball_bat",
-            arrayOf("textures/player/pig_character.png", "textures/player/weapons/baseball_bat/player_baseball_bat.png"),
+            arrayOf(
+                "textures/player/weapons/baseball_bat/player_baseball_bat.png",
+                "textures/player/weapons/baseball_bat/player_baseball_bat_two.png",
+                "textures/player/weapons/baseball_bat/player_baseball_bat_three.png"
+            ),
             0.15f,
-            false // Not looping
+            false
         )
+
+        // Knife Animation (updated)
         animationSystem.createAnimation(
             "attack_knife",
-            arrayOf("textures/player/pig_character.png", "textures/player/weapons/knife/player_knife.png"),
-            0.1f,
-            false // Not looping
+            arrayOf(
+                "textures/player/weapons/knife/player_knife.png",
+                "textures/player/weapons/knife/player_knife_two.png"
+            ),
+            0.09f,
+            false
         )
 
 
@@ -427,7 +449,7 @@ class PlayerSystem {
         when (state) {
             PlayerState.IDLE -> {
                 // If we are on cooldown, don't even check for input
-                if (fireRateTimer > 0f || equippedWeapon == WeaponType.UNARMED) {
+                if (fireRateTimer > 0f) {
                     return
                 }
 
@@ -455,6 +477,7 @@ class PlayerSystem {
                         if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
                             if (!isRotating) {
                                 val animName = when (equippedWeapon) {
+                                    WeaponType.UNARMED -> "attack_punch"
                                     WeaponType.BASEBALL_BAT -> "attack_baseball_bat"
                                     WeaponType.KNIFE -> "attack_knife"
                                     else -> null

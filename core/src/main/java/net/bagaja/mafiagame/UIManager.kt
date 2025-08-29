@@ -885,7 +885,7 @@ class UIManager(
 
     private fun setupMoneyDisplay() {
         try {
-            moneyStackTexture = Texture(Gdx.files.internal("textures/objects/items/money_stack.png"))
+            moneyStackTexture = Texture(Gdx.files.internal("gui/dollar_stack.png"))
         } catch (e: Exception) {
             // Fallback
             val pixmap = Pixmap(32, 32, Pixmap.Format.RGBA8888); pixmap.setColor(Color.GREEN); pixmap.fill();
@@ -896,6 +896,11 @@ class UIManager(
         val moneyIcon = Image(moneyStackTexture).apply { setScaling(Scaling.fit) }
         val dollarLabel = Label("$", skin, "title")
         moneyValueLabel = Label("0", skin, "title")
+
+        // CHANGED: Set the new font color for both labels
+        val moneyFontColor = Color.WHITE
+        dollarLabel.color = moneyFontColor
+        moneyValueLabel.color = moneyFontColor
 
         moneyDisplayTable.add(moneyIcon).size(40f)
         moneyDisplayTable.add(dollarLabel).padLeft(10f)
