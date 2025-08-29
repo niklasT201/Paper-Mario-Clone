@@ -29,6 +29,8 @@ class TargetingIndicatorSystem {
     private val groundPlane = Plane(Vector3.Y, 0f)
     private val intersectionPoint = Vector3()
     private val indicatorPosition = Vector3()
+    private val screenCoords = Vector3()
+    private var needsCentering = false
 
     companion object {
         private const val INDICATOR_SIZE = 3.5f
@@ -79,7 +81,11 @@ class TargetingIndicatorSystem {
         isEnabledByUser = !isEnabledByUser
         // If the user turns it off, immediately hide the visual
         if (!isEnabledByUser) {
+            // If turning off, just hide it.
             isVisible = false
+        } else {
+            // If turning ON, set the flag to center it on the next update.
+            needsCentering = true
         }
     }
 
@@ -102,6 +108,25 @@ class TargetingIndicatorSystem {
         if (!isEnabledByUser || !shouldBeVisible) {
             isVisible = false
             return
+        }
+
+        if (needsCentering) {
+            val playerPos = playerSystem.getPosition()
+            val playerRotation = playerSystem.playerCurrentRotationY
+
+            val directionX = if (playerRotation == 180f) -1f else 1f
+            val offset = Vector3(directionX * 8f, 0f, 0f)
+            val targetWorldPos = playerPos.add(offset)
+
+            val groundY = sceneManager.findHighestSupportY(targetWorldPos.x, targetWorldPos.z, targetWorldPos.y, 0.1f, sceneManager.game.blockSize)
+            targetWorldPos.y = groundY + GROUND_OFFSET
+
+            cameraManager.camera.project(screenCoords.set(targetWorldPos))
+
+            val correctedY = Gdx.graphics.height - screenCoords.y.toInt()
+            Gdx.input.setCursorPosition(screenCoords.x.toInt(), correctedY)
+
+            needsCentering = false
         }
 
         // Create a ray from the current mouse position.
