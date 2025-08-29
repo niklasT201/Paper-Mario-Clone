@@ -1003,7 +1003,8 @@ class UIManager(
             if (weapon.actionType == WeaponActionType.SHOOTING) {
                 val mag = game.playerSystem.getCurrentMagazineCount()
                 val res = game.playerSystem.getCurrentReserveAmmo()
-                ammoLabelMinimalist.setText("${mag.toString().padStart(2, '0')} / ${res.toString().padStart(2, '0')}")
+                val totalAmmo = mag + res // Calculate the total ammo
+                ammoLabelMinimalist.setText(totalAmmo.toString()) // Display only the total
                 ammoLabelMinimalist.isVisible = true
             } else {
                 ammoLabelMinimalist.isVisible = false
