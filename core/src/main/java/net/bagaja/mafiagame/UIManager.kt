@@ -72,9 +72,7 @@ class UIManager(
     private var isLetterboxVisible = false
     private var isCinematicBarsVisible = false
 
-    private lateinit var wantedPosterTable: Table
     private lateinit var wantedPosterTexture: Texture
-    private lateinit var gameHudTable: Table
     private lateinit var healthBar: ProgressBar
     private lateinit var weaponIconImage: Image
     private lateinit var fistTexture: Texture
@@ -84,11 +82,10 @@ class UIManager(
     private lateinit var ammoUiContainer: Stack
     private lateinit var magazineAmmoLabel: Label
     private lateinit var reserveAmmoLabel: Label
-    private lateinit var healthDebugLabel: Label
     private lateinit var healthBarEmptyTexture: Texture
     private lateinit var healthBarFullTexture: Texture
 
-    private var currentHudStyle = HudStyle.WANTED_POSTER
+    private var currentHudStyle = HudStyle.MINIMALIST
 
     // HUD Tables
     private lateinit var wantedPosterHudTable: Table
@@ -103,7 +100,6 @@ class UIManager(
     // Money Display elements
     private lateinit var moneyDisplayTable: Table
     private lateinit var moneyValueLabel: Label
-    private var moneyDisplayAction: com.badlogic.gdx.scenes.scene2d.Action? = null
     private lateinit var moneyStackTexture: Texture
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
