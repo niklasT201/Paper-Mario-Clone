@@ -304,17 +304,18 @@ class UIManager(
         healthLabelMinimalist = Label("100/100", skin, "default")
         healthLabelMinimalist.color = Color.valueOf("#a83e26")
 
-        // Create a Table to hold the label and bar vertically
-        val healthTable = Table()
-        healthTable.add(healthLabelMinimalist).center().padBottom(2f).row() // Add label to the first row
-        healthTable.add(healthBarMinimalist).width(150f).height(25f)       // Add health bar to the second row
+        // Group 1: Health (vertical)
+        val healthGroup = Table()
+        healthGroup.add(healthLabelMinimalist).left().padBottom(2f).row()
+        healthGroup.add(healthBarMinimalist).width(150f).height(25f)
 
-        val topRow = Table()
-        topRow.add(weaponIconImageMinimalist).size(64f)
-        topRow.add(ammoLabelMinimalist).padLeft(15f).bottom()
+        // Group 2: Weapon (vertical)
+        val weaponGroup = Table()
+        weaponGroup.add(weaponIconImageMinimalist).size(64f).center().row()
+        weaponGroup.add(ammoLabelMinimalist).center().padTop(2f)
 
-        minimalistHudTable.add(topRow).left().row()
-        minimalistHudTable.add(healthTable).left().padTop(10f)
+        minimalistHudTable.add(weaponGroup).top().left()
+        minimalistHudTable.add(healthGroup).top().left().padLeft(20f)
 
         // 3. ADD TO STAGE & SET INITIAL VISIBILITY
         stage.addActor(wantedPosterHudTable)

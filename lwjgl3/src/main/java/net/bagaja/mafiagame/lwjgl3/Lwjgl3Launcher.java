@@ -51,6 +51,10 @@ public class Lwjgl3Launcher {
 // edge houses
 // adding cash trucks
 // using new animation images
+// weapon indicator centered when toggle its visibility to enabled again
+// weapons removed from inventory when ammunition is 0
+// enemies can actually shoot bullets and weapons behave like for player
+// collected ammunition label for bullets and weapons
 // option to see full current health
 // blocks being visible behind transparent enemies etc.
 // car maybe be able to step up half a block
