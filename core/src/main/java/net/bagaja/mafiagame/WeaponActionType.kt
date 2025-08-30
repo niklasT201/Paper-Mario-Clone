@@ -5,7 +5,7 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 
 data class Bullet(
-    val position: Vector3,
+    var position: Vector3,
     val velocity: Vector3,
     val modelInstance: ModelInstance,
     var lifetime: Float,
@@ -17,6 +17,7 @@ data class Bullet(
 
     init {
         updateBounds()
+        updateTransform()
     }
 
     fun update(deltaTime: Float) {
@@ -29,9 +30,7 @@ data class Bullet(
     }
 
     private fun updateTransform() {
-        modelInstance.transform.idt()
-        modelInstance.transform.setTranslation(position)
-        modelInstance.transform.rotate(Vector3.Y, rotationY)
+        modelInstance.transform.setToRotation(Vector3.Y, rotationY).setTranslation(position)
     }
 
     private fun updateBounds() {

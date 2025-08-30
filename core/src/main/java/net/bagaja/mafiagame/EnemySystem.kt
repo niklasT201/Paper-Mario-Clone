@@ -607,14 +607,14 @@ class EnemySystem : IFinePositionable {
         val playerPos = playerSystem.getPosition()
         var desiredMovement = Vector3.Zero
         val distanceToPlayer = enemy.position.dst(playerPos)
+        val meleeRange = enemy.equippedWeapon.meleeRange
 
-        // --- MELEE ATTACK LOGIC (happens independently of movement) ---
-        if (distanceToPlayer < enemy.equippedWeapon.meleeRange && enemy.attackTimer <= 0f) {
+        // MELEE ATTACK LOGIC
+        if (distanceToPlayer < meleeRange && enemy.attackTimer <= 0f) {
             performEnemyMeleeAttack(enemy, playerSystem)
             enemy.attackTimer = enemy.equippedWeapon.fireCooldown
-            // When a rusher attacks, they stop moving for a moment.
-            enemy.path.clear()
-            enemy.waypoint = null
+            characterPhysicsSystem.update(enemy.physics, Vector3.Zero, deltaTime) // Stop moving to attack
+            return // End AI update for this frame
         }
 
         // --- PATHFINDING & MOVEMENT LOGIC ---
@@ -628,15 +628,22 @@ class EnemySystem : IFinePositionable {
                     val awayDir = enemy.position.cpy().sub(closestFire.gameObject.position).nor()
                     targetPosition = enemy.position.cpy().add(awayDir.scl(FIRE_FLEE_DISTANCE))
                 }
-            } else if (distanceToPlayer > enemy.equippedWeapon.meleeRange * 0.8f) {
-                // If not burning and not in attack range, the target is the player.
+            } else {
+                // The target is always the player
                 targetPosition = playerPos
             }
 
             if (targetPosition != null) {
-                pathfindingSystem.findPath(enemy.position, targetPosition)?.let {
-                    enemy.path = it
+                // Try to find a path
+                val foundPath = pathfindingSystem.findPath(enemy.position, targetPosition)
+                if (!foundPath.isNullOrEmpty()) {
+                    enemy.path = foundPath
                     enemy.waypoint = enemy.path.poll()
+                } else {
+                    // Pathfinding failed or returned an empty path
+                    enemy.path.clear()
+                    enemy.waypoint = targetPosition // The waypoint is now the final destination
+                    println("${enemy.enemyType.displayName} couldn't find a path, moving directly towards target.")
                 }
                 enemy.pathRequestTimer = PATH_RECALCULATION_INTERVAL
             } else {
@@ -648,17 +655,21 @@ class EnemySystem : IFinePositionable {
 
         // MOVEMENT EXECUTION
         enemy.waypoint?.let { targetWaypoint ->
+            // Check if we are close enough to the current waypoint
             if (enemy.position.dst(targetWaypoint) < WAYPOINT_TOLERANCE) {
+                // If there are more waypoints in the path, get the next one. Otherwise, we've arrived.
                 enemy.waypoint = enemy.path.poll()
             } else {
+                // We still have a waypoint to move to
                 desiredMovement = targetWaypoint.cpy().sub(enemy.physics.position).nor()
             }
         }
 
         // VISUALS & PHYSICS
+        // Make the enemy face the direction of movement, or the player if standing still
         if (!desiredMovement.isZero) {
             enemy.physics.facingRotationY = if (desiredMovement.x > 0) 0f else 180f
-        } else {
+        } else if (distanceToPlayer > 0.1f) {
             enemy.physics.facingRotationY = if (playerPos.x > enemy.physics.position.x) 0f else 180f
         }
 

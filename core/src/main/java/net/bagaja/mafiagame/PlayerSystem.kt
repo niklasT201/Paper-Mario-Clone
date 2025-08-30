@@ -222,6 +222,7 @@ class PlayerSystem {
         headlightLight = carLight
         // Directly add its PointLight to the environment. It is now a transient effect.
         lightingManager.getEnvironment().add(carLight.createPointLight())
+        activeBullets.clear()
     }
 
     private fun setupBillboardShader() {

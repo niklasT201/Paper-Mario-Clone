@@ -57,7 +57,6 @@ public class Lwjgl3Launcher {
 // enemy/npc spawner
 // making molotoves and dynamite removeable
 // higher rusher attack melee range
-// bullet at 0 0 0 spawning stop
 // blocks being visible behind transparent enemies etc.
 // car maybe be able to step up half a block
 // Chain Reactions with Explosives & Fire
