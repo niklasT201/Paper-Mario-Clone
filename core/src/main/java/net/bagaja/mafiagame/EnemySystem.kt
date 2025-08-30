@@ -12,8 +12,6 @@ import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
 import java.util.*
-import kotlin.math.max
-import kotlin.math.sin
 import kotlin.random.Random
 
 // --- ENUMERATIONS FOR ENEMY PROPERTIES ---
@@ -40,16 +38,15 @@ enum class EnemyBehavior(val displayName: String) {
 
 // AI State for the enemy's state machine
 enum class AIState {
-    IDLE,       // Standing still, "shooting"
-    CHASING,    // Moving towards the player (Rusher)
-    FLEEING,    // Moving away from the player (Coward)
-    SEARCHING,  // Looking for a hiding spot (Coward)
-    HIDING,      // Reached a hiding spot (Coward)
+    IDLE,
+    CHASING,
+    FLEEING,
+    SEARCHING,
+    HIDING,
     RELOADING,
     DYING
 }
 
-// --- MAIN ENEMY DATA CLASS ---
 data class GameEnemy(
     val id: String = UUID.randomUUID().toString(),
     val modelInstance: ModelInstance,
@@ -68,8 +65,8 @@ data class GameEnemy(
     var equippedWeapon: WeaponType = WeaponType.UNARMED
     var currentMagazineCount: Int = 0
     var ammo: Int = 0
-    var bleedTimer: Float = 0f // How long the bleeding effect lasts
-    var bloodDripSpawnTimer: Float = 0f // Timer to control the rate of drips
+    var bleedTimer: Float = 0f
+    var bloodDripSpawnTimer: Float = 0f
 
     // AI state properties
     var currentState: AIState = AIState.IDLE
@@ -92,6 +89,11 @@ data class GameEnemy(
     @Transient var isInCar: Boolean = false
     @Transient var drivingCar: GameCar? = null
     @Transient var currentSeat: CarSeat? = null
+
+    // Pathfinding properties
+    @Transient var path: Queue<Vector3> = LinkedList()
+    @Transient var pathRequestTimer: Float = 0f
+    @Transient var waypoint: Vector3? = null
 
     fun enterCar(car: GameCar) {
         val seat = car.addOccupant(this)
@@ -131,8 +133,8 @@ data class GameEnemy(
     }
 
     companion object {
-        const val BLEED_DURATION = 1.0f // Bleeding lasts for 5 seconds
-        const val BLOOD_DRIP_INTERVAL = 0.7f // Spawn a drip every 0.25s of movement
+        const val BLEED_DURATION = 1.0f
+        const val BLOOD_DRIP_INTERVAL = 0.7f
     }
 
     fun takeDamage(damage: Float, type: DamageType): Boolean {
@@ -152,10 +154,10 @@ data class GameEnemy(
     }
 }
 
-// --- ENEMY MANAGEMENT SYSTEM ---
-
 class EnemySystem : IFinePositionable {
     private lateinit var characterPhysicsSystem: CharacterPhysicsSystem
+    private lateinit var pathfindingSystem: PathfindingSystem
+    private val COMBAT_DEPTH_TOLERANCE = 1.5f
     private val enemyModels = mutableMapOf<EnemyType, Model>()
     private val enemyTextures = mutableMapOf<EnemyType, Texture>()
     private lateinit var billboardModelBatch: ModelBatch
@@ -170,13 +172,9 @@ class EnemySystem : IFinePositionable {
     var currentEnemyTypeIndex = 0
     var currentBehaviorIndex = 0
 
-    // AI constants
-    private val ATTACK_RANGE = 2.5f // How close the enemy needs to be to attack
-    private val ATTACK_COOLDOWN = 1.0f // Enemy can attack once per second
-    private val detectionRange = 25f // When cowards start fleeing
-    private val hideSearchRadius = 40f
-    private val hideDistance = 15f
-    private val stopChasingDistance = 1.5f
+    private val ATTACK_RANGE = 25f
+    private val PATH_RECALCULATION_INTERVAL = 1.0f
+    private val WAYPOINT_TOLERANCE = 1.5f
     private val activationRange = 150f
 
     // Physics constants
@@ -192,10 +190,11 @@ class EnemySystem : IFinePositionable {
     private val tempVec3 = Vector3()
     private var blockSize: Float = 4f
 
-    fun initialize(blockSize: Float, characterPhysicsSystem: CharacterPhysicsSystem) {
+    fun initialize(blockSize: Float, characterPhysicsSystem: CharacterPhysicsSystem, pathfindingSystem: PathfindingSystem) {
         this.blockSize = blockSize
         this.raycastSystem = RaycastSystem(blockSize)
         this.characterPhysicsSystem = characterPhysicsSystem
+        this.pathfindingSystem = pathfindingSystem
 
         billboardShaderProvider = BillboardShaderProvider()
         billboardModelBatch = ModelBatch(billboardShaderProvider)
@@ -235,13 +234,7 @@ class EnemySystem : IFinePositionable {
             // Position the enemy so its feet are on the surface
             val enemyType = currentSelectedEnemyType
             val enemyPosition = Vector3(tempVec3.x, surfaceY + enemyType.height / 2f, tempVec3.z)
-
-            val newEnemy = createEnemy(
-                enemyPosition,
-                currentSelectedEnemyType,
-                currentSelectedBehavior
-            )
-
+            val newEnemy = createEnemy(enemyPosition, currentSelectedEnemyType, currentSelectedBehavior)
             if (newEnemy != null) {
                 sceneManager.activeEnemies.add(newEnemy)
                 sceneManager.game.lastPlacedInstance = newEnemy // For fine positioning
@@ -446,8 +439,8 @@ class EnemySystem : IFinePositionable {
 
                         // Spawn a drip at the enemy's position with a slight random offset
                         val spawnPosition = enemy.physics.position.cpy().add(
-                            (Random.nextFloat() - 0.5f) * 1f, // Small horizontal offset
-                            (Random.nextFloat() - 0.5f) * 2f, // Vertical offset around the torso
+                            (Random.nextFloat() - 0.5f) * 1f,
+                            (Random.nextFloat() - 0.5f) * 2f,
                             (Random.nextFloat() - 0.5f) * 1f
                         )
                         sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BLOOD_DRIP, spawnPosition)
@@ -468,44 +461,46 @@ class EnemySystem : IFinePositionable {
 
             // Only apply physics if we are NOT in fine positioning mode.
             if (!finePosMode) {
-                updateAI(enemy, playerPos, deltaTime, sceneManager)
+                updateAI(enemy, playerSystem, deltaTime, sceneManager)
             }
 
             // Player is to the right of the enemy, so enemy should face right.
             enemy.position.set(enemy.physics.position) // Sync legacy position variable
-            enemy.isMoving = enemy.physics.isMoving     // Sync legacy moving flag
+            enemy.isMoving = enemy.physics.isMoving // Sync legacy moving flag
 
             enemy.wobbleAngle = enemy.physics.wobbleAngle
-
-            // Face the player based on the new, correct position from the physics component
-            if (playerPos.x > enemy.physics.position.x) {
-                enemy.facingRotationY = 0f
-            } else {
-                // Player is to the left of the enemy, so enemy should face left.
-                enemy.facingRotationY = 180f
-            }
+            enemy.facingRotationY = enemy.physics.facingRotationY
 
             // Update the enemy's visual transform.
             enemy.updateVisuals()
         }
     }
 
-    private fun updateAI(enemy: GameEnemy, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {
-        if (enemy.isOnFire) {
-            // Find the closest fire to run away from
-            val closestFire = sceneManager.game.fireSystem.activeFires.minByOrNull { it.gameObject.position.dst2(enemy.position) }
-            if (closestFire != null) {
-                val awayDirection = enemy.physics.position.cpy().sub(closestFire.gameObject.position).nor()
-                characterPhysicsSystem.update(enemy.physics, awayDirection, deltaTime)
-            } else {
-                // No fire found? Just run in a random direction.
-                if (enemy.targetPosition == null || enemy.physics.position.dst2(enemy.targetPosition!!) < 4f) {
-                    enemy.targetPosition = enemy.position.cpy().add((Random.nextFloat() - 0.5f) * 20f, 0f, (Random.nextFloat() - 0.5f) * 20f)
-                }
-                val awayDirection = enemy.targetPosition!!.cpy().sub(enemy.physics.position).nor()
-                characterPhysicsSystem.update(enemy.physics, awayDirection, deltaTime)
+    private fun updateAI(enemy: GameEnemy, playerSystem: PlayerSystem, deltaTime: Float, sceneManager: SceneManager) {
+        val playerPos = playerSystem.getPosition()
+        var desiredMovement = Vector3.Zero
+
+        enemy.pathRequestTimer -= deltaTime
+
+        val ray = Ray(enemy.position, playerPos.cpy().sub(enemy.position).nor())
+        val collision = sceneManager.checkCollisionForRay(ray, enemy.position.dst(playerPos))
+        val hasLineOfSight = collision == null || collision.type == HitObjectType.PLAYER || collision.type == HitObjectType.ENEMY // Allow shooting through other enemies
+
+        // Check for vertical alignment (Y-axis)
+        val isYAligned = kotlin.math.abs(playerPos.y - enemy.position.y) < enemy.enemyType.height
+        // Check for depth alignment (Z-axis)
+        val isZAligned = kotlin.math.abs(playerPos.z - enemy.position.z) < COMBAT_DEPTH_TOLERANCE
+
+        if (hasLineOfSight && isYAligned && isZAligned && enemy.attackTimer <= 0f) {
+            if (enemy.currentMagazineCount > 0) {
+                spawnEnemyBullet(enemy, playerPos, sceneManager)
+                // MODIFIED: Make shooting very slow for testing
+                enemy.attackTimer = enemy.equippedWeapon.fireCooldown * 5.0f // Shoots 5x slower
+                enemy.currentMagazineCount--
+            } else if (enemy.ammo > 0 && enemy.currentState != AIState.RELOADING) {
+                enemy.currentState = AIState.RELOADING
+                enemy.stateTimer = enemy.equippedWeapon.reloadTime
             }
-            return // Override all other AI
         }
 
         // Handle Reloading State ---
@@ -514,134 +509,67 @@ class EnemySystem : IFinePositionable {
             if (enemy.stateTimer <= 0f) {
                 // Finished reloading
                 val ammoNeeded = enemy.equippedWeapon.magazineSize - enemy.currentMagazineCount
-                val ammoAvailable = enemy.ammo
-                val ammoToMove = minOf(ammoNeeded, ammoAvailable)
-
+                val ammoToMove = minOf(ammoNeeded, enemy.ammo)
                 enemy.currentMagazineCount += ammoToMove
                 enemy.ammo -= ammoToMove
-                println("${enemy.enemyType.displayName} finished reloading!")
-                enemy.currentState = AIState.IDLE // Go back to idle to decide next action
+                enemy.currentState = AIState.IDLE
             }
-            return // Don't process other AI while reloading
+            characterPhysicsSystem.update(enemy.physics, desiredMovement, deltaTime)
+            return
         }
 
-        when (enemy.behaviorType) {
-            EnemyBehavior.STATIONARY_SHOOTER -> {
-                if (enemy.attackTimer <= 0f) {
-                    if (enemy.currentMagazineCount > 0) {
-                        // Has ammo, can shoot
-                        println("${enemy.enemyType.displayName} shoots!")
-                        // TODO: Spawn a bullet projectile from the enemy
-                        sceneManager.game.playerSystem.takeDamage(enemy.equippedWeapon.damage) // For now, just deal damage
-                        enemy.currentMagazineCount--
-                        enemy.attackTimer = enemy.equippedWeapon.fireCooldown
-                    } else if (enemy.ammo > 0) {
-                        // Out of magazine, but has reserves. RELOAD.
-                        println("${enemy.enemyType.displayName} is reloading...")
-                        enemy.currentState = AIState.RELOADING
-                        enemy.stateTimer = enemy.equippedWeapon.reloadTime
-                    }
-                }
+        if (enemy.path.isEmpty() && enemy.pathRequestTimer <= 0f) {
+            pathfindingSystem.findPath(enemy.position, playerPos)?.let {
+                enemy.path = it
+                enemy.waypoint = enemy.path.poll()
             }
-            EnemyBehavior.AGGRESSIVE_RUSHER -> {
-                val distanceToPlayer = enemy.position.dst(playerPos)
+            enemy.pathRequestTimer = PATH_RECALCULATION_INTERVAL
+        }
 
-                if (distanceToPlayer <= ATTACK_RANGE) {
-                    // Close enough to attack
-                    enemy.currentState = AIState.IDLE // Stop moving
-                    if (enemy.attackTimer <= 0f) {
-                        // Time to attack!
-                        println("${enemy.enemyType.displayName} attacks player!")
-                        sceneManager.game.playerSystem.takeDamage(10f) // Deal 10 damage
-                        enemy.attackTimer = ATTACK_COOLDOWN // Reset cooldown
-                    }
-                } else if (distanceToPlayer > stopChasingDistance) {
-                    // Too far, chase the player
-                    enemy.currentState = AIState.CHASING
-                    moveTowards(enemy, playerPos, deltaTime, sceneManager)
-                } else {
-                    enemy.currentState = AIState.IDLE // Reached player, now attacking
-                }
-            }
-            EnemyBehavior.COWARD_HIDER -> {
-                val distanceToPlayer = enemy.position.dst(playerPos)
-                when (enemy.currentState) {
-                    AIState.IDLE -> if (distanceToPlayer < detectionRange) {
-                        enemy.currentState = AIState.SEARCHING
-                        enemy.stateTimer = 0f
-                    }
-                    AIState.SEARCHING -> {
-                        if (enemy.targetPosition == null) findHidingSpot(enemy, playerPos, sceneManager)
-
-                        if (enemy.targetPosition != null) {
-                            enemy.currentState = AIState.FLEEING
-                        } else {
-                            enemy.stateTimer += deltaTime
-                            if (enemy.stateTimer > 2f) enemy.currentState = AIState.IDLE // Give up for now
-                        }
-                    }
-                    AIState.FLEEING -> {
-                        enemy.targetPosition?.let { target ->
-                            moveTowards(enemy, target, deltaTime, sceneManager)
-                            if (enemy.position.dst(target) < 2f) {
-                                enemy.currentState = AIState.HIDING
-                                enemy.targetPosition = null
-                                enemy.stateTimer = 0f
-                            }
-                        }
-                    }
-                    AIState.HIDING -> {
-                        enemy.stateTimer += deltaTime
-                        if (enemy.stateTimer > 5f) enemy.currentState = AIState.IDLE // Emerge after 5s
-                    }
-                    else -> enemy.currentState = AIState.IDLE
-                }
+        enemy.waypoint?.let { targetWaypoint ->
+            if (enemy.position.dst(targetWaypoint) < WAYPOINT_TOLERANCE) {
+                enemy.waypoint = enemy.path.poll()
+            } else {
+                desiredMovement = targetWaypoint.cpy().sub(enemy.physics.position).nor()
             }
         }
+
+        if (!desiredMovement.isZero) {
+            enemy.physics.facingRotationY = if (desiredMovement.x > 0) 0f else 180f
+        } else {
+            enemy.physics.facingRotationY = if (playerPos.x > enemy.physics.position.x) 0f else 180f
+        }
+
+        characterPhysicsSystem.update(enemy.physics, desiredMovement, deltaTime)
     }
 
-    private fun moveTowards(enemy: GameEnemy, target: Vector3, deltaTime: Float, sceneManager: SceneManager) {
-        val direction = Vector3(target).sub(enemy.physics.position).nor()
-        characterPhysicsSystem.update(enemy.physics, direction, deltaTime)
-    }
+    private fun spawnEnemyBullet(enemy: GameEnemy, playerPos: Vector3, sceneManager: SceneManager) {
+        val bulletModel = sceneManager.game.playerSystem.bulletModels[enemy.equippedWeapon.bulletTexturePath] ?: return
 
-    private fun findHidingSpot(enemy: GameEnemy, playerPos: Vector3, sceneManager: SceneManager) {
-        val directionFromPlayer = Vector3(enemy.position).sub(playerPos).nor()
+        // 1. Determine direction ONLY on the X-axis (left or right)
+        val directionX = if (playerPos.x > enemy.position.x) 1f else -1f
+        val direction = Vector3(directionX, 0f, 0f) // Force a purely horizontal direction
 
-        // Check in a few directions around the "away from player" vector
-        for (i in -1..1) {
-            val searchAngle = i * 30f // Check 30 degrees to the left and right
-            val searchDirection = directionFromPlayer.cpy().rotate(Vector3.Y, searchAngle)
-            val potentialSpot = Vector3(enemy.position).add(searchDirection.scl(hideDistance))
+        // 2. Calculate velocity based on this new horizontal direction
+        val velocity = direction.cpy().scl(enemy.equippedWeapon.bulletSpeed)
 
-            // Find a nearby block or house to hide behind
-            val occluder = findNearestOccluder(potentialSpot, sceneManager)
+        // 3. Calculate the spawn position based on the horizontal direction
+        val verticalOffset = -enemy.enemyType.height * 0.2f // Lower the spawn point from the head
+        val horizontalOffset = directionX * (enemy.enemyType.width / 2f) // Place at the left/right edge of the enemy sprite
+        val spawnPos = enemy.position.cpy().add(horizontalOffset, verticalOffset, 0f)
+        spawnPos.mulAdd(direction, 1.0f) // Push it slightly forward from the enemy
 
-            if (occluder != null) {
-                // We found something to hide behind! Target the spot just behind it.
-                val dirFromPlayerToOccluder = Vector3(occluder).sub(playerPos).nor()
-                enemy.targetPosition = Vector3(occluder).add(dirFromPlayerToOccluder.scl(5f)) // 5 units behind
-                return // Found a spot, exit
-            }
-        }
-        enemy.targetPosition = null // No suitable spot found
-    }
+        val bullet = Bullet(
+            position = spawnPos,
+            velocity = velocity,
+            modelInstance = ModelInstance(bulletModel),
+            lifetime = enemy.equippedWeapon.bulletLifetime,
+            rotationY = if (direction.x < 0) 180f else 0f,
+            owner = enemy // The owner is the enemy instance
+        )
 
-    private fun findNearestOccluder(position: Vector3, sceneManager: SceneManager): Vector3? {
-        val nearbyBlocks = sceneManager.activeChunkManager.getAllBlocks().filter { it.position.dst(position) < hideSearchRadius }
-        val nearbyHouses = sceneManager.activeHouses.filter { it.position.dst(position) < hideSearchRadius }
-
-        val closestBlockPos = nearbyBlocks.minByOrNull { it.position.dst2(position) }?.position
-        val closestHousePos = nearbyHouses.minByOrNull { it.position.dst2(position) }?.position
-
-        return when {
-            closestBlockPos != null && closestHousePos != null -> {
-                if (position.dst2(closestBlockPos) < position.dst2(closestHousePos)) closestBlockPos else closestHousePos
-            }
-            closestBlockPos != null -> closestBlockPos
-            closestHousePos != null -> closestHousePos
-            else -> null
-        }
+        sceneManager.game.playerSystem.activeBullets.add(bullet)
+        println("${enemy.enemyType.displayName} shoots at player!")
     }
 
     fun renderEnemies(camera: Camera, environment: Environment, enemies: Array<GameEnemy>) {
@@ -664,7 +592,6 @@ class EnemySystem : IFinePositionable {
         billboardModelBatch.end()
     }
 
-    // --- UI Interaction Methods ---
     fun nextEnemyType() {
         currentEnemyTypeIndex = (currentEnemyTypeIndex + 1) % EnemyType.entries.size
         currentSelectedEnemyType = EnemyType.entries[currentEnemyTypeIndex]

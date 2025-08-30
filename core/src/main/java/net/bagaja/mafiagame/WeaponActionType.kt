@@ -9,7 +9,8 @@ data class Bullet(
     val velocity: Vector3,
     val modelInstance: ModelInstance,
     var lifetime: Float,
-    val rotationY: Float
+    val rotationY: Float,
+    val owner: Any
 ) {
     val bounds: BoundingBox = BoundingBox()
     private val bulletSize = 0.2f // A small collision box for the bullet

@@ -34,6 +34,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var sceneManager: SceneManager
     private lateinit var enemySystem: EnemySystem
     private lateinit var npcSystem: NPCSystem
+    private lateinit var pathfindingSystem: PathfindingSystem
     private lateinit var roomTemplateManager: RoomTemplateManager
     private lateinit var houseSystem: HouseSystem
 
@@ -133,6 +134,7 @@ class MafiaGame : ApplicationAdapter() {
             enemySystem, npcSystem, roomTemplateManager, cameraManager, houseSystem, transitionSystem,
             faceCullingSystem, this, particleSystem, fireSystem, boneSystem
         )
+        pathfindingSystem = PathfindingSystem(sceneManager, blockSize, playerSystem.playerSize)
         characterPhysicsSystem = CharacterPhysicsSystem(sceneManager)
 
         blockSystem.sceneManager = sceneManager
@@ -164,7 +166,7 @@ class MafiaGame : ApplicationAdapter() {
         backgroundSystem.initialize(blockSize)
         parallaxBackgroundSystem.initialize(blockSize)
         interiorSystem.initialize(blockSize)
-        enemySystem.initialize(blockSize, characterPhysicsSystem)
+        enemySystem.initialize(blockSize, characterPhysicsSystem, pathfindingSystem)
         npcSystem.initialize(blockSize, characterPhysicsSystem)
         roomTemplateManager.initialize()
         playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem, footprintSystem, characterPhysicsSystem, sceneManager)

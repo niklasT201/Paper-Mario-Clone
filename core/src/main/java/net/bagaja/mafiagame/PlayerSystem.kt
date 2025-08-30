@@ -26,7 +26,8 @@ enum class HitObjectType {
     INTERIOR,
     ENEMY,
     NPC,
-    CAR
+    CAR,
+    PLAYER
 }
 
 data class CollisionResult(
@@ -156,10 +157,10 @@ class PlayerSystem {
 
     // Caches for weapon assets to avoid loading them repeatedly
     private val poseTextures = mutableMapOf<String, Texture>()
-    private val bulletModels = mutableMapOf<String, Model>()
+    val bulletModels = mutableMapOf<String, Model>()
     private val throwableModels = mutableMapOf<WeaponType, Model>()
 
-    private val activeBullets = Array<Bullet>()
+    val activeBullets = Array<Bullet>()
     private val activeThrowables = Array<ThrowableEntity>()
     private var teleportCooldown = 0f
     lateinit var bloodPoolSystem: BloodPoolSystem
@@ -693,7 +694,8 @@ class PlayerSystem {
             velocity = velocity,
             modelInstance = ModelInstance(bulletModel),
             lifetime = equippedWeapon.bulletLifetime,
-            rotationY = bulletRotation
+            rotationY = bulletRotation,
+            owner = this
         )
         activeBullets.add(bullet)
 
@@ -1431,6 +1433,11 @@ class PlayerSystem {
                             sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }
                     }
+                    HitObjectType.PLAYER -> {
+                        val enemyOwner = bullet.owner as GameEnemy
+                        takeDamage(enemyOwner.equippedWeapon.damage)
+                        // You can also add a blood effect for the player here if you wish
+                    }
                     HitObjectType.NONE -> {}
                 }
                 continue // Skip next bullet
@@ -1877,6 +1884,17 @@ class PlayerSystem {
                     val normal = bullet.velocity.cpy().nor().scl(-1f)
                     closestResult = CollisionResult(type, obj, intersectionPoint.cpy(), normal)
                     closestDistSq = distSq
+                }
+            }
+        }
+
+        // Check if an enemy bullet hits the player
+        if (bullet.owner is GameEnemy) {
+            if (Intersector.intersectRayBounds(bulletRay, getPlayerBounds(), intersectionPoint)) {
+                val distSq = bulletRay.origin.dst2(intersectionPoint)
+                if (distSq <= travelDistanceSq && distSq < closestDistSq) {
+                    // For simplicity, we don't need a normal when hitting the player
+                    return CollisionResult(HitObjectType.PLAYER, this, intersectionPoint.cpy(), Vector3.Zero)
                 }
             }
         }

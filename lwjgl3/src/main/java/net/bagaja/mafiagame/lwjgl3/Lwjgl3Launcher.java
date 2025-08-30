@@ -51,7 +51,6 @@ public class Lwjgl3Launcher {
 // edge houses
 // adding cash trucks
 // using new animation images
-// enemies can actually shoot bullets and weapons behave like for player
 // collected ammunition label for bullets and weapons
 // blocks being visible behind transparent enemies etc.
 // car maybe be able to step up half a block
