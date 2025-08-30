@@ -158,6 +158,14 @@ class InputHandler(
                             // Try to remove a block. If successful, consume the event.
                             val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
 
+                            if (uiManager.selectedTool == Tool.PLAYER) {
+                                val enemyToInspect = enemySystem.raycastSystem.getEnemyAtRay(ray, sceneManager.activeEnemies)
+                                if (enemyToInspect != null) {
+                                    uiManager.showEnemyDebugInfo(enemyToInspect)
+                                    return true // Consume the click so it doesn't trigger camera drag
+                                }
+                            }
+
                             // Handle cancelling teleporter linking first
                             if (teleporterSystem.isLinkingMode) {
                                 teleporterSystem.cancelLinking()

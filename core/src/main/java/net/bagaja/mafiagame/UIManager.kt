@@ -66,6 +66,7 @@ class UIManager(
     private lateinit var shaderEffectUI: ShaderEffectUI
     private lateinit var pauseMenuUI: PauseMenuUI
     private lateinit var visualSettingsUI: VisualSettingsUI
+    private lateinit var enemyDebugUI: EnemyDebugUI
     private lateinit var mainTable: Table
     private lateinit var letterboxTable: Table
     private lateinit var cinematicBarsTable: Table
@@ -204,6 +205,8 @@ class UIManager(
 
         shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager)
         shaderEffectUI.initialize()
+
+        enemyDebugUI = EnemyDebugUI(skin, stage)
 
         visualSettingsUI = VisualSettingsUI(
             skin,
@@ -869,6 +872,12 @@ class UIManager(
         if (shaderEffectUI.isVisible()) shaderEffectUI.toggle()
     }
 
+    fun showEnemyDebugInfo(enemy: GameEnemy) {
+        // Hide other selection UIs to avoid clutter
+        hideAllEditorPanels()
+        enemyDebugUI.show(enemy)
+    }
+
     fun getStage(): Stage = stage
 
     private fun updateAmmoDisplay() {
@@ -1034,6 +1043,7 @@ class UIManager(
         pauseMenuUI.update(Gdx.graphics.deltaTime)
         skyCustomizationUI.update()
         shaderEffectUI.update()
+        enemyDebugUI.act(Gdx.graphics.deltaTime)
         stage.act(Gdx.graphics.deltaTime)
         stage.draw()
     }
@@ -1061,6 +1071,7 @@ class UIManager(
         shaderEffectUI.dispose()
         particleSelectionUI.dispose()
         pauseMenuUI.dispose()
+        enemyDebugUI.dispose()
         if (::fistTexture.isInitialized) {
             fistTexture.dispose()
         }

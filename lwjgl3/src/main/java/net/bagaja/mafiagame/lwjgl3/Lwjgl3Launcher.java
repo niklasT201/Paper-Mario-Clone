@@ -55,7 +55,9 @@ public class Lwjgl3Launcher {
 // npc spawnpoint
 // enemy spawnpoint
 // enemy/npc spawner
-// making molotoves and dynamite removeable
+// more placement optimization
+// rusher stopping in front of the player
+// molotoves show how many you carry around in player mode
 // blocks being visible behind transparent enemies etc.
 // car maybe be able to step up half a block
 // Chain Reactions with Explosives & Fire
