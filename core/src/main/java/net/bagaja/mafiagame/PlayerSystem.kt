@@ -394,6 +394,7 @@ class PlayerSystem {
         val ammoAvailable = ammoReserves.getOrDefault(equippedWeapon, 0)
         if (ammoAvailable <= 0) {
             println("Out of reserve ammo for ${equippedWeapon.displayName}!")
+            checkAndRemoveWeaponIfOutOfAmmo()
             // TODO: Play an "empty" sound effect here
             return
         }
@@ -465,6 +466,7 @@ class PlayerSystem {
                         } else if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
                             // Player tried to shoot but couldn't (e.g., empty magazine)
                             println("Click! (Out of ammo or empty magazine)")
+                            checkAndRemoveWeaponIfOutOfAmmo()
                             // TODO: Play an "empty clip" sound effect here
                         }
 
@@ -777,36 +779,6 @@ class PlayerSystem {
         println("Player equipped: ${weaponType.displayName}. Magazine loaded with $currentMagazineCount rounds.")
     }
 
-    fun dropEquippedWeapon(sceneManager: SceneManager, itemSystem: ItemSystem) {
-        // Prevent dropping while driving or if unarmed.
-        if (isDriving || equippedWeapon == WeaponType.UNARMED) {
-            return
-        }
-
-        val weaponToDrop = equippedWeapon
-        println("Player dropped ${weaponToDrop.displayName}.")
-
-        val itemTypeToSpawn = ItemType.entries.find { it.correspondingWeapon == weaponToDrop }
-
-        if (itemTypeToSpawn != null) {
-            val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
-            val spawnOffset = Vector3(directionX * 2.5f, 0f, 0f)
-            val spawnPosition = getPosition().add(spawnOffset)
-
-            val newItem = itemSystem.createItem(spawnPosition, itemTypeToSpawn)
-            if (newItem != null) {
-                newItem.pickupDelay = 0.5f
-                newItem.ammo = ammoReserves.getOrDefault(weaponToDrop, 0)
-
-                sceneManager.activeItems.add(newItem)
-                itemSystem.setActiveItems(sceneManager.activeItems)
-            }
-        }
-
-        removeWeaponFromInventory(weaponToDrop)
-        switchToPreviousWeapon()
-    }
-
     private fun removeWeaponFromInventory(weaponType: WeaponType) {
         if (weaponType == WeaponType.UNARMED) return // Cannot remove fists
 
@@ -822,19 +794,6 @@ class PlayerSystem {
         currentMagazineCounts[equippedWeapon] = currentMagazineCount
 
         currentWeaponIndex = (currentWeaponIndex + 1) % weapons.size
-        equipWeapon(weapons[currentWeaponIndex])
-    }
-
-    private fun switchToPreviousWeapon() {
-        if (weapons.size <= 1) return // Can't switch if you only have fists
-
-        // SAVE the current weapon's magazine state BEFORE switching
-        currentMagazineCounts[equippedWeapon] = currentMagazineCount
-
-        currentWeaponIndex--
-        if (currentWeaponIndex < 0) {
-            currentWeaponIndex = weapons.size - 1
-        }
         equipWeapon(weapons[currentWeaponIndex])
     }
 
@@ -855,8 +814,7 @@ class PlayerSystem {
             // Remove the weapon from the player's list
             removeWeaponFromInventory(weaponToCheck)
 
-            // Switch to the previous weapon in the list
-            switchToPreviousWeapon()
+            equipWeapon(WeaponType.UNARMED)
         }
     }
 

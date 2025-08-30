@@ -51,7 +51,6 @@ public class Lwjgl3Launcher {
 // edge houses
 // adding cash trucks
 // using new animation images
-// weapons removed from inventory when ammunition is 0
 // enemies can actually shoot bullets and weapons behave like for player
 // collected ammunition label for bullets and weapons
 // blocks being visible behind transparent enemies etc.
