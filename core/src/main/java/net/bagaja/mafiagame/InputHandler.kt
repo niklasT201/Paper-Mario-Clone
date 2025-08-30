@@ -270,13 +270,19 @@ class InputHandler(
                     uiManager.updateInteriorSelection()
                     return true
                 } else if (isEnemySelectionMode) {
-                    // Check for a modifier key to switch between type and behavior
-                    if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)) {
-                        // Scroll through behaviors
-                        if (amountY > 0) enemySystem.nextBehavior() else enemySystem.previousBehavior()
-                    } else {
+                    when {
+                        // Ctrl + Wheel: Change "Out of Ammo" tactic
+                        Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) || Gdx.input.isKeyPressed(Input.Keys.CONTROL_RIGHT) -> {
+                            if (amountY > 0) uiManager.nextEmptyAmmoTactic() else uiManager.prevEmptyAmmoTactic()
+                        }
+                        // Shift + Wheel: Change "Primary" tactic
+                        Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT) -> {
+                            if (amountY > 0) uiManager.nextPrimaryTactic() else uiManager.prevPrimaryTactic()
+                        }
                         // Scroll through enemy types
-                        if (amountY > 0) enemySystem.nextEnemyType() else enemySystem.previousEnemyType()
+                        else -> {
+                            if (amountY > 0) enemySystem.nextEnemyType() else enemySystem.previousEnemyType()
+                        }
                     }
                     uiManager.updateEnemySelection() // Update the UI to reflect the change
                     return true

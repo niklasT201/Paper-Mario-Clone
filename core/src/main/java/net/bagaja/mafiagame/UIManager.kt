@@ -536,6 +536,30 @@ class UIManager(
     fun navigateHouseRooms(direction: Int) = houseSelectionUI.navigateRooms(direction)
     fun selectHouseRoom() = houseSelectionUI.selectCurrentRoom()
 
+    fun nextPrimaryTactic() {
+        if (::enemySelectionUI.isInitialized) {
+            enemySelectionUI.nextPrimaryTactic()
+        }
+    }
+
+    fun prevPrimaryTactic() {
+        if (::enemySelectionUI.isInitialized) {
+            enemySelectionUI.prevPrimaryTactic()
+        }
+    }
+
+    fun nextEmptyAmmoTactic() {
+        if (::enemySelectionUI.isInitialized) {
+            enemySelectionUI.nextEmptyAmmoTactic()
+        }
+    }
+
+    fun prevEmptyAmmoTactic() {
+        if (::enemySelectionUI.isInitialized) {
+            enemySelectionUI.prevEmptyAmmoTactic()
+        }
+    }
+
     // Dialog methods stay the same
     fun showTeleporterNameDialog(title: String, initialText: String = "", onConfirm: (name: String) -> Unit) {
         val dialog = Dialog(title, skin, "dialog")

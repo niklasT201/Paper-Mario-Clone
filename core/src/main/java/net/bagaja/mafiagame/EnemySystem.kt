@@ -32,8 +32,10 @@ enum class EnemyType(
 
 enum class EnemyBehavior(val displayName: String) {
     STATIONARY_SHOOTER("Stationary"),
-    COWARD_HIDER("Coward"),
-    AGGRESSIVE_RUSHER("Rusher")
+    AGGRESSIVE_RUSHER("Rusher"),
+    SKIRMISHER("Skirmisher"),
+    NEUTRAL("Neutral"),
+    COWARD_HIDER("Coward")
 }
 
 // AI State for the enemy's state machine
@@ -41,6 +43,7 @@ enum class AIState {
     IDLE,
     CHASING,
     FLEEING,
+    FLEEING_AFTER_ATTACK,
     SEARCHING,
     HIDING,
     RELOADING,
@@ -55,6 +58,9 @@ data class GameEnemy(
     var position: Vector3,
     var health: Float = enemyType.baseHealth
 ) {
+    var currentBehavior: EnemyBehavior = behaviorType
+    var provocationLevel: Float = 0f
+
     var isOnFire: Boolean = false
     var onFireTimer: Float = 0f
     var initialOnFireDuration: Float = 0f
@@ -140,6 +146,15 @@ data class GameEnemy(
     fun takeDamage(damage: Float, type: DamageType): Boolean {
         if (health <= 0) return false // Already dead, don't process more damage
 
+        // Provoke neutral enemies BEFORE applying damage, so they can react
+        if (this.currentBehavior == EnemyBehavior.NEUTRAL) {
+            this.provocationLevel += 25f // A simple provocation value per hit
+            if (this.provocationLevel >= 50f) { // Threshold to turn hostile
+                println("${this.enemyType.displayName} has been provoked and is now hostile!")
+                this.currentBehavior = EnemyBehavior.AGGRESSIVE_RUSHER
+            }
+        }
+
         health -= damage
         // The type of the killing blow is what matters most.
         if (health > 0 && (type == DamageType.GENERIC || type == DamageType.MELEE)) {
@@ -157,7 +172,6 @@ data class GameEnemy(
 class EnemySystem : IFinePositionable {
     private lateinit var characterPhysicsSystem: CharacterPhysicsSystem
     private lateinit var pathfindingSystem: PathfindingSystem
-    private val COMBAT_DEPTH_TOLERANCE = 1.5f
     private val enemyModels = mutableMapOf<EnemyType, Model>()
     private val enemyTextures = mutableMapOf<EnemyType, Texture>()
     private lateinit var billboardModelBatch: ModelBatch
@@ -166,15 +180,17 @@ class EnemySystem : IFinePositionable {
 
     // UI selection state
     var currentSelectedEnemyType = EnemyType.NOUSE_THUG
-        private set
     var currentSelectedBehavior = EnemyBehavior.STATIONARY_SHOOTER
-        private set
     var currentEnemyTypeIndex = 0
     var currentBehaviorIndex = 0
 
-    private val ATTACK_RANGE = 25f
+    private val FIRE_FLEE_DISTANCE = 15f
+    private val SHOOTER_IDEAL_DISTANCE = 15f
+    private val SHOOTER_MIN_DISTANCE = 8f
+
     private val PATH_RECALCULATION_INTERVAL = 1.0f
     private val WAYPOINT_TOLERANCE = 1.5f
+    private val COMBAT_DEPTH_TOLERANCE = 1.5f
     private val activationRange = 150f
 
     // Physics constants
@@ -182,7 +198,7 @@ class EnemySystem : IFinePositionable {
     override val fineStep: Float = 0.25f
 
     private val FADE_OUT_DURATION = 1.5f
-    private val ASH_SPAWN_START_TIME = 1.5f // Must match the ash particle's fadeIn time
+    private val ASH_SPAWN_START_TIME = 1.5f
 
     lateinit var sceneManager: SceneManager
     private lateinit var raycastSystem: RaycastSystem
@@ -287,21 +303,17 @@ class EnemySystem : IFinePositionable {
             position = position.cpy()
         )
 
-        // Assign a weapon based on enemy type
-        when (enemyType) {
-            EnemyType.NOUSE_THUG -> {
-                enemy.equippedWeapon = WeaponType.REVOLVER
-                enemy.ammo = 18 // Give him 3 full clips
-            }
-            EnemyType.CORRUPT_DETECTIVE -> {
+        // Assign weapons based on BEHAVIOR
+        when (behavior) {
+            EnemyBehavior.STATIONARY_SHOOTER, EnemyBehavior.COWARD_HIDER -> {
                 enemy.equippedWeapon = WeaponType.LIGHT_TOMMY_GUN
                 enemy.ammo = 80 // Two clips
             }
-            EnemyType.MAFIA_BOSS -> {
-                enemy.equippedWeapon = WeaponType.MACHINE_GUN
-                enemy.ammo = 200 // Two full magazines
+            EnemyBehavior.AGGRESSIVE_RUSHER, EnemyBehavior.SKIRMISHER -> {
+                enemy.equippedWeapon = WeaponType.KNIFE
+                enemy.ammo = 0
             }
-            else -> {
+            EnemyBehavior.NEUTRAL -> {
                 enemy.equippedWeapon = WeaponType.UNARMED // Default to unarmed
                 enemy.ammo = 0
             }
@@ -459,15 +471,14 @@ class EnemySystem : IFinePositionable {
                 continue // Skip AI and physics for distant enemies
             }
 
+            enemy.position.set(enemy.physics.position)
+
             // Only apply physics if we are NOT in fine positioning mode.
             if (!finePosMode) {
                 updateAI(enemy, playerSystem, deltaTime, sceneManager)
             }
 
-            // Player is to the right of the enemy, so enemy should face right.
-            enemy.position.set(enemy.physics.position) // Sync legacy position variable
-            enemy.isMoving = enemy.physics.isMoving // Sync legacy moving flag
-
+            enemy.isMoving = enemy.physics.isMoving
             enemy.wobbleAngle = enemy.physics.wobbleAngle
             enemy.facingRotationY = enemy.physics.facingRotationY
 
@@ -477,55 +488,104 @@ class EnemySystem : IFinePositionable {
     }
 
     private fun updateAI(enemy: GameEnemy, playerSystem: PlayerSystem, deltaTime: Float, sceneManager: SceneManager) {
-        val playerPos = playerSystem.getPosition()
-        var desiredMovement = Vector3.Zero
-
-        enemy.pathRequestTimer -= deltaTime
-
-        val ray = Ray(enemy.position, playerPos.cpy().sub(enemy.position).nor())
-        val collision = sceneManager.checkCollisionForRay(ray, enemy.position.dst(playerPos))
-        val hasLineOfSight = collision == null || collision.type == HitObjectType.PLAYER || collision.type == HitObjectType.ENEMY // Allow shooting through other enemies
-
-        // Check for vertical alignment (Y-axis)
-        val isYAligned = kotlin.math.abs(playerPos.y - enemy.position.y) < enemy.enemyType.height
-        // Check for depth alignment (Z-axis)
-        val isZAligned = kotlin.math.abs(playerPos.z - enemy.position.z) < COMBAT_DEPTH_TOLERANCE
-
-        if (hasLineOfSight && isYAligned && isZAligned && enemy.attackTimer <= 0f) {
-            if (enemy.currentMagazineCount > 0) {
-                spawnEnemyBullet(enemy, playerPos, sceneManager)
-                // MODIFIED: Make shooting very slow for testing
-                enemy.attackTimer = enemy.equippedWeapon.fireCooldown * 5.0f // Shoots 5x slower
-                enemy.currentMagazineCount--
-            } else if (enemy.ammo > 0 && enemy.currentState != AIState.RELOADING) {
-                enemy.currentState = AIState.RELOADING
-                enemy.stateTimer = enemy.equippedWeapon.reloadTime
-            }
-        }
-
-        // Handle Reloading State ---
+        // High priority override: Reloading
         if (enemy.currentState == AIState.RELOADING) {
             enemy.stateTimer -= deltaTime
             if (enemy.stateTimer <= 0f) {
-                // Finished reloading
                 val ammoNeeded = enemy.equippedWeapon.magazineSize - enemy.currentMagazineCount
                 val ammoToMove = minOf(ammoNeeded, enemy.ammo)
                 enemy.currentMagazineCount += ammoToMove
                 enemy.ammo -= ammoToMove
                 enemy.currentState = AIState.IDLE
             }
-            characterPhysicsSystem.update(enemy.physics, desiredMovement, deltaTime)
+            characterPhysicsSystem.update(enemy.physics, Vector3.Zero, deltaTime) // Stand still while reloading
             return
         }
 
-        if (enemy.path.isEmpty() && enemy.pathRequestTimer <= 0f) {
-            pathfindingSystem.findPath(enemy.position, playerPos)?.let {
-                enemy.path = it
-                enemy.waypoint = enemy.path.poll()
+        // Dispatch to the correct AI routine based on the enemy's CURRENT behavior
+        when (enemy.currentBehavior) {
+            EnemyBehavior.STATIONARY_SHOOTER -> updateShooterAI(enemy, playerSystem, deltaTime, sceneManager)
+            EnemyBehavior.AGGRESSIVE_RUSHER -> updateRusherAI(enemy, playerSystem, deltaTime, sceneManager)
+            EnemyBehavior.SKIRMISHER -> updateSkirmisherAI(enemy, playerSystem, deltaTime, sceneManager)
+            EnemyBehavior.NEUTRAL -> updateNeutralAI(enemy, deltaTime)
+            else -> {
+                characterPhysicsSystem.update(enemy.physics, Vector3.Zero, deltaTime)
             }
-            enemy.pathRequestTimer = PATH_RECALCULATION_INTERVAL
+        }
+    }
+
+    private fun updateShooterAI(enemy: GameEnemy, playerSystem: PlayerSystem, deltaTime: Float, sceneManager: SceneManager) {
+        val playerPos = playerSystem.getPosition()
+        var desiredMovement = Vector3.Zero
+
+        // --- AMMO CHECK & BEHAVIOR SWITCH ---
+        if (enemy.currentMagazineCount <= 0 && enemy.ammo <= 0) {
+            // 50% chance to become a Rusher, 50% to become a Skirmisher
+            if (Random.nextFloat() < 0.5f) {
+                println("${enemy.enemyType.displayName} is out of ammo! Switching to AGGRESSIVE RUSH.")
+                enemy.currentBehavior = EnemyBehavior.AGGRESSIVE_RUSHER
+            } else {
+                println("${enemy.enemyType.displayName} is out of ammo! Switching to SKIRMISH tactics.")
+                enemy.currentBehavior = EnemyBehavior.SKIRMISHER
+            }
+            enemy.equippedWeapon = WeaponType.UNARMED // Switch to fists for melee
+            return // End this update cycle, the next one will use the new AI behavior
         }
 
+        // --- SHOOTING LOGIC ---
+        val isYAligned = kotlin.math.abs(playerPos.y - enemy.position.y) < enemy.enemyType.height
+        // Check for depth alignment (Z-axis)
+        val isZAligned = kotlin.math.abs(playerPos.z - enemy.position.z) < COMBAT_DEPTH_TOLERANCE
+        val ray = Ray(enemy.position, playerPos.cpy().sub(enemy.position).nor())
+        val collision = sceneManager.checkCollisionForRay(ray, enemy.position.dst(playerPos))
+        val hasLineOfSight = collision == null || collision.type == HitObjectType.PLAYER || collision.type == HitObjectType.ENEMY
+
+        if (hasLineOfSight && isYAligned && isZAligned && enemy.attackTimer <= 0f) {
+            if (enemy.currentMagazineCount > 0) {
+                spawnEnemyBullet(enemy, playerPos, sceneManager)
+                enemy.attackTimer = enemy.equippedWeapon.fireCooldown * 2.0f // Slower test speed
+                enemy.currentMagazineCount--
+            } else if (enemy.ammo > 0) {
+                enemy.currentState = AIState.RELOADING
+                enemy.stateTimer = enemy.equippedWeapon.reloadTime
+            }
+        }
+
+        // --- POSITIONING LOGIC ---
+        enemy.pathRequestTimer -= deltaTime
+        val distanceToPlayer = enemy.position.dst(playerPos)
+
+        if (enemy.pathRequestTimer <= 0f) {
+            var targetPosition: Vector3? = null
+            if (enemy.isOnFire) {
+                // Flee from fire
+                val closestFire = sceneManager.game.fireSystem.activeFires.minByOrNull { it.gameObject.position.dst2(enemy.position) }
+                if (closestFire != null) {
+                    val awayDir = enemy.position.cpy().sub(closestFire.gameObject.position).nor()
+                    targetPosition = enemy.position.cpy().add(awayDir.scl(FIRE_FLEE_DISTANCE))
+                }
+            } else if (distanceToPlayer < SHOOTER_MIN_DISTANCE) {
+                // Too close, back away
+                val awayDir = enemy.position.cpy().sub(playerPos).nor()
+                targetPosition = enemy.position.cpy().add(awayDir.scl(SHOOTER_IDEAL_DISTANCE))
+            } else if (!hasLineOfSight) {
+                // Can't see player, move to a position where we might
+                targetPosition = playerPos
+            }
+
+            if (targetPosition != null) {
+                pathfindingSystem.findPath(enemy.position, targetPosition)?.let {
+                    enemy.path = it
+                    enemy.waypoint = enemy.path.poll()
+                }
+                enemy.pathRequestTimer = PATH_RECALCULATION_INTERVAL
+            } else {
+                enemy.path.clear() // No reason to move, clear path
+                enemy.waypoint = null
+            }
+        }
+
+        // --- MOVEMENT EXECUTION ---
         enemy.waypoint?.let { targetWaypoint ->
             if (enemy.position.dst(targetWaypoint) < WAYPOINT_TOLERANCE) {
                 enemy.waypoint = enemy.path.poll()
@@ -543,20 +603,167 @@ class EnemySystem : IFinePositionable {
         characterPhysicsSystem.update(enemy.physics, desiredMovement, deltaTime)
     }
 
+    private fun updateRusherAI(enemy: GameEnemy, playerSystem: PlayerSystem, deltaTime: Float, sceneManager: SceneManager) {
+        val playerPos = playerSystem.getPosition()
+        var desiredMovement = Vector3.Zero
+        val distanceToPlayer = enemy.position.dst(playerPos)
+
+        // --- MELEE ATTACK LOGIC (happens independently of movement) ---
+        if (distanceToPlayer < enemy.equippedWeapon.meleeRange && enemy.attackTimer <= 0f) {
+            performEnemyMeleeAttack(enemy, playerSystem)
+            enemy.attackTimer = enemy.equippedWeapon.fireCooldown
+            // When a rusher attacks, they stop moving for a moment.
+            enemy.path.clear()
+            enemy.waypoint = null
+        }
+
+        // --- PATHFINDING & MOVEMENT LOGIC ---
+        enemy.pathRequestTimer -= deltaTime
+        if (enemy.pathRequestTimer <= 0f) {
+            var targetPosition: Vector3? = null
+            if (enemy.isOnFire) {
+                // Flee from fire if burning
+                val closestFire = sceneManager.game.fireSystem.activeFires.minByOrNull { it.gameObject.position.dst2(enemy.position) }
+                if (closestFire != null) {
+                    val awayDir = enemy.position.cpy().sub(closestFire.gameObject.position).nor()
+                    targetPosition = enemy.position.cpy().add(awayDir.scl(FIRE_FLEE_DISTANCE))
+                }
+            } else if (distanceToPlayer > enemy.equippedWeapon.meleeRange * 0.8f) {
+                // If not burning and not in attack range, the target is the player.
+                targetPosition = playerPos
+            }
+
+            if (targetPosition != null) {
+                pathfindingSystem.findPath(enemy.position, targetPosition)?.let {
+                    enemy.path = it
+                    enemy.waypoint = enemy.path.poll()
+                }
+                enemy.pathRequestTimer = PATH_RECALCULATION_INTERVAL
+            } else {
+                // If there's no reason to move (e.g., already in melee range), clear the path.
+                enemy.path.clear()
+                enemy.waypoint = null
+            }
+        }
+
+        // MOVEMENT EXECUTION
+        enemy.waypoint?.let { targetWaypoint ->
+            if (enemy.position.dst(targetWaypoint) < WAYPOINT_TOLERANCE) {
+                enemy.waypoint = enemy.path.poll()
+            } else {
+                desiredMovement = targetWaypoint.cpy().sub(enemy.physics.position).nor()
+            }
+        }
+
+        // VISUALS & PHYSICS
+        if (!desiredMovement.isZero) {
+            enemy.physics.facingRotationY = if (desiredMovement.x > 0) 0f else 180f
+        } else {
+            enemy.physics.facingRotationY = if (playerPos.x > enemy.physics.position.x) 0f else 180f
+        }
+
+        characterPhysicsSystem.update(enemy.physics, desiredMovement, deltaTime)
+    }
+
+    private fun updateNeutralAI(enemy: GameEnemy, deltaTime: Float) {
+        // Neutral enemies just stand still until provoked
+        if (enemy.provocationLevel > 0) {
+            enemy.provocationLevel -= 5f * deltaTime // Decay 5 points per second
+        }
+        characterPhysicsSystem.update(enemy.physics, Vector3.Zero, deltaTime)
+    }
+
+    private fun updateSkirmisherAI(enemy: GameEnemy, playerSystem: PlayerSystem, deltaTime: Float, sceneManager: SceneManager) {
+        val playerPos = playerSystem.getPosition()
+        var desiredMovement = Vector3.Zero
+        val distanceToPlayer = enemy.position.dst(playerPos)
+
+        // State 1: Fleeing after a successful hit
+        if (enemy.currentState == AIState.FLEEING_AFTER_ATTACK) {
+            enemy.stateTimer -= deltaTime
+            if (enemy.stateTimer > 0) {
+                // Flee away from the player
+                val awayDir = enemy.position.cpy().sub(playerPos).nor()
+                desiredMovement = awayDir
+            } else {
+                // Flee time is over, go back to idle to plan the next attack
+                enemy.currentState = AIState.IDLE
+            }
+        } else { // State 2: Not fleeing, so we are either idle or chasing to attack
+            // Pathfinding logic
+            enemy.pathRequestTimer -= deltaTime
+            if (enemy.pathRequestTimer <= 0f) {
+                pathfindingSystem.findPath(enemy.position, playerPos)?.let {
+                    enemy.path = it
+                    enemy.waypoint = enemy.path.poll()
+                }
+                enemy.pathRequestTimer = PATH_RECALCULATION_INTERVAL
+            }
+
+            // Movement execution
+            enemy.waypoint?.let { target ->
+                if (enemy.position.dst(target) < WAYPOINT_TOLERANCE) enemy.waypoint = enemy.path.poll()
+                else desiredMovement = target.cpy().sub(enemy.physics.position).nor()
+            }
+
+            // Attack logic
+            if (distanceToPlayer < enemy.equippedWeapon.meleeRange && enemy.attackTimer <= 0f) {
+                performEnemyMeleeAttack(enemy, playerSystem)
+                enemy.attackTimer = enemy.equippedWeapon.fireCooldown * 1.5f // Longer cooldown after skirmish hit
+
+                // CRITICAL: After attacking, enter the fleeing state
+                enemy.currentState = AIState.FLEEING_AFTER_ATTACK
+                enemy.stateTimer = 2.0f // Flee for 2 seconds
+                enemy.path.clear() // Clear the old path, a new one will be calculated for fleeing
+                enemy.waypoint = null
+            }
+        }
+
+        // Update visuals and physics
+        if (!desiredMovement.isZero) {
+            enemy.physics.facingRotationY = if (desiredMovement.x > 0) 0f else 180f
+        } else {
+            enemy.physics.facingRotationY = if (playerPos.x > enemy.physics.position.x) 0f else 180f
+        }
+
+        characterPhysicsSystem.update(enemy.physics, desiredMovement, deltaTime)
+    }
+
+    private fun performEnemyMeleeAttack(enemy: GameEnemy, playerSystem: PlayerSystem) {
+        val attackRange = enemy.equippedWeapon.meleeRange
+        val attackWidth = 3f
+        val directionX = if (enemy.physics.facingRotationY == 0f) 1f else -1f
+
+        val hitBoxCenter = enemy.position.cpy().add(directionX * (attackRange / 2f), 0f, 0f)
+        val hitBox = BoundingBox(
+            Vector3(hitBoxCenter.x - (attackRange / 2f), hitBoxCenter.y - (enemy.enemyType.height / 2f), hitBoxCenter.z - (attackWidth / 2f)),
+            Vector3(hitBoxCenter.x + (attackRange / 2f), hitBoxCenter.y + (enemy.enemyType.height / 2f), hitBoxCenter.z + (attackWidth / 2f))
+        )
+
+        if (hitBox.intersects(playerSystem.getPlayerBounds())) {
+            println("${enemy.enemyType.displayName} hit player with melee attack!")
+            playerSystem.takeDamage(enemy.equippedWeapon.damage)
+        }
+    }
+
     private fun spawnEnemyBullet(enemy: GameEnemy, playerPos: Vector3, sceneManager: SceneManager) {
         val bulletModel = sceneManager.game.playerSystem.bulletModels[enemy.equippedWeapon.bulletTexturePath] ?: return
 
         // 1. Determine direction ONLY on the X-axis (left or right)
-        val directionX = if (playerPos.x > enemy.position.x) 1f else -1f
+        val directionX = if (enemy.physics.facingRotationY == 0f) 1f else -1f
         val direction = Vector3(directionX, 0f, 0f) // Force a purely horizontal direction
 
         // 2. Calculate velocity based on this new horizontal direction
         val velocity = direction.cpy().scl(enemy.equippedWeapon.bulletSpeed)
 
         // 3. Calculate the spawn position based on the horizontal direction
-        val verticalOffset = -enemy.enemyType.height * 0.2f // Lower the spawn point from the head
-        val horizontalOffset = directionX * (enemy.enemyType.width / 2f) // Place at the left/right edge of the enemy sprite
-        val spawnPos = enemy.position.cpy().add(horizontalOffset, verticalOffset, 0f)
+        val verticalOffset = -enemy.enemyType.height * 0.2f
+        val horizontalOffset = directionX * (enemy.enemyType.width / 2f)
+        val spawnPos = Vector3(
+            enemy.position.x + horizontalOffset,
+            enemy.position.y + verticalOffset,
+            enemy.position.z
+        )
         spawnPos.mulAdd(direction, 1.0f) // Push it slightly forward from the enemy
 
         val bullet = Bullet(

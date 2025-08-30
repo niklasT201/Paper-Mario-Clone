@@ -20,27 +20,25 @@ class EnemySelectionUI(
 ) {
     private lateinit var enemySelectionTable: Table
     private lateinit var enemyTypeItems: MutableList<EnemySelectionItem>
-    private lateinit var behaviorItems: MutableList<BehaviorSelectionItem>
-    private val loadedTextures = mutableMapOf<String, Texture>() // Cache for loaded textures
+    private lateinit var primaryTacticItems: MutableList<BehaviorSelectionItem>
+    private lateinit var emptyAmmoTacticItems: MutableList<BehaviorSelectionItem>
 
-    // Data classes to hold selection item components
+    private val primaryBehaviors = listOf(EnemyBehavior.STATIONARY_SHOOTER, EnemyBehavior.AGGRESSIVE_RUSHER, EnemyBehavior.NEUTRAL)
+    private val emptyAmmoBehaviors = listOf(EnemyBehavior.AGGRESSIVE_RUSHER, EnemyBehavior.SKIRMISHER)
+
+    private var primaryTacticIndex = 0
+    private var emptyAmmoTacticIndex = 0
+
+    private val loadedTextures = mutableMapOf<String, Texture>()
+
     private data class EnemySelectionItem(
-        val container: Table,
-        val iconImage: Image,
-        val nameLabel: Label,
-        val statsLabel: Label,
-        val background: Drawable,
-        val selectedBackground: Drawable,
-        val enemyType: EnemyType
+        val container: Table, val iconImage: Image, val nameLabel: Label, val statsLabel: Label,
+        val background: Drawable, val selectedBackground: Drawable, val enemyType: EnemyType
     )
 
     private data class BehaviorSelectionItem(
-        val container: Table,
-        val iconImage: Image,
-        val nameLabel: Label,
-        val background: Drawable,
-        val selectedBackground: Drawable,
-        val behavior: EnemyBehavior
+        val container: Table, val iconImage: Image, val nameLabel: Label,
+        val background: Drawable, val selectedBackground: Drawable, val behavior: EnemyBehavior
     )
 
     fun initialize() {
@@ -57,88 +55,94 @@ class EnemySelectionUI(
 
         // Create main container with modern styling
         val mainContainer = Table()
-
-        // Create a modern background with rounded corners and shadow effect
-        val backgroundStyle = createModernBackground()
-        mainContainer.background = backgroundStyle
+        mainContainer.background = createModernBackground()
         mainContainer.pad(20f, 30f, 20f, 30f)
 
-        // Title with modern styling
-        val titleLabel = Label("Enemy Selection", skin)
-        titleLabel.setFontScale(1.4f)
-        titleLabel.color = Color(0.9f, 0.9f, 0.9f, 1f) // Light gray
-        mainContainer.add(titleLabel).padBottom(15f).row()
+        val titleLabel = Label("Enemy Configuration", skin, "title")
+        mainContainer.add(titleLabel).padBottom(15f).colspan(2).row()
 
-        // Enemy Type Section
-        val typeTitle = Label("Enemy Type", skin)
-        typeTitle.setFontScale(1.1f)
-        typeTitle.color = Color(0.8f, 0.8f, 0.8f, 1f)
-        mainContainer.add(typeTitle).padBottom(10f).row()
+        val typeTitle = Label("Enemy Archetype", skin, "default")
+        mainContainer.add(typeTitle).colspan(2).padBottom(10f).row()
 
         // Create horizontal container for enemy type items
         val enemyTypeContainer = Table()
-        enemyTypeContainer.pad(10f)
-
-        // Create enemy type items
         enemyTypeItems = mutableListOf()
-        val enemyTypes = EnemyType.entries.toTypedArray()
-
-        for (i in enemyTypes.indices) {
-            val enemyType = enemyTypes[i]
-            val item = createEnemyTypeItem(enemyType, i == enemySystem.currentEnemyTypeIndex)
+        EnemyType.entries.forEachIndexed { index, enemyType ->
+            val item = createEnemyTypeItem(enemyType, index == enemySystem.currentEnemyTypeIndex)
             enemyTypeItems.add(item)
-
-            // Add spacing between items
-            if (i > 0) {
-                enemyTypeContainer.add().width(15f) // Spacer
-            }
+            if (index > 0) enemyTypeContainer.add().width(15f)
             enemyTypeContainer.add(item.container).size(100f, 130f)
         }
+        mainContainer.add(enemyTypeContainer).colspan(2).padBottom(20f).row()
 
-        mainContainer.add(enemyTypeContainer).padBottom(20f).row()
-
-        // Behavior Section
-        val behaviorTitle = Label("Enemy Behavior", skin)
-        behaviorTitle.setFontScale(1.1f)
-        behaviorTitle.color = Color(0.8f, 0.8f, 0.8f, 1f)
-        mainContainer.add(behaviorTitle).padBottom(10f).row()
-
-        // Create horizontal container for behavior items
-        val behaviorContainer = Table()
-        behaviorContainer.pad(10f)
-
-        // Create behavior items
-        behaviorItems = mutableListOf()
-        val behaviors = EnemyBehavior.entries.toTypedArray()
-
-        for (i in behaviors.indices) {
-            val behavior = behaviors[i]
-            val item = createBehaviorItem(behavior, i == enemySystem.currentBehaviorIndex)
-            behaviorItems.add(item)
-
-            // Add spacing between items
-            if (i > 0) {
-                behaviorContainer.add().width(15f) // Spacer
-            }
-            behaviorContainer.add(item.container).size(90f, 100f)
+        val primaryTacticTable = Table()
+        primaryTacticTable.add(Label("Primary Tactic", skin, "default")).padBottom(10f).row()
+        val primaryTacticContainer = Table()
+        primaryTacticItems = mutableListOf()
+        primaryBehaviors.forEachIndexed { index, behavior ->
+            val item = createBehaviorItem(behavior, index == primaryTacticIndex)
+            primaryTacticItems.add(item)
+            if (index > 0) primaryTacticContainer.add().height(10f).row()
+            primaryTacticContainer.add(item.container).size(110f, 100f)
         }
+        primaryTacticTable.add(primaryTacticContainer)
 
-        mainContainer.add(behaviorContainer).padBottom(10f).row()
+        val emptyAmmoTacticTable = Table()
+        emptyAmmoTacticTable.add(Label("Out of Ammo Tactic", skin, "default")).padBottom(10f).row()
+        val emptyAmmoContainer = Table()
+        emptyAmmoTacticItems = mutableListOf()
+        emptyAmmoBehaviors.forEachIndexed { index, behavior ->
+            val item = createBehaviorItem(behavior, index == emptyAmmoTacticIndex)
+            emptyAmmoTacticItems.add(item)
+            if (index > 0) emptyAmmoContainer.add().height(10f).row()
+            emptyAmmoContainer.add(item.container).size(110f, 100f)
+        }
+        emptyAmmoTacticTable.add(emptyAmmoContainer)
 
-        // Instructions with modern styling
-        val instructionLabel = Label("Hold [Y] | Mouse Wheel: Change Type | Shift+Wheel: Change Behavior", skin)
-        instructionLabel.setFontScale(0.9f)
-        instructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f) // Darker gray
-        mainContainer.add(instructionLabel).padBottom(5f).row()
+        mainContainer.add(primaryTacticTable).uniformX().padRight(20f)
+        mainContainer.add(emptyAmmoTacticTable).uniformX().padLeft(20f).row()
 
-        // Additional instructions
-        val fineInstructionLabel = Label("F - Fine positioning | Left Click - Place Enemy", skin)
-        fineInstructionLabel.setFontScale(0.8f)
-        fineInstructionLabel.color = Color(0.6f, 0.6f, 0.6f, 1f)
-        mainContainer.add(fineInstructionLabel)
+        val instructionLabel = Label("Hold [Y] | Wheel: Archetype | Shift+Wheel: Tactic | Ctrl+Wheel: Fallback", skin)
+        mainContainer.add(instructionLabel).colspan(2).padTop(20f).row()
 
         enemySelectionTable.add(mainContainer)
         stage.addActor(enemySelectionTable)
+    }
+
+    fun nextPrimaryTactic() {
+        primaryTacticIndex = (primaryTacticIndex + 1) % primaryBehaviors.size
+        enemySystem.currentSelectedBehavior = primaryBehaviors[primaryTacticIndex]
+        update()
+    }
+
+    fun prevPrimaryTactic() {
+        primaryTacticIndex--
+        if (primaryTacticIndex < 0) primaryTacticIndex = primaryBehaviors.size - 1
+        enemySystem.currentSelectedBehavior = primaryBehaviors[primaryTacticIndex]
+        update()
+    }
+
+    fun nextEmptyAmmoTactic() {
+        emptyAmmoTacticIndex = (emptyAmmoTacticIndex + 1) % emptyAmmoBehaviors.size
+        update()
+    }
+
+    fun prevEmptyAmmoTactic() {
+        emptyAmmoTacticIndex--
+        if (emptyAmmoTacticIndex < 0) emptyAmmoTacticIndex = emptyAmmoBehaviors.size - 1
+        update()
+    }
+
+    fun update() {
+        enemyTypeItems.forEachIndexed { index, item ->
+            updateItemSelection(item.container, index == enemySystem.currentEnemyTypeIndex, item.background, item.selectedBackground, item.nameLabel, item.statsLabel)
+        }
+        primaryTacticItems.forEachIndexed { index, item ->
+            updateItemSelection(item.container, index == primaryTacticIndex, item.background, item.selectedBackground, item.nameLabel)
+        }
+        emptyAmmoTacticItems.forEachIndexed { index, item ->
+            updateItemSelection(item.container, index == emptyAmmoTacticIndex, item.background, item.selectedBackground, item.nameLabel)
+        }
     }
 
     private fun createEnemyTypeItem(enemyType: EnemyType, isSelected: Boolean): EnemySelectionItem {
@@ -230,52 +234,13 @@ class EnemySelectionUI(
 
     private fun createEnemyIcon(enemyType: EnemyType): TextureRegion {
         val pixmap = Pixmap(60, 60, Pixmap.Format.RGBA8888)
-
         when (enemyType) {
-            EnemyType.NOUSE_THUG -> {
-                // Simple thug silhouette
-                pixmap.setColor(Color(0.4f, 0.2f, 0.2f, 1f))
-                pixmap.fillCircle(30, 45, 8) // Head
-                pixmap.fillRectangle(25, 30, 10, 15) // Body
-                pixmap.fillRectangle(23, 15, 5, 15) // Left arm
-                pixmap.fillRectangle(32, 15, 5, 15) // Right arm
-                pixmap.fillRectangle(27, 5, 6, 20) // Legs
-            }
-            EnemyType.GUNTHER -> {
-                // Large, imposing figure
-                pixmap.setColor(Color(0.5f, 0.3f, 0.2f, 1f))
-                pixmap.fillCircle(30, 45, 10) // Larger head
-                pixmap.fillRectangle(23, 28, 14, 17) // Larger body
-                pixmap.fillRectangle(20, 12, 7, 18) // Thick arms
-                pixmap.fillRectangle(33, 12, 7, 18)
-                pixmap.fillRectangle(25, 3, 10, 22) // Thick legs
-            }
-            EnemyType.CORRUPT_DETECTIVE -> {
-                // Detective with badge
-                pixmap.setColor(Color(0.3f, 0.3f, 0.3f, 1f))
-                pixmap.fillCircle(30, 45, 8) // Head
-                pixmap.fillRectangle(25, 30, 10, 15) // Body
-                pixmap.setColor(Color(0.8f, 0.7f, 0.2f, 1f))
-                pixmap.fillCircle(28, 35, 3) // Badge
-                pixmap.setColor(Color(0.3f, 0.3f, 0.3f, 1f))
-                pixmap.fillRectangle(23, 15, 5, 15) // Arms
-                pixmap.fillRectangle(32, 15, 5, 15)
-                pixmap.fillRectangle(27, 5, 6, 20) // Legs
-            }
-            EnemyType.MAFIA_BOSS -> {
-                // Distinguished boss with suit
-                pixmap.setColor(Color(0.1f, 0.1f, 0.1f, 1f))
-                pixmap.fillCircle(30, 45, 9) // Head
-                pixmap.fillRectangle(24, 28, 12, 17) // Wide body (suit)
-                pixmap.setColor(Color(0.8f, 0.8f, 0.8f, 1f))
-                pixmap.fillRectangle(28, 35, 4, 8) // Shirt/tie
-                pixmap.setColor(Color(0.1f, 0.1f, 0.1f, 1f))
-                pixmap.fillRectangle(22, 15, 6, 15) // Arms
-                pixmap.fillRectangle(32, 15, 6, 15)
-                pixmap.fillRectangle(26, 5, 8, 20) // Legs
-            }
+            EnemyType.NOUSE_THUG -> pixmap.setColor(Color(0.4f, 0.2f, 0.2f, 1f))
+            EnemyType.GUNTHER -> pixmap.setColor(Color(0.5f, 0.3f, 0.2f, 1f))
+            EnemyType.CORRUPT_DETECTIVE -> pixmap.setColor(Color(0.3f, 0.3f, 0.3f, 1f))
+            EnemyType.MAFIA_BOSS -> pixmap.setColor(Color(0.1f, 0.1f, 0.1f, 1f))
         }
-
+        pixmap.fill()
         val texture = Texture(pixmap)
         pixmap.dispose()
         return TextureRegion(texture)
@@ -290,33 +255,34 @@ class EnemySelectionUI(
                 pixmap.setColor(Color(0.8f, 0.2f, 0.2f, 1f))
                 pixmap.drawCircle(20, 20, 15)
                 pixmap.drawCircle(20, 20, 10)
-                pixmap.drawLine(20, 5, 20, 35) // Vertical line
-                pixmap.drawLine(5, 20, 35, 20) // Horizontal line
+                pixmap.drawLine(20, 5, 20, 35)
+                pixmap.drawLine(5, 20, 35, 20)
             }
             EnemyBehavior.COWARD_HIDER -> {
                 // Shield/hide icon
                 pixmap.setColor(Color(0.2f, 0.6f, 0.8f, 1f))
                 pixmap.fillCircle(20, 25, 12)
-                pixmap.setColor(Color(0.1f, 0.4f, 0.6f, 1f))
-                pixmap.fillRectangle(17, 22, 6, 8)
-                // Add some "hiding" lines
-                for (i in 0..3) {
-                    pixmap.drawLine(12 + i * 4, 12, 12 + i * 4, 18)
-                }
             }
             EnemyBehavior.AGGRESSIVE_RUSHER -> {
                 // Arrow/charge icon
                 pixmap.setColor(Color(0.8f, 0.4f, 0.2f, 1f))
                 // Arrow pointing right
                 pixmap.fillRectangle(8, 18, 20, 4)
-                pixmap.fillRectangle(24, 12, 8, 16)
-                // Arrow head
-                for (i in 0..7) {
-                    pixmap.drawLine(32 - i, 12 + i, 32 - i, 28 - i)
+            }
+            EnemyBehavior.SKIRMISHER -> {
+                pixmap.setColor(Color(0.2f, 0.8f, 0.4f, 1f))
+                for (i in 0..5) {
+                    pixmap.drawLine(8 + i, 10 + i, 8 + i, 30 - i)
+                }
+                for (i in 0..5) {
+                    pixmap.drawLine(32 - i, 10 + i, 32 - i, 30 - i)
                 }
             }
+            EnemyBehavior.NEUTRAL -> {
+                pixmap.setColor(Color(0.7f, 0.7f, 0.7f, 1f))
+                pixmap.drawCircle(20,20,15)
+            }
         }
-
         val texture = Texture(pixmap)
         pixmap.dispose()
         return TextureRegion(texture)
@@ -328,7 +294,7 @@ class EnemySelectionUI(
 
         // Gradient effect
         for (y in 0 until 80) {
-            val alpha = 0.85f + (y / 80f) * 0.1f // Subtle gradient
+            val alpha = 0.85f + (y / 80f) * 0.1f
             pixmap.setColor(0.1f, 0.1f, 0.15f, alpha)
             pixmap.drawLine(0, y, 99, y)
         }
@@ -354,76 +320,19 @@ class EnemySelectionUI(
         return TextureRegionDrawable(TextureRegion(texture))
     }
 
-    fun update() {
-        val currentEnemyIndex = enemySystem.currentEnemyTypeIndex
-        val currentBehaviorIndex = enemySystem.currentBehaviorIndex
-
-        // Animate enemy type items
-        for (i in enemyTypeItems.indices) {
-            val item = enemyTypeItems[i]
-            val isSelected = i == currentEnemyIndex
-
-            // Create smooth transition animations
-            val targetScale = if (isSelected) 1.1f else 1.0f
-            val targetColor = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
-            val targetStatsColor = if (isSelected) Color(0.9f, 0.9f, 0.9f, 1f) else Color(0.7f, 0.7f, 0.7f, 1f)
-            val targetBackground = if (isSelected) item.selectedBackground else item.background
-
-            // Apply animations using LibGDX actions
-            item.container.clearActions()
-            item.container.addAction(
-                Actions.parallel(
-                    Actions.scaleTo(targetScale, targetScale, 0.2f, Interpolation.smooth),
-                    Actions.run {
-                        item.container.background = targetBackground
-                        item.nameLabel.color = targetColor
-                        item.statsLabel.color = targetStatsColor
-                    }
-                )
+    private fun updateItemSelection(container: Table, isSelected: Boolean, normalBg: Drawable, selectedBg: Drawable, vararg labels: Label) {
+        val targetScale = if (isSelected) 1.1f else 1.0f
+        val targetColor = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
+        container.clearActions()
+        container.addAction(
+            Actions.parallel(
+                Actions.scaleTo(targetScale, targetScale, 0.2f, Interpolation.smooth),
+                Actions.run {
+                    container.background = if (isSelected) selectedBg else normalBg
+                    labels.forEach { it.color = targetColor }
+                }
             )
-
-            // Add a subtle bounce effect for the selected item
-            if (isSelected) {
-                item.iconImage.clearActions()
-                item.iconImage.addAction(
-                    Actions.sequence(
-                        Actions.scaleTo(1.2f, 1.2f, 0.1f, Interpolation.bounceOut),
-                        Actions.scaleTo(1.0f, 1.0f, 0.1f, Interpolation.smooth)
-                    )
-                )
-            }
-        }
-
-        // Animate behavior items
-        for (i in behaviorItems.indices) {
-            val item = behaviorItems[i]
-            val isSelected = i == currentBehaviorIndex
-
-            val targetScale = if (isSelected) 1.1f else 1.0f
-            val targetColor = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
-            val targetBackground = if (isSelected) item.selectedBackground else item.background
-
-            item.container.clearActions()
-            item.container.addAction(
-                Actions.parallel(
-                    Actions.scaleTo(targetScale, targetScale, 0.2f, Interpolation.smooth),
-                    Actions.run {
-                        item.container.background = targetBackground
-                        item.nameLabel.color = targetColor
-                    }
-                )
-            )
-
-            if (isSelected) {
-                item.iconImage.clearActions()
-                item.iconImage.addAction(
-                    Actions.sequence(
-                        Actions.scaleTo(1.2f, 1.2f, 0.1f, Interpolation.bounceOut),
-                        Actions.scaleTo(1.0f, 1.0f, 0.1f, Interpolation.smooth)
-                    )
-                )
-            }
-        }
+        )
     }
 
     fun show() {

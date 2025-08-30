@@ -8,7 +8,7 @@ import kotlin.math.floor
 class PathfindingSystem(
     private val sceneManager: SceneManager,
     private val blockSize: Float,
-    private val characterSize: Vector3 // <-- MODIFIED: Accept character size
+    private val characterSize: Vector3
 ) {
 
     // Represents a node in our grid for the A* algorithm
@@ -39,20 +39,55 @@ class PathfindingSystem(
             }
 
             for (neighborPos in getNeighbors(currentNode)) {
-                if (neighborPos in closedSet || !isWalkable(neighborPos)) {
+                val moveCost = getMovementCost(neighborPos)
+                if (moveCost >= 9999 || neighborPos in closedSet) { // 9999 means unwalkable
                     continue
                 }
 
-                val neighborNode = Node(neighborPos, parent = currentNode)
-                neighborNode.gCost = currentNode.gCost + 1
-                neighborNode.hCost = getDistance(neighborNode, targetNode)
+                val newGCost = currentNode.gCost + moveCost + getDistance(currentNode, Node(neighborPos))
+                val existingNode = openSet.find { it.position.epsilonEquals(neighborPos) }
 
-                if (openSet.none { it.position.epsilonEquals(neighborPos) && it.fCost < neighborNode.fCost }) {
-                    openSet.add(neighborNode)
+                if (existingNode == null || newGCost < existingNode.gCost) {
+                    val neighborNode = existingNode ?: Node(neighborPos)
+                    neighborNode.gCost = newGCost
+                    neighborNode.hCost = getDistance(Node(neighborPos), targetNode)
+                    neighborNode.parent = currentNode
+
+                    if (existingNode == null) {
+                        openSet.add(neighborNode)
+                    }
                 }
             }
         }
         return null // No path found
+    }
+
+    private fun getMovementCost(position: Vector3): Int {
+        // Base cost for a clear tile
+        var cost = 10
+
+        // Check for solid obstacles (unwalkable)
+        val groundCheckPos = position.cpy().sub(0f, 0.1f, 0f)
+        val headCheckPos = position.cpy().add(0f, blockSize / 2f, 0f)
+        val groundBlock = sceneManager.activeChunkManager.getBlockAtWorld(groundCheckPos)
+        val headBlock = sceneManager.activeChunkManager.getBlockAtWorld(headCheckPos)
+        val hasSupport = groundBlock != null && groundBlock.blockType.hasCollision
+        val isClear = headBlock == null || !headBlock.blockType.hasCollision
+
+        if (!hasSupport || !isClear) {
+            return 9999 // Unwalkable
+        }
+
+        // Check for fire (high cost but walkable)
+        sceneManager.game.fireSystem.activeFires.forEach { fire ->
+            if (fire.gameObject.position.dst(position) < fire.damageRadius) {
+                cost += 200 // Add a high penalty for walking through fire
+            }
+        }
+
+        // You could add checks for other characters here to encourage them to spread out
+
+        return cost
     }
 
     private fun reconstructPath(endNode: Node): Queue<Vector3> {
@@ -70,9 +105,7 @@ class PathfindingSystem(
         for (x in -1..1) {
             for (z in -1..1) {
                 if (x == 0 && z == 0) continue
-                // We only allow horizontal movement for simplicity, not diagonal
                 if (abs(x) == 1 && abs(z) == 1) continue
-
                 neighbors.add(node.position.cpy().add(x * blockSize, 0f, z * blockSize))
             }
         }
@@ -85,23 +118,8 @@ class PathfindingSystem(
         return (dstX + dstZ).toInt() * 10
     }
 
-    private fun isWalkable(position: Vector3): Boolean {
-        // A position is walkable if there is solid ground below it and empty space at head height.
-        val groundCheckPos = position.cpy().sub(0f, 0.1f, 0f)
-        val headCheckPos = position.cpy().add(0f, blockSize / 2f, 0f)
-
-        val groundBlock = sceneManager.activeChunkManager.getBlockAtWorld(groundCheckPos)
-        val headBlock = sceneManager.activeChunkManager.getBlockAtWorld(headCheckPos)
-
-        val hasSupport = groundBlock != null && groundBlock.blockType.hasCollision
-        val isClear = headBlock == null || !headBlock.blockType.hasCollision
-
-        return hasSupport && isClear
-    }
-
     private fun snapToGrid(pos: Vector3): Vector3 {
         val gridX = floor(pos.x / blockSize) * blockSize + (blockSize / 2f)
-        // MODIFIED: Use the stored characterSize instead of playerSystem
         val gridY = sceneManager.findHighestSupportY(pos.x, pos.z, pos.y, 0.1f, blockSize) + (characterSize.y / 2f)
         val gridZ = floor(pos.z / blockSize) * blockSize + (blockSize / 2f)
         return Vector3(gridX, gridY, gridZ)
