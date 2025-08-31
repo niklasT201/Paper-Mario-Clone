@@ -380,10 +380,15 @@ class PlayerSystem {
     }
 
     private fun addAmmo(weaponType: WeaponType, amount: Int) {
-        if (weaponType.actionType == WeaponActionType.SHOOTING) {
+        if (weaponType.actionType == WeaponActionType.SHOOTING || weaponType.actionType == WeaponActionType.THROWABLE) {
             val currentAmmo = ammoReserves.getOrDefault(weaponType, 0)
             ammoReserves[weaponType] = currentAmmo + amount
-            println("Added $amount ammo for ${weaponType.displayName}. Total: ${ammoReserves[weaponType]}")
+            // Updated the log message for clarity
+            if (weaponType.actionType == WeaponActionType.THROWABLE) {
+                println("Added $amount ${weaponType.displayName}(s). Total: ${ammoReserves[weaponType]}")
+            } else {
+                println("Added $amount ammo for ${weaponType.displayName}. Total: ${ammoReserves[weaponType]}")
+            }
         }
     }
 

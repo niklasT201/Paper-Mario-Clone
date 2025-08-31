@@ -4,8 +4,6 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
-import com.badlogic.gdx.graphics.g2d.BitmapFont
-import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.InputEvent
@@ -14,14 +12,10 @@ import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
-import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.Scaling
 import com.badlogic.gdx.utils.viewport.ScreenViewport
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.random.Random
 
 enum class HudStyle(val displayName: String) {
     WANTED_POSTER("Poster"),
@@ -883,20 +877,29 @@ class UIManager(
     private fun updateAmmoDisplay() {
         val weapon = game.playerSystem.equippedWeapon
 
-        // Check if the weapon is a shooting type
-        if (weapon.actionType == WeaponActionType.SHOOTING) {
-            ammoUiContainer.isVisible = true // Show the ammo UI
+        when (weapon.actionType) {
+            // Check if the weapon is a shooting type
+            WeaponActionType.SHOOTING -> {
+                ammoUiContainer.isVisible = true // Show the ammo UI
 
-            // Get the latest ammo counts from the PlayerSystem
-            val magCount = game.playerSystem.getCurrentMagazineCount()
-            val reserveCount = game.playerSystem.getCurrentReserveAmmo()
+                // Get the latest ammo counts from the PlayerSystem
+                val magCount = game.playerSystem.getCurrentMagazineCount()
+                val reserveCount = game.playerSystem.getCurrentReserveAmmo()
 
-            // Update the labels with padded numbers (e.g., "06" instead of "6")
-            magazineAmmoLabel.setText(magCount.toString().padStart(2, '0'))
-            reserveAmmoLabel.setText("/${reserveCount.toString().padStart(2, '0')}")
-        } else {
-            // If it's not a shooting weapon, hide the ammo UI
-            ammoUiContainer.isVisible = false
+                // Update the labels with padded numbers (e.g., "06" instead of "6")
+                magazineAmmoLabel.setText(magCount.toString().padStart(2, '0'))
+                reserveAmmoLabel.setText("/${reserveCount.toString().padStart(2, '0')}")
+            }
+            WeaponActionType.THROWABLE -> {
+                ammoUiContainer.isVisible = true
+                val totalCount = game.playerSystem.getCurrentReserveAmmo() // For throwables, reserves are the total
+                magazineAmmoLabel.setText(totalCount.toString().padStart(2, '0'))
+                reserveAmmoLabel.setText("") // No reserve count for throwables
+            }
+            else -> { // Melee or other types
+                // If it's not a shooting weapon, hide the ammo UI
+                ammoUiContainer.isVisible = false
+            }
         }
     }
 
@@ -1029,14 +1032,23 @@ class UIManager(
 
             weaponIconImageMinimalist.drawable = weaponIconImage.drawable // Reuse the same drawable
             val weapon = game.playerSystem.equippedWeapon
-            if (weapon.actionType == WeaponActionType.SHOOTING) {
-                val mag = game.playerSystem.getCurrentMagazineCount()
-                val res = game.playerSystem.getCurrentReserveAmmo()
-                val totalAmmo = mag + res // Calculate the total ammo
-                ammoLabelMinimalist.setText(totalAmmo.toString()) // Display only the total
-                ammoLabelMinimalist.isVisible = true
-            } else {
-                ammoLabelMinimalist.isVisible = false
+
+            when (weapon.actionType) {
+                WeaponActionType.SHOOTING -> {
+                    val mag = game.playerSystem.getCurrentMagazineCount()
+                    val res = game.playerSystem.getCurrentReserveAmmo()
+                    val totalAmmo = mag + res // Calculate the total ammo
+                    ammoLabelMinimalist.setText(totalAmmo.toString()) // Display only the total
+                    ammoLabelMinimalist.isVisible = true
+                }
+                WeaponActionType.THROWABLE -> {
+                    val totalCount = game.playerSystem.getCurrentReserveAmmo()
+                    ammoLabelMinimalist.setText(totalCount.toString())
+                    ammoLabelMinimalist.isVisible = true
+                }
+                else -> { // Melee
+                    ammoLabelMinimalist.isVisible = false
+                }
             }
         }
 

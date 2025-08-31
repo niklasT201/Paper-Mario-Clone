@@ -51,12 +51,12 @@ public class Lwjgl3Launcher {
 // adding cash trucks
 // using new animation images
 // collected ammunition label for bullets and weapons
+// spawners only spawn if no item on the spawnpoint
 // npc spawnpoint
 // enemy spawnpoint
 // enemy/npc spawner
 // more placement optimization
 // rusher stopping in front of the player
-// molotoves show how many you carry around in player mode
 // fire system uses spread fire, fire or flame particle folder
 // blocks being visible behind transparent enemies etc.
 // car maybe be able to step up half a block
