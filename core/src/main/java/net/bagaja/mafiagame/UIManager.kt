@@ -91,6 +91,7 @@ class UIManager(
     private lateinit var weaponIconImageMinimalist: Image
     private lateinit var ammoLabelMinimalist: Label
     private lateinit var healthBarMinimalist: ProgressBar
+    private lateinit var throwableCountLabelPoster: Label
 
     // Money Display elements
     private lateinit var moneyDisplayTable: Table
@@ -265,6 +266,16 @@ class UIManager(
         weaponIconImage = Image().apply { setScaling(Scaling.fit) }
         weaponIconContainer = Container(weaponIconImage).size(100f, 80f).align(Align.left)
 
+        // --- NEW: Create the single label for throwable counts, similar to minimalist HUD ---
+        throwableCountLabelPoster = Label("00", skin, "default").apply { setFontScale(0.9f) }
+        val throwableCountContainer = Container(throwableCountLabelPoster).align(Align.bottomRight).pad(5f)
+        throwableCountContainer.isVisible = false // Start hidden
+
+        // --- NEW: Create a stack for the weapon icon and the throwable count overlay ---
+        val weaponIconStack = Stack()
+        weaponIconStack.add(weaponIconContainer)
+        weaponIconStack.add(throwableCountContainer)
+
         magazineAmmoLabel = Label("00", skin, "title").apply { color = Color.valueOf("#F5F1E8"); fontScaleX = 1.1f; fontScaleY = 1.1f }
         reserveAmmoLabel = Label("/00", skin, "title").apply { color = Color.valueOf("#D3C9B6"); fontScaleX = 1.1f; fontScaleY = 1.1f }
 
@@ -277,7 +288,8 @@ class UIManager(
 
         // Weapon Info Table
         val weaponInfoTable = Table()
-        weaponInfoTable.add(weaponIconContainer).row()
+        // --- MODIFIED: Add the new stack that contains the icon and the new label ---
+        weaponInfoTable.add(weaponIconStack).row()
         weaponInfoTable.add(ammoUiContainer).width(180f).height(72f).padTop(0f).padLeft(85f)
 
         // Add to main poster table (using your original layout)
@@ -874,35 +886,6 @@ class UIManager(
 
     fun getStage(): Stage = stage
 
-    private fun updateAmmoDisplay() {
-        val weapon = game.playerSystem.equippedWeapon
-
-        when (weapon.actionType) {
-            // Check if the weapon is a shooting type
-            WeaponActionType.SHOOTING -> {
-                ammoUiContainer.isVisible = true // Show the ammo UI
-
-                // Get the latest ammo counts from the PlayerSystem
-                val magCount = game.playerSystem.getCurrentMagazineCount()
-                val reserveCount = game.playerSystem.getCurrentReserveAmmo()
-
-                // Update the labels with padded numbers (e.g., "06" instead of "6")
-                magazineAmmoLabel.setText(magCount.toString().padStart(2, '0'))
-                reserveAmmoLabel.setText("/${reserveCount.toString().padStart(2, '0')}")
-            }
-            WeaponActionType.THROWABLE -> {
-                ammoUiContainer.isVisible = true
-                val totalCount = game.playerSystem.getCurrentReserveAmmo() // For throwables, reserves are the total
-                magazineAmmoLabel.setText(totalCount.toString().padStart(2, '0'))
-                reserveAmmoLabel.setText("") // No reserve count for throwables
-            }
-            else -> { // Melee or other types
-                // If it's not a shooting weapon, hide the ammo UI
-                ammoUiContainer.isVisible = false
-            }
-        }
-    }
-
     private fun updateWeaponIcon() {
         val currentWeapon = game.playerSystem.equippedWeapon
 
@@ -1021,35 +1004,51 @@ class UIManager(
                 lastEquippedWeapon = game.playerSystem.equippedWeapon
             }
 
-            updateAmmoDisplay()
-
-            // Update Minimalist HUD
-            healthBarMinimalist.value = game.playerSystem.getHealthPercentage()
-
-            val currentHealth = game.playerSystem.getHealth().toInt()
-            val maxHealth = game.playerSystem.getMaxHealth().toInt()
-            healthLabelMinimalist.setText("$currentHealth/$maxHealth")
-
-            weaponIconImageMinimalist.drawable = weaponIconImage.drawable // Reuse the same drawable
+            // --- POSTER & MINIMALIST HUD AMMO LOGIC ---
             val weapon = game.playerSystem.equippedWeapon
 
             when (weapon.actionType) {
                 WeaponActionType.SHOOTING -> {
-                    val mag = game.playerSystem.getCurrentMagazineCount()
-                    val res = game.playerSystem.getCurrentReserveAmmo()
-                    val totalAmmo = mag + res // Calculate the total ammo
-                    ammoLabelMinimalist.setText(totalAmmo.toString()) // Display only the total
+                    // Poster HUD
+                    ammoUiContainer.isVisible = true
+                    throwableCountLabelPoster.parent.isVisible = false // Hide the single count label
+                    val magCount = game.playerSystem.getCurrentMagazineCount()
+                    val reserveCount = game.playerSystem.getCurrentReserveAmmo()
+                    magazineAmmoLabel.setText(magCount.toString().padStart(2, '0'))
+                    reserveAmmoLabel.setText("/${reserveCount.toString().padStart(2, '0')}")
+
+                    // Minimalist HUD
+                    val totalAmmo = magCount + reserveCount
+                    ammoLabelMinimalist.setText(totalAmmo.toString())
                     ammoLabelMinimalist.isVisible = true
                 }
                 WeaponActionType.THROWABLE -> {
+                    // Poster HUD
+                    ammoUiContainer.isVisible = false // Hide the bar UI
+                    throwableCountLabelPoster.parent.isVisible = true // Show the single count label
                     val totalCount = game.playerSystem.getCurrentReserveAmmo()
+                    throwableCountLabelPoster.setText(totalCount.toString())
+
+                    // Minimalist HUD
                     ammoLabelMinimalist.setText(totalCount.toString())
                     ammoLabelMinimalist.isVisible = true
                 }
                 else -> { // Melee
+                    // Hide ammo display for both HUDs
+                    ammoUiContainer.isVisible = false
+                    throwableCountLabelPoster.parent.isVisible = false
                     ammoLabelMinimalist.isVisible = false
                 }
             }
+
+            // Update Minimalist Health
+            healthBarMinimalist.value = game.playerSystem.getHealthPercentage()
+            val currentHealth = game.playerSystem.getHealth().toInt()
+            val maxHealth = game.playerSystem.getMaxHealth().toInt()
+            healthLabelMinimalist.setText("$currentHealth/$maxHealth")
+
+            // Update Minimalist Icon
+            weaponIconImageMinimalist.drawable = weaponIconImage.drawable // Reuse the same drawable
         }
 
         pauseMenuUI.update(Gdx.graphics.deltaTime)
