@@ -235,7 +235,7 @@ class EnemySelectionUI(
     private fun createEnemyIcon(enemyType: EnemyType): TextureRegion {
         val pixmap = Pixmap(60, 60, Pixmap.Format.RGBA8888)
         when (enemyType) {
-            EnemyType.NOUSE_THUG -> pixmap.setColor(Color(0.4f, 0.2f, 0.2f, 1f))
+            EnemyType.MOUSE_THUG -> pixmap.setColor(Color(0.4f, 0.2f, 0.2f, 1f))
             EnemyType.GUNTHER -> pixmap.setColor(Color(0.5f, 0.3f, 0.2f, 1f))
             EnemyType.CORRUPT_DETECTIVE -> pixmap.setColor(Color(0.3f, 0.3f, 0.3f, 1f))
             EnemyType.MAFIA_BOSS -> pixmap.setColor(Color(0.1f, 0.1f, 0.1f, 1f))

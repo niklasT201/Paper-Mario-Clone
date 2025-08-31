@@ -24,7 +24,7 @@ enum class EnemyType(
     val baseHealth: Float,
     val speed: Float
 ) {
-    NOUSE_THUG("Nouse Thug", "textures/characters/enemy_nouse.png", 3f, 4f, 100f, 6f),
+    MOUSE_THUG("Mouse Thug", "textures/characters/mouse.png", 3f, 4f, 100f, 6f),
     GUNTHER("Gunther", "textures/characters/Gunther.png", 7.0f, 8.0f, 180f, 5f),
     CORRUPT_DETECTIVE("Corrupt Detective", "textures/characters/detective.png", 3f, 4.2f, 150f, 6.5f),
     MAFIA_BOSS("Mafia Boss", "textures/characters/mafia_boss.png", 3.8f, 4.8f, 500f, 4f),
@@ -179,7 +179,7 @@ class EnemySystem : IFinePositionable {
     private val renderableInstances = Array<ModelInstance>()
 
     // UI selection state
-    var currentSelectedEnemyType = EnemyType.NOUSE_THUG
+    var currentSelectedEnemyType = EnemyType.MOUSE_THUG
     var currentSelectedBehavior = EnemyBehavior.STATIONARY_SHOOTER
     var currentEnemyTypeIndex = 0
     var currentBehaviorIndex = 0
@@ -205,6 +205,7 @@ class EnemySystem : IFinePositionable {
     private val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
     private val tempVec3 = Vector3()
     private var blockSize: Float = 4f
+    private val enemyWeaponTextures = mutableMapOf<EnemyType, Map<WeaponType, Texture>>()
 
     fun initialize(blockSize: Float, characterPhysicsSystem: CharacterPhysicsSystem, pathfindingSystem: PathfindingSystem) {
         this.blockSize = blockSize
@@ -216,6 +217,17 @@ class EnemySystem : IFinePositionable {
         billboardModelBatch = ModelBatch(billboardShaderProvider)
         billboardShaderProvider.setBillboardLightingStrength(0.9f)
         billboardShaderProvider.setMinLightLevel(0.3f)
+
+        // Pre-load weapon textures for enemies that have them
+        try {
+            val mouseWeaponTextures = mapOf(
+                WeaponType.LIGHT_TOMMY_GUN to Texture(Gdx.files.internal("textures/characters/mouse_tommy_gun.png")),
+                WeaponType.SHOTGUN to Texture(Gdx.files.internal("textures/characters/mouse_shotgun.png"))
+            )
+            enemyWeaponTextures[EnemyType.MOUSE_THUG] = mouseWeaponTextures
+        } catch (e: Exception) {
+            println("ERROR: Could not load weapon textures for Mouse Thug: ${e.message}")
+        }
 
         val modelBuilder = ModelBuilder()
         for (type in EnemyType.entries) {
@@ -306,8 +318,14 @@ class EnemySystem : IFinePositionable {
         // Assign weapons based on BEHAVIOR
         when (behavior) {
             EnemyBehavior.STATIONARY_SHOOTER, EnemyBehavior.COWARD_HIDER -> {
-                enemy.equippedWeapon = WeaponType.LIGHT_TOMMY_GUN
-                enemy.ammo = 80 // Two clips
+                // Randomly give either a shotgun or a tommy gun to the mouse
+                if (enemyType == EnemyType.MOUSE_THUG && Random.nextFloat() < 0.5f) {
+                    enemy.equippedWeapon = WeaponType.SHOTGUN
+                    enemy.ammo = 20 // Shotgun ammo
+                } else {
+                    enemy.equippedWeapon = WeaponType.LIGHT_TOMMY_GUN
+                    enemy.ammo = 80 // Two clips for tommy gun
+                }
             }
             EnemyBehavior.AGGRESSIVE_RUSHER, EnemyBehavior.SKIRMISHER -> {
                 enemy.equippedWeapon = WeaponType.KNIFE
@@ -318,6 +336,15 @@ class EnemySystem : IFinePositionable {
                 enemy.ammo = 0
             }
         }
+
+        // Set the correct texture based on the weapon
+        val weaponTexture = enemyWeaponTextures[enemyType]?.get(enemy.equippedWeapon)
+        if (weaponTexture != null) {
+            val material = enemy.modelInstance.materials.first()
+            material.set(TextureAttribute.createDiffuse(weaponTexture))
+            println("Set ${enemyType.displayName} texture for weapon: ${enemy.equippedWeapon.displayName}")
+        }
+
         // Initialize the first magazine
         val ammoToLoad = minOf(enemy.ammo, enemy.equippedWeapon.magazineSize)
         enemy.currentMagazineCount = ammoToLoad
@@ -833,6 +860,11 @@ class EnemySystem : IFinePositionable {
     fun dispose() {
         enemyModels.values.forEach { it.dispose() }
         enemyTextures.values.forEach { it.dispose() }
+
+        enemyWeaponTextures.values.forEach { map ->
+            map.values.forEach { it.dispose() }
+        }
+
         billboardModelBatch.dispose()
         billboardShaderProvider.dispose()
     }

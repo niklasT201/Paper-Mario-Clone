@@ -58,7 +58,6 @@ public class Lwjgl3Launcher {
 // rusher stopping in front of the player
 // molotoves show how many you carry around in player mode
 // fire system uses spread fire, fire or flame particle folder
-// add new mouse enemy
 // blocks being visible behind transparent enemies etc.
 // car maybe be able to step up half a block
 // Chain Reactions with Explosives & Fire
@@ -72,7 +71,7 @@ public class Lwjgl3Launcher {
 // step up stair
 // maybe improving billboard shader
 // maybe adding player hiding tp point text behind it
-// visual reload/charging bar !!!!
+// visual reload/charging bar !!!!!
 // player wipe is switching to vertical when pressing W or S
 // only new wipes rotating with players direction not old ones too
 // south park like animation
