@@ -1,4 +1,3 @@
-// In the file: EnemyDebugUI.kt
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.scenes.scene2d.Actor
@@ -10,7 +9,6 @@ import com.badlogic.gdx.scenes.scene2d.ui.Window
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.utils.Align
 
-// THE ONLY CHANGE IS ON THIS NEXT LINE:
 class EnemyDebugUI(private val skin: Skin, private val stage: Stage) {
 
     private val debugWindow: Window = Window("Enemy Inspector", skin, "dialog")
@@ -33,17 +31,18 @@ class EnemyDebugUI(private val skin: Skin, private val stage: Stage) {
 
         // Setup the window layout
         debugWindow.isMovable = true
-        debugWindow.padTop(40f) // Add padding for the title
-        debugWindow.defaults().pad(5f).align(Align.left)
+        debugWindow.padTop(50f) // Increased title padding
+        debugWindow.defaults().pad(12f).align(Align.left).minWidth(280f) // Bigger padding and minimum width
 
-        debugWindow.add(healthLabel).row()
-        debugWindow.add(typeLabel).row()
-        debugWindow.add(stateLabel).row()
-        debugWindow.add(weaponLabel).row()
-        debugWindow.add(ammoLabel).row()
+        // Add labels with more spacing
+        debugWindow.add(healthLabel).padBottom(8f).row()
+        debugWindow.add(typeLabel).padBottom(8f).row()
+        debugWindow.add(stateLabel).padBottom(8f).row()
+        debugWindow.add(weaponLabel).padBottom(8f).row()
+        debugWindow.add(ammoLabel).padBottom(15f).row()
 
         val closeButton = TextButton("Close", skin)
-        debugWindow.add(closeButton).padTop(15f).center().row()
+        debugWindow.add(closeButton).padTop(20f).center().minWidth(100f).row()
 
         closeButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
@@ -77,7 +76,7 @@ class EnemyDebugUI(private val skin: Skin, private val stage: Stage) {
     fun hide() {
         debugWindow.isVisible = false
         currentEnemy = null
-        stage.unfocusAll() // <-- ADD THIS LINE
+        stage.unfocusAll()
     }
 
     /**

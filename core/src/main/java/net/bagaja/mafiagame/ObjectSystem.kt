@@ -5,9 +5,7 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.VertexAttributes
-import com.badlogic.gdx.graphics.g3d.Material
-import com.badlogic.gdx.graphics.g3d.Model
-import com.badlogic.gdx.graphics.g3d.ModelInstance
+import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
@@ -79,7 +77,7 @@ class ObjectSystem: IFinePositionable {
         for (objectType in ObjectType.entries) {
             try {
                 if (objectType.isInvisible) {
-                   // Create a tiny, completely transparent model for the standard "invisible" instance
+                    // Create a tiny, completely transparent model for the standard "invisible" instance
                     val invisibleMaterial = Material(
                         ColorAttribute.createDiffuse(0f, 0f, 0f, 0f),
                         BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 0.0f),
@@ -343,7 +341,7 @@ class ObjectSystem: IFinePositionable {
             val newFire = fireSystem.addFire(firePosition, this, lightingManager)
             if (newFire != null) {
                 sceneManager.activeObjects.add(newFire.gameObject)
-              sceneManager.game.lastPlacedInstance = newFire
+                sceneManager.game.lastPlacedInstance = newFire
                 println("Placed Spreading Fire object.")
             }
         }
@@ -722,7 +720,16 @@ enum class ObjectType(
 ) {
     TREE("Tree", "textures/objects/models/tree.png", 14.5f, 15.6f),
     BUSH("Bush", "textures/objects/models/bush.png", 3f, 3f),
+    HECKE("Hedge", "textures/objects/models/hecke.png", 6f, 4f, isSinglePlane = true),
+    HECKE_START("Hedge Start", "textures/objects/models/hecke_start.png", 2f, 4f, isSinglePlane = true),
+    HECKE_CENTER("Hedge Center", "textures/objects/models/hecke_center.png", 6f, 4f, isSinglePlane = true),
+    HECKE_END("Hedge End", "textures/objects/models/hecke_end.png", 2f, 4f, isSinglePlane = true),
+    HECKE_OUTLINE("Hedge Outline", "textures/objects/models/hecke_outline.png", 6f, 4f, isSinglePlane = true),
     IRON_FENCE("Iron Fence", "textures/objects/models/iron_fence.png", 10f, 5f, isSinglePlane = true),
+    IRON_FENCE_START("Iron Fence Start", "textures/objects/models/iron_fence_start.png", 3.5f, 5f, isSinglePlane = true),
+    IRON_FENCE_CENTER("Iron Fence Center", "textures/objects/models/iron_fence_cent.png", 3f, 5f, isSinglePlane = true),
+    IRON_FENCE_END("Iron Fence End", "textures/objects/models/iron_fence_end.png", 3.5f, 5f, isSinglePlane = true),
+
     GRAFITI_MOTH("Moth Graffiti", "textures/objects/models/grafity_moth.png", 5f, 5f,
         isSinglePlane = true
     ),

@@ -21,6 +21,7 @@ class ObjectSelectionUI(
     private lateinit var objectSelectionTable: Table
     private lateinit var objectItems: MutableList<ObjectSelectionItem>
     private val loadedTextures = mutableMapOf<String, Texture>() // Cache for loaded textures
+    private lateinit var scrollPane: ScrollPane
 
     // Data class to hold object selection item components
     private data class ObjectSelectionItem(
@@ -78,7 +79,16 @@ class ObjectSelectionUI(
             objectContainer.add(item.container).size(90f, 110f)
         }
 
-        mainContainer.add(objectContainer).padBottom(10f).row()
+        // Create a ScrollPane for the object items to allow horizontal scrolling
+        scrollPane = ScrollPane(objectContainer, skin)
+        scrollPane.setScrollingDisabled(false, true) // Enable horizontal, disable vertical
+        scrollPane.setFadeScrollBars(true)
+        scrollPane.setFlickScroll(false)
+        scrollPane.setOverscroll(false, false)
+
+        // Add the scrollable pane to the main container
+        mainContainer.add(scrollPane).fillX().padBottom(10f).row()
+
 
         // Instructions with modern styling
         val instructionLabel = Label("Hold [O] + Mouse Wheel to change objects", skin)
@@ -87,7 +97,7 @@ class ObjectSelectionUI(
         mainContainer.add(instructionLabel).padBottom(5f).row()
 
         // Additional instructions for fine positioning and debug mode
-        val fineInstructionLabel = Label("F - Fine positioning | D - Debug mode (show invisible)", skin)
+        val fineInstructionLabel = Label("F - Fine positioning | G - Debug mode (show invisible)", skin)
         fineInstructionLabel.setFontScale(0.8f)
         fineInstructionLabel.color = Color(0.6f, 0.6f, 0.6f, 1f)
         mainContainer.add(fineInstructionLabel)
@@ -338,14 +348,24 @@ class ObjectSelectionUI(
                 )
             }
         }
+
+        // Scroll the ScrollPane to keep the selected item in view
+        if (objectItems.isNotEmpty() && currentIndex < objectItems.size) {
+            val selectedContainer = objectItems[currentIndex].container
+            // Calculate the target X position to center the selected item
+            val targetX = selectedContainer.x + selectedContainer.width / 2f - scrollPane.width / 2f
+            // Set the scroll position, clamping it to valid bounds
+            scrollPane.scrollX = targetX.coerceIn(0f, scrollPane.maxX)
+        }
     }
 
     fun show() {
-        objectSelectionTable.setVisible(true)
+        objectSelectionTable.isVisible = true
+        update()
     }
 
     fun hide() {
-        objectSelectionTable.setVisible(false)
+        objectSelectionTable.isVisible = false
     }
 
     fun dispose() {
