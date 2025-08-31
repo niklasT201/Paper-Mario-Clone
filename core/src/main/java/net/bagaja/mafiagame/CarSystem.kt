@@ -408,12 +408,14 @@ data class GameCar(
             isLooping = true
         )
 
-        // 2. Create Driving Animation
+        // 2. Create Driving Animation (COMMENTED OUT)
+        /*
         val drivingFrames = mutableListOf<String>()
         // The sequence is: standard -> driving_1 -> ... -> driving_9
         drivingFrames.add(carType.texturePath) // The standard "idle" frame
         for (i in 1..9) {
-            drivingFrames.add("textures/objects/cars/Default/ainmations/driving_$i.png")
+            // CORRECTED PATH:
+            drivingFrames.add("textures/objects/cars/Default/animations/driving_$i.png")
         }
         animationSystem.createAnimation(
             name = "car_driving",
@@ -421,6 +423,7 @@ data class GameCar(
             frameDuration = 0.05f, // Each frame lasts 0.06 seconds for a quick animation
             isLooping = true
         )
+        */
 
         // 3. Start with the idle animation
         animationSystem.playAnimation("car_idle")
@@ -428,12 +431,14 @@ data class GameCar(
     }
 
     fun setDrivingAnimationState(isDrivingHorizontally: Boolean) {
+        /*
         if (carType != CarType.DEFAULT) return
 
         val targetAnimation = if (isDrivingHorizontally) "car_driving" else "car_idle"
         if (animationSystem.getCurrentAnimationName() != targetAnimation) {
             animationSystem.playAnimation(targetAnimation)
         }
+        */
     }
 
     // Get bounding box for collision detection
@@ -638,6 +643,8 @@ data class GameCar(
     fun update(deltaTime: Float) {
         when (state) {
             CarState.DRIVABLE -> {
+                // Animation logic is now disabled
+                /*
                 // 1. Update the animation timer
                 animationSystem.update(deltaTime)
 
@@ -649,6 +656,7 @@ data class GameCar(
                     textureAttribute?.textureDescription?.texture = newTexture
                     lastTexture = newTexture
                 }
+                 */
             }
             CarState.WRECKED -> {
                 wreckedTimer -= deltaTime
@@ -697,6 +705,10 @@ enum class CarType(
     TAXI_CAB("Taxi Cab", "textures/objects/cars/taxi_cab.png", 10f, 7f, 240f),
     NEWSPAPER_TRUCK("Newspaper Truck", "textures/objects/cars/newspaper_truck.png", 12f, 8f, 300f),
     CARGO_TRUCK("Cargo Truck", "textures/objects/cars/red_cargo.png", 12f, 5f, 400f),
+    DARK_SEDAN("Dark Sedan", "textures/objects/cars/car_dark_gray.png", 10f, 7f, 250f),
+    PARKED_CAR("Parked Car", "textures/objects/cars/car_parking.png", 10f, 7f, 250f),
+    CASH_TRANSPORT("Cash Transport", "textures/objects/cars/cash_transport.png", 11f, 8f, 350f),
+    CLASSIC_SEDAN("Classic Sedan", "textures/objects/cars/default_car.png", 10f, 7f, 260f),
     POLICE_CAR("Police Car", "textures/objects/cars/police_car.png", 8f, 5f, 200f),
     VAN("Van", "textures/objects/cars/van.png", 9f, 6f, 280f),
 }

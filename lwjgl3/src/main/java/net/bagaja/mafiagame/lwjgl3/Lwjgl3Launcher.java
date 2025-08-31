@@ -58,7 +58,6 @@ public class Lwjgl3Launcher {
 // rusher stopping in front of the player
 // molotoves show how many you carry around in player mode
 // fire system uses spread fire, fire or flame particle folder
-// add new cash, gray and default car
 // add new mouse enemy
 // blocks being visible behind transparent enemies etc.
 // car maybe be able to step up half a block
