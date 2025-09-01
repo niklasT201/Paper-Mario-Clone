@@ -34,6 +34,7 @@ class SpawnerUI(
     private val intervalField: TextField
     private val minRangeField: TextField
     private val maxRangeField: TextField
+    private val spawnOnlyWhenGoneCheckbox: CheckBox
 
     // Particle Settings
     private val effectSelectBox: SelectBox<String>
@@ -195,14 +196,20 @@ class SpawnerUI(
         intervalField = TextField("", skin)
         minRangeField = TextField("", skin)
         maxRangeField = TextField("", skin)
+        spawnOnlyWhenGoneCheckbox = CheckBox(" Spawn Only If Previous Is Gone", skin)
+
         generalTable.add(Label("Interval (s):", skin)).padRight(5f)
         generalTable.add(intervalField).width(60f).padRight(15f)
         generalTable.add(Label("Min Range:", skin)).padRight(5f)
         generalTable.add(minRangeField).width(60f).padRight(15f)
         generalTable.add(Label("Max Range:", skin)).padRight(5f)
         generalTable.add(maxRangeField).width(60f)
-        window.add(generalTable).colspan(2).padTop(10f).row()
 
+        // Add the new checkbox on its own row
+        generalTable.row().padTop(10f)
+        generalTable.add(spawnOnlyWhenGoneCheckbox).colspan(6).left()
+
+        window.add(generalTable).colspan(2).padTop(10f).row()
 
         // --- Buttons ---
         applyButton = TextButton("Apply", skin)
@@ -284,6 +291,7 @@ class SpawnerUI(
         intervalField.text = spawner.spawnInterval.toString()
         minRangeField.text = spawner.minSpawnRange.toString()
         maxRangeField.text = spawner.maxSpawnRange.toString()
+        spawnOnlyWhenGoneCheckbox.isChecked = spawner.spawnOnlyWhenPreviousIsGone
 
         // Populate particle fields
         effectSelectBox.selected = spawner.particleEffectType.displayName
@@ -331,6 +339,7 @@ class SpawnerUI(
         spawner.spawnInterval = intervalField.text.toFloatOrNull()?.coerceAtLeast(0.1f) ?: spawner.spawnInterval
         spawner.minSpawnRange = minRangeField.text.toFloatOrNull()?.coerceAtLeast(0f) ?: spawner.minSpawnRange
         spawner.maxSpawnRange = maxRangeField.text.toFloatOrNull()?.coerceAtLeast(spawner.minSpawnRange + 1f) ?: spawner.maxSpawnRange
+        spawner.spawnOnlyWhenPreviousIsGone = spawnOnlyWhenGoneCheckbox.isChecked
 
         // Apply tab-specific settings
         when {

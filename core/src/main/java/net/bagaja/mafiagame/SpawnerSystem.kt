@@ -28,6 +28,9 @@ data class GameSpawner(
     var spawnInterval: Float = 2.0f,
     var timer: Float = spawnInterval,
 
+    var spawnOnlyWhenPreviousIsGone: Boolean = false,
+    var spawnedEntityId: String? = null, // To track the ID of the spawned item
+
     // NEW: Special range settings for anti-AFK farming
     var minSpawnRange: Float = 15f, // Spawning stops if player is closer than this
     var maxSpawnRange: Float = 100f, // Spawning only happens if player is within this range
@@ -71,9 +74,25 @@ class SpawnerSystem(
         if (spawners.isEmpty) return
 
         for (spawner in spawners) {
+            // If this spawner should only spawn when the previous item is gone
+            if (spawner.spawnOnlyWhenPreviousIsGone && spawner.spawnedEntityId != null) {
+
+                // Check if the item it spawned still exists AND has not been collected
+                val itemExists = sceneManager.activeItems.any { it.id == spawner.spawnedEntityId && !it.isCollected }
+
+                if (itemExists) {
+                    // The item is still there, so reset the timer and do nothing.
+                    spawner.timer = spawner.spawnInterval
+                    continue // Skip to the next spawner
+                } else {
+                    // The item has been collected, so the spawner can forget about it and start its timer.
+                    spawner.spawnedEntityId = null
+                }
+            }
+
             val distanceSq = spawner.position.dst2(playerPosition)
 
-            // NEW: Range check logic
+            // Range check logic
             val isInRange = distanceSq > getMinRangeSq(spawner) && distanceSq < getMaxRangeSq(spawner)
             if (!isInRange) {
                 spawner.timer = spawner.spawnInterval // Reset timer if player is out of range
@@ -127,10 +146,13 @@ class SpawnerSystem(
         for (i in 0 until itemCount) {
             val newItem = itemSystem.createItem(spawner.position, spawner.itemType)
             if (newItem != null) {
+                // Track the spawned item's ID if needed
+                if (spawner.spawnOnlyWhenPreviousIsGone) {
+                    spawner.spawnedEntityId = newItem.id
+                }
+
                 sceneManager.activeItems.add(newItem)
                 itemSystem.setActiveItems(sceneManager.activeItems)
-                // NEW: Placeholder for giving money when this item is picked up.
-                // You can add a property to GameItem like 'moneyValue' and check it in PlayerSystem on pickup.
                 println("Item spawner created ${newItem.itemType.displayName}. Value: ${newItem.itemType.value}")
             }
         }
@@ -139,6 +161,10 @@ class SpawnerSystem(
     private fun spawnWeaponPickup(spawner: GameSpawner) {
         val weaponItem = itemSystem.createItem(spawner.position, spawner.weaponItemType)
         if (weaponItem != null) {
+            // Track the spawned weapon's ID if needed
+            if (spawner.spawnOnlyWhenPreviousIsGone) {
+                spawner.spawnedEntityId = weaponItem.id
+            }
             // Calculate ammo based on the spawner's settings
             val ammoToGive = when (spawner.ammoSpawnMode) {
                 AmmoSpawnMode.FIXED -> {

@@ -61,7 +61,8 @@ data class RoomElement(
     val canBeExtinguished: Boolean? = null,
     val dealsDamage: Boolean? = null,
     val damagePerSecond: Float? = null,
-    val damageRadius: Float? = null
+    val damageRadius: Float? = null,
+    val spawnOnlyWhenPreviousIsGone: Boolean? = null
 )
 
 enum class RoomElementType {

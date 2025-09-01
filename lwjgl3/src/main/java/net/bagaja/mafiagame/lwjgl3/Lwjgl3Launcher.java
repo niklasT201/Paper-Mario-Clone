@@ -51,7 +51,6 @@ public class Lwjgl3Launcher {
 // adding cash trucks
 // using new animation images
 // collected ammunition label for bullets and weapons
-// spawners only spawn if no item on the spawnpoint
 // npc spawnpoint
 // enemy spawnpoint
 // enemy/npc spawner

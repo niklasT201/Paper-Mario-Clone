@@ -956,6 +956,7 @@ class SceneManager(
                         newSpawner.setAmmoValue = element.setAmmoValue ?: newSpawner.setAmmoValue
                         newSpawner.randomMinAmmo = element.randomMinAmmo ?: newSpawner.randomMinAmmo
                         newSpawner.randomMaxAmmo = element.randomMaxAmmo ?: newSpawner.randomMaxAmmo
+                        newSpawner.spawnOnlyWhenPreviousIsGone = element.spawnOnlyWhenPreviousIsGone ?: false
 
                         newParticleSpawners.add(newSpawner)
                     }
@@ -1219,7 +1220,8 @@ class SceneManager(
                 ammoSpawnMode = spawner.ammoSpawnMode,
                 setAmmoValue = spawner.setAmmoValue,
                 randomMinAmmo = spawner.randomMinAmmo,
-                randomMaxAmmo = spawner.randomMaxAmmo
+                randomMaxAmmo = spawner.randomMaxAmmo,
+                spawnOnlyWhenPreviousIsGone = spawner.spawnOnlyWhenPreviousIsGone
             ))
         }
 
@@ -1410,6 +1412,7 @@ class SceneManager(
                         newSpawner.setAmmoValue = element.setAmmoValue ?: newSpawner.setAmmoValue
                         newSpawner.randomMinAmmo = element.randomMinAmmo ?: newSpawner.randomMinAmmo
                         newSpawner.randomMaxAmmo = element.randomMaxAmmo ?: newSpawner.randomMaxAmmo
+                        newSpawner.spawnOnlyWhenPreviousIsGone = element.spawnOnlyWhenPreviousIsGone ?: false
 
                         activeSpawners.add(newSpawner)
                     }

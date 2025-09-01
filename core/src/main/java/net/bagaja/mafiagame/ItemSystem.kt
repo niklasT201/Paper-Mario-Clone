@@ -14,6 +14,7 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
+import java.util.*
 import kotlin.math.floor
 import kotlin.math.sin
 
@@ -378,7 +379,8 @@ data class GameItem(
     private var bobOffset: Float = 0f,
     var isCollected: Boolean = false,
     var ammo: Int = itemType.ammoAmount,
-    var pickupDelay: Float = 0f
+    var pickupDelay: Float = 0f,
+    val id: String = UUID.randomUUID().toString()
 ) {
     init {
         // Random bobbing offset so items don't all bob in sync
