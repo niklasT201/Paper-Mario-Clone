@@ -51,12 +51,20 @@ class DialogSystem {
     companion object {
         private const val CHARACTERS_PER_SECOND = 40f
         private const val FAST_FORWARD_MULTIPLIER = 5f
-        private const val PORTRAIT_WIDTH = 180f
+
+        // NPC / Default Portrait Size
+        private const val NPC_PORTRAIT_WIDTH = 180f
+        private const val NPC_PORTRAIT_HEIGHT = 300f // The FULL height of the source image
+
+        // Player-Specific Portrait Size
         private const val PLAYER_PORTRAIT_WIDTH = 145f
-        private const val PORTRAIT_HEIGHT = 300f // The FULL height of the source image
+        private const val PLAYER_PORTRAIT_HEIGHT = 260f // Noticeably shorter
+
+        // Shared Settings
         private const val VISIBLE_PORTRAIT_RATIO = 0.8f // Show the top 60% of the portrait
         private const val NPC_PORTRAIT_OVERLAP = -30f
-        private const val PLAYER_PORTRAIT_OVERLAP = -55f
+        private const val PLAYER_PORTRAIT_OVERLAP = -6f
+        private const val PLAYER_VERTICAL_OFFSET = 25f
     }
 
     fun initialize(stage: Stage, skin: Skin) {
@@ -78,7 +86,6 @@ class DialogSystem {
 
         // 1. Setup Speaker Portrait Image
         speakerPortraitImage = Image()
-        speakerPortraitImage.setScaling(Scaling.fit)
         speakerPortraitImage.isVisible = false
 
         // 2. Setup Dialog Box Content
@@ -125,9 +132,9 @@ class DialogSystem {
 
         // 3. Assemble the layout within the 'layoutTable'
         portraitCell = layoutTable.add(speakerPortraitImage)
-            .size(PORTRAIT_WIDTH, PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO)
+            .size(NPC_PORTRAIT_WIDTH, NPC_PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO) // Use NPC defaults
             .align(Align.bottom)
-            .padRight(-30f)
+            .padRight(NPC_PORTRAIT_OVERLAP)
 
         layoutTable.add(dialogContentTable)
             .width(Gdx.graphics.width * 0.7f)
@@ -208,11 +215,26 @@ class DialogSystem {
 
         // Check the speaker's name and adjust BOTH the portrait width AND the layout padding.
         if (line.speaker.equals("Player", ignoreCase = true)) {
-            portraitCell.width(PLAYER_PORTRAIT_WIDTH)
-            layoutCell.padLeft(-10f) // Move the player's UI group further left
+            portraitCell.size(
+                PLAYER_PORTRAIT_WIDTH,
+                PLAYER_PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO
+            )
+            layoutCell.padLeft(40f)  // Move the player's UI group further left
+            portraitCell.padRight(PLAYER_PORTRAIT_OVERLAP)
+
+            portraitCell.padBottom(PLAYER_VERTICAL_OFFSET) // Push the player portrait up
+
+            speakerPortraitImage.setScaling(Scaling.fill)
+
         } else {
-            portraitCell.width(PORTRAIT_WIDTH)
+            portraitCell.size(
+                NPC_PORTRAIT_WIDTH,
+                NPC_PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO
+            )
             layoutCell.padLeft(30f) // Use more padding for other characters, pushing them right
+            portraitCell.padRight(NPC_PORTRAIT_OVERLAP)
+            portraitCell.padBottom(0f) // Reset padding for NPCs to keep them at the baseline
+            speakerPortraitImage.setScaling(Scaling.fit)
         }
         mainContainer.invalidate() // Tell the layout to recalculate itself with the new padding
 
@@ -257,7 +279,7 @@ class DialogSystem {
         // Animate the portrait sliding in, now based on the visible height
         speakerPortraitImage.isVisible = true
         speakerPortraitImage.color.a = 0f
-        val visibleHeight = PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO
+        val visibleHeight = NPC_PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO
         speakerPortraitImage.setPosition(speakerPortraitImage.x, -visibleHeight / 2) // Start halfway off-screen
         speakerPortraitImage.addAction(Actions.parallel(
             Actions.fadeIn(0.4f, Interpolation.fade),
