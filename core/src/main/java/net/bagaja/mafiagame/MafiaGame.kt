@@ -605,7 +605,7 @@ class MafiaGame : ApplicationAdapter() {
         Gdx.gl.glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a)
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
 
-        val isPaused = uiManager.isPauseMenuVisible()
+        val isPaused = uiManager.isPauseMenuVisible() || uiManager.isDialogActive()
         if (!isPaused) {
             // Get delta time for this frame
             val deltaTime = Gdx.graphics.deltaTime

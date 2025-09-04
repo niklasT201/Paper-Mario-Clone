@@ -122,10 +122,15 @@ class UIManager(
         BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE
     }
 
+    lateinit var dialogSystem: DialogSystem
+
     fun initialize() {
         stage = Stage(ScreenViewport())
         skin = UISkinFactory.createSkin() // Use the factory
         layoutBuilder = UILayoutBuilder(skin) // Create the builder
+
+        dialogSystem = DialogSystem() // ADD THIS LINE
+        dialogSystem.initialize(stage, skin)
 
         // Setup FPS display
         val (fpsTableCreated, fpsLabelCreated) = layoutBuilder.createFpsDisplay()
@@ -989,7 +994,10 @@ class UIManager(
         }
     }
 
+    fun isDialogActive(): Boolean = dialogSystem.isActive()
+
     fun render() {
+        dialogSystem.update(Gdx.graphics.deltaTime)
         // Update HUD visibility and values based on game state
         val shouldShowHud = !game.isEditorMode && !isPauseMenuVisible()
         wantedPosterHudTable.isVisible = shouldShowHud && currentHudStyle == HudStyle.WANTED_POSTER
@@ -1095,6 +1103,7 @@ class UIManager(
         if (::healthBarFullTexture.isInitialized) {
             healthBarFullTexture.dispose()
         }
+        dialogSystem.dispose()
         stage.dispose()
         skin.dispose()
     }

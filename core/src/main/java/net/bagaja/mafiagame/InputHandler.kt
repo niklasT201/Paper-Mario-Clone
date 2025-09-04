@@ -319,6 +319,21 @@ class InputHandler(
                     return false
                 }
 
+                if (uiManager.isDialogActive()) {
+                    when (keycode) {
+                        Input.Keys.E -> {
+                            uiManager.dialogSystem.handleInput()
+                            return true // Consume the input
+                        }
+                        Input.Keys.ESCAPE -> {
+                            uiManager.dialogSystem.skipAll()
+                            return true // Consume the input
+                        }
+                    }
+                    // Don't process other keys if dialog is active
+                    return true
+                }
+
                 // Camera Flip Hotkey
                 if (keycode == Input.Keys.TAB) {
                     // Only flip if we are in player camera mode
@@ -604,6 +619,24 @@ class InputHandler(
                         // Update preview in case we switched to/from the background tool
                         handleBackgroundPreviewUpdate(Gdx.input.x, Gdx.input.y)
                     }
+                }
+                if (keycode == Input.Keys.P) {
+                    // Create a sample conversation and start it
+                    val testSequence = DialogSequence(
+                        lines = listOf(
+                            DialogLine("Vito", "Hey, you. Yeah, you, the one with the pixels."),
+                            DialogLine("Player", "(He's talking to me?)"),
+                            DialogLine("Vito", "I got a job for you. It's simple, see? Just... take care of this little problem for me. It's a long story, full of twists and turns and lots of text."),
+                            DialogLine("Vito", "You get it done, and there's a nice stack of cash in it for you. Capisci?")
+                        ),
+                        onComplete = {
+                            // This code runs AFTER the player clicks through the last line
+                            game.playerSystem.addMoney(500)
+                            println("Dialog finished! Player was given $500.")
+                        }
+                    )
+                    uiManager.dialogSystem.startDialog(testSequence)
+                    return true
                 }
                 return false
             }
