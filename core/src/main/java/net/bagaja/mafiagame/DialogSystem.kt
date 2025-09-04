@@ -13,6 +13,7 @@ import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
+import com.badlogic.gdx.utils.Scaling
 
 data class DialogLine(
     val speaker: String,
@@ -30,6 +31,8 @@ class DialogSystem {
     private lateinit var mainContainer: Table // This will now be the root container for portrait + dialog box
     private lateinit var dialogContentTable: Table // The actual box with text
     private lateinit var speakerPortraitImage: Image
+    private lateinit var portraitCell: Cell<Image>
+    private lateinit var layoutCell: Cell<Table>
     private lateinit var speakerLabel: Label
     private lateinit var textLabel: Label
     private lateinit var continuePrompt: Label
@@ -49,8 +52,11 @@ class DialogSystem {
         private const val CHARACTERS_PER_SECOND = 40f
         private const val FAST_FORWARD_MULTIPLIER = 5f
         private const val PORTRAIT_WIDTH = 180f
+        private const val PLAYER_PORTRAIT_WIDTH = 145f
         private const val PORTRAIT_HEIGHT = 300f // The FULL height of the source image
         private const val VISIBLE_PORTRAIT_RATIO = 0.8f // Show the top 60% of the portrait
+        private const val NPC_PORTRAIT_OVERLAP = -30f
+        private const val PLAYER_PORTRAIT_OVERLAP = -55f
     }
 
     fun initialize(stage: Stage, skin: Skin) {
@@ -72,6 +78,7 @@ class DialogSystem {
 
         // 1. Setup Speaker Portrait Image
         speakerPortraitImage = Image()
+        speakerPortraitImage.setScaling(Scaling.fit)
         speakerPortraitImage.isVisible = false
 
         // 2. Setup Dialog Box Content
@@ -117,16 +124,16 @@ class DialogSystem {
         dialogContentTable.stack(Table(), promptContainer)
 
         // 3. Assemble the layout within the 'layoutTable'
-        layoutTable.add(speakerPortraitImage)
+        portraitCell = layoutTable.add(speakerPortraitImage)
             .size(PORTRAIT_WIDTH, PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO)
             .align(Align.bottom)
             .padRight(-30f)
 
         layoutTable.add(dialogContentTable)
             .width(Gdx.graphics.width * 0.7f)
-            .height(Gdx.graphics.height * 0.28f)
+            .minHeight(Gdx.graphics.height * 0.28f)
 
-        mainContainer.add(layoutTable).pad(0f, 20f, 60f, 0f) // (top, left, bottom, right)
+        layoutCell = mainContainer.add(layoutTable).pad(0f, 30f, 60f, 0f)
 
         stage.addActor(mainContainer)
     }
@@ -198,6 +205,16 @@ class DialogSystem {
         val line = sequence.lines[currentLineIndex]
         speakerLabel.setText(line.speaker)
         textLabel.setText("")
+
+        // Check the speaker's name and adjust BOTH the portrait width AND the layout padding.
+        if (line.speaker.equals("Player", ignoreCase = true)) {
+            portraitCell.width(PLAYER_PORTRAIT_WIDTH)
+            layoutCell.padLeft(-10f) // Move the player's UI group further left
+        } else {
+            portraitCell.width(PORTRAIT_WIDTH)
+            layoutCell.padLeft(30f) // Use more padding for other characters, pushing them right
+        }
+        mainContainer.invalidate() // Tell the layout to recalculate itself with the new padding
 
         // Update the speaker portrait
         updateSpeakerPortrait(line.speakerTexturePath)
