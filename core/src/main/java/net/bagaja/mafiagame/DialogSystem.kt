@@ -1,3 +1,4 @@
+// net/bagaja/mafiagame/DialogSystem.kt
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
@@ -5,6 +6,7 @@ import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
+import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
@@ -12,7 +14,11 @@ import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
 
-data class DialogLine(val speaker: String, val text: String)
+data class DialogLine(
+    val speaker: String,
+    val text: String,
+    val speakerTexturePath: String? = null
+)
 
 data class DialogSequence(val lines: List<DialogLine>, val onComplete: (() -> Unit)? = null)
 
@@ -21,7 +27,9 @@ class DialogSystem {
     private lateinit var skin: Skin
 
     // --- UI Components ---
-    private lateinit var mainContainer: Table
+    private lateinit var mainContainer: Table // This will now be the root container for portrait + dialog box
+    private lateinit var dialogContentTable: Table // The actual box with text
+    private lateinit var speakerPortraitImage: Image
     private lateinit var speakerLabel: Label
     private lateinit var textLabel: Label
     private lateinit var continuePrompt: Label
@@ -31,11 +39,18 @@ class DialogSystem {
     private var currentLineIndex: Int = 0
     private var textRevealProgress: Float = 0f
     private var isLineComplete: Boolean = false
+    private var lastSpeakerTexturePath: String? = null
+
+    // --- Caching ---
+    private val textureCache = mutableMapOf<String, Texture>()
 
     // --- Configuration ---
     companion object {
         private const val CHARACTERS_PER_SECOND = 40f
         private const val FAST_FORWARD_MULTIPLIER = 5f
+        private const val PORTRAIT_WIDTH = 180f
+        private const val PORTRAIT_HEIGHT = 300f // The FULL height of the source image
+        private const val VISIBLE_PORTRAIT_RATIO = 0.8f // Show the top 60% of the portrait
     }
 
     fun initialize(stage: Stage, skin: Skin) {
@@ -45,30 +60,35 @@ class DialogSystem {
     }
 
     private fun setupUI() {
-        // Create a semi-transparent black background for the dialog box
+        // This is the root container that fills the screen and handles final positioning.
+        mainContainer = Table()
+        mainContainer.setFillParent(true)
+        mainContainer.isVisible = false
+
+        mainContainer.bottom().left()
+
+        // This table will hold the actual content (portrait and dialog box)
+        val layoutTable = Table()
+
+        // 1. Setup Speaker Portrait Image
+        speakerPortraitImage = Image()
+        speakerPortraitImage.isVisible = false
+
+        // 2. Setup Dialog Box Content
         val pixmap = Pixmap(1, 1, Pixmap.Format.RGBA8888)
         pixmap.setColor(Color(0.1f, 0.1f, 0.1f, 0.85f))
         pixmap.fill()
         val backgroundDrawable = TextureRegionDrawable(Texture(pixmap))
         pixmap.dispose()
 
-        // Main container for the whole dialog box
-        mainContainer = Table()
-        mainContainer.background = backgroundDrawable
-        mainContainer.isVisible = false // Start hidden
-        mainContainer.setFillParent(true)
+        dialogContentTable = Table()
+        dialogContentTable.background = backgroundDrawable
 
-        // --- THIS IS THE CHANGED LINE ---
-        mainContainer.bottom().padBottom(100f) // Increased padding from the bottom edge
-        // --- END OF CHANGE ---
+        val innerContentTable = Table()
+        innerContentTable.pad(20f)
 
-        // Inner table for content to provide padding
-        val contentTable = Table()
-        contentTable.pad(20f)
-
-        // Speaker name setup
         val speakerBackgroundPixmap = Pixmap(1, 1, Pixmap.Format.RGBA8888)
-        speakerBackgroundPixmap.setColor(Color(0.8f, 0.75f, 0.6f, 1f)) // Cream/Paper color
+        speakerBackgroundPixmap.setColor(Color(0.8f, 0.75f, 0.6f, 1f))
         speakerBackgroundPixmap.fill()
         val speakerBackground = TextureRegionDrawable(Texture(speakerBackgroundPixmap))
         speakerBackgroundPixmap.dispose()
@@ -81,7 +101,7 @@ class DialogSystem {
 
         // Dialog text setup
         textLabel = Label("", skin, "default")
-        textLabel.setWrap(true)
+        textLabel.wrap = true
         textLabel.setAlignment(Align.topLeft)
 
         // Continue prompt (e.g., a blinking arrow or text)
@@ -90,17 +110,27 @@ class DialogSystem {
         val promptContainer = Container(continuePrompt).padRight(15f).padBottom(10f)
         promptContainer.align(Align.bottomRight)
 
-        // Assemble the layout
-        contentTable.add(speakerTable).left().padBottom(15f).row()
-        contentTable.add(textLabel).expand().fill().left().row()
+        innerContentTable.add(speakerTable).left().padBottom(15f).row()
+        innerContentTable.add(textLabel).expand().fill().left().row()
 
-        mainContainer.add(contentTable).width(Gdx.graphics.width * 0.8f).height(Gdx.graphics.height * 0.3f)
-        mainContainer.stack(Table(), promptContainer) // Use stack to overlay the prompt
+        dialogContentTable.add(innerContentTable).expand().fill()
+        dialogContentTable.stack(Table(), promptContainer)
+
+        // 3. Assemble the layout within the 'layoutTable'
+        layoutTable.add(speakerPortraitImage)
+            .size(PORTRAIT_WIDTH, PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO)
+            .align(Align.bottom)
+            .padRight(-30f)
+
+        layoutTable.add(dialogContentTable)
+            .width(Gdx.graphics.width * 0.7f)
+            .height(Gdx.graphics.height * 0.28f)
+
+        mainContainer.add(layoutTable).pad(0f, 20f, 60f, 0f) // (top, left, bottom, right)
+
+        stage.addActor(mainContainer)
     }
 
-    /**
-     * Starts a new dialog sequence. This is the main entry point for triggering conversations.
-     */
     fun startDialog(sequence: DialogSequence) {
         if (isActive()) {
             println("Warning: Tried to start a new dialog while one is already active.")
@@ -110,17 +140,15 @@ class DialogSystem {
         currentLineIndex = 0
         isLineComplete = false
         textRevealProgress = 0f
-        stage.addActor(mainContainer)
+        lastSpeakerTexturePath = null // Reset last speaker
+        speakerPortraitImage.isVisible = false // Hide portrait initially
+
         mainContainer.isVisible = true
         mainContainer.color.a = 0f
         mainContainer.addAction(Actions.fadeIn(0.3f, Interpolation.fade))
         displayCurrentLine()
     }
 
-    /**
-     * Updates the text reveal effect and handles state transitions.
-     * Should be called every frame from your UIManager's render/act method.
-     */
     fun update(deltaTime: Float) {
         if (!isActive()) return
 
@@ -133,19 +161,13 @@ class DialogSystem {
 
             val charsToShow = textRevealProgress.toInt()
             if (charsToShow >= currentLine.text.length) {
-                textLabel.setText(currentLine.text)
-                isLineComplete = true
-                showContinuePrompt()
+                finishCurrentLine()
             } else {
                 textLabel.setText(currentLine.text.substring(0, charsToShow))
             }
         }
     }
 
-    /**
-     * Processes user input to advance or skip the dialog.
-     * Should be called from your InputHandler when a key is pressed and a dialog is active.
-     */
     fun handleInput() {
         // If the line is fully displayed, the next key press advances the dialog
         if (isLineComplete) {
@@ -157,9 +179,6 @@ class DialogSystem {
         }
     }
 
-    /**
-     * Skips the entire current dialog sequence.
-     */
     fun skipAll() {
         endDialog()
     }
@@ -178,7 +197,55 @@ class DialogSystem {
 
         val line = sequence.lines[currentLineIndex]
         speakerLabel.setText(line.speaker)
-        textLabel.setText("") // Clear previous text
+        textLabel.setText("")
+
+        // Update the speaker portrait
+        updateSpeakerPortrait(line.speakerTexturePath)
+    }
+
+    private fun updateSpeakerPortrait(texturePath: String?) {
+        if (texturePath == lastSpeakerTexturePath) {
+            return
+        }
+        lastSpeakerTexturePath = texturePath
+
+        speakerPortraitImage.clearActions()
+
+        if (texturePath == null) {
+            speakerPortraitImage.addAction(Actions.sequence(
+                Actions.fadeOut(0.2f),
+                Actions.visible(false)
+            ))
+            return
+        }
+
+        val texture = textureCache.getOrPut(texturePath) {
+            try {
+                Texture(Gdx.files.internal(texturePath))
+            } catch (e: Exception) {
+                println("ERROR: Could not load speaker texture at '$texturePath'. Using placeholder.")
+                val pixmap = Pixmap(64, 64, Pixmap.Format.RGBA8888).apply {
+                    setColor(Color.MAGENTA)
+                    fill()
+                }
+                Texture(pixmap).also { pixmap.dispose() }
+            }
+        }
+
+        // Create a TextureRegion that represents the desired visible portion of the texture.
+        val regionHeight = (texture.height * VISIBLE_PORTRAIT_RATIO).toInt()
+        val visibleRegion = TextureRegion(texture, 0, 0, texture.width, regionHeight)
+        speakerPortraitImage.drawable = TextureRegionDrawable(visibleRegion)
+
+        // Animate the portrait sliding in, now based on the visible height
+        speakerPortraitImage.isVisible = true
+        speakerPortraitImage.color.a = 0f
+        val visibleHeight = PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO
+        speakerPortraitImage.setPosition(speakerPortraitImage.x, -visibleHeight / 2) // Start halfway off-screen
+        speakerPortraitImage.addAction(Actions.parallel(
+            Actions.fadeIn(0.4f, Interpolation.fade),
+            Actions.moveBy(0f, visibleHeight / 2, 0.4f, Interpolation.pow2Out)
+        ))
     }
 
     private fun finishCurrentLine() {
@@ -207,8 +274,7 @@ class DialogSystem {
         mainContainer.addAction(Actions.sequence(
             Actions.fadeOut(0.3f, Interpolation.fade),
             Actions.run {
-                mainContainer.remove()
-                // Execute the callback function after the dialog is completely finished and faded out
+                mainContainer.isVisible = false // Hide instead of remove to keep it in the stage
                 sequence.onComplete?.invoke()
                 // Reset state
                 activeSequence = null
@@ -218,24 +284,18 @@ class DialogSystem {
         ))
     }
 
-    /**
-     * Checks if a dialog is currently active.
-     * @return `true` if a dialog is being shown, `false` otherwise.
-     */
     fun isActive(): Boolean = activeSequence != null
 
-    /**
-     * Checks if the user is holding the fast-forward key.
-     */
     private fun isFastForwarding(): Boolean = Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)
 
     fun dispose() {
-        // Dispose of the main container's background texture
-        (mainContainer.background as? TextureRegionDrawable)?.region?.texture?.dispose()
-
-        // Correctly cast the parent to a Table before accessing its background
+        (dialogContentTable.background as? TextureRegionDrawable)?.region?.texture?.dispose()
         val speakerTable = speakerLabel.parent as? Table
         val speakerBgDrawable = speakerTable?.background as? TextureRegionDrawable
         speakerBgDrawable?.region?.texture?.dispose()
+
+        // Dispose all cached textures
+        textureCache.values.forEach { it.dispose() }
+        textureCache.clear()
     }
 }
