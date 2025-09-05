@@ -91,7 +91,6 @@ public class Lwjgl3Launcher {
 // The "Mission Editor" Main Panel
 // Creating Objectives (The Core Logic)
 // "Placing" Mission Logic in the World
-//
 // killed enemies drop items
 // enemies have an inventory and collect items
 // adding multiple city areas

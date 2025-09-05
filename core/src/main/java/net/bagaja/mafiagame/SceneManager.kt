@@ -914,14 +914,28 @@ class SceneManager(
                 }
                 RoomElementType.ENEMY -> {
                     if (element.enemyType != null && element.enemyBehavior != null) {
-                        enemySystem.createEnemy(element.position.cpy(), element.enemyType, element.enemyBehavior)?.let { gameEnemy ->
+                        // --- CORRECTED CODE ---
+                        val config = EnemySpawnConfig(
+                            enemyType = element.enemyType,
+                            behavior = element.enemyBehavior,
+                            position = element.position.cpy(),
+                            id = element.targetId // Use the ID from the template if it exists
+                        )
+                        enemySystem.createEnemy(config)?.let { gameEnemy ->
                             newEnemies.add(gameEnemy)
                         }
+                        // --- END CORRECTION ---
                     }
                 }
                 RoomElementType.NPC -> {
                     if (element.npcType != null && element.npcBehavior != null) {
-                        npcSystem.createNPC(element.position.cpy(), element.npcType, element.npcBehavior, element.npcRotation)?.let { gameNPC ->
+                        val config = NPCSpawnConfig(
+                            npcType = element.npcType,
+                            behavior = element.npcBehavior,
+                            position = element.position.cpy(),
+                            id = element.targetId
+                        )
+                        npcSystem.createNPC(config, element.npcRotation)?.let { gameNPC ->
                             newNPCs.add(gameNPC)
                         }
                     }
@@ -1177,7 +1191,8 @@ class SceneManager(
                 position = enemy.position.cpy(),
                 elementType = RoomElementType.ENEMY,
                 enemyType = enemy.enemyType,
-                enemyBehavior = enemy.behaviorType
+                enemyBehavior = enemy.behaviorType,
+                targetId = enemy.id
             ))
         }
 
@@ -1188,7 +1203,8 @@ class SceneManager(
                 elementType = RoomElementType.NPC,
                 npcType = npc.npcType,
                 npcBehavior = npc.behaviorType,
-                npcRotation = npc.facingRotationY
+                npcRotation = npc.facingRotationY,
+                targetId = npc.id
             ))
         }
 
@@ -1370,14 +1386,28 @@ class SceneManager(
                 }
                 RoomElementType.ENEMY -> {
                     if (element.enemyType != null && element.enemyBehavior != null) {
-                        enemySystem.createEnemy(element.position.cpy(), element.enemyType, element.enemyBehavior)?.let { gameEnemy ->
+                        // --- CORRECTED CODE ---
+                        val config = EnemySpawnConfig(
+                            enemyType = element.enemyType,
+                            behavior = element.enemyBehavior,
+                            position = element.position.cpy(),
+                            id = element.targetId
+                        )
+                        enemySystem.createEnemy(config)?.let { gameEnemy ->
                             activeEnemies.add(gameEnemy)
                         }
+                        // --- END CORRECTION ---
                     }
                 }
                 RoomElementType.NPC -> {
                     if (element.npcType != null && element.npcBehavior != null) {
-                        npcSystem.createNPC(element.position.cpy(), element.npcType, element.npcBehavior, element.npcRotation)?.let { gameNPC ->
+                        val config = NPCSpawnConfig(
+                            npcType = element.npcType,
+                            behavior = element.npcBehavior,
+                            position = element.position.cpy(),
+                            id = element.targetId
+                        )
+                        npcSystem.createNPC(config, element.npcRotation)?.let { gameNPC ->
                             activeNPCs.add(gameNPC)
                         }
                     }

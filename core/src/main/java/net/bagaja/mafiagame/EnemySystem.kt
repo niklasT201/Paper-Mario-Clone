@@ -56,7 +56,12 @@ data class GameEnemy(
     val enemyType: EnemyType,
     val behaviorType: EnemyBehavior,
     var position: Vector3,
-    var health: Float = enemyType.baseHealth
+    var health: Float = enemyType.baseHealth,
+    val weaponCollectionPolicy: WeaponCollectionPolicy = WeaponCollectionPolicy.CANNOT_COLLECT,
+    val canCollectItems: Boolean = true,
+    val inventory: MutableList<GameItem> = mutableListOf(),
+    val weapons: MutableMap<WeaponType, Int> = mutableMapOf(), // Weapon -> Ammo in reserve
+    var equippedWeapon: WeaponType = WeaponType.UNARMED
 ) {
     var currentBehavior: EnemyBehavior = behaviorType
     var provocationLevel: Float = 0f
@@ -68,7 +73,6 @@ data class GameEnemy(
     @Transient lateinit var physics: PhysicsComponent
 
     var attackTimer: Float = 0f
-    var equippedWeapon: WeaponType = WeaponType.UNARMED
     var currentMagazineCount: Int = 0
     var ammo: Int = 0
     var bleedTimer: Float = 0f
@@ -258,15 +262,18 @@ class EnemySystem : IFinePositionable {
     fun handlePlaceAction(ray: Ray) {
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
-
-            // Position the enemy so its feet are on the surface
-            val enemyType = currentSelectedEnemyType
+            val enemyType = sceneManager.game.uiManager.enemySelectionUI.getSpawnConfig(Vector3()).enemyType // Get type to calculate height
             val enemyPosition = Vector3(tempVec3.x, surfaceY + enemyType.height / 2f, tempVec3.z)
-            val newEnemy = createEnemy(enemyPosition, currentSelectedEnemyType, currentSelectedBehavior)
+
+            // --- THIS IS THE KEY CHANGE ---
+            // Get the full configuration directly from the UI
+            val config = sceneManager.game.uiManager.enemySelectionUI.getSpawnConfig(enemyPosition)
+
+            val newEnemy = createEnemy(config)
             if (newEnemy != null) {
                 sceneManager.activeEnemies.add(newEnemy)
-                sceneManager.game.lastPlacedInstance = newEnemy // For fine positioning
-                println("Placed ${newEnemy.enemyType.displayName} with ${newEnemy.behaviorType.displayName} behavior at $enemyPosition")
+                sceneManager.game.lastPlacedInstance = newEnemy
+                println("Placed ${newEnemy.enemyType.displayName} with custom config at $enemyPosition")
             }
         }
     }
@@ -302,60 +309,56 @@ class EnemySystem : IFinePositionable {
         return highestY
     }
 
-    fun createEnemy(position: Vector3, enemyType: EnemyType, behavior: EnemyBehavior, id: String = UUID.randomUUID().toString()): GameEnemy? {
-        val model = enemyModels[enemyType] ?: return null
+    fun createEnemy(config: EnemySpawnConfig): GameEnemy? {
+        val model = enemyModels[config.enemyType] ?: return null
         val instance = ModelInstance(model)
-
         instance.userData = "character"
 
-        val enemy = GameEnemy(
-            id = id,
-            modelInstance = instance,
-            enemyType = enemyType,
-            behaviorType = behavior,
-            position = position.cpy()
-        )
-
-        // Assign weapons based on BEHAVIOR
-        when (behavior) {
-            EnemyBehavior.STATIONARY_SHOOTER, EnemyBehavior.COWARD_HIDER -> {
-                // Randomly give either a shotgun or a tommy gun to the mouse
-                if (enemyType == EnemyType.MOUSE_THUG && Random.nextFloat() < 0.5f) {
-                    enemy.equippedWeapon = WeaponType.SHOTGUN
-                    enemy.ammo = 20 // Shotgun ammo
-                } else {
-                    enemy.equippedWeapon = WeaponType.LIGHT_TOMMY_GUN
-                    enemy.ammo = 80 // Two clips for tommy gun
-                }
-            }
-            EnemyBehavior.AGGRESSIVE_RUSHER, EnemyBehavior.SKIRMISHER -> {
-                enemy.equippedWeapon = WeaponType.KNIFE
-                enemy.ammo = 0
-            }
-            EnemyBehavior.NEUTRAL -> {
-                enemy.equippedWeapon = WeaponType.UNARMED // Default to unarmed
-                enemy.ammo = 0
-            }
+        val finalHealth = when (config.healthSetting) {
+            HealthSetting.FIXED_DEFAULT -> config.enemyType.baseHealth
+            HealthSetting.FIXED_CUSTOM -> config.customHealthValue
+            HealthSetting.RANDOM_RANGE -> Random.nextFloat() * (config.maxRandomHealth - config.minRandomHealth) + config.minRandomHealth
         }
 
-        // Set the correct texture based on the weapon
-        val weaponTexture = enemyWeaponTextures[enemyType]?.get(enemy.equippedWeapon)
+        val enemy = GameEnemy(
+            id = config.id ?: UUID.randomUUID().toString(),
+            modelInstance = instance,
+            enemyType = config.enemyType,
+            behaviorType = config.behavior,
+            position = config.position.cpy(),
+            health = finalHealth,
+            weaponCollectionPolicy = config.weaponCollectionPolicy,
+            canCollectItems = config.canCollectItems,
+            equippedWeapon = config.initialWeapon
+        )
+
+        // Add initial weapon and set ammo based on UI config
+        if (config.initialWeapon != WeaponType.UNARMED) {
+            val ammoInReserve = when (config.ammoSpawnMode) {
+                AmmoSpawnMode.FIXED -> config.initialWeapon.magazineSize * 2 // Default: 2 extra clips
+                AmmoSpawnMode.SET -> config.setAmmoValue
+                AmmoSpawnMode.RANDOM -> 0 // This mode isn't in the UI, so default to 0
+            }
+            enemy.weapons[config.initialWeapon] = ammoInReserve
+        }
+
+        // Load first magazine from the calculated reserve
+        val ammoToLoad = minOf(enemy.weapons.getOrDefault(enemy.equippedWeapon, 0), enemy.equippedWeapon.magazineSize)
+        enemy.currentMagazineCount = ammoToLoad
+        enemy.weapons[enemy.equippedWeapon] = enemy.weapons.getOrDefault(enemy.equippedWeapon, 0) - ammoToLoad
+
+        // Set texture based on equipped weapon (very important!)
+        val weaponTexture = enemyWeaponTextures[enemy.enemyType]?.get(enemy.equippedWeapon)
         if (weaponTexture != null) {
             val material = enemy.modelInstance.materials.first()
             material.set(TextureAttribute.createDiffuse(weaponTexture))
-            println("Set ${enemyType.displayName} texture for weapon: ${enemy.equippedWeapon.displayName}")
         }
-
-        // Initialize the first magazine
-        val ammoToLoad = minOf(enemy.ammo, enemy.equippedWeapon.magazineSize)
-        enemy.currentMagazineCount = ammoToLoad
-        enemy.ammo -= ammoToLoad
 
         // Create and attach the physics component
         enemy.physics = PhysicsComponent(
-            position = position.cpy(),
-            size = Vector3(enemyType.width, enemyType.height, enemyType.width),
-            speed = enemyType.speed
+            position = config.position.cpy(),
+            size = Vector3(config.enemyType.width, config.enemyType.height, config.enemyType.width),
+            speed = config.enemyType.speed
         )
         enemy.physics.updateBounds()
 
@@ -488,6 +491,10 @@ class EnemySystem : IFinePositionable {
                 }
             }
 
+            if (enemy.currentState != AIState.DYING) {
+                checkForItemPickups(enemy, sceneManager)
+            }
+
             // If the enemy is outside our activation range, skip its update entirely.
             val distanceToPlayer = enemy.physics.position.dst(playerPos)
             if (distanceToPlayer > activationRange) {
@@ -515,18 +522,95 @@ class EnemySystem : IFinePositionable {
         }
     }
 
+    private fun handleWeaponSwitch(enemy: GameEnemy) {
+        // Remove the depleted weapon
+        enemy.weapons.remove(enemy.equippedWeapon)
+        enemy.equippedWeapon = WeaponType.UNARMED // Default to unarmed
+
+        // Find the best available RANGED weapon
+        val bestRanged = enemy.weapons.keys
+            .filter { it.actionType == WeaponActionType.SHOOTING }
+            .maxByOrNull { it.damage }
+
+        if (bestRanged != null) {
+            enemy.equippedWeapon = bestRanged
+            println("${enemy.enemyType.displayName} ran out of ammo, switching to ${bestRanged.displayName}")
+        } else {
+            // No ranged weapons, find the best MELEE weapon
+            val bestMelee = enemy.weapons.keys
+                .filter { it.actionType == WeaponActionType.MELEE }
+                .maxByOrNull { it.damage }
+
+            if (bestMelee != null) {
+                enemy.equippedWeapon = bestMelee
+                println("${enemy.enemyType.displayName} has no more ranged weapons, switching to ${bestMelee.displayName}")
+            } else {
+                println("${enemy.enemyType.displayName} is out of all weapons! Switching to fists.")
+            }
+        }
+
+        // Load the magazine of the new weapon
+        val ammoToLoad = minOf(enemy.weapons.getOrDefault(enemy.equippedWeapon, 0), enemy.equippedWeapon.magazineSize)
+        enemy.currentMagazineCount = ammoToLoad
+        enemy.weapons[enemy.equippedWeapon] = enemy.weapons.getOrDefault(enemy.equippedWeapon, 0) - ammoToLoad
+    }
+
+    private fun checkForItemPickups(enemy: GameEnemy, sceneManager: SceneManager) {
+        val pickupRadius = 3f
+        val itemsToRemove = mutableListOf<GameItem>()
+
+        for (item in sceneManager.activeItems) {
+            if (item.position.dst(enemy.position) < pickupRadius) {
+                if (item.itemType.correspondingWeapon != null) { // It's a weapon
+                    if (enemy.weaponCollectionPolicy != WeaponCollectionPolicy.CANNOT_COLLECT) {
+                        println("${enemy.enemyType.displayName} collected ${item.itemType.displayName}")
+                        val weaponType = item.itemType.correspondingWeapon
+                        val currentAmmo = enemy.weapons.getOrDefault(weaponType, 0)
+                        enemy.weapons[weaponType] = currentAmmo + item.ammo
+                        itemsToRemove.add(item)
+
+                        // If allowed, switch to the new weapon if it's better
+                        if (enemy.weaponCollectionPolicy == WeaponCollectionPolicy.COLLECT_AND_USE) {
+                            if (weaponType.damage > enemy.equippedWeapon.damage) {
+                                enemy.equippedWeapon = weaponType
+                            }
+                        }
+                    }
+                } else if (enemy.canCollectItems) { // It's a non-weapon item like money
+                    println("${enemy.enemyType.displayName} collected ${item.itemType.displayName}")
+                    // Handle money or other mission items here
+                    itemsToRemove.add(item)
+                }
+            }
+        }
+
+        // Remove the items from the main scene list
+        itemsToRemove.forEach {
+            sceneManager.activeItems.removeValue(it, true)
+        }
+    }
+
     private fun updateAI(enemy: GameEnemy, playerSystem: PlayerSystem, deltaTime: Float, sceneManager: SceneManager) {
+        checkForItemPickups(enemy, sceneManager)
+
         // High priority override: Reloading
         if (enemy.currentState == AIState.RELOADING) {
             enemy.stateTimer -= deltaTime
             if (enemy.stateTimer <= 0f) {
-                val ammoNeeded = enemy.equippedWeapon.magazineSize - enemy.currentMagazineCount
-                val ammoToMove = minOf(ammoNeeded, enemy.ammo)
-                enemy.currentMagazineCount += ammoToMove
-                enemy.ammo -= ammoToMove
-                enemy.currentState = AIState.IDLE
+                val ammoInReserve = enemy.weapons.getOrDefault(enemy.equippedWeapon, 0)
+                if (ammoInReserve <= 0) {
+                    // No more ammo for this gun! Switch weapons.
+                    handleWeaponSwitch(enemy)
+                } else {
+                    // Finish reloading
+                    val ammoNeeded = enemy.equippedWeapon.magazineSize - enemy.currentMagazineCount
+                    val ammoToMove = minOf(ammoNeeded, ammoInReserve)
+                    enemy.currentMagazineCount += ammoToMove
+                    enemy.weapons[enemy.equippedWeapon] = ammoInReserve - ammoToMove
+                }
+                enemy.currentState = AIState.IDLE // Go back to idle to re-evaluate
             }
-            characterPhysicsSystem.update(enemy.physics, Vector3.Zero, deltaTime) // Stand still while reloading
+            characterPhysicsSystem.update(enemy.physics, Vector3.Zero, deltaTime)
             return
         }
 
@@ -573,9 +657,9 @@ class EnemySystem : IFinePositionable {
                 spawnEnemyBullet(enemy, playerPos, sceneManager)
                 enemy.attackTimer = enemy.equippedWeapon.fireCooldown * 2.0f // Slower test speed
                 enemy.currentMagazineCount--
-            } else if (enemy.ammo > 0) {
-                enemy.currentState = AIState.RELOADING
-                enemy.stateTimer = enemy.equippedWeapon.reloadTime
+            } else {
+                // No ammo left for this weapon at all.
+                handleWeaponSwitch(enemy)
             }
         }
 

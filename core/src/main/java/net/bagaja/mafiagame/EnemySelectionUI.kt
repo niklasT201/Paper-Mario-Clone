@@ -6,12 +6,14 @@ import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
+import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
+import java.awt.SystemColor.window
 
 class EnemySelectionUI(
     private val enemySystem: EnemySystem,
@@ -22,6 +24,17 @@ class EnemySelectionUI(
     private lateinit var enemyTypeItems: MutableList<EnemySelectionItem>
     private lateinit var primaryTacticItems: MutableList<BehaviorSelectionItem>
     private lateinit var emptyAmmoTacticItems: MutableList<BehaviorSelectionItem>
+    private lateinit var healthSettingSelectBox: SelectBox<String>
+    private lateinit var customHealthField: TextField
+    private lateinit var minHealthField: TextField
+    private lateinit var maxHealthField: TextField
+    private lateinit var weaponPolicySelectBox: SelectBox<String>
+    private lateinit var canCollectItemsCheckbox: CheckBox
+    private lateinit var healthFieldsTable: Table
+    private lateinit var initialWeaponSelectBox: SelectBox<String>
+    private lateinit var ammoModeSelectBox: SelectBox<String>
+    private lateinit var setAmmoField: TextField
+    private lateinit var ammoFieldsTable: Table
 
     private val primaryBehaviors = listOf(EnemyBehavior.STATIONARY_SHOOTER, EnemyBehavior.AGGRESSIVE_RUSHER, EnemyBehavior.NEUTRAL)
     private val emptyAmmoBehaviors = listOf(EnemyBehavior.AGGRESSIVE_RUSHER, EnemyBehavior.SKIRMISHER)
@@ -47,24 +60,26 @@ class EnemySelectionUI(
     }
 
     private fun setupEnemySelectionUI() {
-        // Create enemy selection table at the top center
+        // 1. Root Table Setup
         enemySelectionTable = Table()
         enemySelectionTable.setFillParent(true)
         enemySelectionTable.top()
         enemySelectionTable.pad(40f)
 
-        // Create main container with modern styling
+        // 2. Main Container with Background
         val mainContainer = Table()
         mainContainer.background = createModernBackground()
         mainContainer.pad(20f, 30f, 20f, 30f)
 
         val titleLabel = Label("Enemy Configuration", skin, "title")
-        mainContainer.add(titleLabel).padBottom(15f).colspan(2).row()
+        mainContainer.add(titleLabel).padBottom(20f).row()
 
-        val typeTitle = Label("Enemy Archetype", skin, "default")
-        mainContainer.add(typeTitle).colspan(2).padBottom(10f).row()
+        // 3. Top Section for Visual Choices (Archetypes & Tactics)
+        val topSelectionContainer = Table()
 
-        // Create horizontal container for enemy type items
+        // 3a. Archetype Column (Left side)
+        val archetypeColumn = Table()
+        archetypeColumn.add(Label("Enemy Archetype", skin, "default")).padBottom(10f).row()
         val enemyTypeContainer = Table()
         enemyTypeItems = mutableListOf()
         EnemyType.entries.forEachIndexed { index, enemyType ->
@@ -73,8 +88,12 @@ class EnemySelectionUI(
             if (index > 0) enemyTypeContainer.add().width(15f)
             enemyTypeContainer.add(item.container).size(100f, 130f)
         }
-        mainContainer.add(enemyTypeContainer).colspan(2).padBottom(20f).row()
+        archetypeColumn.add(enemyTypeContainer)
 
+        // 3b. Tactics Column (Right side)
+        val tacticsColumn = Table()
+
+        // Primary Tactic (Restored)
         val primaryTacticTable = Table()
         primaryTacticTable.add(Label("Primary Tactic", skin, "default")).padBottom(10f).row()
         val primaryTacticContainer = Table()
@@ -82,11 +101,13 @@ class EnemySelectionUI(
         primaryBehaviors.forEachIndexed { index, behavior ->
             val item = createBehaviorItem(behavior, index == primaryTacticIndex)
             primaryTacticItems.add(item)
-            if (index > 0) primaryTacticContainer.add().height(10f).row()
+            if (index > 0) primaryTacticContainer.add().width(10f)
             primaryTacticContainer.add(item.container).size(110f, 100f)
         }
         primaryTacticTable.add(primaryTacticContainer)
+        tacticsColumn.add(primaryTacticTable).padBottom(15f).row()
 
+        // Out of Ammo Tactic (Restored)
         val emptyAmmoTacticTable = Table()
         emptyAmmoTacticTable.add(Label("Out of Ammo Tactic", skin, "default")).padBottom(10f).row()
         val emptyAmmoContainer = Table()
@@ -94,19 +115,160 @@ class EnemySelectionUI(
         emptyAmmoBehaviors.forEachIndexed { index, behavior ->
             val item = createBehaviorItem(behavior, index == emptyAmmoTacticIndex)
             emptyAmmoTacticItems.add(item)
-            if (index > 0) emptyAmmoContainer.add().height(10f).row()
+            if (index > 0) emptyAmmoContainer.add().width(10f)
             emptyAmmoContainer.add(item.container).size(110f, 100f)
         }
         emptyAmmoTacticTable.add(emptyAmmoContainer)
+        tacticsColumn.add(emptyAmmoTacticTable).row()
 
-        mainContainer.add(primaryTacticTable).uniformX().padRight(20f)
-        mainContainer.add(emptyAmmoTacticTable).uniformX().padLeft(20f).row()
+        // Add columns to the top container
+        topSelectionContainer.add(archetypeColumn).top().padRight(40f)
+        topSelectionContainer.add(tacticsColumn).top()
+        mainContainer.add(topSelectionContainer).padBottom(25f).row()
 
+        // 4. Bottom Section for Detailed Configuration
+        val configTitle = Label("Placement Settings", skin, "title")
+        mainContainer.add(configTitle).padTop(15f).padBottom(15f).row()
+
+        val configTable = Table()
+
+        // Health Settings
+        healthFieldsTable = Table() // This table will hold the dynamic text fields
+        val healthSettingNames = com.badlogic.gdx.utils.Array(HealthSetting.entries.map { it.displayName }.toTypedArray())
+        healthSettingSelectBox = SelectBox(skin)
+        healthSettingSelectBox.items = healthSettingNames
+        configTable.add(Label("Health:", skin)).left().padRight(10f)
+        configTable.add(healthSettingSelectBox).width(150f).left().row()
+
+        customHealthField = TextField("", skin)
+        minHealthField = TextField("", skin)
+        maxHealthField = TextField("", skin)
+
+        val customHealthRow = Table()
+        customHealthRow.add(Label("Custom HP:", skin)).padRight(10f)
+        customHealthRow.add(customHealthField).width(80f)
+        healthFieldsTable.add(customHealthRow).left().row()
+
+        val randomHealthRow = Table()
+        randomHealthRow.add(Label("Min HP:", skin)).padRight(10f)
+        randomHealthRow.add(minHealthField).width(60f).padRight(10f)
+        randomHealthRow.add(Label("Max HP:", skin)).padRight(10f)
+        randomHealthRow.add(maxHealthField).width(60f)
+        healthFieldsTable.add(randomHealthRow).left().row()
+
+        configTable.add(healthFieldsTable).colspan(2).left().padTop(5f).row()
+
+        // Weapon & Item Settings
+        val weaponPolicyNames = com.badlogic.gdx.utils.Array(WeaponCollectionPolicy.entries.map { it.displayName }.toTypedArray())
+        weaponPolicySelectBox = SelectBox(skin)
+        weaponPolicySelectBox.items = weaponPolicyNames
+        configTable.add(Label("Weapon Pickup:", skin)).left().padTop(10f).padRight(10f)
+        configTable.add(weaponPolicySelectBox).width(200f).left().row()
+
+        // Initial Weapon Selection
+        val weaponNames = com.badlogic.gdx.utils.Array(WeaponType.entries.map { it.displayName }.toTypedArray())
+        initialWeaponSelectBox = SelectBox(skin)
+        initialWeaponSelectBox.items = weaponNames
+        configTable.add(Label("Start Weapon:", skin)).left().padTop(5f).padRight(10f)
+        configTable.add(initialWeaponSelectBox).width(200f).left().row()
+
+        // Ammo Settings
+        ammoFieldsTable = Table()
+        val ammoModeNames = com.badlogic.gdx.utils.Array(AmmoSpawnMode.entries.filter { it != AmmoSpawnMode.RANDOM }.map { it.name }.toTypedArray())
+        ammoModeSelectBox = SelectBox(skin)
+        ammoModeSelectBox.items = ammoModeNames
+        val setAmmoRow = Table()
+        setAmmoField = TextField("", skin)
+        setAmmoRow.add(Label("Ammo:", skin)).padRight(10f)
+        setAmmoRow.add(ammoModeSelectBox).padRight(10f)
+        setAmmoRow.add(setAmmoField).width(60f)
+        ammoFieldsTable.add(setAmmoRow).left().row()
+        configTable.add(ammoFieldsTable).colspan(2).left().padTop(5f).row()
+
+        // Item Collection Checkbox
+        canCollectItemsCheckbox = CheckBox(" Can Collect Items (Money, etc.)", skin)
+        canCollectItemsCheckbox.isChecked = true
+        configTable.add(canCollectItemsCheckbox).colspan(2).left().padTop(5f).row()
+
+        mainContainer.add(configTable).padBottom(15f).row()
+
+        // 5. Instructions Label
         val instructionLabel = Label("Hold [Y] | Wheel: Archetype | Shift+Wheel: Tactic | Ctrl+Wheel: Fallback", skin)
-        mainContainer.add(instructionLabel).colspan(2).padTop(20f).row()
+        mainContainer.add(instructionLabel).padTop(20f).row()
 
+        // 6. Final Assembly
         enemySelectionTable.add(mainContainer)
         stage.addActor(enemySelectionTable)
+
+        // 7. Add Listeners to control dynamic UI
+        healthSettingSelectBox.addListener {
+            updateHealthFieldVisibility()
+            true
+        }
+        initialWeaponSelectBox.addListener {
+            updateAmmoUIVisibility()
+            true
+        }
+        ammoModeSelectBox.addListener {
+            updateAmmoUIVisibility()
+            true
+        }
+
+        // Set initial visibility of dynamic fields
+        updateHealthFieldVisibility()
+        updateAmmoUIVisibility()
+    }
+
+    private fun updateHealthFieldVisibility() {
+        val selected = HealthSetting.entries.find { it.displayName == healthSettingSelectBox.selected }
+        healthFieldsTable.getChild(0).isVisible = selected == HealthSetting.FIXED_CUSTOM // Custom HP row
+        healthFieldsTable.getChild(1).isVisible = selected == HealthSetting.RANDOM_RANGE  // Random HP row
+    }
+
+    private fun updateAmmoUIVisibility() {
+        val selectedWeapon = WeaponType.entries.find { it.displayName == initialWeaponSelectBox.selected }
+        val isGun = selectedWeapon != null && selectedWeapon.actionType != WeaponActionType.MELEE && selectedWeapon != WeaponType.UNARMED
+
+        ammoFieldsTable.isVisible = isGun
+
+        if (isGun) {
+            val selectedMode = AmmoSpawnMode.valueOf(ammoModeSelectBox.selected)
+            setAmmoField.isVisible = selectedMode == AmmoSpawnMode.SET
+        }
+
+        // REMOVE THIS LINE: window.pack()
+    }
+
+    // NEW METHOD to get the full configuration from the UI
+    fun getSpawnConfig(position: Vector3): EnemySpawnConfig {
+        val enemyType = EnemyType.entries[enemySystem.currentEnemyTypeIndex]
+        val behavior = primaryBehaviors[primaryTacticIndex]
+
+        val healthSetting = HealthSetting.entries.find { it.displayName == healthSettingSelectBox.selected } ?: HealthSetting.FIXED_DEFAULT
+        val customHealth = customHealthField.text.toFloatOrNull() ?: enemyType.baseHealth
+        val minHealth = minHealthField.text.toFloatOrNull() ?: (enemyType.baseHealth * 0.8f)
+        val maxHealth = maxHealthField.text.toFloatOrNull() ?: (enemyType.baseHealth * 1.2f)
+
+        val weaponPolicy = WeaponCollectionPolicy.entries.find { it.displayName == weaponPolicySelectBox.selected } ?: WeaponCollectionPolicy.CANNOT_COLLECT
+
+        val initialWeapon = WeaponType.entries.find { it.displayName == initialWeaponSelectBox.selected } ?: WeaponType.UNARMED
+        val ammoMode = AmmoSpawnMode.valueOf(ammoModeSelectBox.selected)
+        val setAmmo = setAmmoField.text.toIntOrNull() ?: 30
+
+        return EnemySpawnConfig(
+            enemyType = enemyType,
+            behavior = behavior,
+            position = position,
+            healthSetting = healthSetting,
+            customHealthValue = customHealth,
+            minRandomHealth = minHealth,
+            maxRandomHealth = maxHealth,
+            weaponCollectionPolicy = weaponPolicy,
+            canCollectItems = canCollectItemsCheckbox.isChecked,
+            initialWeapon = initialWeapon,
+            ammoSpawnMode = ammoMode,
+            setAmmoValue = setAmmo
+        )
     }
 
     fun nextPrimaryTactic() {

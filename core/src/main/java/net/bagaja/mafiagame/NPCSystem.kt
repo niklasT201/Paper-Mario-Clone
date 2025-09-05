@@ -79,9 +79,13 @@ data class GameNPC(
     val id: String = UUID.randomUUID().toString(),
     val modelInstance: ModelInstance,
     val npcType: NPCType,
-    var behaviorType: NPCBehavior, // Behavior can change during the story
+    var behaviorType: NPCBehavior,
     var position: Vector3,
-    var health: Float = npcType.baseHealth
+    var health: Float = npcType.baseHealth,
+    val isHonest: Boolean = true,
+    val canCollectItems: Boolean = true,
+    val inventory: MutableList<GameItem> = mutableListOf(),
+    var equippedMeleeWeapon: WeaponType = WeaponType.UNARMED
 ) {
     var isOnFire: Boolean = false
     var onFireTimer: Float = 0f
@@ -312,16 +316,14 @@ class NPCSystem : IFinePositionable {
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
 
-            // Position the NPC so its feet are on the surface.
-            val npcType = currentSelectedNPCType
-            val npcPosition = Vector3(tempVec3.x, surfaceY + npcType.height / 2f, tempVec3.z)
+            // Get config from UI to know the height for placement
+            val tempConfig = sceneManager.game.uiManager.npcSelectionUI.getSpawnConfig(Vector3.Zero)
+            val npcPosition = Vector3(tempVec3.x, surfaceY + tempConfig.npcType.height / 2f, tempVec3.z)
 
-            val newNPC = createNPC(
-                npcPosition,
-                currentSelectedNPCType,
-                currentSelectedBehavior,
-                currentRotation // Pass the saved rotation
-            )
+            // Get the final, complete config with the correct position
+            val finalConfig = sceneManager.game.uiManager.npcSelectionUI.getSpawnConfig(npcPosition)
+
+            val newNPC = createNPC(finalConfig, currentRotation)
 
             if (newNPC != null) {
                 sceneManager.activeNPCs.add(newNPC)
@@ -363,24 +365,27 @@ class NPCSystem : IFinePositionable {
         return highestY
     }
 
-    fun createNPC(position: Vector3, npcType: NPCType, behavior: NPCBehavior, initialRotation: Float = 0f): GameNPC? {
-        val model = npcModels[npcType] ?: return null
+    fun createNPC(config: NPCSpawnConfig, initialRotation: Float = 0f): GameNPC? {
+        val model = npcModels[config.npcType] ?: return null
         val instance = ModelInstance(model)
         instance.userData = "character"
 
         val newNpc = GameNPC(
+            id = config.id ?: UUID.randomUUID().toString(),
             modelInstance = instance,
-            npcType = npcType,
-            behaviorType = behavior,
-            position = position.cpy()
+            npcType = config.npcType,
+            behaviorType = config.behavior,
+            position = config.position.cpy(),
+            canCollectItems = config.canCollectItems,
+            isHonest = config.isHonest
         )
 
         newNpc.physics = PhysicsComponent(
-            position = position.cpy(),
-            size = Vector3(npcType.width, npcType.height, npcType.width),
-            speed = npcType.speed
+            position = config.position.cpy(),
+            size = Vector3(config.npcType.width, config.npcType.height, config.npcType.width),
+            speed = config.npcType.speed
         )
-        newNpc.physics.facingRotationY = initialRotation // Set initial facing direction
+        newNpc.physics.facingRotationY = initialRotation
         newNpc.physics.updateBounds()
 
         return newNpc

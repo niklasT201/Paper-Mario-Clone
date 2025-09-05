@@ -110,19 +110,25 @@ class MissionSystem(private val game: MafiaGame) {
         println("--- MISSION STARTED: ${missionDef.title} ---")
         activeMission = MissionState(missionDef)
 
-        // SPECIAL CASE: Spawn the enemy for our test mission
+        // --- CORRECTED CODE BLOCK ---
         if (id == "test_mission_01") {
-            val missionThug = game.enemySystem.createEnemy(
+            // Build the configuration object for the enemy
+            val missionThugConfig = EnemySpawnConfig(
                 position = Vector3(-25f, 2f, -20f),
                 enemyType = EnemyType.MOUSE_THUG,
                 behavior = EnemyBehavior.STATIONARY_SHOOTER,
-                id = "mission_thug_01"
+                id = "mission_thug_01", // The specific ID for the objective
+                initialWeapon = WeaponType.LIGHT_TOMMY_GUN // Give him a weapon
             )
+
+            // Call createEnemy with the single config object
+            val missionThug = game.enemySystem.createEnemy(missionThugConfig)
 
             if (missionThug != null) {
                 game.sceneManager.activeEnemies.add(missionThug)
             }
         }
+        // --- END CORRECTION ---
 
         updateUIForCurrentObjective()
     }

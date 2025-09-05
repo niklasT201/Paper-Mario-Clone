@@ -51,8 +51,8 @@ class UIManager(
     private lateinit var backgroundSelectionUI: BackgroundSelectionUI
     private lateinit var parallaxSelectionUI: ParallaxSelectionUI
     private lateinit var interiorSelectionUI: InteriorSelectionUI
-    private lateinit var enemySelectionUI: EnemySelectionUI
-    private lateinit var npcSelectionUI: NPCSelectionUI
+    lateinit var enemySelectionUI: EnemySelectionUI
+    lateinit var npcSelectionUI: NPCSelectionUI
     private lateinit var particleSelectionUI: ParticleSelectionUI
     private lateinit var spawnerUI: SpawnerUI
     private lateinit var lightSourceUI: LightSourceUI

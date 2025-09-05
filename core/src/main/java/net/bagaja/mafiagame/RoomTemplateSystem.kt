@@ -21,6 +21,7 @@ data class RoomElement(
     val npcType: NPCType? = null,
     val npcBehavior: NPCBehavior? = null,
     val npcRotation: Float = 0f,
+    val targetId: String? = null,
     val rotation: Float = 0f,
     val textureRotation: Float = 0f,
     val topTextureRotation: Float = 0f,

@@ -5,12 +5,10 @@ import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
+import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
-import com.badlogic.gdx.scenes.scene2d.ui.Label
-import com.badlogic.gdx.scenes.scene2d.ui.ScrollPane
-import com.badlogic.gdx.scenes.scene2d.ui.Skin
-import com.badlogic.gdx.scenes.scene2d.ui.Table
+import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
@@ -27,6 +25,8 @@ class NPCSelectionUI(
     private lateinit var npcScrollPane: ScrollPane
     private lateinit var behaviorScrollPane: ScrollPane
     private val loadedTextures = mutableMapOf<String, Texture>()
+    private lateinit var canCollectItemsCheckbox: CheckBox
+    private lateinit var isHonestCheckbox: CheckBox
 
     // Use specific data classes like in EnemySelectionUI
     private data class NPCSelectionItem(
@@ -81,8 +81,8 @@ class NPCSelectionUI(
         // Create scroll pane for NPC types
         npcScrollPane = ScrollPane(npcTypeContainer, skin)
         npcScrollPane.setScrollingDisabled(false, true) // Allow horizontal scrolling only
-        npcScrollPane.setFadeScrollBars(false)
-        npcScrollPane.setVariableSizeKnobs(false)
+        npcScrollPane.fadeScrollBars = false
+        npcScrollPane.variableSizeKnobs = false
 
         // Set a maximum width for the scroll pane (adjust based on your screen size)
         val maxScrollWidth = 600f // Adjust this value as needed
@@ -103,10 +103,22 @@ class NPCSelectionUI(
         // Create scroll pane for behaviors
         behaviorScrollPane = ScrollPane(behaviorContainer, skin)
         behaviorScrollPane.setScrollingDisabled(false, true) // Allow horizontal scrolling only
-        behaviorScrollPane.setFadeScrollBars(false)
-        behaviorScrollPane.setVariableSizeKnobs(false)
+        behaviorScrollPane.fadeScrollBars = false
+        behaviorScrollPane.variableSizeKnobs = false
 
         mainContainer.add(behaviorScrollPane).width(maxScrollWidth).height(80f).padBottom(10f).row()
+
+        // After behavior section, before rotation label
+        val optionsTable = Table()
+        canCollectItemsCheckbox = CheckBox(" Can Collect Items", skin)
+        canCollectItemsCheckbox.isChecked = true // Default
+        isHonestCheckbox = CheckBox(" Is Honest (Returns Items)", skin)
+        isHonestCheckbox.isChecked = true // Default
+
+        optionsTable.add(canCollectItemsCheckbox).left().padRight(20f)
+        optionsTable.add(isHonestCheckbox).left()
+
+        mainContainer.add(optionsTable).padTop(10f).row()
 
         rotationLabel = Label("", skin, "default")
         rotationLabel.setAlignment(Align.center)
@@ -116,6 +128,16 @@ class NPCSelectionUI(
 
         selectionTable.add(mainContainer)
         stage.addActor(selectionTable)
+    }
+
+    fun getSpawnConfig(position: Vector3): NPCSpawnConfig {
+        return NPCSpawnConfig(
+            npcType = npcSystem.currentSelectedNPCType,
+            behavior = npcSystem.currentSelectedBehavior,
+            position = position,
+            canCollectItems = canCollectItemsCheckbox.isChecked,
+            isHonest = isHonestCheckbox.isChecked
+        )
     }
 
     // Create a specific function for NPC types
