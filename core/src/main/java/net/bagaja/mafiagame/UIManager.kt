@@ -103,6 +103,7 @@ class UIManager(
     private lateinit var persistentMessageLabel: Label
     private lateinit var fpsLabel: Label
     private lateinit var fpsTable: Table
+    private lateinit var missionObjectiveLabel: Label
 
     private var isUIVisible = false
         private set
@@ -152,6 +153,13 @@ class UIManager(
         persistentMessageTable.top().pad(50f)
         persistentMessageTable.add(persistentMessageLabel)
         stage.addActor(persistentMessageTable)
+
+        missionObjectiveLabel = Label("", skin, "title")
+        val objectiveTable = Table()
+        objectiveTable.setFillParent(true)
+        objectiveTable.top().right().pad(20f)
+        objectiveTable.add(missionObjectiveLabel)
+        stage.addActor(objectiveTable)
 
         // Initialize all your selection UIs (unchanged)
         blockSelectionUI = BlockSelectionUI(blockSystem, skin, stage)
@@ -995,6 +1003,14 @@ class UIManager(
     }
 
     fun isDialogActive(): Boolean = dialogSystem.isActive()
+
+    fun updateMissionObjective(text: String) {
+        missionObjectiveLabel.setText(text)
+        // Optional: Add a fade-in animation
+        missionObjectiveLabel.clearActions()
+        missionObjectiveLabel.color.a = 0f
+        missionObjectiveLabel.addAction(Actions.fadeIn(0.5f))
+    }
 
     fun render() {
         dialogSystem.update(Gdx.graphics.deltaTime)

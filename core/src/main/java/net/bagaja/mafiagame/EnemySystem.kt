@@ -302,13 +302,14 @@ class EnemySystem : IFinePositionable {
         return highestY
     }
 
-    fun createEnemy(position: Vector3, enemyType: EnemyType, behavior: EnemyBehavior): GameEnemy? {
+    fun createEnemy(position: Vector3, enemyType: EnemyType, behavior: EnemyBehavior, id: String = UUID.randomUUID().toString()): GameEnemy? {
         val model = enemyModels[enemyType] ?: return null
         val instance = ModelInstance(model)
 
         instance.userData = "character"
 
         val enemy = GameEnemy(
+            id = id,
             modelInstance = instance,
             enemyType = enemyType,
             behaviorType = behavior,

@@ -18,6 +18,8 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var spriteBatch: SpriteBatch
     lateinit var cameraManager: CameraManager
     lateinit var shaderEffectManager: ShaderEffectManager
+    private lateinit var triggerSystem: TriggerSystem
+    lateinit var missionSystem: MissionSystem
 
     // UI and Input Managers
     lateinit var uiManager: UIManager
@@ -31,8 +33,8 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var objectSystem: ObjectSystem
     private lateinit var itemSystem: ItemSystem
     private lateinit var carSystem: CarSystem
-    private lateinit var sceneManager: SceneManager
-    private lateinit var enemySystem: EnemySystem
+    lateinit var sceneManager: SceneManager
+    lateinit var enemySystem: EnemySystem
     private lateinit var npcSystem: NPCSystem
     private lateinit var pathfindingSystem: PathfindingSystem
     private lateinit var roomTemplateManager: RoomTemplateManager
@@ -175,6 +177,11 @@ class MafiaGame : ApplicationAdapter() {
         // Initialize managers that depend on initialized systems
         transitionSystem.create(cameraManager.findUiCamera())
         uiManager.initialize()
+
+        missionSystem = MissionSystem(this)
+        missionSystem.initialize()
+        triggerSystem = TriggerSystem(this)
+        triggerSystem.initialize()
 
         // Initialize Input Handler
         inputHandler = InputHandler(
@@ -616,6 +623,8 @@ class MafiaGame : ApplicationAdapter() {
             lightingManager.setGrayscaleMode(isSinCityEffect)
 
             sceneManager.update(deltaTime)
+            missionSystem.update(deltaTime)
+            triggerSystem.update()
             transitionSystem.update(deltaTime)
 
             // Update lighting manager
@@ -804,6 +813,7 @@ class MafiaGame : ApplicationAdapter() {
         modelBatch.end()
 
         teleporterSystem.renderNameplates(cameraManager.camera, playerSystem)
+        triggerSystem.render(cameraManager.camera, lightingManager.getEnvironment())
         interiorSystem.renderBillboards(cameraManager.camera, environment, sceneManager.activeInteriors)
 
         if (isEditorMode) {
@@ -895,6 +905,7 @@ class MafiaGame : ApplicationAdapter() {
         bloodPoolSystem.dispose()
         footprintSystem.dispose()
         boneSystem.dispose()
+        triggerSystem.dispose()
 
         // Dispose shader effect manager
         shaderEffectManager.dispose()

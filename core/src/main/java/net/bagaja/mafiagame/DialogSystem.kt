@@ -1,4 +1,3 @@
-// net/bagaja/mafiagame/DialogSystem.kt
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
@@ -63,7 +62,7 @@ class DialogSystem {
         // Shared Settings
         private const val VISIBLE_PORTRAIT_RATIO = 0.8f // Show the top 60% of the portrait
         private const val NPC_PORTRAIT_OVERLAP = -30f
-        private const val PLAYER_PORTRAIT_OVERLAP = -6f
+        private const val PLAYER_PORTRAIT_OVERLAP = 5f
         private const val PLAYER_VERTICAL_OFFSET = 25f
     }
 
@@ -79,7 +78,7 @@ class DialogSystem {
         mainContainer.setFillParent(true)
         mainContainer.isVisible = false
 
-        mainContainer.bottom().left()
+        mainContainer.bottom()
 
         // This table will hold the actual content (portrait and dialog box)
         val layoutTable = Table()
@@ -140,7 +139,7 @@ class DialogSystem {
             .width(Gdx.graphics.width * 0.7f)
             .minHeight(Gdx.graphics.height * 0.28f)
 
-        layoutCell = mainContainer.add(layoutTable).pad(0f, 30f, 60f, 0f)
+        layoutCell = mainContainer.add(layoutTable).padBottom(60f)
 
         stage.addActor(mainContainer)
     }
@@ -219,7 +218,6 @@ class DialogSystem {
                 PLAYER_PORTRAIT_WIDTH,
                 PLAYER_PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO
             )
-            layoutCell.padLeft(40f)  // Move the player's UI group further left
             portraitCell.padRight(PLAYER_PORTRAIT_OVERLAP)
 
             portraitCell.padBottom(PLAYER_VERTICAL_OFFSET) // Push the player portrait up
@@ -231,7 +229,6 @@ class DialogSystem {
                 NPC_PORTRAIT_WIDTH,
                 NPC_PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO
             )
-            layoutCell.padLeft(30f) // Use more padding for other characters, pushing them right
             portraitCell.padRight(NPC_PORTRAIT_OVERLAP)
             portraitCell.padBottom(0f) // Reset padding for NPCs to keep them at the baseline
             speakerPortraitImage.setScaling(Scaling.fit)
