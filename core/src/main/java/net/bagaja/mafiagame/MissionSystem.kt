@@ -1,10 +1,9 @@
 package net.bagaja.mafiagame
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.math.Vector3
-import net.bagaja.mafiagame.EnemyType
-import net.bagaja.mafiagame.MafiaGame
-import net.bagaja.mafiagame.NPCBehavior
-import net.bagaja.mafiagame.NPCType
+import com.badlogic.gdx.utils.Json
+import com.badlogic.gdx.utils.JsonWriter
 
 class MissionSystem(private val game: MafiaGame) {
 
@@ -12,47 +11,54 @@ class MissionSystem(private val game: MafiaGame) {
     private var activeMission: MissionState? = null
     private var gameState = GameState() // This will be loaded from a file later
 
+    // LibGDX's JSON parser
+    private val json = Json().apply {
+        setUsePrototypes(false)
+        setOutputType(JsonWriter.OutputType.json)
+    }
+    private val missionsDir = "missions"
+
     fun initialize() {
-        // For now, we will load a hardcoded test mission
-        loadTestMissions()
+        loadAllMissionsFromFiles()
     }
 
-    private fun loadTestMissions() {
-        val testMission = MissionDefinition(
-            id = "test_mission_01",
-            title = "First Hit",
-            startTrigger = MissionTrigger(
-                type = TriggerType.ON_ENTER_AREA,
-                areaCenter = Vector3(-10f, 2f, 10f),
-                areaRadius = 5f
-            ),
-            objectives = listOf(
-                MissionObjective(
-                    description = "Go to the alley behind the restaurant.",
-                    completionCondition = CompletionCondition(
-                        type = ConditionType.ENTER_AREA,
-                        areaCenter = Vector3(-25f, 2f, -15f),
-                        areaRadius = 8f
-                    )
-                ),
-                MissionObjective(
-                    description = "Take out the thug.",
-                    completionCondition = CompletionCondition(
-                        type = ConditionType.ELIMINATE_TARGET,
-                        targetId = "mission_thug_01" // We'll need to spawn an enemy with this ID
-                    )
-                ),
-                MissionObjective(
-                    description = "Mission Complete!",
-                    completionCondition = CompletionCondition(
-                        type = ConditionType.TIMER_EXPIRES,
-                        timerDuration = 3f // Show "Complete" for 3 seconds
-                    )
-                )
-            )
-        )
-        allMissions[testMission.id] = testMission
+    private fun loadAllMissionsFromFiles() {
+        allMissions.clear()
+        val dirHandle = Gdx.files.local(missionsDir)
+        println("MissionSystem: Attempting to load missions from ${dirHandle.path()}...")
+
+        if (!dirHandle.exists() || !dirHandle.isDirectory) {
+            println("MissionSystem: ERROR - Directory '$missionsDir' not found or is not a directory.")
+            return
+        }
+
+        val missionFiles = dirHandle.list(".json")
+        if (missionFiles.isEmpty()) {
+            println("MissionSystem: Directory exists but contains no '.json' files.")
+            return
+        }
+
+        println("MissionSystem: Found ${missionFiles.size} potential mission file(s).")
+        missionFiles.forEach { file ->
+            try {
+                val jsonString = file.readString()
+                val missionDef = json.fromJson(MissionDefinition::class.java, jsonString)
+
+                if (missionDef != null && missionDef.id.isNotEmpty()) {
+                    allMissions[missionDef.id] = missionDef
+                    println(" -> Successfully loaded mission: ${missionDef.title} (ID: ${missionDef.id})")
+                } else {
+                    println(" -> ERROR: Failed to parse mission from ${file.name()}.")
+                }
+            } catch (e: Exception) {
+                println(" -> EXCEPTION while loading mission from ${file.name()}: ${e.message}")
+            }
+        }
+        println("MissionSystem: Finished loading. Total missions loaded: ${allMissions.size}")
     }
+
+    // THIS FUNCTION IS NO LONGER NEEDED, YOU CAN DELETE IT
+    // private fun loadTestMissions() { ... }
 
     fun update(deltaTime: Float) {
         val currentMission = activeMission ?: return // If no mission is active, do nothing
@@ -106,12 +112,11 @@ class MissionSystem(private val game: MafiaGame) {
 
         // SPECIAL CASE: Spawn the enemy for our test mission
         if (id == "test_mission_01") {
-            // Now we create the enemy directly with the ID it needs for the mission objective.
             val missionThug = game.enemySystem.createEnemy(
                 position = Vector3(-25f, 2f, -20f),
                 enemyType = EnemyType.MOUSE_THUG,
                 behavior = EnemyBehavior.STATIONARY_SHOOTER,
-                id = "mission_thug_01" // <-- Pass the specific ID here
+                id = "mission_thug_01"
             )
 
             if (missionThug != null) {
@@ -150,14 +155,16 @@ class MissionSystem(private val game: MafiaGame) {
         game.uiManager.updateMissionObjective("") // Clear the UI
     }
 
-    fun isMissionCompleted(id: String): Boolean {
-        return gameState.completedMissionIds.contains(id)
-    }
-
     private fun updateUIForCurrentObjective() {
         val objective = activeMission?.getCurrentObjective()
         if (objective != null) {
             game.uiManager.updateMissionObjective(objective.description)
         }
     }
+
+    fun isMissionCompleted(id: String): Boolean {
+        return gameState.completedMissionIds.contains(id)
+    }
+
+    fun getAllMissionDefinitions(): Map<String, MissionDefinition> = allMissions
 }

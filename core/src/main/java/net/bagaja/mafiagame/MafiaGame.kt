@@ -181,7 +181,7 @@ class MafiaGame : ApplicationAdapter() {
         missionSystem = MissionSystem(this)
         missionSystem.initialize()
         triggerSystem = TriggerSystem(this)
-        triggerSystem.initialize()
+        triggerSystem.initialize(missionSystem.getAllMissionDefinitions())
 
         // Initialize Input Handler
         inputHandler = InputHandler(

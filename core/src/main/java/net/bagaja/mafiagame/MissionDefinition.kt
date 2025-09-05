@@ -1,25 +1,21 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.math.Vector3
-import net.bagaja.mafiagame.NPCType
-import net.bagaja.mafiagame.EnemyType
-import net.bagaja.mafiagame.WeaponType
 
 // --- Core Mission Definition ---
 
 data class MissionDefinition(
-    val id: String,
-    val title: String,
-    val objectives: List<MissionObjective>,
-    val startTrigger: MissionTrigger,
-    val modifiers: MissionModifiers? = null,
-    // We will add rewards and worldChanges later
+    val id: String = "",
+    val title: String = "",
+    val objectives: List<MissionObjective> = emptyList(),
+    val startTrigger: MissionTrigger = MissionTrigger(),
+    val modifiers: MissionModifiers? = null
 )
 
 // --- Mission State (Runtime Data) ---
 
 data class MissionState(
-    val definition: MissionDefinition,
+    val definition: MissionDefinition = MissionDefinition(),
     var currentObjectiveIndex: Int = 0,
     val missionVariables: MutableMap<String, Any> = mutableMapOf()
 ) {
@@ -31,9 +27,9 @@ data class MissionState(
 // --- Mission Objectives & Conditions ---
 
 data class MissionObjective(
-    val description: String,
-    val completionCondition: CompletionCondition,
-    // We will add eventsOnStart later
+    val description: String = "",
+    val completionCondition: CompletionCondition = CompletionCondition(),
+    val eventsOnStart: List<GameEvent>? = null
 )
 
 enum class ConditionType {
@@ -44,11 +40,12 @@ enum class ConditionType {
 }
 
 data class CompletionCondition(
-    val type: ConditionType,
-    val areaCenter: Vector3? = null, // For ENTER_AREA
-    val areaRadius: Float? = null,   // For ENTER_AREA
-    val targetId: String? = null,      // For ELIMINATE_TARGET or TALK_TO_NPC
-    val timerDuration: Float? = null // For TIMER_EXPIRES
+    val type: ConditionType = ConditionType.ENTER_AREA,
+    val areaCenter: Vector3? = null,
+    val areaRadius: Float? = null,
+
+    val targetId: String? = null,
+    val timerDuration: Float? = null
 )
 
 // --- Mission Triggers (How missions start) ---
@@ -59,7 +56,7 @@ enum class TriggerType {
 }
 
 data class MissionTrigger(
-    val type: TriggerType,
+    val type: TriggerType = TriggerType.ON_ENTER_AREA,
     val areaCenter: Vector3? = null,
     val areaRadius: Float? = null,
     val targetNpcId: String? = null
@@ -73,9 +70,21 @@ data class MissionModifiers(
     val setUnlimitedHealth: Boolean = false
 )
 
+// --- Events ---
+
+enum class GameEventType {
+    SPAWN_ENEMY
+}
+
+data class GameEvent(
+    val type: GameEventType = GameEventType.SPAWN_ENEMY,
+    val enemyType: EnemyType? = null,
+    val spawnPosition: Vector3? = null,
+    val targetId: String? = null
+)
+
 // --- Game State (For Saving/Loading Progress) ---
 
 data class GameState(
-    val completedMissionIds: MutableSet<String> = mutableSetOf(),
-    // We will add worldStateOverrides here later
+    val completedMissionIds: MutableSet<String> = mutableSetOf()
 )

@@ -15,9 +15,6 @@ import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.Disposable
 import net.bagaja.mafiagame.MafiaGame
 
-/**
- * Now holds a visual ModelInstance along with the trigger data.
- */
 data class VisualMissionTrigger(
     val definition: MissionTrigger,
     val modelInstance: ModelInstance,
@@ -30,7 +27,7 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
     private lateinit var modelBatch: ModelBatch
     private lateinit var shaderProvider: BillboardShaderProvider
     private lateinit var triggerTexture: Texture
-    private val models = mutableMapOf<Float, Model>() // Cache models by radius
+    private val models = mutableMapOf<Float, Model>()
 
     // --- State ---
     private val missionTriggers = mutableMapOf<String, VisualMissionTrigger>()
@@ -43,7 +40,7 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
         private const val GROUND_OFFSET = 0.08f
     }
 
-    fun initialize() {
+    fun initialize(allMissions: Map<String, MissionDefinition>) {
         shaderProvider = BillboardShaderProvider().apply {
             setBillboardLightingStrength(0.9f)
             setMinLightLevel(0.4f)
@@ -51,25 +48,21 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
         modelBatch = ModelBatch(shaderProvider)
 
         try {
-            triggerTexture = Texture(Gdx.files.internal("gui/highlight_circle_trans.png"))
+            triggerTexture = Texture(Gdx.files.local("assets/gui/highlight_circle_trans.png"))
             triggerTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
         } catch (e: Exception) {
             println("ERROR: Could not load 'gui/highlight_circle_trans.png'. Trigger visuals will be invisible.")
             return
         }
 
-        // For now, we manually add the trigger for our test mission
-        val testMissionTriggerDef = MissionTrigger(
-            type = TriggerType.ON_ENTER_AREA,
-            areaCenter = Vector3(-10f, 0f, 10f), // Y will be determined dynamically
-            areaRadius = 5f
-        )
-        addTrigger("test_mission_01", testMissionTriggerDef)
+        // Iterate through all loaded missions and create visual triggers for them
+        for ((missionId, missionDef) in allMissions) {
+            if (missionDef.startTrigger.type == TriggerType.ON_ENTER_AREA) {
+                addTrigger(missionId, missionDef.startTrigger)
+            }
+        }
     }
 
-    /**
-     * Creates a new VisualMissionTrigger and adds it to the system.
-     */
     private fun addTrigger(missionId: String, definition: MissionTrigger) {
         val radius = definition.areaRadius ?: return
         val model = getOrCreateModelForRadius(radius)
@@ -80,12 +73,7 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
         missionTriggers[missionId] = visualTrigger
     }
 
-    /**
-     * Creates or retrieves a cached model for a specific radius. This is efficient.
-     */
     private fun getOrCreateModelForRadius(radius: Float): Model {
-        // We now use the *fixed visual size* as the key for our cache.
-        // This is more efficient as we will likely only ever create ONE model for all triggers.
         return models.getOrPut(VISUAL_RADIUS) {
             println("Creating new trigger model for visual radius: $VISUAL_RADIUS")
             val modelBuilder = ModelBuilder()
