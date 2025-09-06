@@ -880,7 +880,7 @@ class EnemySystem : IFinePositionable {
         val velocity = direction.cpy().scl(enemy.equippedWeapon.bulletSpeed)
 
         // 3. Calculate the spawn position based on the horizontal direction
-        val verticalOffset = -enemy.enemyType.height * 0.2f
+        val verticalOffset = -0.3f
         val horizontalOffset = directionX * (enemy.enemyType.width / 2f)
         val spawnPos = Vector3(
             enemy.position.x + horizontalOffset,
