@@ -31,7 +31,7 @@ class MafiaGame : ApplicationAdapter() {
     // Block system
     private lateinit var blockSystem: BlockSystem
     lateinit var objectSystem: ObjectSystem
-    private lateinit var itemSystem: ItemSystem
+    lateinit var itemSystem: ItemSystem
     private lateinit var carSystem: CarSystem
     lateinit var sceneManager: SceneManager
     lateinit var enemySystem: EnemySystem

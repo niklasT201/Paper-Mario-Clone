@@ -368,6 +368,8 @@ class EnemySystem : IFinePositionable {
     fun startDeathSequence(enemy: GameEnemy, sceneManager: SceneManager) {
         if (enemy.currentState == AIState.DYING) return // Already dying
 
+        dropAllItemsOnDeath(enemy)
+
         enemy.currentState = AIState.DYING
         enemy.fadeOutTimer = FADE_OUT_DURATION
         enemy.health = 0f // Finalize death
@@ -579,6 +581,7 @@ class EnemySystem : IFinePositionable {
                 } else if (enemy.canCollectItems) { // It's a non-weapon item like money
                     println("${enemy.enemyType.displayName} collected ${item.itemType.displayName}")
                     // Handle money or other mission items here
+                    enemy.inventory.add(item)
                     itemsToRemove.add(item)
                 }
             }
@@ -588,6 +591,58 @@ class EnemySystem : IFinePositionable {
         itemsToRemove.forEach {
             sceneManager.activeItems.removeValue(it, true)
         }
+    }
+
+    private fun dropAllItemsOnDeath(enemy: GameEnemy) {
+        println("${enemy.enemyType.displayName} is dropping its inventory.")
+        val groundY = sceneManager.findHighestSupportY(enemy.position.x, enemy.position.z, enemy.position.y, 0.1f, blockSize)
+        val baseDropPosition = Vector3(enemy.position.x, groundY, enemy.position.z)
+        val itemSystem = sceneManager.game.itemSystem
+
+        // --- SECTION 1: Drop non-weapon items (like money) from the inventory list ---
+        for (item in enemy.inventory) {
+            val droppedItem = itemSystem.createItem(baseDropPosition, item.itemType)
+            if (droppedItem != null) {
+                droppedItem.position.add(
+                    (Random.nextFloat() - 0.5f) * 1.5f,
+                    0.2f,
+                    (Random.nextFloat() - 0.5f) * 1.5f
+                )
+                sceneManager.activeItems.add(droppedItem)
+                println(" -> Dropped ${item.itemType.displayName}")
+            }
+        }
+
+       // First, put the ammo from the current magazine back into the reserves map for easy calculation.
+        if (enemy.equippedWeapon != WeaponType.UNARMED) {
+            val reserveAmmo = enemy.weapons.getOrDefault(enemy.equippedWeapon, 0)
+            enemy.weapons[enemy.equippedWeapon] = reserveAmmo + enemy.currentMagazineCount
+        }
+
+        // Now, iterate through every weapon the enemy was carrying.
+        for ((weaponType, totalAmmo) in enemy.weapons) {
+            if (weaponType == WeaponType.UNARMED) continue // Don't drop fists
+
+            val weaponItemType = ItemType.entries.find { it.correspondingWeapon == weaponType }
+            if (weaponItemType != null) {
+                val droppedWeapon = itemSystem.createItem(baseDropPosition, weaponItemType)
+                if (droppedWeapon != null) {
+                    // Set the exact total ammo count for this weapon
+                    droppedWeapon.ammo = totalAmmo
+                    droppedWeapon.position.add(
+                        (Random.nextFloat() - 0.5f) * 1.5f,
+                        0.2f,
+                        (Random.nextFloat() - 0.5f) * 1.5f
+                    )
+                    sceneManager.activeItems.add(droppedWeapon)
+                    println(" -> Dropped ${weaponItemType.displayName} with $totalAmmo ammo.")
+                }
+            }
+        }
+
+        // Clear the enemy's inventory so it doesn't get processed again
+        enemy.inventory.clear()
+        enemy.weapons.clear()
     }
 
     private fun updateAI(enemy: GameEnemy, playerSystem: PlayerSystem, deltaTime: Float, sceneManager: SceneManager) {

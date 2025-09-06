@@ -420,6 +420,26 @@ class NPCSystem : IFinePositionable {
         }
     }
 
+    private fun checkForItemPickups(npc: GameNPC, sceneManager: SceneManager) {
+        if (!npc.canCollectItems) return
+
+        val pickupRadius = 3f
+        val itemsToRemove = mutableListOf<GameItem>()
+
+        for (item in sceneManager.activeItems) {
+            if (item.pickupDelay <= 0f && item.position.dst(npc.position) < pickupRadius) {
+                println("${npc.npcType.displayName} found ${item.itemType.displayName}")
+                npc.inventory.add(item)
+                itemsToRemove.add(item)
+            }
+        }
+
+        // Remove the items from the main scene list
+        itemsToRemove.forEach {
+            sceneManager.activeItems.removeValue(it, true)
+        }
+    }
+
     fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float) {
         if (playerSystem.isDriving) return
 
@@ -499,6 +519,30 @@ class NPCSystem : IFinePositionable {
                             (Random.nextFloat() - 0.5f) * 1f
                         )
                         sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BLOOD_DRIP, spawnPosition)
+                    }
+                }
+            }
+
+            checkForItemPickups(npc, sceneManager)
+
+            // Gift-giving logic
+            if (npc.isHonest && npc.inventory.isNotEmpty() && npc.currentState != NPCState.PROVOKED) {
+                val distanceToPlayer = npc.position.dst(playerPos)
+                if (distanceToPlayer < 5f) { // Must be close to the player
+                    // 0.2% chance per frame to offer a gift
+                    if (Random.nextFloat() < 0.002f) {
+                        val itemToGive = npc.inventory.removeAt(0) // Get and remove the first item
+                        val dropPosition = npc.position.cpy().add(0f, 0.5f, 0f)
+
+                        val droppedItem = sceneManager.game.itemSystem.createItem(dropPosition, itemToGive.itemType)
+                        if (droppedItem != null) {
+                            droppedItem.ammo = itemToGive.ammo // Preserve ammo if it's a weapon
+                            sceneManager.activeItems.add(droppedItem)
+
+                            val message = "${npc.npcType.displayName} gave you a ${itemToGive.itemType.displayName}!"
+                            sceneManager.game.uiManager.setPersistentMessage(message)
+                            println(message)
+                        }
                     }
                 }
             }
