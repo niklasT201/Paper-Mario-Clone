@@ -294,7 +294,7 @@ class ItemSystem: IFinePositionable {
             // Only check for collision if the pickup delay has expired.
             if (item.pickupDelay <= 0f && item.checkCollision(playerSystem.getPosition(), 2f)) {
                 if (item.itemType == ItemType.MONEY_STACK) {
-                    playerSystem.addMoney(item.itemType.value)
+                    playerSystem.addMoney(item.value)
                     // The item will be marked for removal below, but don't equip anything
                 } else {
                     // Check if the collected item corresponds to a weapon
@@ -367,6 +367,7 @@ data class GameItem(
     private var bobOffset: Float = 0f,
     var isCollected: Boolean = false,
     var ammo: Int = itemType.ammoAmount,
+    var value: Int = itemType.value, // This is the changed line
     var pickupDelay: Float = 0f,
     val id: String = UUID.randomUUID().toString()
 ) {

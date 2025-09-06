@@ -599,10 +599,32 @@ class EnemySystem : IFinePositionable {
         val baseDropPosition = Vector3(enemy.position.x, groundY, enemy.position.z)
         val itemSystem = sceneManager.game.itemSystem
 
-        // --- SECTION 1: Drop non-weapon items (like money) from the inventory list ---
-        for (item in enemy.inventory) {
+        // A) Separate money from other items in the inventory list.
+        val (moneyItems, otherItems) = enemy.inventory.partition { it.itemType == ItemType.MONEY_STACK }
+
+        // B) Calculate the total value of all collected money stacks.
+        val totalMoneyValue = moneyItems.sumOf { it.value }
+
+        // C) If there's any money, drop it as a SINGLE consolidated stack.
+        if (totalMoneyValue > 0) {
+            val consolidatedMoneyStack = itemSystem.createItem(baseDropPosition, ItemType.MONEY_STACK)
+            if (consolidatedMoneyStack != null) {
+                consolidatedMoneyStack.value = totalMoneyValue // Set the combined value!
+                consolidatedMoneyStack.position.add(
+                    (Random.nextFloat() - 0.5f) * 1.5f,
+                    0.2f,
+                    (Random.nextFloat() - 0.5f) * 1.5f
+                )
+                sceneManager.activeItems.add(consolidatedMoneyStack)
+                println(" -> Dropped consolidated money stack worth $$totalMoneyValue")
+            }
+        }
+
+        // D) Now, drop all other non-money items individually.
+        for (item in otherItems) {
             val droppedItem = itemSystem.createItem(baseDropPosition, item.itemType)
             if (droppedItem != null) {
+                droppedItem.value = item.value // Ensure it keeps its original value
                 droppedItem.position.add(
                     (Random.nextFloat() - 0.5f) * 1.5f,
                     0.2f,
