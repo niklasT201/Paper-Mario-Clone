@@ -560,8 +560,8 @@ class EnemySystem : IFinePositionable {
         val itemsToRemove = mutableListOf<GameItem>()
 
         for (item in sceneManager.activeItems) {
-            if (item.position.dst(enemy.position) < pickupRadius) {
-                if (item.itemType.correspondingWeapon != null) { // It's a weapon
+            if (item.pickupDelay <= 0f && item.position.dst(enemy.position) < pickupRadius) {
+                if (item.itemType.correspondingWeapon != null) {// It's a weapon
                     if (enemy.weaponCollectionPolicy != WeaponCollectionPolicy.CANNOT_COLLECT) {
                         println("${enemy.enemyType.displayName} collected ${item.itemType.displayName}")
                         val weaponType = item.itemType.correspondingWeapon

@@ -137,11 +137,15 @@ class ItemSystem: IFinePositionable {
         }
     }
 
-    fun createItem(position: Vector3, itemType: ItemType): GameItem? {
+    fun createItem(position: Vector3, itemType: ItemType, pickupDelay: Float = 0.5f): GameItem? {
         val modelInstance = createItemInstance(itemType)
         if (modelInstance != null) {
-            // Returns a new GameItem instance. The caller is responsible for adding it to a list.
-            return GameItem(modelInstance, itemType, position.cpy())
+            return GameItem(
+                modelInstance,
+                itemType,
+                position.cpy(),
+                pickupDelay = pickupDelay
+            )
         }
         return null
     }
