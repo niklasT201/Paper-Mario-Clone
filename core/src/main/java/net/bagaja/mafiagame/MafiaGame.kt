@@ -688,7 +688,7 @@ class MafiaGame : ApplicationAdapter() {
                 sceneManager.activeHouses,
                 backgroundSystem,
                 parallaxBackgroundSystem,
-                itemSystem,
+                sceneManager.activeItems,
                 objectSystem,
                 raycastSystem,
                 sceneManager.activeInteriors,

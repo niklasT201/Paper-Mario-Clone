@@ -152,7 +152,6 @@ class SpawnerSystem(
                 }
 
                 sceneManager.activeItems.add(newItem)
-                itemSystem.setActiveItems(sceneManager.activeItems)
                 println("Item spawner created ${newItem.itemType.displayName}. Value: ${newItem.itemType.value}")
             }
         }
@@ -189,7 +188,6 @@ class SpawnerSystem(
             weaponItem.ammo = ammoToGive
 
             sceneManager.activeItems.add(weaponItem)
-            itemSystem.setActiveItems(sceneManager.activeItems)
 
             println("Weapon spawner created ${weaponItem.itemType.displayName}. It will grant $ammoToGive ammo on pickup.")
         }

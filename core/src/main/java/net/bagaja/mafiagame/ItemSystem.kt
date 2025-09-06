@@ -26,7 +26,6 @@ class ItemSystem: IFinePositionable {
     }
     private val itemModels = mutableMapOf<ItemType, Model>()
     private val itemTextures = mutableMapOf<ItemType, Texture>()
-    private val gameItems = Array<GameItem>()
     private lateinit var itemModelBatch: ModelBatch
     private lateinit var billboardShaderProvider: BillboardShaderProvider
     private val renderableInstances = Array<ModelInstance>()
@@ -147,18 +146,6 @@ class ItemSystem: IFinePositionable {
         return null
     }
 
-    fun setActiveItems(newItems: Array<GameItem>) {
-        gameItems.clear()
-        gameItems.addAll(newItems)
-        println("ItemSystem has been updated with ${newItems.size} active items.")
-    }
-
-    fun removeItem(item: GameItem) {
-        if (gameItems.removeValue(item, true)) {
-            println("Removed ${item.itemType.displayName}")
-        }
-    }
-
     fun handlePlaceAction(ray: Ray) {
         val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
         if (hitBlock != null) {
@@ -171,10 +158,9 @@ class ItemSystem: IFinePositionable {
     }
 
     fun handleRemoveAction(ray: Ray): Boolean {
-        val itemToRemove = raycastSystem.getItemAtRay(ray, this) // Pass itself to the raycaster
+        val itemToRemove = raycastSystem.getItemAtRay(ray, sceneManager.activeItems)
         if (itemToRemove != null) {
             sceneManager.activeItems.removeValue(itemToRemove, true)
-            this.setActiveItems(sceneManager.activeItems) // Resync the system's list
             println("Removed ${itemToRemove.itemType.displayName}")
             return true
         }
@@ -242,7 +228,6 @@ class ItemSystem: IFinePositionable {
         val newItem = createItem(position, currentSelectedItem)
         if (newItem != null) {
             sceneManager.activeItems.add(newItem)
-            setActiveItems(sceneManager.activeItems) // Resync this system
             sceneManager.game.lastPlacedInstance = newItem
             println("${newItem.itemType.displayName} placed in scene at: $position")
         }
@@ -276,7 +261,7 @@ class ItemSystem: IFinePositionable {
     fun update(deltaTime: Float, camera: Camera, playerSystem: PlayerSystem, sceneManager: SceneManager) {
         val itemsToRemove = Array<GameItem>()
 
-        for (item in gameItems) {
+        for (item in sceneManager.activeItems) {
             if (item.isCollected) continue
 
             if (item.pickupDelay > 0f) {
@@ -321,19 +306,19 @@ class ItemSystem: IFinePositionable {
 
         // Remove collected items
         for (item in itemsToRemove) {
-            removeItem(item)
+            sceneManager.activeItems.removeValue(item, true)
         }
     }
 
     fun render(camera: Camera, environment: Environment) {
-        if (gameItems.isEmpty) return
+        if (sceneManager.activeItems.isEmpty) return
 
         billboardShaderProvider.setEnvironment(environment)
         itemModelBatch.begin(camera)
 
         // Collect all visible items.
         renderableInstances.clear()
-        for (item in gameItems) {
+        for (item in sceneManager.activeItems) {
             if (!item.isCollected) {
                 renderableInstances.add(item.modelInstance)
             }
@@ -348,7 +333,7 @@ class ItemSystem: IFinePositionable {
     }
 
     fun getItemAtPosition(position: Vector3, radius: Float = 2f): GameItem? {
-        for (item in gameItems) {
+        for (item in sceneManager.activeItems) {
             if (!item.isCollected && item.position.dst(position) <= radius) {
                 return item
             }
@@ -356,7 +341,6 @@ class ItemSystem: IFinePositionable {
         return null
     }
 
-    fun getAllItems(): Array<GameItem> = gameItems
     fun getTextureForItem(itemType: ItemType): Texture? {
         return itemTextures[itemType]
     }

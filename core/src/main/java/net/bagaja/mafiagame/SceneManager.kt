@@ -100,8 +100,6 @@ class SceneManager(
 
         currentScene = SceneType.WORLD
 
-        // Synchronize the ItemSystem with the initial world items
-        itemSystem.setActiveItems(activeItems)
         println("SceneManager initialized. World scene is active with ChunkManager.")
     }
 
@@ -764,9 +762,6 @@ class SceneManager(
         activeFootprints.addAll(state.footprints)
         activeBones.addAll(state.bones)
 
-        // Synchronize the ItemSystem with the restored world items
-        itemSystem.setActiveItems(activeItems)
-
         setSceneLights(state.lights)
     }
 
@@ -806,9 +801,6 @@ class SceneManager(
         activeBloodPools.addAll(state.bloodPools)
         activeFootprints.addAll(state.footprints)
         activeBones.addAll(state.bones)
-
-        // Synchronize the ItemSystem with the loaded interior items
-        itemSystem.setActiveItems(activeItems)
 
         setSceneLights(state.lights)
     }
@@ -1514,8 +1506,6 @@ class SceneManager(
 
         // After loading all blocks, run face culling on the entire active collection
         activeChunkManager.loadInitialBlocks(newBlocksForChunkManager)
-
-        itemSystem.setActiveItems(activeItems)
 
         // Move player to the template's entrance
         playerSystem.setPosition(template.entrancePosition)

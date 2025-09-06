@@ -53,11 +53,11 @@ class RaycastSystem(private val blockSize: Float) {
         return closestObject
     }
 
-    fun getItemAtRay(ray: Ray, itemSystem: ItemSystem): GameItem? {
+    fun getItemAtRay(ray: Ray, gameItems: Array<GameItem>): GameItem? {
         var closestItem: GameItem? = null
         var closestDistance = Float.MAX_VALUE
 
-        for (item in itemSystem.getAllItems()) {
+        for (item in gameItems) {
             if (item.isCollected) continue
 
             // Use the item's bounding box for ray intersection

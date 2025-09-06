@@ -95,7 +95,7 @@ class HighlightSystem(private val blockSize: Float) {
         gameHouses: Array<GameHouse>,
         backgroundSystem: BackgroundSystem,
         parallaxSystem: ParallaxBackgroundSystem,
-        itemSystem: ItemSystem,
+        gameItems: Array<GameItem>,
         objectSystem: ObjectSystem,
         raycastSystem: RaycastSystem,
         gameInteriors: Array<GameInterior>,
@@ -113,7 +113,7 @@ class HighlightSystem(private val blockSize: Float) {
         when (uiManager.selectedTool) {
             UIManager.Tool.BLOCK -> updateBlockHighlight(ray, gameBlocks, raycastSystem, blockSystem)
             UIManager.Tool.OBJECT -> updateObjectHighlight(ray, gameObjects, gameSpawners, objectSystem, raycastSystem, gameBlocks)
-            UIManager.Tool.ITEM -> updateItemHighlight(ray, itemSystem, raycastSystem)
+            UIManager.Tool.ITEM -> updateItemHighlight(ray, gameItems, raycastSystem)
             UIManager.Tool.CAR -> updateCarHighlight(ray, gameCars, raycastSystem, uiManager)
             UIManager.Tool.PLAYER -> updatePlayerHighlight(ray, gameBlocks, raycastSystem)
             UIManager.Tool.HOUSE -> updateHouseHighlight(ray, gameHouses, raycastSystem, uiManager)
@@ -273,7 +273,7 @@ class HighlightSystem(private val blockSize: Float) {
         }
     }
 
-    private fun updateItemHighlight(ray: Ray, itemSystem: ItemSystem, raycastSystem: RaycastSystem) {
+    private fun updateItemHighlight(ray: Ray, gameItems: Array<GameItem>, raycastSystem: RaycastSystem) {
         val intersection = Vector3()
         val groundPlane = Plane(Vector3.Y, 0f)
 
@@ -283,8 +283,8 @@ class HighlightSystem(private val blockSize: Float) {
             val placementPos = Vector3(intersection.x, intersection.y + 1f, intersection.z)
 
             // Check for existing item
-            val existingItem = itemSystem.getItemAtPosition(placementPos, 1.5f)
-            if (existingItem != null && !existingItem.isCollected) {
+            val existingItem = gameItems.find { !it.isCollected && it.position.dst(placementPos) <= 1.5f }
+            if (existingItem != null) {
                 showHighlight(existingItem.position, removeColor)
             } else {
                 showHighlight(placementPos, toolColors[UIManager.Tool.ITEM]!!)
