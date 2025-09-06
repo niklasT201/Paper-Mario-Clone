@@ -172,5 +172,9 @@ class MissionSystem(private val game: MafiaGame) {
         return gameState.completedMissionIds.contains(id)
     }
 
+    fun isMissionActive(id: String): Boolean {
+        return activeMission?.definition?.id == id
+    }
+
     fun getAllMissionDefinitions(): Map<String, MissionDefinition> = allMissions
 }

@@ -100,9 +100,9 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
 
         for ((missionId, trigger) in missionTriggers) {
             // Skip triggers for missions that are already completed
-            if (game.missionSystem.isMissionCompleted(missionId)) {
+            if (game.missionSystem.isMissionActive(missionId) || game.missionSystem.isMissionCompleted(missionId)) {
                 trigger.isVisible = false
-                continue
+                continue // Skip the rest of the logic for this trigger
             }
 
             if (trigger.definition.type == TriggerType.ON_ENTER_AREA) {
