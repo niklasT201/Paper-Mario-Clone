@@ -690,7 +690,8 @@ class PlayerSystem {
         val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
         val velocity = Vector3(directionX * equippedWeapon.bulletSpeed, 0f, 0f)
         val bulletSpawnOffsetX = directionX * 1.5f
-        val bulletSpawnPos = physicsComponent.position.cpy().add(bulletSpawnOffsetX, 0f, 0f)
+        val bulletSpawnVerticalOffset = -playerSize.y * 0.1f // Lower the bullet spawn point from the player's center
+        val bulletSpawnPos = physicsComponent.position.cpy().add(bulletSpawnOffsetX, bulletSpawnVerticalOffset, 0f)
 
         // Determine rotation
         val bulletRotation = if (directionX < 0) 180f else 0f
