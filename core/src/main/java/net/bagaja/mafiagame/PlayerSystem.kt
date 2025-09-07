@@ -1152,17 +1152,26 @@ class PlayerSystem {
                 wipeEffectTimer += deltaTime
                 if (wipeEffectTimer >= WIPE_EFFECT_INTERVAL) {
                     wipeEffectTimer = 0f // Reset timer
-                    val wipePosition = physicsComponent.position.cpy().add(0f, -1.0f, -0.5f)
                     val particleTypeToSpawn: ParticleEffectType
                     val wipeRotation: Float
+                    val wipePosition: Vector3
 
                     // Check if movement is PURELY on the Z-axis
                     if (desiredMovement.x == 0f && desiredMovement.z != 0f) {
+                        // CASE 1: Forward / Backward Movement
                         particleTypeToSpawn = ParticleEffectType.MOVEMENT_WIPE_VERTICAL
                         wipeRotation = if (desiredMovement.z < 0) 90f else 270f // W key is negative Z
+
+                        val zOffset = if (desiredMovement.z < 0) 1.0f else -1.0f
+                        wipePosition = physicsComponent.position.cpy().add(0f, -1.0f, zOffset)
+
                     } else {
+                        // CASE 2: Sideways / Diagonal Movement
                         particleTypeToSpawn = ParticleEffectType.MOVEMENT_WIPE
                         wipeRotation = MathUtils.atan2(-desiredMovement.x, -desiredMovement.z) * MathUtils.radiansToDegrees + 90f
+
+                        // Use the original, correct position for this case.
+                        wipePosition = physicsComponent.position.cpy().add(0f, -1.0f, -0.5f)
                     }
 
                     particleSystem.spawnEffect(

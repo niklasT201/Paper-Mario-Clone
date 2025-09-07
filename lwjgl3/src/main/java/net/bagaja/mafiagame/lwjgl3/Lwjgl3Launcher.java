@@ -69,7 +69,6 @@ public class Lwjgl3Launcher {
 // maybe improving billboard shader
 // maybe adding player hiding tp point text behind it
 // visual reload/charging bar !!!!!
-// only new wipes rotating with players direction not old ones too
 // south park like animation
 // npc and enemy ui option for choosing death level
 // map saving
