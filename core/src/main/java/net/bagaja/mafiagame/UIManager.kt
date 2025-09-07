@@ -211,7 +211,7 @@ class UIManager(
         particleSelectionUI = ParticleSelectionUI(particleSystem, skin, stage)
         particleSelectionUI.initialize()
 
-        spawnerUI = SpawnerUI(skin, stage, particleSystem, itemSystem, spawnerSystem::removeSpawner)
+        spawnerUI = SpawnerUI(skin, stage, spawnerSystem::removeSpawner)
 
         shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager)
         shaderEffectUI.initialize()

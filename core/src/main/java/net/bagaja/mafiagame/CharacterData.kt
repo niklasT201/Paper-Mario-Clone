@@ -1,7 +1,6 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.math.Vector3
-import net.bagaja.mafiagame.*
 
 enum class WeaponCollectionPolicy(val displayName: String) {
     CANNOT_COLLECT("Cannot Collect Weapons"),

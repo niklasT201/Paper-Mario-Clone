@@ -6,7 +6,13 @@ import java.util.*
 import kotlin.random.Random
 
 enum class SpawnerType {
-    PARTICLE, ITEM, WEAPON
+    PARTICLE, ITEM, WEAPON, ENEMY, NPC
+}
+
+// NEW: Spawner behavior modes
+enum class SpawnerMode {
+    CONTINUOUS, // Spawns repeatedly
+    ONE_SHOT    // Spawns once and is then disabled
 }
 
 enum class AmmoSpawnMode {
@@ -15,49 +21,60 @@ enum class AmmoSpawnMode {
     RANDOM // Uses a random value between a min/max
 }
 
-/**
- * MODIFIED: Data class to hold all spawner instance data. Replaces GameParticleSpawner.
- */
 data class GameSpawner(
     val id: String = UUID.randomUUID().toString(),
     var position: Vector3,
     val gameObject: GameObject, // The visible purple cube in the world
 
-    // General Spawner Settings
+    // --- General Spawner Settings ---
     var spawnerType: SpawnerType = SpawnerType.PARTICLE,
-    var spawnInterval: Float = 2.0f,
+    var spawnInterval: Float = 5.0f,
     var timer: Float = spawnInterval,
+    var spawnerMode: SpawnerMode = SpawnerMode.CONTINUOUS,
+    var isDepleted: Boolean = false, // for ONE_SHOT mode
 
     var spawnOnlyWhenPreviousIsGone: Boolean = false,
-    var spawnedEntityId: String? = null, // To track the ID of the spawned item
+    var spawnedEntityId: String? = null,
 
-    // NEW: Special range settings for anti-AFK farming
-    var minSpawnRange: Float = 15f, // Spawning stops if player is closer than this
-    var maxSpawnRange: Float = 100f, // Spawning only happens if player is within this range
+    var minSpawnRange: Float = 0f,
+    var maxSpawnRange: Float = 100f,
 
-    // Particle-specific settings
+    // --- Particle-specific settings ---
     var particleEffectType: ParticleEffectType = ParticleEffectType.SMOKE_FRAME_1,
     var minParticles: Int = 1,
     var maxParticles: Int = 3,
 
-    // Item-specific settings
+    // --- Item-specific settings ---
     var itemType: ItemType = ItemType.MONEY_STACK,
     var minItems: Int = 1,
     var maxItems: Int = 1,
 
-    // Weapon-specific settings
-    var weaponItemType: ItemType = ItemType.REVOLVER, // Spawns the item corresponding to the weapon
-
-    // Ammo settings
+    // --- Weapon-specific settings ---
+    var weaponItemType: ItemType = ItemType.REVOLVER,
     var ammoSpawnMode: AmmoSpawnMode = AmmoSpawnMode.FIXED,
     var setAmmoValue: Int = 12,
     var randomMinAmmo: Int = 6,
-    var randomMaxAmmo: Int = 18
+    var randomMaxAmmo: Int = 18,
+
+    // --- NEW: Enemy specific settings ---
+    var enemyType: EnemyType = EnemyType.MOUSE_THUG,
+    var enemyBehavior: EnemyBehavior = EnemyBehavior.STATIONARY_SHOOTER,
+    var enemyHealthSetting: HealthSetting = HealthSetting.FIXED_DEFAULT,
+    var enemyCustomHealth: Float = 100f,
+    var enemyMinHealth: Float = 80f,
+    var enemyMaxHealth: Float = 120f,
+    var enemyInitialWeapon: WeaponType = WeaponType.UNARMED,
+    var enemyWeaponCollectionPolicy: WeaponCollectionPolicy = WeaponCollectionPolicy.CANNOT_COLLECT,
+    var enemyCanCollectItems: Boolean = true,
+    var enemyInitialMoney: Int = 0,
+
+    // --- NEW: NPC specific settings ---
+    var npcType: NPCType = NPCType.GEORGE_MELES,
+    var npcBehavior: NPCBehavior = NPCBehavior.WANDER,
+    var npcIsHonest: Boolean = true,
+    var npcCanCollectItems: Boolean = true
 )
 
-/**
- * MODIFIED: Manages the update loop for all particle, item, and weapon spawners in the scene.
- */
 class SpawnerSystem(
     private val particleSystem: ParticleSystem,
     private val itemSystem: ItemSystem,
@@ -74,14 +91,23 @@ class SpawnerSystem(
         if (spawners.isEmpty) return
 
         for (spawner in spawners) {
-            // If this spawner should only spawn when the previous item is gone
+            // Skip one-shot spawners that have already fired
+            if (spawner.isDepleted) continue
+
+            // If this spawner should only spawn when the previous entity is gone
             if (spawner.spawnOnlyWhenPreviousIsGone && spawner.spawnedEntityId != null) {
+                // Check if the entity it spawned still exists
+                val entityExists = when (spawner.spawnerType) {
+                    SpawnerType.ITEM, SpawnerType.WEAPON ->
+                        sceneManager.activeItems.any { it.id == spawner.spawnedEntityId && !it.isCollected }
+                    SpawnerType.ENEMY ->
+                        sceneManager.activeEnemies.any { it.id == spawner.spawnedEntityId }
+                    SpawnerType.NPC ->
+                        sceneManager.activeNPCs.any { it.id == spawner.spawnedEntityId }
+                    else -> false
+                }
 
-                // Check if the item it spawned still exists AND has not been collected
-                val itemExists = sceneManager.activeItems.any { it.id == spawner.spawnedEntityId && !it.isCollected }
-
-                if (itemExists) {
-                    // The item is still there, so reset the timer and do nothing.
+                if (entityExists) {
                     spawner.timer = spawner.spawnInterval
                     continue // Skip to the next spawner
                 } else {
@@ -91,9 +117,8 @@ class SpawnerSystem(
             }
 
             val distanceSq = spawner.position.dst2(playerPosition)
+            val isInRange = distanceSq >= getMinRangeSq(spawner) && distanceSq <= getMaxRangeSq(spawner)
 
-            // Range check logic
-            val isInRange = distanceSq > getMinRangeSq(spawner) && distanceSq < getMaxRangeSq(spawner)
             if (!isInRange) {
                 spawner.timer = spawner.spawnInterval // Reset timer if player is out of range
                 continue // Skip this spawner
@@ -106,9 +131,67 @@ class SpawnerSystem(
                     SpawnerType.PARTICLE -> spawnParticles(spawner)
                     SpawnerType.ITEM -> spawnItems(spawner)
                     SpawnerType.WEAPON -> spawnWeaponPickup(spawner)
+                    SpawnerType.ENEMY -> spawnEnemyFromSpawner(spawner)   // NEW
+                    SpawnerType.NPC -> spawnNpcFromSpawner(spawner)     // NEW
                 }
-                spawner.timer += spawner.spawnInterval
+
+                if (spawner.spawnerMode == SpawnerMode.ONE_SHOT) {
+                    spawner.isDepleted = true
+                }
+                spawner.timer = spawner.spawnInterval // Reset timer for next spawn
             }
+        }
+    }
+
+    private fun spawnEnemyFromSpawner(spawner: GameSpawner) {
+        val config = EnemySpawnConfig(
+            enemyType = spawner.enemyType,
+            behavior = spawner.enemyBehavior,
+            position = spawner.position.cpy(), // Spawn at the spawner's location
+            healthSetting = spawner.enemyHealthSetting,
+            customHealthValue = spawner.enemyCustomHealth,
+            minRandomHealth = spawner.enemyMinHealth,
+            maxRandomHealth = spawner.enemyMaxHealth,
+            initialWeapon = spawner.enemyInitialWeapon,
+            ammoSpawnMode = spawner.ammoSpawnMode,
+            setAmmoValue = spawner.setAmmoValue,
+            weaponCollectionPolicy = spawner.enemyWeaponCollectionPolicy,
+            canCollectItems = spawner.enemyCanCollectItems
+        )
+
+        val newEnemy = sceneManager.enemySystem.createEnemy(config)
+        if (newEnemy != null) {
+            // Add initial money if specified
+            if (spawner.enemyInitialMoney > 0) {
+                val moneyItem = itemSystem.createItem(Vector3.Zero, ItemType.MONEY_STACK)!!
+                moneyItem.value = spawner.enemyInitialMoney
+                newEnemy.inventory.add(moneyItem)
+            }
+
+            sceneManager.activeEnemies.add(newEnemy)
+            if (spawner.spawnOnlyWhenPreviousIsGone || spawner.spawnerMode == SpawnerMode.ONE_SHOT) {
+                spawner.spawnedEntityId = newEnemy.id
+            }
+            println("Spawner ${spawner.id} spawned enemy ${newEnemy.enemyType.displayName}")
+        }
+    }
+
+    private fun spawnNpcFromSpawner(spawner: GameSpawner) {
+        val config = NPCSpawnConfig(
+            npcType = spawner.npcType,
+            behavior = spawner.npcBehavior,
+            position = spawner.position.cpy(),
+            isHonest = spawner.npcIsHonest,
+            canCollectItems = spawner.npcCanCollectItems
+        )
+
+        val newNpc = sceneManager.npcSystem.createNPC(config)
+        if (newNpc != null) {
+            sceneManager.activeNPCs.add(newNpc)
+            if (spawner.spawnOnlyWhenPreviousIsGone || spawner.spawnerMode == SpawnerMode.ONE_SHOT) {
+                spawner.spawnedEntityId = newNpc.id
+            }
+            println("Spawner ${spawner.id} spawned NPC ${newNpc.npcType.displayName}")
         }
     }
 
@@ -166,21 +249,11 @@ class SpawnerSystem(
             }
             // Calculate ammo based on the spawner's settings
             val ammoToGive = when (spawner.ammoSpawnMode) {
-                AmmoSpawnMode.FIXED -> {
-                    // Use the default ammo amount from the item's definition
-                    spawner.weaponItemType.ammoAmount
-                }
-                AmmoSpawnMode.SET -> {
-                    // Use the specific value set on the spawner
-                    spawner.setAmmoValue
-                }
+                AmmoSpawnMode.FIXED -> spawner.weaponItemType.ammoAmount
+                AmmoSpawnMode.SET -> spawner.setAmmoValue
                 AmmoSpawnMode.RANDOM -> {
-                    // Generate a random amount within the spawner's defined range
-                    if (spawner.randomMinAmmo >= spawner.randomMaxAmmo) {
-                        spawner.randomMinAmmo
-                    } else {
-                        Random.nextInt(spawner.randomMinAmmo, spawner.randomMaxAmmo + 1)
-                    }
+                    if (spawner.randomMinAmmo >= spawner.randomMaxAmmo) spawner.randomMinAmmo
+                    else Random.nextInt(spawner.randomMinAmmo, spawner.randomMaxAmmo + 1)
                 }
             }
 
