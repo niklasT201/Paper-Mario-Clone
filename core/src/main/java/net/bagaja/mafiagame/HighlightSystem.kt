@@ -15,6 +15,8 @@ import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import kotlin.math.floor
 import com.badlogic.gdx.utils.Array
+import kotlin.math.max
+import kotlin.math.min
 
 class HighlightSystem(private val blockSize: Float) {
     private var highlightModel: Model? = null
@@ -26,6 +28,8 @@ class HighlightSystem(private val blockSize: Float) {
     private val tempRay = Ray()
     private val tempVec3 = Vector3()
     private val groundPlane = Plane(Vector3.Y, 0f)
+    private val areaFillStartColor = Color(0f, 1f, 1f, 0.35f) // Cyan for first corner
+    private val areaFillEndColor = Color(0.2f, 0.6f, 1f, 0.35f) // Blue for second corner
 
     // Colors for different states
     private val placeColor = Color(0f, 1f, 0f, 0.3f) // Green for placement
@@ -162,6 +166,12 @@ class HighlightSystem(private val blockSize: Float) {
     }
 
     private fun updateBlockHighlight(ray: Ray, gameBlocks: Array<GameBlock>, raycastSystem: RaycastSystem, blockSystem: BlockSystem) {
+        // AREA FILL PREVIEW
+        if (blockSystem.isAreaFillModeActive) {
+            updateAreaFillHighlight(ray, blockSystem)
+            return // Stop here if in area fill mode
+        }
+
         val buildMode = blockSystem.currentBuildMode
         val size = buildMode.size.toFloat()
 
@@ -213,6 +223,55 @@ class HighlightSystem(private val blockSize: Float) {
             } else {
                 hideHighlight()
             }
+        }
+    }
+
+    private fun updateAreaFillHighlight(ray: Ray, blockSystem: BlockSystem) {
+        val firstCorner = blockSystem.areaFillFirstCorner
+        val cursorGridPos = blockSystem.getGridPositionFromRay(ray) // We need to get the grid position from the block system now
+
+        if (cursorGridPos == null) {
+            hideHighlight()
+            return
+        }
+
+        if (firstCorner == null) {
+            // STAGE 1: Selecting the first corner
+            // Show a single block preview at the cursor
+            val highlightSize = Vector3(blockSize, blockSize, blockSize)
+            updateHighlightSize(highlightSize)
+
+            // The position needs to be the center of the block
+            val centerPos = cursorGridPos.cpy().add(blockSize / 2f, blockSize / 2f, blockSize / 2f)
+            showHighlight(centerPos, areaFillStartColor) // Use cyan color
+        } else {
+            // STAGE 2: First corner is set, now selecting the second
+            val secondCorner = cursorGridPos
+
+            // Calculate the bounds of the selection box
+            val minX = min(firstCorner.x, secondCorner.x)
+            val maxX = max(firstCorner.x, secondCorner.x)
+            val minY = min(firstCorner.y, secondCorner.y)
+            val maxY = max(firstCorner.y, secondCorner.y)
+            val minZ = min(firstCorner.z, secondCorner.z)
+            val maxZ = max(firstCorner.z, secondCorner.z)
+
+            // The size of the highlight box is the distance between the corners + one block size
+            val size = Vector3(
+                (maxX - minX) + blockSize,
+                (maxY - minY) + blockSize,
+                (maxZ - minZ) + blockSize
+            )
+            updateHighlightSize(size)
+
+            // The position of the highlight box is the center of the volume
+            val centerPosition = Vector3(
+                minX + size.x / 2f - blockSize / 2f,
+                minY + size.y / 2f - blockSize / 2f,
+                minZ + size.z / 2f - blockSize / 2f
+            )
+
+            showHighlight(centerPosition, areaFillEndColor) // Use blue color
         }
     }
 

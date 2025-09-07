@@ -58,6 +58,7 @@ class BlockSystem {
     private var areaFillState = AreaFillState.IDLE
     private var firstCornerGridPosition: Vector3? = null
     val isAreaFillModeActive: Boolean get() = areaFillState != AreaFillState.IDLE
+    val areaFillFirstCorner: Vector3? get() = firstCornerGridPosition
 
     private val blockTextures = mutableMapOf<BlockType, Texture>()
     var currentSelectedBlock = BlockType.GRASS
@@ -170,7 +171,7 @@ class BlockSystem {
         }
     }
 
-    private fun getGridPositionFromRay(ray: Ray): Vector3? {
+    fun getGridPositionFromRay(ray: Ray): Vector3? {
         val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
         if (hitBlock != null) {
             // Logic to place adjacent to an existing block
