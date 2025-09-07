@@ -869,6 +869,14 @@ class UIManager(
         pauseMenuUI.show()
     }
 
+    fun isInventoryVisible(): Boolean {
+        return if (::characterInventoryUI.isInitialized) {
+            characterInventoryUI.isVisible()
+        } else {
+            false
+        }
+    }
+
     fun hideAllEditorPanels() {
         // Hide the main UI panel
         isUIVisible = false
