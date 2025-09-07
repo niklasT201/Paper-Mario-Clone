@@ -153,6 +153,24 @@ class InputHandler(
                             return true
                         }
 
+                        if (!game.isEditorMode) {
+                            val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+
+                            // Check for enemy first
+                            val enemyToInspect = enemySystem.raycastSystem.getEnemyAtRay(ray, sceneManager.activeEnemies)
+                            if (enemyToInspect != null) {
+                                uiManager.showEnemyInventory(enemyToInspect)
+                                return true // Consume the click so it doesn't trigger camera drag
+                            }
+
+                            // If no enemy, check for NPC
+                            val npcToInspect = npcSystem.raycastSystem.getNPCAtRay(ray, sceneManager.activeNPCs)
+                            if (npcToInspect != null) {
+                                uiManager.showNpcInventory(npcToInspect)
+                                return true // Consume the click
+                            }
+                        }
+
                         // PRIORITY 2: Handle removal actions in Editor Mode.
                         if (game.isEditorMode) {
                             // Try to remove a block. If successful, consume the event.

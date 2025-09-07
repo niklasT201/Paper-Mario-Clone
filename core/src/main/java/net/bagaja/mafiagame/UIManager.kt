@@ -61,6 +61,7 @@ class UIManager(
     private lateinit var pauseMenuUI: PauseMenuUI
     private lateinit var visualSettingsUI: VisualSettingsUI
     private lateinit var enemyDebugUI: EnemyDebugUI
+    private lateinit var characterInventoryUI: CharacterInventoryUI
     private lateinit var mainTable: Table
     private lateinit var letterboxTable: Table
     private lateinit var cinematicBarsTable: Table
@@ -128,6 +129,7 @@ class UIManager(
     fun initialize() {
         stage = Stage(ScreenViewport())
         skin = UISkinFactory.createSkin() // Use the factory
+        characterInventoryUI = CharacterInventoryUI(skin, stage, itemSystem)
         layoutBuilder = UILayoutBuilder(skin) // Create the builder
 
         dialogSystem = DialogSystem() // ADD THIS LINE
@@ -1012,6 +1014,17 @@ class UIManager(
         missionObjectiveLabel.addAction(Actions.fadeIn(0.5f))
     }
 
+    fun showEnemyInventory(enemy: GameEnemy) {
+        // Hide other debug/selection UIs to avoid clutter
+        hideAllEditorPanels()
+        characterInventoryUI.show(enemy)
+    }
+
+    fun showNpcInventory(npc: GameNPC) {
+        hideAllEditorPanels()
+        characterInventoryUI.show(npc)
+    }
+
     fun render() {
         dialogSystem.update(Gdx.graphics.deltaTime)
         // Update HUD visibility and values based on game state
@@ -1120,6 +1133,7 @@ class UIManager(
             healthBarFullTexture.dispose()
         }
         dialogSystem.dispose()
+        characterInventoryUI.dispose()
         stage.dispose()
         skin.dispose()
     }
