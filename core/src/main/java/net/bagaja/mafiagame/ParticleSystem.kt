@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
@@ -337,6 +338,13 @@ enum class ParticleEffectType(
         particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
         scale = 1.5f, scaleVariance = 0.3f, fadeIn = 0.05f, fadeOut = 0.35f
     ),
+    MOVEMENT_WIPE_VERTICAL(
+        "Movement Wipe Vertical",
+        arrayOf("textures/particles/wipe.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 0.4f,
+        particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
+        scale = 1.5f, scaleVariance = 0.3f, fadeIn = 0.05f, fadeOut = 0.35f
+    ),
     CAR_EXPLOSION(
         "Car Explosion",
         arrayOf(
@@ -604,6 +612,12 @@ class ParticleSystem {
                         material,
                         (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
                     )
+
+                    // Check for special vertical wipe and pre-rotate its model
+                    if (type == ParticleEffectType.MOVEMENT_WIPE_VERTICAL) {
+                        model.meshes.first().transform(Matrix4().setToRotation(Vector3.X, 90f))
+                    }
+
                     billboardParticleModels[type] = model
                 }
             } catch (e: Exception) {
