@@ -53,8 +53,6 @@ public class Lwjgl3Launcher {
 // collected ammunition label for bullets and weapons
 // npc spawnpoint
 // enemy spawnpoint
-// enemy/npc spawner
-// more placement optimization
 // rusher stopping in front of the player
 // fire system uses spread fire, fire or flame particle folder
 // blocks being visible behind transparent enemies etc.

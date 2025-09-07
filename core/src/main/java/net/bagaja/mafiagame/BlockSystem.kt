@@ -17,6 +17,8 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import kotlin.math.floor
+import kotlin.math.max
+import kotlin.math.min
 
 enum class BuildMode(val size: Int, val isWall: Boolean) {
     SINGLE(1, false),
@@ -42,12 +44,20 @@ enum class BuildMode(val size: Int, val isWall: Boolean) {
     }
 }
 
+private enum class AreaFillState {
+    IDLE,                  // Normal placement mode
+    AWAITING_SECOND_CORNER // First corner has been placed, waiting for the second
+}
+
 // Block system class to manage different block types
 class BlockSystem {
     // Caches for the two different model types
     private val blockFaceModels = mutableMapOf<BlockType, Map<BlockFace, Map<Float, Model>>>()
     private val customShapeModels = mutableMapOf<Triple<BlockType, BlockShape, Pair<Float, Float>>, Model>()
     private val waterModels = mutableMapOf<BlockType, Model>()
+    private var areaFillState = AreaFillState.IDLE
+    private var firstCornerGridPosition: Vector3? = null
+    val isAreaFillModeActive: Boolean get() = areaFillState != AreaFillState.IDLE
 
     private val blockTextures = mutableMapOf<BlockType, Texture>()
     var currentSelectedBlock = BlockType.GRASS
@@ -96,6 +106,12 @@ class BlockSystem {
     }
 
     fun handlePlaceAction(ray: Ray) {
+        // If we are in the middle of an area fill operation, handle that logic.
+        if (areaFillState != AreaFillState.IDLE) {
+            handleAreaFillAction(ray)
+            return // IMPORTANT: Prevent the old logic from running.
+        }
+
         val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
 
         if (hitBlock != null) {
@@ -110,6 +126,114 @@ class BlockSystem {
                 placeBlockArea(gridX, 0f, gridZ)
             }
         }
+    }
+
+    // NEW: Toggles the Area Fill mode on and off.
+    fun toggleAreaFillMode(): String {
+        return if (areaFillState == AreaFillState.IDLE) {
+            areaFillState = AreaFillState.AWAITING_SECOND_CORNER // We go straight to waiting for the second corner, but the first is null
+            firstCornerGridPosition = null // Ensure it's null when we start
+            "Area Fill Mode: ON. Select first corner."
+        } else {
+            // If we are already in the mode, toggling it again cancels it.
+            cancelAreaFill()
+            "Area Fill Mode: OFF."
+        }
+    }
+
+    // NEW: Cancels an in-progress Area Fill operation.
+    fun cancelAreaFill() {
+        if (areaFillState != AreaFillState.IDLE) {
+            areaFillState = AreaFillState.IDLE
+            firstCornerGridPosition = null
+            println("Area fill cancelled.")
+            sceneManager.game.uiManager.updatePlacementInfo("Area fill cancelled.")
+        }
+    }
+
+    private fun handleAreaFillAction(ray: Ray) {
+        val gridPosition = getGridPositionFromRay(ray) ?: return
+
+        if (firstCornerGridPosition == null) {
+            firstCornerGridPosition = gridPosition
+            println("First corner set at: $gridPosition")
+            sceneManager.game.uiManager.updatePlacementInfo("First corner set. Select second corner.")
+            // State remains AWAITING_SECOND_CORNER
+        } else {
+            println("Second corner set at: $gridPosition. Filling area...")
+            sceneManager.game.uiManager.updatePlacementInfo("Filling area...")
+
+            fillAreaBetween(firstCornerGridPosition!!, gridPosition)
+
+            firstCornerGridPosition = null
+            sceneManager.game.uiManager.updatePlacementInfo("Area fill complete. Select first corner for new area.")
+        }
+    }
+
+    private fun getGridPositionFromRay(ray: Ray): Vector3? {
+        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
+        if (hitBlock != null) {
+            // Logic to place adjacent to an existing block
+            if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, hitBlock.getBoundingBox(internalBlockSize, BoundingBox()), tempVec3)) {
+                val relativePos = Vector3(tempVec3).sub(hitBlock.position)
+                var newX = hitBlock.position.x; var newY = hitBlock.position.y; var newZ = hitBlock.position.z
+                val absX = kotlin.math.abs(relativePos.x); val absY = kotlin.math.abs(relativePos.y); val absZ = kotlin.math.abs(relativePos.z)
+
+                when {
+                    absY >= absX && absY >= absZ -> newY += if (relativePos.y > 0) internalBlockSize else -internalBlockSize
+                    absX >= absY && absX >= absZ -> newX += if (relativePos.x > 0) internalBlockSize else -internalBlockSize
+                    else -> newZ += if (relativePos.z > 0) internalBlockSize else -internalBlockSize
+                }
+                return Vector3(
+                    floor(newX / internalBlockSize) * internalBlockSize,
+                    floor(newY / internalBlockSize) * internalBlockSize,
+                    floor(newZ / internalBlockSize) * internalBlockSize
+                )
+            }
+        } else {
+            // Logic to place on the ground
+            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+                return Vector3(
+                    floor(tempVec3.x / internalBlockSize) * internalBlockSize,
+                    0f, // Start at ground level for simplicity
+                    floor(tempVec3.z / internalBlockSize) * internalBlockSize
+                )
+            }
+        }
+        return null
+    }
+
+    private fun fillAreaBetween(corner1: Vector3, corner2: Vector3) {
+        val blockType = this.currentSelectedBlock
+        val step = internalBlockSize.toInt()
+
+        // Determine the min and max coordinates for the bounding box
+        val minX = min(corner1.x, corner2.x)
+        val maxX = max(corner1.x, corner2.x)
+        val minY = min(corner1.y, corner2.y)
+        val maxY = max(corner1.y, corner2.y)
+        val minZ = min(corner1.z, corner2.z)
+        val maxZ = max(corner1.z, corner2.z)
+
+        var blocksPlaced = 0
+        // Loop through every grid cell within the bounding box
+        for (x in minX.toInt()..maxX.toInt() step step) {
+            for (y in minY.toInt()..maxY.toInt() step step) {
+                for (z in minZ.toInt()..maxZ.toInt() step step) {
+                    val placePosition = Vector3(
+                        x + internalBlockSize / 2f,
+                        y + (internalBlockSize * blockType.height) / 2f,
+                        z + internalBlockSize / 2f
+                    )
+                    // Check if a block already exists to avoid duplicates
+                    if (sceneManager.activeChunkManager.getBlockAtWorld(placePosition) == null) {
+                        addBlock(x.toFloat(), y.toFloat(), z.toFloat(), blockType)
+                        blocksPlaced++
+                    }
+                }
+            }
+        }
+        println("Area fill complete. Placed $blocksPlaced new blocks.")
     }
 
     fun handleRemoveAction(ray: Ray): Boolean {

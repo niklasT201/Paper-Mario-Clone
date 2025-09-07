@@ -368,6 +368,11 @@ class InputHandler(
                         return true
                     }
 
+                    if (blockSystem.isAreaFillModeActive) {
+                        blockSystem.cancelAreaFill()
+                        return true
+                    }
+
                     // First, handle cancelling any ongoing actions
                     if (game.teleporterSystem.isLinkingMode) {
                         game.teleporterSystem.cancelLinking()
@@ -487,6 +492,14 @@ class InputHandler(
                             val isBright = game.lightingManager.toggleBuildModeBrightness()
                             val status = if (isBright) "ON" else "OFF"
                             uiManager.updatePlacementInfo("Build Mode Brightness: $status")
+                            return true
+                        }
+                        Input.Keys.F6 -> {
+                            // Only allow this if the block tool is active
+                            if (uiManager.selectedTool == Tool.BLOCK) {
+                                val status = blockSystem.toggleAreaFillMode()
+                                uiManager.updatePlacementInfo(status)
+                            }
                             return true
                         }
                         Input.Keys.K -> {
