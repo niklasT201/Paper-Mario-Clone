@@ -188,6 +188,7 @@ class EnemySystem : IFinePositionable {
     var currentEnemyTypeIndex = 0
     var currentBehaviorIndex = 0
 
+    private val BEHAVIOR_REEVALUATION_INTERVAL = 2.0f
     private val FIRE_FLEE_DISTANCE = 15f
     private val SHOOTER_IDEAL_DISTANCE = 15f
     private val SHOOTER_MIN_DISTANCE = 8f
@@ -324,20 +325,22 @@ class EnemySystem : IFinePositionable {
             id = config.id ?: UUID.randomUUID().toString(),
             modelInstance = instance,
             enemyType = config.enemyType,
-            behaviorType = config.behavior,
+            behaviorType = config.behavior, // This is the initially assigned behavior
             position = config.position.cpy(),
             health = finalHealth,
             weaponCollectionPolicy = config.weaponCollectionPolicy,
             canCollectItems = config.canCollectItems,
             equippedWeapon = config.initialWeapon
         )
+        // Set current behavior from the config
+        enemy.currentBehavior = config.behavior
 
         // Add initial weapon and set ammo based on UI config
         if (config.initialWeapon != WeaponType.UNARMED) {
             val ammoInReserve = when (config.ammoSpawnMode) {
                 AmmoSpawnMode.FIXED -> config.initialWeapon.magazineSize * 2 // Default: 2 extra clips
                 AmmoSpawnMode.SET -> config.setAmmoValue
-                AmmoSpawnMode.RANDOM -> 0 // This mode isn't in the UI, so default to 0
+                AmmoSpawnMode.RANDOM -> 0
             }
             enemy.weapons[config.initialWeapon] = ammoInReserve
         }
@@ -347,12 +350,8 @@ class EnemySystem : IFinePositionable {
         enemy.currentMagazineCount = ammoToLoad
         enemy.weapons[enemy.equippedWeapon] = enemy.weapons.getOrDefault(enemy.equippedWeapon, 0) - ammoToLoad
 
-        // Set texture based on equipped weapon (very important!)
-        val weaponTexture = enemyWeaponTextures[enemy.enemyType]?.get(enemy.equippedWeapon)
-        if (weaponTexture != null) {
-            val material = enemy.modelInstance.materials.first()
-            material.set(TextureAttribute.createDiffuse(weaponTexture))
-        }
+        // Set texture based on equipped weapon
+        updateEnemyTexture(enemy)
 
         // Create and attach the physics component
         enemy.physics = PhysicsComponent(
@@ -361,6 +360,16 @@ class EnemySystem : IFinePositionable {
             speed = config.enemyType.speed
         )
         enemy.physics.updateBounds()
+
+        // After the enemy is fully set up, validate its starting behavior.
+        val hasRangedWeapon = enemy.weapons.any { (w, a) -> w.actionType == WeaponActionType.SHOOTING && a > 0 } ||
+            (enemy.equippedWeapon.actionType == WeaponActionType.SHOOTING && enemy.currentMagazineCount > 0)
+
+        // If the intended behavior is a shooter, but they have no gun, force them to be a rusher.
+        if (enemy.currentBehavior == EnemyBehavior.STATIONARY_SHOOTER && !hasRangedWeapon) {
+            println("Configuration Warning: An unarmed Stationary Shooter was spawned. Forcing behavior to AGGRESSIVE_RUSHER.")
+            enemy.currentBehavior = EnemyBehavior.AGGRESSIVE_RUSHER
+        }
 
         return enemy
     }
@@ -510,6 +519,10 @@ class EnemySystem : IFinePositionable {
 
             enemy.position.set(enemy.physics.position)
 
+            if (enemy.currentState != AIState.DYING) {
+                reEvaluateBehavior(enemy)
+            }
+
             // Only apply physics if we are NOT in fine positioning mode.
             if (!finePosMode) {
                 updateAI(enemy, playerSystem, deltaTime, sceneManager)
@@ -525,56 +538,88 @@ class EnemySystem : IFinePositionable {
     }
 
     private fun handleWeaponSwitch(enemy: GameEnemy) {
-        // Remove the depleted weapon
-        enemy.weapons.remove(enemy.equippedWeapon)
-        enemy.equippedWeapon = WeaponType.UNARMED // Default to unarmed
+        println("${enemy.enemyType.displayName} is out of ammo for ${enemy.equippedWeapon.displayName}, evaluating options...")
 
-        // Find the best available RANGED weapon
-        val bestRanged = enemy.weapons.keys
-            .filter { it.actionType == WeaponActionType.SHOOTING }
-            .maxByOrNull { it.damage }
+        // Temporarily put the current mag back to calculate total ammo correctly
+        val currentAmmo = enemy.weapons.getOrDefault(enemy.equippedWeapon, 0) + enemy.currentMagazineCount
+        if (enemy.equippedWeapon != WeaponType.UNARMED) {
+            enemy.weapons[enemy.equippedWeapon] = currentAmmo
+        }
+        enemy.currentMagazineCount = 0
+
+        // Default to unarmed before checking for better options
+        enemy.equippedWeapon = WeaponType.UNARMED
+
+        // 1. Find the best available RANGED weapon (highest damage) with ammo.
+        val bestRanged = enemy.weapons.entries
+            .filter { (weapon, ammo) -> weapon.actionType == WeaponActionType.SHOOTING && ammo > 0 }
+            .maxByOrNull { it.key.damage }
 
         if (bestRanged != null) {
-            enemy.equippedWeapon = bestRanged
-            println("${enemy.enemyType.displayName} ran out of ammo, switching to ${bestRanged.displayName}")
+            enemy.equippedWeapon = bestRanged.key
+            println(" -> Switching to best ranged weapon: ${bestRanged.key.displayName}")
         } else {
-            // No ranged weapons, find the best MELEE weapon
+            // 2. If no ranged weapons are usable, find the best MELEE weapon.
             val bestMelee = enemy.weapons.keys
                 .filter { it.actionType == WeaponActionType.MELEE }
                 .maxByOrNull { it.damage }
 
             if (bestMelee != null) {
                 enemy.equippedWeapon = bestMelee
-                println("${enemy.enemyType.displayName} has no more ranged weapons, switching to ${bestMelee.displayName}")
+                println(" -> No ranged weapons available. Switching to best melee weapon: ${bestMelee.displayName}")
             } else {
-                println("${enemy.enemyType.displayName} is out of all weapons! Switching to fists.")
+                println(" -> No usable weapons left! Switching to fists.")
             }
         }
 
-        // Load the magazine of the new weapon
-        val ammoToLoad = minOf(enemy.weapons.getOrDefault(enemy.equippedWeapon, 0), enemy.equippedWeapon.magazineSize)
+        // --- Load Magazine for the new weapon ---
+        val ammoInReserve = enemy.weapons.getOrDefault(enemy.equippedWeapon, 0)
+        val ammoToLoad = minOf(ammoInReserve, enemy.equippedWeapon.magazineSize)
         enemy.currentMagazineCount = ammoToLoad
-        enemy.weapons[enemy.equippedWeapon] = enemy.weapons.getOrDefault(enemy.equippedWeapon, 0) - ammoToLoad
+        // Subtract the loaded ammo from the reserve
+        enemy.weapons[enemy.equippedWeapon] = ammoInReserve - ammoToLoad
+
+        // Update the enemy's texture to match the new weapon
+        updateEnemyTexture(enemy)
+    }
+
+    private fun updateEnemyTexture(enemy: GameEnemy) {
+        val weaponTexture = enemyWeaponTextures[enemy.enemyType]?.get(enemy.equippedWeapon)
+        val defaultTexture = enemyTextures[enemy.enemyType]
+
+        val textureToApply = weaponTexture ?: defaultTexture
+
+        if (textureToApply != null) {
+            val material = enemy.modelInstance.materials.first()
+            val texAttr = material.get(TextureAttribute.Diffuse) as? TextureAttribute
+            if (texAttr?.textureDescription?.texture != textureToApply) {
+                material.set(TextureAttribute.createDiffuse(textureToApply))
+            }
+        }
     }
 
     private fun checkForItemPickups(enemy: GameEnemy, sceneManager: SceneManager) {
         val pickupRadius = 3f
         val itemsToRemove = mutableListOf<GameItem>()
+        var pickedUpNewWeapon = false
 
         for (item in sceneManager.activeItems) {
             if (item.pickupDelay <= 0f && item.position.dst(enemy.position) < pickupRadius) {
-                if (item.itemType.correspondingWeapon != null) {// It's a weapon
+                if (item.itemType.correspondingWeapon != null) { // It's a weapon
                     if (enemy.weaponCollectionPolicy != WeaponCollectionPolicy.CANNOT_COLLECT) {
                         println("${enemy.enemyType.displayName} collected ${item.itemType.displayName}")
                         val weaponType = item.itemType.correspondingWeapon
                         val currentAmmo = enemy.weapons.getOrDefault(weaponType, 0)
                         enemy.weapons[weaponType] = currentAmmo + item.ammo
                         itemsToRemove.add(item)
+                        pickedUpNewWeapon = true
 
                         // If allowed, switch to the new weapon if it's better
                         if (enemy.weaponCollectionPolicy == WeaponCollectionPolicy.COLLECT_AND_USE) {
                             if (weaponType.damage > enemy.equippedWeapon.damage) {
                                 enemy.equippedWeapon = weaponType
+                                // We need to load the magazine for the newly equipped weapon
+                                handleWeaponSwitch(enemy) // This function now handles loading the mag
                             }
                         }
                     }
@@ -587,9 +632,46 @@ class EnemySystem : IFinePositionable {
             }
         }
 
-        // Remove the items from the main scene list
-        itemsToRemove.forEach {
-            sceneManager.activeItems.removeValue(it, true)
+        itemsToRemove.forEach { sceneManager.activeItems.removeValue(it, true) }
+
+        // If we picked up any new weapon, update the texture
+        if (pickedUpNewWeapon) {
+            updateEnemyTexture(enemy)
+        }
+    }
+
+    private fun reEvaluateBehavior(enemy: GameEnemy) {
+        enemy.stateTimer += Gdx.graphics.deltaTime
+        if (enemy.stateTimer < BEHAVIOR_REEVALUATION_INTERVAL) {
+            return // Not time to re-evaluate yet
+        }
+        enemy.stateTimer = 0f // Reset timer
+
+        // Check if the enemy has any usable ranged weapon
+        val hasRangedWeapon = enemy.weapons.any { (weapon, ammo) ->
+            weapon.actionType == WeaponActionType.SHOOTING && ammo > 0
+        } || (enemy.equippedWeapon.actionType == WeaponActionType.SHOOTING && enemy.currentMagazineCount > 0)
+
+
+        // CASE 1: Enemy is currently a Rusher. Should it switch back to being a Shooter?
+        if (enemy.currentBehavior == EnemyBehavior.AGGRESSIVE_RUSHER && hasRangedWeapon) {
+            // 70% chance to switch back to a more tactical role
+            if (Random.nextFloat() < 0.7f) {
+                println("${enemy.enemyType.displayName} found a ranged weapon and is switching to STATIONARY_SHOOTER tactics.")
+                enemy.currentBehavior = EnemyBehavior.STATIONARY_SHOOTER
+                // Immediately switch to the best available ranged weapon
+                handleWeaponSwitch(enemy)
+            } else {
+                println("${enemy.enemyType.displayName} found a ranged weapon but decided to keep rushing!")
+            }
+        }
+
+        // CASE 2: Enemy is a Stationary Shooter but has no ranged weapons left. It MUST switch.
+        if (enemy.currentBehavior == EnemyBehavior.STATIONARY_SHOOTER && !hasRangedWeapon) {
+            println("${enemy.enemyType.displayName} is out of ammo! Switching to AGGRESSIVE RUSH.")
+            enemy.currentBehavior = EnemyBehavior.AGGRESSIVE_RUSHER
+            // Switch to the best available melee weapon (or fists)
+            handleWeaponSwitch(enemy)
         }
     }
 
@@ -723,7 +805,6 @@ class EnemySystem : IFinePositionable {
 
         // --- SHOOTING LOGIC ---
         val isYAligned = kotlin.math.abs(playerPos.y - enemy.position.y) < enemy.enemyType.height
-        // Check for depth alignment (Z-axis)
         val isZAligned = kotlin.math.abs(playerPos.z - enemy.position.z) < COMBAT_DEPTH_TOLERANCE
         val ray = Ray(enemy.position, playerPos.cpy().sub(enemy.position).nor())
         val collision = sceneManager.checkCollisionForRay(ray, enemy.position.dst(playerPos))
@@ -732,11 +813,12 @@ class EnemySystem : IFinePositionable {
         if (hasLineOfSight && isYAligned && isZAligned && enemy.attackTimer <= 0f) {
             if (enemy.currentMagazineCount > 0) {
                 spawnEnemyBullet(enemy, playerPos, sceneManager)
-                enemy.attackTimer = enemy.equippedWeapon.fireCooldown * 2.0f // Slower test speed
+                enemy.attackTimer = enemy.equippedWeapon.fireCooldown
                 enemy.currentMagazineCount--
             } else {
                 // No ammo left for this weapon at all.
-                handleWeaponSwitch(enemy)
+                enemy.currentState = AIState.RELOADING
+                enemy.stateTimer = enemy.equippedWeapon.reloadTime
             }
         }
 
