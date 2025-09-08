@@ -709,7 +709,7 @@ enum class CarType(
     PARKED_CAR("Parked Car", "textures/objects/cars/car_parking.png", 10f, 7f, 250f),
     CASH_TRANSPORT("Cash Transport", "textures/objects/cars/cash_transport.png", 11f, 8f, 350f),
     CLASSIC_SEDAN("Classic Sedan", "textures/objects/cars/default_car.png", 10f, 7f, 260f),
-    POLICE_CAR("Police Car", "textures/objects/cars/police_car.png", 8f, 5f, 200f),
-    VAN("Van", "textures/objects/cars/van.png", 9f, 6f, 280f),
-    CASH_TRUCK("Cash Truck", "textures/objects/cars/cash_truck.png", 16f, 10f, 450f)
+    POLICE_CAR("Police Car", "textures/objects/cars/police_car.png", 10f, 7f, 250f),
+    CASH_TRUCK("Cash Truck", "textures/objects/cars/cash_truck.png", 16f, 10f, 450f),
+    LIMOUSINE("Limousine", "textures/objects/cars/limousine.png", 15f, 6.5f, 380f)
 }

@@ -48,7 +48,6 @@ public class Lwjgl3Launcher {
 
 // changing room transition effect colors
 // edge houses
-// new police and limousine car
 // using new animation images
 // collected ammunition label for bullets and weapons
 // npc spawnpoint
