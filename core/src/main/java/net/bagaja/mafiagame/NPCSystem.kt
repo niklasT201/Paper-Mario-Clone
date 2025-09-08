@@ -136,6 +136,7 @@ data class GameNPC(
             isInCar = true
             drivingCar = car
             currentSeat = seat
+            drivingCar?.modelInstance?.userData = "car"
             println("${this.npcType.displayName} entered a car.")
         }
     }
@@ -143,10 +144,8 @@ data class GameNPC(
     fun exitCar() {
         val car = drivingCar ?: return
         car.removeOccupant(this)
+        drivingCar?.modelInstance?.userData = null
         isInCar = false
-        // TODO: In the future, add logic here to place the NPC in a safe spot next to the car.
-        this.position.set(car.position.x - 5f, car.position.y, car.position.z)
-        println("${this.npcType.displayName} exited a car.")
         drivingCar = null
         currentSeat = null
     }
@@ -179,8 +178,8 @@ data class GameNPC(
         }
     }
 
-    fun takeDamage(damage: Float, type: DamageType): Boolean {
-        if (health <= 0) return false
+    fun takeDamage(damage: Float, type: DamageType, sceneManager: SceneManager): Boolean {
+        if (health <= 0) return true
 
         // Apply damage first, regardless of reaction
         health -= damage
@@ -200,7 +199,21 @@ data class GameNPC(
 
         // If the NPC is already a guard or provoked, they just stay mad
         if (behaviorType == NPCBehavior.GUARD || currentState == NPCState.PROVOKED) {
-            return false // Not dead yet
+            return false
+        }
+
+        // Check if the NPC should try to flee in a car
+        if (!isInCar && reactionToDamage == DamageReaction.FLEE && Random.nextFloat() < sceneManager.npcSystem.CAR_FLEE_CHANCE) {
+            val closestCar = sceneManager.activeCars
+                .filter { !it.isLocked && it.seats.first().occupant == null && it.state == CarState.DRIVABLE }
+                .minByOrNull { it.position.dst2(this.position) }
+
+            if (closestCar != null && this.position.dst(closestCar.position) < sceneManager.npcSystem.CAR_SEARCH_RADIUS) {
+                println("${this.npcType.displayName} is stealing a car to escape!")
+                this.enterCar(closestCar)
+                this.currentState = NPCState.FLEEING
+                return false // Don't trigger on-foot fleeing
+            }
         }
 
         when (reactionToDamage) {
@@ -261,12 +274,8 @@ class NPCSystem : IFinePositionable {
     private val hostileCooldownTime = 10f
     private val activationRange = 150f
 
-    private val FALL_SPEED = 25f
-    private val MAX_STEP_HEIGHT = 4.0f
     override var finePosMode: Boolean = false
     override val fineStep: Float = 0.25f
-    private val tempBlockBounds = BoundingBox()
-    private val nearbyBlocks = Array<GameBlock>()
     private val FADE_OUT_DURATION = 1.5f
     private val ASH_SPAWN_START_TIME = 1.5f
 
@@ -275,6 +284,10 @@ class NPCSystem : IFinePositionable {
     private val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
     private val tempVec3 = Vector3()
     private var blockSize: Float = 4f
+
+    internal val CAR_FLEE_CHANCE = 0.20f
+    internal val CAR_SEARCH_RADIUS = 5f
+    private val FLEE_EXIT_DISTANCE = 60f
 
     fun initialize(blockSize: Float, characterPhysicsSystem: CharacterPhysicsSystem) {
         this.blockSize = blockSize
@@ -449,6 +462,16 @@ class NPCSystem : IFinePositionable {
         while(iterator.hasNext()) {
             val npc = iterator.next()
 
+            // First, handle AI logic (either driving or on-foot)
+            if (!finePosMode) {
+                updateAI(npc, playerPos, deltaTime, sceneManager)
+            }
+
+            // If the NPC is in a car, their update is complete. Skip on-foot logic.
+            if (npc.isInCar) {
+                continue
+            }
+
             // HANDLE ON FIRE STATE (DAMAGE & VISUALS)
             if (npc.isOnFire) {
                 npc.onFireTimer -= deltaTime
@@ -460,7 +483,7 @@ class NPCSystem : IFinePositionable {
                     val currentDps = npc.onFireDamagePerSecond * progress
                     val damageThisFrame = currentDps * deltaTime
 
-                    if (npc.takeDamage(damageThisFrame, DamageType.FIRE) && npc.currentState != NPCState.DYING) {
+                    if (npc.takeDamage(damageThisFrame, DamageType.FIRE, sceneManager) && npc.currentState != NPCState.DYING) {
                         sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                     }
 
@@ -481,9 +504,7 @@ class NPCSystem : IFinePositionable {
                 }
             }
 
-            // Skip all AI, physics, and visual updates for NPCs inside cars
-            if (npc.isInCar) continue
-
+            // DYING STATE LOGIC
             if (npc.currentState == NPCState.DYING) {
                 npc.fadeOutTimer -= deltaTime
 
@@ -578,8 +599,45 @@ class NPCSystem : IFinePositionable {
         currentRotation = if (currentRotation == 0f) 180f else 0f
     }
 
+    private fun handleCarExit(npc: GameNPC, sceneManager: SceneManager) {
+        val car = npc.drivingCar ?: return
+
+        // Calculate a safe exit position next to the car's CURRENT location
+        val exitOffset = Vector3(-5f, 0f, 0f).rotate(Vector3.Y, car.visualRotationY)
+        val potentialExitPos = car.position.cpy().add(exitOffset)
+
+        // Find the ground level at this potential exit spot
+        val groundY = sceneManager.findHighestSupportY(potentialExitPos.x, potentialExitPos.z, car.position.y, 0.1f, sceneManager.game.blockSize)
+
+        // Set the character's new position
+        npc.position.set(potentialExitPos.x, groundY + (npc.npcType.height / 2f), potentialExitPos.z)
+        // Also sync the physics component immediately
+        npc.physics.position.set(npc.position)
+        npc.physics.updateBounds()
+
+        // Now, call the simplified exitCar method on the NPC object itself
+        npc.exitCar()
+        println("${npc.npcType.displayName} exited a car at ${npc.position}")
+    }
+
     private fun updateAI(npc: GameNPC, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {
-        var desiredMovement = Vector3.Zero // Default to no movement
+        if (npc.isInCar) {
+            val car = npc.drivingCar!!
+            val distanceToPlayer = car.position.dst(playerPos)
+
+            if (distanceToPlayer > FLEE_EXIT_DISTANCE) {
+                println("${npc.npcType.displayName} is exiting the car.")
+                handleCarExit(npc, sceneManager)
+                npc.currentState = NPCState.IDLE
+            } else {
+                val awayDirection = car.position.cpy().sub(playerPos).nor()
+                car.updateAIControlled(deltaTime, awayDirection, sceneManager, sceneManager.activeCars)
+                npc.position.set(car.position)
+            }
+            return // Skip on-foot AI
+        }
+
+        var desiredMovement = Vector3.Zero  // Default to no movement
 
         if (npc.isOnFire) {
             // Find the closest fire to run away from

@@ -481,6 +481,56 @@ data class GameCar(
         return bounds
     }
 
+    fun updateAIControlled(deltaTime: Float, desiredMovement: Vector3, sceneManager: SceneManager, allCars: com.badlogic.gdx.utils.Array<GameCar>) {
+        if (isDestroyed) {
+            setDrivingAnimationState(false)
+            return
+        }
+
+        val originalPosition = position.cpy()
+        val moveAmount = carType.baseHealth / 15f * deltaTime // Speed can be based on car health or a fixed value
+
+        // 1. Calculate desired movement from AI
+        val deltaX = desiredMovement.x * moveAmount
+        val deltaZ = desiredMovement.z * moveAmount
+        val horizontalDirection = if (deltaX > 0) -1f else if (deltaX < 0) 1f else 0f
+
+        updateFlipAnimation(horizontalDirection, deltaTime)
+        setDrivingAnimationState(deltaX != 0f || deltaZ != 0f)
+
+        // 2. Resolve X-axis movement
+        if (deltaX != 0f) {
+            val nextX = position.x + deltaX
+            val supportY = sceneManager.findHighestSupportYForCar(nextX, position.z, carType.width / 2f, sceneManager.game.blockSize)
+            if (supportY - position.y <= PlayerSystem.CAR_MAX_STEP_HEIGHT) {
+                if (sceneManager.playerSystem.canCarMoveTo(Vector3(nextX, position.y, position.z), this, sceneManager, allCars)) {
+                    position.x = nextX
+                }
+            }
+        }
+
+        // 3. Resolve Z-axis movement
+        if (deltaZ != 0f) {
+            val nextZ = position.z + deltaZ
+            val supportY = sceneManager.findHighestSupportYForCar(position.x, nextZ, carType.width / 2f, sceneManager.game.blockSize)
+            if (supportY - position.y <= PlayerSystem.CAR_MAX_STEP_HEIGHT) {
+                if (sceneManager.playerSystem.canCarMoveTo(Vector3(position.x, position.y, nextZ), this, sceneManager, allCars)) {
+                    position.z = nextZ
+                }
+            }
+        }
+
+        // 4. Resolve Y-axis movement (Gravity and Grounding)
+        val finalSupportY = sceneManager.findHighestSupportYForCar(position.x, position.z, carType.width / 2f, sceneManager.game.blockSize)
+        val effectiveSupportY = if (finalSupportY - originalPosition.y <= PlayerSystem.CAR_MAX_STEP_HEIGHT) finalSupportY else sceneManager.findHighestSupportYForCar(originalPosition.x, originalPosition.z, carType.width / 2f, sceneManager.game.blockSize)
+        position.y = kotlin.math.max(effectiveSupportY, position.y - PlayerSystem.FALL_SPEED * deltaTime)
+
+        // 5. Finalize
+        if (!position.epsilonEquals(originalPosition, 0.001f)) {
+            updateTransform()
+        }
+    }
+
     fun takeDamage(damage: Float, type: DamageType) {
         if (state == CarState.DRIVABLE && health > 0) {
             health -= damage

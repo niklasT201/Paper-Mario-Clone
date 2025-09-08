@@ -569,7 +569,9 @@ class PlayerSystem {
         val enemyIterator = sceneManager.activeEnemies.iterator()
         while(enemyIterator.hasNext()) {
             val enemy = enemyIterator.next()
-            if (hitBox.intersects(enemy.physics.bounds)) {
+
+            // Only hit enemies that are in a valid state
+            if (enemy.currentState != AIState.DYING && hitBox.intersects(enemy.physics.bounds)) {
                 println("Melee hit on enemy: ${enemy.enemyType.displayName}")
 
                 // SHAKE
@@ -582,7 +584,7 @@ class PlayerSystem {
                     spawnBloodEffects(bloodSpawnPosition, sceneManager)
                 }
 
-                if (enemy.takeDamage(equippedWeapon.damage, DamageType.MELEE) && enemy.currentState != AIState.DYING) {
+                if (enemy.takeDamage(equippedWeapon.damage, DamageType.MELEE, sceneManager) && enemy.currentState != AIState.DYING) {
                     sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                 }
             }
@@ -592,7 +594,9 @@ class PlayerSystem {
         val npcIterator = sceneManager.activeNPCs.iterator()
         while(npcIterator.hasNext()) {
             val npc = npcIterator.next()
-            if (hitBox.intersects(npc.physics.bounds)) { // CORRECTED
+
+            // Only hit NPCs that are in a valid state
+            if (npc.currentState != NPCState.DYING && npc.currentState != NPCState.FLEEING && hitBox.intersects(npc.physics.bounds)) {
                 println("Melee hit on NPC: ${npc.npcType.displayName}")
 
                 if (Random.nextFloat() < 0.75f) { // 75% chance to bleed
@@ -600,7 +604,7 @@ class PlayerSystem {
                     spawnBloodEffects(bloodSpawnPosition, sceneManager)
                 }
 
-                if (npc.takeDamage(equippedWeapon.damage, DamageType.MELEE) && npc.currentState != NPCState.DYING) {
+                if (npc.takeDamage(equippedWeapon.damage, DamageType.MELEE, sceneManager) && npc.currentState != NPCState.DYING) {
                     sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                 }
             }
@@ -1068,7 +1072,7 @@ class PlayerSystem {
         return moved
     }
 
-    private fun canCarMoveTo(newPosition: Vector3, thisCar: GameCar, sceneManager: SceneManager, allCars: Array<GameCar>): Boolean {
+    fun canCarMoveTo(newPosition: Vector3, thisCar: GameCar, sceneManager: SceneManager, allCars: Array<GameCar>): Boolean {
         val carBounds = thisCar.getBoundingBox(newPosition)
         val tempBlockBounds = BoundingBox() // Create a temporary box to reuse
 
@@ -1435,8 +1439,7 @@ class PlayerSystem {
                             spawnBloodEffects(bloodSpawnPosition, sceneManager)
                         }
 
-                        if (enemy.takeDamage(equippedWeapon.damage, DamageType.GENERIC) && enemy.currentState != AIState.DYING) {
-                            // Enemy died, start the death sequence.
+                        if (enemy.takeDamage(equippedWeapon.damage, DamageType.GENERIC, sceneManager) && enemy.currentState != AIState.DYING) {
                             sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
                     }
@@ -1456,7 +1459,7 @@ class PlayerSystem {
                             spawnBloodEffects(bloodSpawnPosition, sceneManager)
                         }
 
-                        if (npc.takeDamage(equippedWeapon.damage, DamageType.GENERIC) && npc.currentState != NPCState.DYING) {
+                        if (npc.takeDamage(equippedWeapon.damage, DamageType.GENERIC, sceneManager) && npc.currentState != NPCState.DYING) {
                             // NPC died, remove it from the scene
                             sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }
@@ -1678,7 +1681,7 @@ class PlayerSystem {
                     if (distanceToEnemy < explosionRadius) {
                         // Apply Damage
                         val actualDamage = calculateFalloffDamage(explosionDamage, distanceToEnemy, explosionRadius)
-                        if (enemy.takeDamage(actualDamage, DamageType.EXPLOSIVE) && enemy.currentState != AIState.DYING) {
+                        if (enemy.takeDamage(actualDamage, DamageType.EXPLOSIVE, sceneManager) && enemy.currentState != AIState.DYING) {
                             sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
 
@@ -1698,7 +1701,7 @@ class PlayerSystem {
                     if (distanceToNPC < explosionRadius) {
                         // Apply Damage
                         val actualDamage = calculateFalloffDamage(explosionDamage, distanceToNPC, explosionRadius)
-                        if (npc.takeDamage(actualDamage, DamageType.EXPLOSIVE) && npc.currentState != NPCState.DYING) {
+                        if (npc.takeDamage(actualDamage, DamageType.EXPLOSIVE, sceneManager) && npc.currentState != NPCState.DYING) {
                             sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }
 

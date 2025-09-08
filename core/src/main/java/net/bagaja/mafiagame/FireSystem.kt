@@ -308,7 +308,7 @@ class FireSystem {
                     if (distanceToEnemy < fireRadius) {
                         val damageMultiplier = 1.0f - (distanceToEnemy / fireRadius)
                         val directDamageThisFrame = baseDamagePerSecond * damageMultiplier * deltaTime
-                        if (enemy.takeDamage(directDamageThisFrame, DamageType.FIRE) && enemy.currentState != AIState.DYING) {
+                        if (enemy.takeDamage(directDamageThisFrame, DamageType.FIRE, sceneManager) && enemy.currentState != AIState.DYING) {
                             // Enemy died from fire, spawn a blood pool and remove them
                             sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
@@ -325,7 +325,7 @@ class FireSystem {
                     if (distanceToNPC < fireRadius) {
                         val damageMultiplier = 1.0f - (distanceToNPC / fireRadius)
                         val directDamageThisFrame = baseDamagePerSecond * damageMultiplier * deltaTime
-                        if (npc.takeDamage(directDamageThisFrame, DamageType.FIRE) && npc.currentState != NPCState.DYING) {
+                        if (npc.takeDamage(directDamageThisFrame, DamageType.FIRE, sceneManager) && npc.currentState != NPCState.DYING) {
                             // NPC died from fire, spawn a blood pool and remove them
                             sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }

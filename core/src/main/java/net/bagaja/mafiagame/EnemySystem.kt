@@ -111,6 +111,7 @@ data class GameEnemy(
             isInCar = true
             drivingCar = car
             currentSeat = seat
+            drivingCar?.modelInstance?.userData = "car"
             println("${this.enemyType.displayName} entered a car.")
         }
     }
@@ -118,10 +119,8 @@ data class GameEnemy(
     fun exitCar() {
         val car = drivingCar ?: return
         car.removeOccupant(this)
+        drivingCar?.modelInstance?.userData = null
         isInCar = false
-        // TODO: In the future, add logic here to place the enemy in a safe spot next to the car.
-        this.position.set(car.position.x - 5f, car.position.y, car.position.z)
-        println("${this.enemyType.displayName} exited a car.")
         drivingCar = null
         currentSeat = null
     }
@@ -147,7 +146,7 @@ data class GameEnemy(
         const val BLOOD_DRIP_INTERVAL = 0.7f
     }
 
-    fun takeDamage(damage: Float, type: DamageType): Boolean {
+    fun takeDamage(damage: Float, type: DamageType, sceneManager: SceneManager): Boolean {
         if (health <= 0) return false // Already dead, don't process more damage
 
         // Provoke neutral enemies BEFORE applying damage, so they can react
@@ -163,6 +162,19 @@ data class GameEnemy(
         // The type of the killing blow is what matters most.
         if (health > 0 && (type == DamageType.GENERIC || type == DamageType.MELEE)) {
             this.bleedTimer = BLEED_DURATION
+        }
+
+        // Check if the enemy should try to flee in a car
+        if (health > 0 && !isInCar && Random.nextFloat() < sceneManager.enemySystem.CAR_FLEE_CHANCE) { // Using the 15% chance directly
+            val closestCar = sceneManager.activeCars
+                .filter { !it.isLocked && it.seats.first().occupant == null && it.state == CarState.DRIVABLE }
+                .minByOrNull { it.position.dst2(this.position) }
+
+            if (closestCar != null && this.position.dst(closestCar.position) < sceneManager.enemySystem.CAR_SEARCH_RADIUS) {
+                println("${this.enemyType.displayName} is attempting to steal a car to flee!")
+                this.enterCar(closestCar)
+                this.currentState = AIState.FLEEING // Ensure it's in a fleeing state
+            }
         }
 
         if (health <= 0) {
@@ -211,6 +223,10 @@ class EnemySystem : IFinePositionable {
     private val tempVec3 = Vector3()
     private var blockSize: Float = 4f
     private val enemyWeaponTextures = mutableMapOf<EnemyType, Map<WeaponType, Texture>>()
+
+    internal val CAR_FLEE_CHANCE = 0.15f
+    internal val CAR_SEARCH_RADIUS = 5f
+    private val FLEE_EXIT_DISTANCE = 60f
 
     fun initialize(blockSize: Float, characterPhysicsSystem: CharacterPhysicsSystem, pathfindingSystem: PathfindingSystem) {
         this.blockSize = blockSize
@@ -415,6 +431,16 @@ class EnemySystem : IFinePositionable {
         while (iterator.hasNext()) {
             val enemy = iterator.next()
 
+            // First, handle AI logic (either driving or on-foot)
+            if (!finePosMode) {
+                updateAI(enemy, playerSystem, deltaTime, sceneManager)
+            }
+
+            // If the enemy is in a car, their update is complete. Skip on-foot logic.
+            if (enemy.isInCar) {
+                continue
+            }
+
             // HANDLE ON FIRE STATE (DAMAGE & VISUALS)
             if (enemy.isOnFire) {
                 enemy.onFireTimer -= deltaTime
@@ -426,7 +452,7 @@ class EnemySystem : IFinePositionable {
                     val currentDps = enemy.onFireDamagePerSecond * progress
                     val damageThisFrame = currentDps * deltaTime
 
-                    if (enemy.takeDamage(damageThisFrame, DamageType.FIRE) && enemy.currentState != AIState.DYING) {
+                    if (enemy.takeDamage(damageThisFrame, DamageType.FIRE, sceneManager) && enemy.currentState != AIState.DYING) {
                         sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                     }
 
@@ -453,9 +479,6 @@ class EnemySystem : IFinePositionable {
             if (enemy.attackTimer > 0f) {
                 enemy.attackTimer -= deltaTime
             }
-
-            // Skip all AI, physics, and visual updates for enemies inside cars
-            if (enemy.isInCar) continue
 
             // DYING STATE LOGIC
             if (enemy.currentState == AIState.DYING) {
@@ -521,11 +544,6 @@ class EnemySystem : IFinePositionable {
 
             if (enemy.currentState != AIState.DYING) {
                 reEvaluateBehavior(enemy)
-            }
-
-            // Only apply physics if we are NOT in fine positioning mode.
-            if (!finePosMode) {
-                updateAI(enemy, playerSystem, deltaTime, sceneManager)
             }
 
             enemy.isMoving = enemy.physics.isMoving
@@ -749,7 +767,47 @@ class EnemySystem : IFinePositionable {
         enemy.weapons.clear()
     }
 
+    private fun handleCarExit(enemy: GameEnemy, sceneManager: SceneManager) {
+        val car = enemy.drivingCar ?: return
+
+        // Calculate a safe exit position next to the car's CURRENT location
+        val exitOffset = Vector3(-5f, 0f, 0f).rotate(Vector3.Y, car.visualRotationY)
+        val potentialExitPos = car.position.cpy().add(exitOffset)
+
+        // Find the ground level at this potential exit spot
+        val groundY = sceneManager.findHighestSupportY(potentialExitPos.x, potentialExitPos.z, car.position.y, 0.1f, sceneManager.game.blockSize)
+
+        // Set the character's new position
+        enemy.position.set(potentialExitPos.x, groundY + (enemy.enemyType.height / 2f), potentialExitPos.z)
+        // Also sync the physics component immediately
+        enemy.physics.position.set(enemy.position)
+        enemy.physics.updateBounds()
+
+        // Now, call the simplified exitCar method on the enemy object itself
+        enemy.exitCar()
+        println("${enemy.enemyType.displayName} exited a car at ${enemy.position}")
+    }
+
     private fun updateAI(enemy: GameEnemy, playerSystem: PlayerSystem, deltaTime: Float, sceneManager: SceneManager) {
+        if (enemy.isInCar) {
+            val car = enemy.drivingCar!!
+            val playerPos = playerSystem.getPosition()
+            val distanceToPlayer = car.position.dst(playerPos)
+
+            // Exit condition: if player is far away
+            if (distanceToPlayer > FLEE_EXIT_DISTANCE) {
+                println("${enemy.enemyType.displayName} feels safe and is exiting the stolen car.")
+                handleCarExit(enemy, sceneManager)
+                enemy.currentState = AIState.IDLE // Go back to normal
+            } else {
+                // Fleeing behavior: drive away from the player
+                val awayDirection = car.position.cpy().sub(playerPos).nor()
+                car.updateAIControlled(deltaTime, awayDirection, sceneManager, sceneManager.activeCars)
+                enemy.position.set(car.position) // Keep enemy's logical position synced with the car
+            }
+            return // Skip all on-foot AI while in the car
+        }
+
         checkForItemPickups(enemy, sceneManager)
 
         // High priority override: Reloading
