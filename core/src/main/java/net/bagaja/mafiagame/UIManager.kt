@@ -93,6 +93,8 @@ class UIManager(
     private lateinit var ammoLabelMinimalist: Label
     private lateinit var healthBarMinimalist: ProgressBar
     private lateinit var throwableCountLabelPoster: Label
+    private var blinkTimer = 0f
+    private lateinit var reloadIndicatorPoster: Label
 
     // Money Display elements
     private lateinit var moneyDisplayTable: Table
@@ -281,15 +283,23 @@ class UIManager(
         weaponIconImage = Image().apply { setScaling(Scaling.fit) }
         weaponIconContainer = Container(weaponIconImage).size(100f, 80f).align(Align.left)
 
-        // --- NEW: Create the single label for throwable counts, similar to minimalist HUD ---
+        // Create the single label for throwable counts, similar to minimalist HUD
         throwableCountLabelPoster = Label("00", skin, "default").apply { setFontScale(0.9f) }
         val throwableCountContainer = Container(throwableCountLabelPoster).align(Align.bottomRight).pad(5f)
         throwableCountContainer.isVisible = false // Start hidden
 
-        // --- NEW: Create a stack for the weapon icon and the throwable count overlay ---
+        // Create the reload indicator label for the Poster HUD
+        reloadIndicatorPoster = Label("[R]", skin, "title").apply {
+            color = Color.RED
+            isVisible = false
+        }
+        val reloadIndicatorContainer = Container(reloadIndicatorPoster).align(Align.topRight).padTop(5f).padRight(-10f)
+
+        // Create a stack for the weapon icon and the throwable count overlay
         val weaponIconStack = Stack()
         weaponIconStack.add(weaponIconContainer)
         weaponIconStack.add(throwableCountContainer)
+        weaponIconStack.add(reloadIndicatorContainer)
 
         magazineAmmoLabel = Label("00", skin, "title").apply { color = Color.valueOf("#F5F1E8"); fontScaleX = 1.1f; fontScaleY = 1.1f }
         reserveAmmoLabel = Label("/00", skin, "title").apply { color = Color.valueOf("#D3C9B6"); fontScaleX = 1.1f; fontScaleY = 1.1f }
@@ -303,7 +313,6 @@ class UIManager(
 
         // Weapon Info Table
         val weaponInfoTable = Table()
-        // --- MODIFIED: Add the new stack that contains the icon and the new label ---
         weaponInfoTable.add(weaponIconStack).row()
         weaponInfoTable.add(ammoUiContainer).width(180f).height(72f).padTop(0f).padLeft(85f)
 
@@ -1050,14 +1059,37 @@ class UIManager(
             }
 
             // --- POSTER & MINIMALIST HUD AMMO LOGIC ---
+            val isReloading = game.playerSystem.isReloading()
+            val magCount = game.playerSystem.getCurrentMagazineCount()
             val weapon = game.playerSystem.equippedWeapon
+            val needsReload = weapon.requiresReload && magCount == 0 && !isReloading
+
+            // Update blink timer (blinks about 2.5 times per second)
+            blinkTimer = (blinkTimer + Gdx.graphics.deltaTime * 2f) % 1f
+
+            // Reset colors and visibility to their default state each frame
+            magazineAmmoLabel.color = Color.valueOf("#F5F1E8")
+            ammoLabelMinimalist.color = Color.WHITE
+            weaponIconImageMinimalist.isVisible = true
+            reloadIndicatorPoster.isVisible = false
+
+            if (isReloading) {
+                val isBlinkOn = blinkTimer < 0.5f
+                // Minimalist HUD: Blink weapon icon
+                weaponIconImageMinimalist.isVisible = isBlinkOn
+                // Poster HUD: Blink [R] indicator
+                reloadIndicatorPoster.isVisible = isBlinkOn
+            } else if (needsReload) {
+                // Set ammo counters to red to indicate "Please Reload"
+                magazineAmmoLabel.color = Color.RED
+                ammoLabelMinimalist.color = Color.RED
+            }
 
             when (weapon.actionType) {
                 WeaponActionType.SHOOTING -> {
                     // Poster HUD
                     ammoUiContainer.isVisible = true
                     throwableCountLabelPoster.parent.isVisible = false // Hide the single count label
-                    val magCount = game.playerSystem.getCurrentMagazineCount()
                     val reserveCount = game.playerSystem.getCurrentReserveAmmo()
                     magazineAmmoLabel.setText(magCount.toString().padStart(2, '0'))
                     reserveAmmoLabel.setText("/${reserveCount.toString().padStart(2, '0')}")

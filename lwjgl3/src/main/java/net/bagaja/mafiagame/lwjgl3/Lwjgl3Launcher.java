@@ -68,7 +68,6 @@ public class Lwjgl3Launcher {
 // step up stair
 // maybe improving billboard shader
 // maybe adding player hiding tp point text behind it
-// visual reload/charging bar !!!!!
 // south park like animation
 // npc and enemy ui option for choosing death level
 // map saving

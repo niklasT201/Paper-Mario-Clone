@@ -2047,6 +2047,14 @@ class PlayerSystem {
         return ammoReserves.getOrDefault(equippedWeapon, 0)
     }
 
+    fun isReloading(): Boolean = isReloading
+
+    fun getReloadProgress(): Float {
+        if (!isReloading || equippedWeapon.reloadTime <= 0f) return 0f
+        // Invert the ratio so it goes from 0 to 1
+        return 1f - (reloadTimer / equippedWeapon.reloadTime)
+    }
+
     fun getHealth(): Float = health
     fun getMaxHealth(): Float = maxHealth
 
