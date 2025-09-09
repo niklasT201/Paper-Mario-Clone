@@ -93,6 +93,7 @@ data class GameNPC(
     var initialOnFireDuration: Float = 0f
     var onFireDamagePerSecond: Float = 0f
     @Transient lateinit var physics: PhysicsComponent
+    @Transient var currentTargetPathNodeId: String? = null
     var bleedTimer: Float = 0f
     var bloodDripSpawnTimer: Float = 0f
 
@@ -634,14 +635,25 @@ class NPCSystem : IFinePositionable {
                     return
                 }
 
-                // 2. Road Following
-                val forwardVec = Vector3(if (car.visualRotationY == 180f) -1f else 1f, 0f, 0f)
-                val checkAheadPos = car.position.cpy().add(forwardVec.scl(blockSize))
-                val blockBelow = sceneManager.activeChunkManager.getBlockAtWorld(checkAheadPos)
+                // 2. Path Following Logic
+                var desiredMovement = Vector3.Zero
+                var targetNode = npc.currentTargetPathNodeId?.let { sceneManager.game.carPathSystem.nodes[it] }
 
-                var desiredMovement = forwardVec.cpy()
-                if (blockBelow == null || !blockBelow.blockType.isStreet) {
-                    desiredMovement = findRoadTurn(car, sceneManager)
+                if (targetNode == null) {
+                    targetNode = sceneManager.game.carPathSystem.findNearestNode(car.position)
+                    npc.currentTargetPathNodeId = targetNode?.id
+                }
+
+                if (targetNode != null) {
+                    if (car.position.dst2(targetNode.position) < 25f) {
+                        val nextNode = targetNode.nextNodeId?.let { sceneManager.game.carPathSystem.nodes[it] }
+                        npc.currentTargetPathNodeId = nextNode?.id
+                        if (nextNode != null) {
+                            desiredMovement = nextNode.position.cpy().sub(car.position).nor()
+                        }
+                    } else {
+                        desiredMovement = targetNode.position.cpy().sub(car.position).nor()
+                    }
                 }
 
                 car.updateAIControlled(deltaTime, desiredMovement, sceneManager, sceneManager.activeCars)
@@ -778,27 +790,6 @@ class NPCSystem : IFinePositionable {
         }
 
         characterPhysicsSystem.update(npc.physics, desiredMovement, deltaTime)
-    }
-
-    private fun findRoadTurn(car: GameCar, sceneManager: SceneManager): Vector3 {
-        val carPos = car.position
-        // Check left (relative to car's forward)
-        val leftTurnVec = Vector3(0f, 0f, -1f)
-        val checkLeftPos = carPos.cpy().add(leftTurnVec.scl(blockSize))
-        val blockBelowLeft = sceneManager.activeChunkManager.getBlockAtWorld(checkLeftPos)
-        if (blockBelowLeft != null && blockBelowLeft.blockType.isStreet) {
-            return leftTurnVec // Found road to the left
-        }
-
-        // Check right (relative to car's forward)
-        val rightTurnVec = Vector3(0f, 0f, 1f)
-        val checkRightPos = carPos.cpy().add(rightTurnVec.scl(blockSize))
-        val blockBelowRight = sceneManager.activeChunkManager.getBlockAtWorld(checkRightPos)
-        if (blockBelowRight != null && blockBelowRight.blockType.isStreet) {
-            return rightTurnVec // Found road to the right
-        }
-
-        return Vector3.Zero // No road found, stop.
     }
 
     private fun updateWanderAI(npc: GameNPC, deltaTime: Float, sceneManager: SceneManager) {

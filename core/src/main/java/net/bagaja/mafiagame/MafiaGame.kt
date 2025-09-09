@@ -82,9 +82,11 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var boneSystem: BoneSystem
     lateinit var trajectorySystem: TrajectorySystem
     private lateinit var blockDebugRenderer: BlockDebugRenderer
+    lateinit var carPathSystem: CarPathSystem
 
     override fun create() {
         setupGraphics()
+        carPathSystem = CarPathSystem()
         particleSystem = ParticleSystem()
         blockSystem = BlockSystem()
         objectSystem = ObjectSystem()
@@ -207,7 +209,8 @@ class MafiaGame : ApplicationAdapter() {
             teleporterSystem,
             sceneManager,
             roomTemplateManager,
-            shaderEffectManager
+            shaderEffectManager,
+            carPathSystem
         )
         inputHandler.initialize()
         raycastSystem = RaycastSystem(blockSize)
@@ -815,6 +818,7 @@ class MafiaGame : ApplicationAdapter() {
         }
 
         modelBatch.end()
+        carPathSystem.render(cameraManager.camera)
 
         teleporterSystem.renderNameplates(cameraManager.camera, playerSystem)
         triggerSystem.render(cameraManager.camera, lightingManager.getEnvironment())
@@ -910,6 +914,7 @@ class MafiaGame : ApplicationAdapter() {
         footprintSystem.dispose()
         boneSystem.dispose()
         triggerSystem.dispose()
+        carPathSystem.dispose()
 
         // Dispose shader effect manager
         shaderEffectManager.dispose()

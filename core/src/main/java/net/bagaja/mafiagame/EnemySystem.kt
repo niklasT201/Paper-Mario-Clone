@@ -72,6 +72,7 @@ data class GameEnemy(
     var initialOnFireDuration: Float = 0f
     var onFireDamagePerSecond: Float = 0f
     @Transient lateinit var physics: PhysicsComponent
+    @Transient var currentTargetPathNodeId: String? = null
 
     var attackTimer: Float = 0f
     var currentMagazineCount: Int = 0
@@ -803,16 +804,33 @@ class EnemySystem : IFinePositionable {
                     return
                 }
 
-                // 2. Road Following Logic
-                val forwardVec = Vector3(if (car.visualRotationY == 180f) -1f else 1f, 0f, 0f)
-                val checkAheadPos = car.position.cpy().add(forwardVec.scl(blockSize))
-                val blockDirectlyBelow = sceneManager.activeChunkManager.getBlockAtWorld(checkAheadPos)
+                // 2. Path Following Logic
+                var desiredMovement = Vector3.Zero
+                var targetNode = enemy.currentTargetPathNodeId?.let { sceneManager.game.carPathSystem.nodes[it] }
 
-                var desiredMovement = forwardVec.cpy()
+                // If we don't have a target, find the closest one
+                if (targetNode == null) {
+                    targetNode = sceneManager.game.carPathSystem.findNearestNode(car.position)
+                    enemy.currentTargetPathNodeId = targetNode?.id
+                }
 
-                if (blockDirectlyBelow == null || !blockDirectlyBelow.blockType.isStreet) {
-                    // Not on a road, or road ends. Look for a turn.
-                    desiredMovement = findRoadTurn(car, sceneManager)
+                if (targetNode != null) {
+                    // Check if we've arrived at the target node
+                    if (car.position.dst2(targetNode.position) < 25f) { // 5 unit radius (squared)
+                        // Arrived! Get the next node in the path.
+                        val nextNode = targetNode.nextNodeId?.let { sceneManager.game.carPathSystem.nodes[it] }
+                        enemy.currentTargetPathNodeId = nextNode?.id
+                        if (nextNode == null) {
+                            // End of the path, stop the car.
+                            desiredMovement.set(Vector3.Zero)
+                        } else {
+                            // Move towards the new next node
+                            desiredMovement = nextNode.position.cpy().sub(car.position).nor()
+                        }
+                    } else {
+                        // Still driving towards the current target node
+                        desiredMovement = targetNode.position.cpy().sub(car.position).nor()
+                    }
                 }
 
                 car.updateAIControlled(deltaTime, desiredMovement, sceneManager, sceneManager.activeCars)
@@ -869,27 +887,6 @@ class EnemySystem : IFinePositionable {
                 characterPhysicsSystem.update(enemy.physics, Vector3.Zero, deltaTime)
             }
         }
-    }
-
-    private fun findRoadTurn(car: GameCar, sceneManager: SceneManager): Vector3 {
-        val carPos = car.position
-        // Check left (relative to car's forward)
-        val leftTurnVec = Vector3(0f, 0f, -1f)
-        val checkLeftPos = carPos.cpy().add(leftTurnVec.scl(blockSize))
-        val blockBelowLeft = sceneManager.activeChunkManager.getBlockAtWorld(checkLeftPos)
-        if (blockBelowLeft != null && blockBelowLeft.blockType.isStreet) {
-            return leftTurnVec // Found road to the left
-        }
-
-        // Check right (relative to car's forward)
-        val rightTurnVec = Vector3(0f, 0f, 1f)
-        val checkRightPos = carPos.cpy().add(rightTurnVec.scl(blockSize))
-        val blockBelowRight = sceneManager.activeChunkManager.getBlockAtWorld(checkRightPos)
-        if (blockBelowRight != null && blockBelowRight.blockType.isStreet) {
-            return rightTurnVec // Found road to the right
-        }
-
-        return Vector3.Zero // No road found, stop.
     }
 
     private fun updateShooterAI(enemy: GameEnemy, playerSystem: PlayerSystem, deltaTime: Float, sceneManager: SceneManager) {

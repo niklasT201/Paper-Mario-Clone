@@ -27,6 +27,7 @@ class InputHandler(
     private val sceneManager: SceneManager,
     private val roomTemplateManager: RoomTemplateManager,
     private val shaderEffectManager: ShaderEffectManager,
+    private val carPathSystem: CarPathSystem
 ) {
     private var isRightMousePressed = false
     private var isLeftMousePressed = false
@@ -126,7 +127,7 @@ class InputHandler(
                                 Tool.PLAYER -> game.playerSystem.placePlayer(ray, sceneManager)
                                 Tool.OBJECT -> { objectSystem.handlePlaceAction(ray, objectSystem.currentSelectedObject) }
                                 Tool.ITEM -> itemSystem.handlePlaceAction(ray)
-                                Tool.CAR -> carSystem.handlePlaceAction(ray)
+                                Tool.CAR -> { carPathSystem.handlePlaceAction(ray) }
                                 Tool.HOUSE -> houseSystem.handlePlaceAction(ray)
                                 Tool.BACKGROUND -> backgroundSystem.handlePlaceAction(ray)
                                 Tool.PARALLAX -> parallaxSystem.handlePlaceAction(ray)
@@ -155,6 +156,12 @@ class InputHandler(
 
                         if (!game.isEditorMode) {
                             val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+
+                            if (uiManager.selectedTool == Tool.CAR) {
+                                if (carPathSystem.handleRemoveAction(ray)) {
+                                    return true // Consume the click if a node was removed
+                                }
+                            }
 
                             // Check for enemy first
                             val enemyToInspect = enemySystem.raycastSystem.getEnemyAtRay(ray, sceneManager.activeEnemies)
@@ -511,6 +518,13 @@ class InputHandler(
                             return true
                         }
                         Input.Keys.G -> {
+                            if (uiManager.selectedTool == Tool.CAR) {
+                                carPathSystem.toggleVisibility()
+                                val status = if (carPathSystem.isVisible) "ON" else "OFF"
+                                uiManager.updatePlacementInfo("Car Path Visibility: $status")
+                                return true
+                            }
+
                             val shiftPressed = Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)
                             if (shiftPressed) {
                                 if (uiManager.selectedTool == Tool.OBJECT) {
@@ -604,6 +618,11 @@ class InputHandler(
 
                         // Other special keys
                         Input.Keys.L -> {
+                            if (uiManager.selectedTool == Tool.CAR) {
+                                carPathSystem.startNewPath()
+                                uiManager.updatePlacementInfo("Started new car path line.")
+                                return true
+                            }
                             if (isHouseSelectionMode) { houseSystem.toggleLockState(); uiManager.updateHouseSelection(); return true }
                             if (isCarSelectionMode) { carSystem.toggleLockState(); uiManager.updateCarSelection(); return true }
                             if (isParallaxSelectionMode) { uiManager.nextParallaxLayer(); return true }
