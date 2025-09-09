@@ -1005,7 +1005,7 @@ class PlayerSystem {
         val originalPosition = car.position.cpy() // Store original position
         var moved = false
 
-        val moveAmount = carSpeed * deltaTime
+        val moveAmount = car.carType.speed * deltaTime
 
         // 1. Calculate desired horizontal movement
         var deltaX = 0f

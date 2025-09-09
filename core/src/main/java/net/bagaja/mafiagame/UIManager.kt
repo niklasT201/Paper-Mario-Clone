@@ -178,7 +178,7 @@ class UIManager(
         itemSelectionUI.initialize()
 
         // Initialize car selection UI
-        carSelectionUI = CarSelectionUI(carSystem, skin, stage)
+        carSelectionUI = CarSelectionUI(skin, stage, carSystem, enemySystem, npcSystem)
         carSelectionUI.initialize()
 
         // Initialize light selection UI
@@ -519,6 +519,7 @@ class UIManager(
 
     fun showCarSelection() = carSelectionUI.show()
     fun hideCarSelection() = carSelectionUI.hide()
+    fun getCarSpawnConfig(): CarSpawnConfig = carSelectionUI.getSpawnConfig()
     fun updateCarSelection() = carSelectionUI.update()
 
     fun showHouseSelection() = houseSelectionUI.show()

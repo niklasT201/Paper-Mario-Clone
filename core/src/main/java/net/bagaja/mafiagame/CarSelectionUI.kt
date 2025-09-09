@@ -6,22 +6,40 @@ import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
+import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
+import com.badlogic.gdx.utils.Array as GdxArray
+
+data class CarSpawnConfig(
+    val carType: CarType,
+    val isLocked: Boolean,
+    val driverCharacterType: String, // "None", "Enemy", "NPC"
+    val enemyDriverType: EnemyType?,
+    val npcDriverType: NPCType?
+)
 
 class CarSelectionUI(
-    private val carSystem: CarSystem,
     private val skin: Skin,
-    private val stage: Stage
+    private val stage: Stage,
+    private val carSystem: CarSystem,
+    private val enemySystem: EnemySystem,
+    private val npcSystem: NPCSystem
 ) {
     private lateinit var carSelectionTable: Table
     private lateinit var carItems: MutableList<CarSelectionItem>
     private val loadedTextures = mutableMapOf<String, Texture>() // Cache for loaded textures
     private lateinit var lockStatusLabel: Label
+
+    private lateinit var isLockedCheckbox: CheckBox
+    private lateinit var driverTypeSelectBox: SelectBox<String>
+    private lateinit var enemyDriverSelectBox: SelectBox<String>
+    private lateinit var npcDriverSelectBox: SelectBox<String>
 
     // Data class to hold car selection item components
     private data class CarSelectionItem(
@@ -35,7 +53,7 @@ class CarSelectionUI(
 
     fun initialize() {
         setupCarSelectionUI()
-        carSelectionTable.setVisible(false)
+        carSelectionTable.isVisible = false
     }
 
     private fun setupCarSelectionUI() {
@@ -47,59 +65,79 @@ class CarSelectionUI(
 
         // Create main container with modern styling
         val mainContainer = Table()
-
-        // Create a more modern background with rounded corners and shadow effect
-        val backgroundStyle = createModernBackground()
-        mainContainer.background = backgroundStyle
+        mainContainer.background = createModernBackground()
         mainContainer.pad(20f, 30f, 20f, 30f)
 
-        // Title with modern styling
-        val titleLabel = Label("Car Selection", skin)
-        titleLabel.setFontScale(1.4f)
-        titleLabel.color = Color(0.9f, 0.9f, 0.9f, 1f) // Light gray
+        val titleLabel = Label("Car Placer", skin, "title")
         mainContainer.add(titleLabel).padBottom(15f).row()
 
         // Create horizontal container for car items
         val carContainer = Table()
-        carContainer.pad(10f)
-
-        // Create car items for each car type
         carItems = mutableListOf()
-        val carTypes = CarType.values()
-
-        for (i in carTypes.indices) {
-            val carType = carTypes[i]
+        CarType.entries.forEachIndexed { i, carType ->
             val item = createCarItem(carType, i == carSystem.currentSelectedCarIndex)
             carItems.add(item)
-
-            // Add spacing between items
-            if (i > 0) {
-                carContainer.add().width(15f) // Spacer
-            }
+            if (i > 0) carContainer.add().width(15f)
             carContainer.add(item.container).size(90f, 110f)
         }
+        val carScrollPane = ScrollPane(carContainer, skin)
+        carScrollPane.setScrollingDisabled(false, true)
+        carScrollPane.fadeScrollBars = false
+        mainContainer.add(carScrollPane).growX().maxHeight(120f).padBottom(20f).row()
 
-        mainContainer.add(carContainer).padBottom(10f).row()
+        // --- Driver and Lock Configuration Section ---
+        val configTable = Table()
+
+        // Is Locked Checkbox
+        isLockedCheckbox = CheckBox(" Start Locked", skin)
+        configTable.add(isLockedCheckbox).colspan(2).left().padBottom(10f).row()
+
+        // Driver Type Dropdown
+        driverTypeSelectBox = SelectBox(skin)
+        driverTypeSelectBox.items = GdxArray(arrayOf("None", "Enemy", "NPC"))
+        configTable.add(Label("Driver:", skin)).padRight(10f)
+        configTable.add(driverTypeSelectBox).width(150f).left().row()
+
+        // Enemy Driver Row
+        val enemyRow = Table()
+        enemyDriverSelectBox = SelectBox(skin)
+        enemyDriverSelectBox.items = GdxArray(EnemyType.entries.map { it.displayName }.toTypedArray())
+        enemyRow.add(Label("Enemy Type:", skin)).padRight(10f).left()
+        enemyRow.add(enemyDriverSelectBox).width(200f).left()
+        configTable.add(enemyRow).colspan(2).left().row()
+
+        // NPC Driver Row
+        val npcRow = Table()
+        npcDriverSelectBox = SelectBox(skin)
+        npcDriverSelectBox.items = GdxArray(NPCType.entries.map { it.displayName }.toTypedArray())
+        npcRow.add(Label("NPC Type:", skin)).padRight(10f).left()
+        npcRow.add(npcDriverSelectBox).width(200f).left()
+        configTable.add(npcRow).colspan(2).left().row()
+
+        driverTypeSelectBox.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                val driverType = driverTypeSelectBox.selected
+                enemyRow.isVisible = driverType == "Enemy"
+                npcRow.isVisible = driverType == "NPC"
+                carSelectionTable.pack() // Resize the main table
+            }
+        })
+
+        // Set initial visibility
+        enemyRow.isVisible = false
+        npcRow.isVisible = false
+
+        mainContainer.add(configTable).padBottom(15f).row()
 
         // Lock Status Display
         lockStatusLabel = Label("", skin).apply { setFontScale(1.1f) }
         mainContainer.add(lockStatusLabel).padBottom(15f).row()
 
-        // Instructions with modern styling
-        val instructionLabel = Label("Hold [R] + Mouse Wheel to change cars", skin)
-        instructionLabel.setFontScale(0.9f)
-        instructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f) // Darker gray
+        // Updated Instructions
+        val instructionLabel = Label("Hold [M] + Mouse Wheel to change cars", skin)
+        instructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f)
         mainContainer.add(instructionLabel).padBottom(5f).row()
-
-        // Lock instruction
-        val lockInstructionLabel = Label("Hold [M] + [L] to toggle Lock", skin)
-        lockInstructionLabel.setFontScale(0.9f)
-        lockInstructionLabel.color = Color(0.7f, 0.7f, 0.7f, 1f)
-        mainContainer.add(lockInstructionLabel).padBottom(5f).row()
-
-        // Additional instructions for fine positioning
-        val fineInstructionLabel = Label("F - Fine positioning | Cars are 2D billboards", skin)
-        fineInstructionLabel.setFontScale(0.8f)
+        val fineInstructionLabel = Label("F - Fine positioning mode", skin)
         fineInstructionLabel.color = Color(0.6f, 0.6f, 0.6f, 1f)
         mainContainer.add(fineInstructionLabel)
 
@@ -108,14 +146,45 @@ class CarSelectionUI(
         update()
     }
 
+    private fun addListeners() {
+        // This listener shows/hides the specific driver dropdowns
+        driverTypeSelectBox.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                updateDriverVisibility()
+            }
+        })
+    }
+
+    private fun updateDriverVisibility() {
+        val driverType = driverTypeSelectBox.selected
+        // Find the parent table (the row) of the SelectBox to toggle its visibility
+        enemyDriverSelectBox.parent.isVisible = driverType == "Enemy"
+        npcDriverSelectBox.parent.isVisible = driverType == "NPC"
+        carSelectionTable.pack() // Resize the main table to fit the new content
+    }
+
+    fun getSpawnConfig(): CarSpawnConfig {
+        val carType = carSystem.currentSelectedCar
+        val driverType = driverTypeSelectBox.selected
+        val enemyType = if (driverType == "Enemy") EnemyType.entries.find { it.displayName == enemyDriverSelectBox.selected } else null
+        val npcType = if (driverType == "NPC") NPCType.entries.find { it.displayName == npcDriverSelectBox.selected } else null
+
+        return CarSpawnConfig(
+            carType = carType,
+            isLocked = isLockedCheckbox.isChecked,
+            driverCharacterType = driverType,
+            enemyDriverType = enemyType,
+            npcDriverType = npcType
+        )
+    }
+
     private fun createCarItem(carType: CarType, isSelected: Boolean): CarSelectionItem {
         val container = Table()
         container.pad(8f)
 
         // Create backgrounds for normal and selected states
         val normalBg = createItemBackground(Color(0.3f, 0.3f, 0.35f, 0.9f))
-        val selectedBg = createItemBackground(Color(0.6f, 0.4f, 0.8f, 0.95f)) // Purple tint for cars
-
+        val selectedBg = createItemBackground(Color(0.6f, 0.4f, 0.8f, 0.95f))
         container.background = if (isSelected) selectedBg else normalBg
 
         // Car icon - try to load actual texture first, fallback to generated icon
@@ -129,13 +198,7 @@ class CarSelectionUI(
         nameLabel.setWrap(true)
         nameLabel.setAlignment(Align.center)
         nameLabel.color = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
-        container.add(nameLabel).width(80f).center().padBottom(5f).row()
-
-        // Car type indicator
-        val typeLabel = Label("(2D Billboard)", skin)
-        typeLabel.setFontScale(0.6f)
-        typeLabel.color = Color(0.8f, 0.8f, 0.6f, 1f)
-        container.add(typeLabel)
+        container.add(nameLabel).width(80f).center().row() // Removed padBottom
 
         return CarSelectionItem(container, iconImage, nameLabel, normalBg, selectedBg, carType)
     }
@@ -172,8 +235,8 @@ class CarSelectionUI(
 
         // Gradient effect with purple tint for cars
         for (y in 0 until 60) {
-            val alpha = 0.85f + (y / 60f) * 0.1f // Subtle gradient
-            pixmap.setColor(0.15f, 0.1f, 0.2f, alpha) // Purple tint
+            val alpha = 0.85f + (y / 60f) * 0.1f
+            pixmap.setColor(0.15f, 0.1f, 0.2f, alpha)
             pixmap.drawLine(0, y, 99, y)
         }
 
@@ -201,48 +264,8 @@ class CarSelectionUI(
     private fun createCarIcon(carType: CarType): TextureRegion {
         // Create colored shapes representing different car types (fallback)
         val pixmap = Pixmap(50, 50, Pixmap.Format.RGBA8888)
-
-        when (carType) {
-            CarType.DEFAULT -> {
-                // Standard sedan shape
-                pixmap.setColor(Color(0.3f, 0.5f, 0.8f, 1f)) // Blue
-                pixmap.fillRectangle(10, 20, 30, 15) // Main body
-                pixmap.fillRectangle(15, 15, 20, 10) // Top/roof
-                pixmap.setColor(Color.BLACK)
-                pixmap.fillCircle(18, 38, 3) // Front wheel
-                pixmap.fillCircle(32, 38, 3) // Rear wheel
-            }
-            CarType.POLICE_CAR -> {
-                // Police car with light bar
-                pixmap.setColor(Color(0.1f, 0.1f, 0.8f, 1f)) // Blue
-                pixmap.fillRectangle(10, 20, 30, 15) // Main body
-                pixmap.fillRectangle(15, 15, 20, 10) // Top/roof
-                pixmap.setColor(Color(0.9f, 0.1f, 0.1f, 1f)) // Red light bar
-                pixmap.fillRectangle(18, 12, 14, 3)
-                pixmap.setColor(Color.BLACK)
-                pixmap.fillCircle(18, 38, 3) // Front wheel
-                pixmap.fillCircle(32, 38, 3) // Rear wheel
-            }
-            CarType.TAXI -> {
-                // Yellow taxi
-                pixmap.setColor(Color(0.9f, 0.9f, 0.2f, 1f)) // Yellow
-                pixmap.fillRectangle(10, 20, 30, 15) // Main body
-                pixmap.fillRectangle(15, 15, 20, 10) // Top/roof
-                pixmap.setColor(Color.BLACK)
-                pixmap.fillRectangle(20, 12, 10, 3) // Taxi sign
-                pixmap.fillCircle(18, 38, 3) // Front wheel
-                pixmap.fillCircle(32, 38, 3) // Rear wheel
-            }
-            else -> {
-                pixmap.setColor(Color(0.3f, 0.5f, 0.8f, 1f)) // Blue
-                pixmap.fillRectangle(10, 20, 30, 15) // Main body
-                pixmap.fillRectangle(15, 15, 20, 10) // Top/roof
-                pixmap.setColor(Color.BLACK)
-                pixmap.fillCircle(18, 38, 3) // Front wheel
-                pixmap.fillCircle(32, 38, 3) // Rear wheel
-            }
-        }
-
+        pixmap.setColor(Color.PURPLE) // Simple fallback
+        pixmap.fill()
         val texture = Texture(pixmap)
         pixmap.dispose()
 
@@ -268,7 +291,6 @@ class CarSelectionUI(
             // Create smooth transition animations
             val targetScale = if (isSelected) 1.1f else 1.0f
             val targetColor = if (isSelected) Color.WHITE else Color(0.8f, 0.8f, 0.8f, 1f)
-            val targetBackground = if (isSelected) item.selectedBackground else item.background
 
             // Apply animations using LibGDX actions
             item.container.clearActions()
@@ -276,7 +298,7 @@ class CarSelectionUI(
                 Actions.parallel(
                     Actions.scaleTo(targetScale, targetScale, 0.2f, Interpolation.smooth),
                     Actions.run {
-                        item.container.background = targetBackground
+                        item.container.background = if (isSelected) item.selectedBackground else item.background
                         item.nameLabel.color = targetColor
                     }
                 )
@@ -296,11 +318,12 @@ class CarSelectionUI(
     }
 
     fun show() {
-        carSelectionTable.setVisible(true)
+        carSelectionTable.isVisible = true
+        carSelectionTable.toFront()
     }
 
     fun hide() {
-        carSelectionTable.setVisible(false)
+        carSelectionTable.isVisible = false
     }
 
     fun dispose() {

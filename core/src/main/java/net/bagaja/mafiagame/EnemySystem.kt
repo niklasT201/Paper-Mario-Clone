@@ -47,7 +47,8 @@ enum class AIState {
     SEARCHING,
     HIDING,
     RELOADING,
-    DYING
+    DYING,
+    PATROLLING_IN_CAR
 }
 
 data class GameEnemy(
@@ -792,6 +793,33 @@ class EnemySystem : IFinePositionable {
         if (enemy.isInCar) {
             val car = enemy.drivingCar!!
             val playerPos = playerSystem.getPosition()
+
+            if (enemy.currentState == AIState.PATROLLING_IN_CAR) {
+                // 1. Self-preservation: Exit if car is about to explode
+                if (car.health < 40f) {
+                    println("${enemy.enemyType.displayName} is bailing out of the damaged car!")
+                    handleCarExit(enemy, sceneManager)
+                    enemy.currentState = AIState.IDLE
+                    return
+                }
+
+                // 2. Road Following Logic
+                val forwardVec = Vector3(if (car.visualRotationY == 180f) -1f else 1f, 0f, 0f)
+                val checkAheadPos = car.position.cpy().add(forwardVec.scl(blockSize))
+                val blockDirectlyBelow = sceneManager.activeChunkManager.getBlockAtWorld(checkAheadPos)
+
+                var desiredMovement = forwardVec.cpy()
+
+                if (blockDirectlyBelow == null || !blockDirectlyBelow.blockType.isStreet) {
+                    // Not on a road, or road ends. Look for a turn.
+                    desiredMovement = findRoadTurn(car, sceneManager)
+                }
+
+                car.updateAIControlled(deltaTime, desiredMovement, sceneManager, sceneManager.activeCars)
+                enemy.position.set(car.position)
+                return
+            }
+
             val distanceToPlayer = car.position.dst(playerPos)
 
             // Exit condition: if player is far away
@@ -841,6 +869,27 @@ class EnemySystem : IFinePositionable {
                 characterPhysicsSystem.update(enemy.physics, Vector3.Zero, deltaTime)
             }
         }
+    }
+
+    private fun findRoadTurn(car: GameCar, sceneManager: SceneManager): Vector3 {
+        val carPos = car.position
+        // Check left (relative to car's forward)
+        val leftTurnVec = Vector3(0f, 0f, -1f)
+        val checkLeftPos = carPos.cpy().add(leftTurnVec.scl(blockSize))
+        val blockBelowLeft = sceneManager.activeChunkManager.getBlockAtWorld(checkLeftPos)
+        if (blockBelowLeft != null && blockBelowLeft.blockType.isStreet) {
+            return leftTurnVec // Found road to the left
+        }
+
+        // Check right (relative to car's forward)
+        val rightTurnVec = Vector3(0f, 0f, 1f)
+        val checkRightPos = carPos.cpy().add(rightTurnVec.scl(blockSize))
+        val blockBelowRight = sceneManager.activeChunkManager.getBlockAtWorld(checkRightPos)
+        if (blockBelowRight != null && blockBelowRight.blockType.isStreet) {
+            return rightTurnVec // Found road to the right
+        }
+
+        return Vector3.Zero // No road found, stop.
     }
 
     private fun updateShooterAI(enemy: GameEnemy, playerSystem: PlayerSystem, deltaTime: Float, sceneManager: SceneManager) {

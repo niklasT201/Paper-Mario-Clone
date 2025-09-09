@@ -71,7 +71,8 @@ enum class NPCState {
     PROVOKED,           // Hostile state, attacking the player
     COOLDOWN,           // Temp state after hostility before returning to normal
     FLEEING,
-    DYING
+    DYING,
+    PATROLLING_IN_CAR
 }
 
 // --- MAIN NPC DATA CLASS ---
@@ -623,6 +624,31 @@ class NPCSystem : IFinePositionable {
     private fun updateAI(npc: GameNPC, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {
         if (npc.isInCar) {
             val car = npc.drivingCar!!
+
+            if (npc.currentState == NPCState.PATROLLING_IN_CAR) {
+                // 1. Self-preservation
+                if (car.health < 40f) {
+                    println("${npc.npcType.displayName} is bailing out!")
+                    handleCarExit(npc, sceneManager)
+                    npc.currentState = NPCState.IDLE
+                    return
+                }
+
+                // 2. Road Following
+                val forwardVec = Vector3(if (car.visualRotationY == 180f) -1f else 1f, 0f, 0f)
+                val checkAheadPos = car.position.cpy().add(forwardVec.scl(blockSize))
+                val blockBelow = sceneManager.activeChunkManager.getBlockAtWorld(checkAheadPos)
+
+                var desiredMovement = forwardVec.cpy()
+                if (blockBelow == null || !blockBelow.blockType.isStreet) {
+                    desiredMovement = findRoadTurn(car, sceneManager)
+                }
+
+                car.updateAIControlled(deltaTime, desiredMovement, sceneManager, sceneManager.activeCars)
+                npc.position.set(car.position)
+                return
+            }
+
             val distanceToPlayer = car.position.dst(playerPos)
 
             if (distanceToPlayer > FLEE_EXIT_DISTANCE) {
@@ -752,6 +778,27 @@ class NPCSystem : IFinePositionable {
         }
 
         characterPhysicsSystem.update(npc.physics, desiredMovement, deltaTime)
+    }
+
+    private fun findRoadTurn(car: GameCar, sceneManager: SceneManager): Vector3 {
+        val carPos = car.position
+        // Check left (relative to car's forward)
+        val leftTurnVec = Vector3(0f, 0f, -1f)
+        val checkLeftPos = carPos.cpy().add(leftTurnVec.scl(blockSize))
+        val blockBelowLeft = sceneManager.activeChunkManager.getBlockAtWorld(checkLeftPos)
+        if (blockBelowLeft != null && blockBelowLeft.blockType.isStreet) {
+            return leftTurnVec // Found road to the left
+        }
+
+        // Check right (relative to car's forward)
+        val rightTurnVec = Vector3(0f, 0f, 1f)
+        val checkRightPos = carPos.cpy().add(rightTurnVec.scl(blockSize))
+        val blockBelowRight = sceneManager.activeChunkManager.getBlockAtWorld(checkRightPos)
+        if (blockBelowRight != null && blockBelowRight.blockType.isStreet) {
+            return rightTurnVec // Found road to the right
+        }
+
+        return Vector3.Zero // No road found, stop.
     }
 
     private fun updateWanderAI(npc: GameNPC, deltaTime: Float, sceneManager: SceneManager) {

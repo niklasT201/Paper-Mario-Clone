@@ -40,6 +40,9 @@ class CarSystem: IFinePositionable {
     private lateinit var wreckedCarTexture: Texture
     private lateinit var billboardShaderProvider: BillboardShaderProvider
     private lateinit var billboardModelBatch: ModelBatch
+    lateinit var enemySystem: EnemySystem
+    lateinit var npcSystem: NPCSystem
+    lateinit var uiManager: UIManager
 
     var currentSelectedCar = CarType.DEFAULT
         private set
@@ -103,17 +106,43 @@ class CarSystem: IFinePositionable {
             // Snap to grid
             val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
-            val properY = findHighestSurfaceYAt(gridX, gridZ) // Use local helper
+            val properY = findHighestSurfaceYAt(gridX, gridZ)
+            val position = Vector3(gridX, properY, gridZ)
 
             // Check if there's already a car at this position
-            val existingCar = sceneManager.activeCars.find { car ->
-                kotlin.math.abs(car.position.x - gridX) < 2f &&
-                    kotlin.math.abs(car.position.z - gridZ) < 2f
-            }
+            val existingCar = sceneManager.activeCars.find { car -> car.position.dst2(position) < 9f }
 
             if (existingCar == null) {
-                addCar(gridX, properY, gridZ, currentSelectedCar)
-                println("${currentSelectedCar.displayName} placed at: $gridX, $properY, $gridZ")
+                val config = uiManager.getCarSpawnConfig()
+                val newCar = addCar(position.x, position.y, position.z, config.carType, config.isLocked)
+                if (newCar != null) {
+                    when (config.driverCharacterType) {
+                        "Enemy" -> {
+                            val enemyConfig = EnemySpawnConfig(
+                                enemyType = config.enemyDriverType!!,
+                                behavior = EnemyBehavior.AGGRESSIVE_RUSHER, // Use a valid EnemyBehavior
+                                position = newCar.position
+                            )
+                            val driver = enemySystem.createEnemy(enemyConfig)
+                            if (driver != null) {
+                                driver.enterCar(newCar)
+                                driver.currentState = AIState.PATROLLING_IN_CAR // Assign special state
+                                sceneManager.activeEnemies.add(driver)
+                                println("Spawned car with Enemy driver.")
+                            }
+                        }
+                        "NPC" -> {
+                            val npcConfig = NPCSpawnConfig(config.npcDriverType!!, NPCBehavior.GUARD, newCar.position)
+                            val driver = npcSystem.createNPC(npcConfig)
+                            if (driver != null) {
+                                driver.enterCar(newCar)
+                                driver.currentState = NPCState.PATROLLING_IN_CAR // Assign special state
+                                sceneManager.activeNPCs.add(driver)
+                                println("Spawned car with NPC driver.")
+                            }
+                        }
+                    }
+                }
             } else {
                 println("Car already exists near this position")
             }
@@ -129,16 +158,17 @@ class CarSystem: IFinePositionable {
         return false
     }
 
-    private fun addCar(x: Float, y: Float, z: Float, carType: CarType) {
+    private fun addCar(x: Float, y: Float, z: Float, carType: CarType, isLocked: Boolean): GameCar? {
         val carInstance = createCarInstance(carType)
         if (carInstance != null) {
             val position = Vector3(x, y, z)
-            val gameCar = GameCar(carInstance, carType, position, 0f, isNextCarLocked)
+            val gameCar = GameCar(carInstance, carType, position, 0f, isLocked)
             sceneManager.activeCars.add(gameCar)
             sceneManager.game.lastPlacedInstance = gameCar
-
-            println("Placed ${carType.displayName}. Locked: ${gameCar.isLocked}")
+            println("Placed ${carType.displayName}. Locked: $isLocked")
+            return gameCar
         }
+        return null
     }
 
     private fun removeCar(carToRemove: GameCar) {
@@ -488,7 +518,7 @@ data class GameCar(
         }
 
         val originalPosition = position.cpy()
-        val moveAmount = carType.baseHealth / 15f * deltaTime // Speed can be based on car health or a fixed value
+        val moveAmount = carType.speed * deltaTime // Speed can be based on car health or a fixed value
 
         // 1. Calculate desired movement from AI
         val deltaX = desiredMovement.x * moveAmount
@@ -747,7 +777,8 @@ enum class CarType(
     val texturePath: String,
     val width: Float,
     val height: Float,
-    val baseHealth: Float
+    val baseHealth: Float,
+    val speed: Float = 5f
 ) {
     DEFAULT("Default", "textures/objects/cars/car_driving.png", 10f, 7f, 250f),
     BOSS_CAR("Boss Car", "textures/objects/cars/boss_car.png", 10f, 7f, 500f),

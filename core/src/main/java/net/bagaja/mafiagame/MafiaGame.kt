@@ -130,6 +130,10 @@ class MafiaGame : ApplicationAdapter() {
         )
         teleporterSystem = TeleporterSystem(objectSystem, uiManager)
 
+        carSystem.uiManager = uiManager
+        carSystem.enemySystem = enemySystem
+        carSystem.npcSystem = npcSystem
+
         faceCullingSystem = FaceCullingSystem(blockSize)
         sceneManager = SceneManager(
             playerSystem, blockSystem, objectSystem, itemSystem, interiorSystem,

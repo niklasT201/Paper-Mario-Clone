@@ -360,6 +360,9 @@ enum class BlockType(
     WINDOW_OPENED("Window Opened", "textures/objects/window.png", 1.0f, BlockCategory.WINDOWS),
     WINDOW_CLOSE("Window Closed", "textures/objects/window_closed.png", 1.0f, BlockCategory.WINDOWS);
 
+    val isStreet: Boolean
+        get() = this.category == BlockCategory.STREET
+
     companion object {
         // Get all block types for a specific category
         fun getByCategory(category: BlockCategory): List<BlockType> {
