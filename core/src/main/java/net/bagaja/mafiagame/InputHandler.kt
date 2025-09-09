@@ -45,6 +45,7 @@ class InputHandler(
     private var isNPCSelectionMode = false
     private var isParticleSelectionMode = false
     private var isTimeSpeedUpPressed = false
+    private var isPlacingCarPath = false
 
     // Variables for continuous block placement/removal
     private var continuousActionTimer = 0f
@@ -127,7 +128,13 @@ class InputHandler(
                                 Tool.PLAYER -> game.playerSystem.placePlayer(ray, sceneManager)
                                 Tool.OBJECT -> { objectSystem.handlePlaceAction(ray, objectSystem.currentSelectedObject) }
                                 Tool.ITEM -> itemSystem.handlePlaceAction(ray)
-                                Tool.CAR -> { carPathSystem.handlePlaceAction(ray) }
+                                Tool.CAR -> {
+                                    if (isPlacingCarPath) {
+                                        carPathSystem.handlePlaceAction(ray)
+                                    } else {
+                                        carSystem.handlePlaceAction(ray)
+                                    }
+                                }
                                 Tool.HOUSE -> houseSystem.handlePlaceAction(ray)
                                 Tool.BACKGROUND -> backgroundSystem.handlePlaceAction(ray)
                                 Tool.PARALLAX -> parallaxSystem.handlePlaceAction(ray)
@@ -180,6 +187,11 @@ class InputHandler(
 
                         // PRIORITY 2: Handle removal actions in Editor Mode.
                         if (game.isEditorMode) {
+                            if (uiManager.selectedTool == Tool.CAR && isPlacingCarPath) {
+                                carPathSystem.cancelPlacement()
+                                return true // Consume this click to prevent camera drag
+                            }
+
                             // Try to remove a block. If successful, consume the event.
                             val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
 
@@ -440,23 +452,35 @@ class InputHandler(
 
                 // EDITOR MODE CHECK
                 if (game.isEditorMode) {
-                    // Shader effect controls
-                    if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) && keycode == Input.Keys.S) {
-                        uiManager.showSaveRoomDialog(sceneManager)
-                        return true // Consume the input
-                    }
-
-                    // LOAD TEMPLATE HOTKEY
-                    if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) && keycode == Input.Keys.L) {
-                        val firstTemplate = roomTemplateManager.getAllTemplates().firstOrNull()
-                        if (firstTemplate != null) {
-                            sceneManager.loadTemplateIntoCurrentInterior(firstTemplate.id)
-                            uiManager.updatePlacementInfo("Loaded template: ${firstTemplate.name}")
-                        } else {
-                            println("No saved templates to load!")
-                            uiManager.updatePlacementInfo("No saved templates to load!")
+                    if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) || Gdx.input.isKeyPressed(Input.Keys.CONTROL_RIGHT)) {
+                        if (keycode == Input.Keys.S) {
+                            // Save Template Hotkey
+                            uiManager.showSaveRoomDialog(sceneManager)
+                            return true // Consume the input
                         }
-                        return true // Consume the input
+                        else if (keycode == Input.Keys.L) {
+                            // This is our new, smarter Ctrl+L handler
+                            if (uiManager.selectedTool == Tool.CAR) {
+                                // CONTEXT 1: Car tool is active, so we toggle path placement.
+                                isPlacingCarPath = !isPlacingCarPath
+                                val mode = if (isPlacingCarPath) "Path Line" else "Car"
+                                uiManager.updatePlacementInfo("Car Tool Mode: $mode")
+                                if (!isPlacingCarPath) {
+                                    carPathSystem.cancelPlacement()
+                                }
+                            } else {
+                                // CONTEXT 2: Any other tool is active, so we load a template.
+                                val firstTemplate = roomTemplateManager.getAllTemplates().firstOrNull()
+                                if (firstTemplate != null) {
+                                    sceneManager.loadTemplateIntoCurrentInterior(firstTemplate.id)
+                                    uiManager.updatePlacementInfo("Loaded template: ${firstTemplate.name}")
+                                } else {
+                                    println("No saved templates to load!")
+                                    uiManager.updatePlacementInfo("No saved templates to load!")
+                                }
+                            }
+                            return true // Consume the input, regardless of which action was taken
+                        }
                     }
 
                     if (isHouseSelectionMode) {
@@ -618,11 +642,6 @@ class InputHandler(
 
                         // Other special keys
                         Input.Keys.L -> {
-                            if (uiManager.selectedTool == Tool.CAR) {
-                                carPathSystem.startNewPath()
-                                uiManager.updatePlacementInfo("Started new car path line.")
-                                return true
-                            }
                             if (isHouseSelectionMode) { houseSystem.toggleLockState(); uiManager.updateHouseSelection(); return true }
                             if (isCarSelectionMode) { carSystem.toggleLockState(); uiManager.updateCarSelection(); return true }
                             if (isParallaxSelectionMode) { uiManager.nextParallaxLayer(); return true }
@@ -665,6 +684,11 @@ class InputHandler(
 
                     // Update UI after tool selection
                     if (keycode in Input.Keys.NUMPAD_0..Input.Keys.NUMPAD_9 || keycode == Input.Keys.NUM_6 || keycode == Input.Keys.NUM_7) {
+                        // When switching tools, always reset to car placement mode
+                        if (uiManager.selectedTool != Tool.CAR && isPlacingCarPath) {
+                            isPlacingCarPath = false
+                            carPathSystem.cancelPlacement() // Cancel any pending line
+                        }
                         uiManager.updateToolDisplay()
                         // Update preview in case we switched to/from the background tool
                         handleBackgroundPreviewUpdate(Gdx.input.x, Gdx.input.y)
@@ -767,7 +791,13 @@ class InputHandler(
                     Tool.PLAYER -> game.playerSystem.placePlayer(ray, sceneManager)
                     Tool.OBJECT -> objectSystem.handlePlaceAction(ray, objectSystem.currentSelectedObject)
                     Tool.ITEM -> itemSystem.handlePlaceAction(ray)
-                    Tool.CAR -> carSystem.handlePlaceAction(ray)
+                    Tool.CAR -> {
+                        if (isPlacingCarPath) {
+                            carPathSystem.handlePlaceAction(ray)
+                        } else {
+                            carSystem.handlePlaceAction(ray)
+                        }
+                    }
                     Tool.HOUSE -> houseSystem.handlePlaceAction(ray)
                     Tool.BACKGROUND -> backgroundSystem.handlePlaceAction(ray)
                     Tool.PARALLAX -> parallaxSystem.handlePlaceAction(ray)

@@ -24,6 +24,11 @@ data class CarPathNode(
     val debugInstance: ModelInstance
 )
 
+enum class LinePlacementState {
+    IDLE,           // Waiting for the first click to start a line
+    PLACING_LINE    // First point is set, waiting for the second click
+}
+
 class CarPathSystem : Disposable {
     val nodes = mutableMapOf<String, CarPathNode>()
     private var lastPlacedNode: CarPathNode? = null
@@ -41,6 +46,11 @@ class CarPathSystem : Disposable {
     private val tempVec3 = Vector3()
     private val NODE_VISUAL_RADIUS = 0.5f
 
+    private var placementState = LinePlacementState.IDLE
+    private var firstNode: CarPathNode? = null // To store the starting point of the current line segment
+    private lateinit var previewLineInstance: ModelInstance
+    private var isPreviewVisible = false
+
     init {
         val nodeMaterial = Material(ColorAttribute.createDiffuse(Color.CYAN))
         nodeModel = modelBuilder.createSphere(NODE_VISUAL_RADIUS * 2, NODE_VISUAL_RADIUS * 2, NODE_VISUAL_RADIUS * 2, 8, 8, nodeMaterial, (VertexAttributes.Usage.Position).toLong())
@@ -52,6 +62,7 @@ class CarPathSystem : Disposable {
         lineModel = modelBuilder.end()
 
         lineInstance = ModelInstance(lineModel)
+        previewLineInstance = ModelInstance(lineModel)
     }
 
     fun toggleVisibility() {
@@ -60,26 +71,64 @@ class CarPathSystem : Disposable {
 
     fun startNewPath() {
         lastPlacedNode = null
-        println("Car Path: Starting new path. Click to place the first node.")
+        firstNode = null
+        placementState = LinePlacementState.IDLE
+        println("Car Path: Starting a new, disconnected path.")
+    }
+
+    fun cancelPlacement() {
+        if (placementState == LinePlacementState.PLACING_LINE) {
+            // If we only placed one node for a new line and then cancelled, remove that lonely node.
+            if (firstNode != null && firstNode?.previousNodeId == null && firstNode?.nextNodeId == null) {
+                nodes.remove(firstNode!!.id)
+                println("Removed dangling start node.")
+            }
+            firstNode = null
+            placementState = LinePlacementState.IDLE
+            println("Car Path: Line placement cancelled.")
+        }
     }
 
     fun handlePlaceAction(ray: Ray) {
-        if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
-            val position = tempVec3.cpy().add(0f, NODE_VISUAL_RADIUS, 0f) // Raise it slightly off the ground
-            val newNode = CarPathNode(
-                position = position,
-                debugInstance = ModelInstance(nodeModel)
-            )
+        if (!Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            return // Can't place if not pointing at the ground
+        }
+        val position = tempVec3.cpy().add(0f, NODE_VISUAL_RADIUS, 0f)
 
-            // Link to the previous node if it exists
-            lastPlacedNode?.let {
-                it.nextNodeId = newNode.id
-                newNode.previousNodeId = it.id
-                println("Linked node ${it.id} to new node ${newNode.id}")
+        when (placementState) {
+            LinePlacementState.IDLE -> {
+                // This is the FIRST click. Create the starting node.
+                val startNode = CarPathNode(
+                    position = position,
+                    debugInstance = ModelInstance(nodeModel)
+                )
+                nodes[startNode.id] = startNode
+                firstNode = startNode
+                lastPlacedNode?.let {
+                    it.nextNodeId = startNode.id
+                    startNode.previousNodeId = it.id
+                    println("Linked previous path to new start node ${startNode.id}")
+                }
+                placementState = LinePlacementState.PLACING_LINE
+                println("Car Path: Set starting point.")
             }
+            LinePlacementState.PLACING_LINE -> {
+                // This is the SECOND click. Create the end node and link it.
+                val endNode = CarPathNode(
+                    position = position,
+                    debugInstance = ModelInstance(nodeModel)
+                )
+                nodes[endNode.id] = endNode
 
-            nodes[newNode.id] = newNode
-            lastPlacedNode = newNode // The new node is now the last one placed
+                firstNode?.nextNodeId = endNode.id
+                endNode.previousNodeId = firstNode?.id
+                println("Car Path: Set end point. Line created from ${firstNode?.id} to ${endNode.id}")
+
+                // The new end point becomes the start of the next potential line segment
+                firstNode = endNode
+                lastPlacedNode = endNode // Keep track of the very last node placed
+                // State remains PLACING_LINE, ready for the next click
+            }
         }
     }
 
@@ -113,6 +162,29 @@ class CarPathSystem : Disposable {
             .minByOrNull { it.position.dst2(position) }
     }
 
+    fun update(camera: Camera) {
+        if (placementState == LinePlacementState.PLACING_LINE && firstNode != null) {
+            val ray = camera.getPickRay(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
+            if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+                val start = firstNode!!.position
+                val end = tempVec3.cpy().add(0f, NODE_VISUAL_RADIUS, 0f)
+
+                // Calculate transform for the preview line, same as the final lines
+                val direction = end.cpy().sub(start)
+                val distance = direction.len()
+
+                previewLineInstance.transform.setToTranslation(start)
+                previewLineInstance.transform.rotateTowardDirection(direction, Vector3.Y)
+                previewLineInstance.transform.scale(1f, 1f, distance)
+                isPreviewVisible = true
+            } else {
+                isPreviewVisible = false
+            }
+        } else {
+            isPreviewVisible = false
+        }
+    }
+
     fun render(camera: Camera) {
         if (!isVisible) return
 
@@ -139,6 +211,11 @@ class CarPathSystem : Disposable {
                 }
             }
         }
+
+        if (isPreviewVisible) {
+            modelBatch.render(previewLineInstance)
+        }
+
         modelBatch.end()
     }
 

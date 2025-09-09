@@ -650,6 +650,9 @@ class MafiaGame : ApplicationAdapter() {
 
             // Handle player input
             handlePlayerInput()
+            if (isEditorMode) {
+                carPathSystem.update(cameraManager.camera)
+            }
             particleSystem.update(deltaTime)
             spawnerSystem.update(deltaTime, sceneManager.activeSpawners, playerSystem.getPosition())
             val expiredFires = fireSystem.update(Gdx.graphics.deltaTime, playerSystem, particleSystem, sceneManager)
