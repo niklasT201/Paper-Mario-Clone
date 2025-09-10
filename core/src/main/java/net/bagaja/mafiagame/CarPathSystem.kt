@@ -21,8 +21,14 @@ data class CarPathNode(
     val position: Vector3,
     var nextNodeId: String? = null,
     var previousNodeId: String? = null,
-    val debugInstance: ModelInstance
+    val debugInstance: ModelInstance,
+    var isOneWay: Boolean = false
 )
+
+enum class PathDirectionality(val displayName: String) {
+    BI_DIRECTIONAL("Bi-Directional"),
+    ONE_WAY("One-Way")
+}
 
 enum class LinePlacementState {
     IDLE,           // Waiting for the first click to start a line
@@ -36,6 +42,10 @@ class CarPathSystem : Disposable {
 
     private val modelBuilder = ModelBuilder()
     private val modelBatch = ModelBatch()
+    private var arrowModel: Model? = null
+    private lateinit var arrowInstance: ModelInstance
+    private var currentDirectionality = PathDirectionality.BI_DIRECTIONAL
+    private var isDirectionFlipped = false
 
     // Visuals for the editor
     private val nodeModel: Model
@@ -51,6 +61,9 @@ class CarPathSystem : Disposable {
     private lateinit var previewLineInstance: ModelInstance
     private var isPreviewVisible = false
 
+    val isInPlacementMode: Boolean
+        get() = placementState == LinePlacementState.PLACING_LINE
+
     init {
         val nodeMaterial = Material(ColorAttribute.createDiffuse(Color.CYAN))
         nodeModel = modelBuilder.createSphere(NODE_VISUAL_RADIUS * 2, NODE_VISUAL_RADIUS * 2, NODE_VISUAL_RADIUS * 2, 8, 8, nodeMaterial, (VertexAttributes.Usage.Position).toLong())
@@ -60,6 +73,11 @@ class CarPathSystem : Disposable {
         val partBuilder = modelBuilder.part("line", GL20.GL_LINES, VertexAttributes.Usage.Position.toLong(), lineMaterial)
         partBuilder.line(Vector3.Zero, Vector3(0f, 0f, 1f)) // Draw a line from origin to one unit on the Z axis
         lineModel = modelBuilder.end()
+
+        val arrowMaterial = Material(ColorAttribute.createDiffuse(Color.ORANGE))
+        // A cone model makes a great arrow. We create it pointing up the Y-axis.
+        arrowModel = modelBuilder.createCone(1.5f, 3f, 1.5f, 8, arrowMaterial, (VertexAttributes.Usage.Position).toLong())
+        arrowInstance = ModelInstance(arrowModel!!)
 
         lineInstance = ModelInstance(lineModel)
         previewLineInstance = ModelInstance(lineModel)
@@ -78,56 +96,85 @@ class CarPathSystem : Disposable {
 
     fun cancelPlacement() {
         if (placementState == LinePlacementState.PLACING_LINE) {
-            // If we only placed one node for a new line and then cancelled, remove that lonely node.
-            if (firstNode != null && firstNode?.previousNodeId == null && firstNode?.nextNodeId == null) {
+            if (firstNode != null && firstNode?.previousNodeId == null) {
                 nodes.remove(firstNode!!.id)
-                println("Removed dangling start node.")
+                println("Removed dangling start node ${firstNode!!.id}.")
+                lastPlacedNode = null // Since we removed the only node, there is no last placed node.
             }
+
+            // Reset the state machine to stop drawing.
             firstNode = null
             placementState = LinePlacementState.IDLE
+            isPreviewVisible = false
             println("Car Path: Line placement cancelled.")
         }
     }
 
-    fun handlePlaceAction(ray: Ray) {
-        if (!Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
-            return // Can't place if not pointing at the ground
+    fun cycleDirectionality(): String {
+        currentDirectionality = if (currentDirectionality == PathDirectionality.BI_DIRECTIONAL) {
+            PathDirectionality.ONE_WAY
+        } else {
+            PathDirectionality.BI_DIRECTIONAL
         }
+        // When switching to bi-directional, always reset the flip state
+        if (currentDirectionality == PathDirectionality.BI_DIRECTIONAL) {
+            isDirectionFlipped = false
+        }
+        return "Line Type: ${currentDirectionality.displayName}"
+    }
+
+    fun toggleDirectionFlip(): String {
+        if (currentDirectionality == PathDirectionality.ONE_WAY) {
+            isDirectionFlipped = !isDirectionFlipped
+            return "One-Way Direction: ${if (isDirectionFlipped) "Reversed" else "Forward"}"
+        }
+        return "Direction flip only applies to One-Way lines."
+    }
+
+    fun handlePlaceAction(ray: Ray) {
+        if (!Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) return
         val position = tempVec3.cpy().add(0f, NODE_VISUAL_RADIUS, 0f)
 
         when (placementState) {
             LinePlacementState.IDLE -> {
-                // This is the FIRST click. Create the starting node.
-                val startNode = CarPathNode(
-                    position = position,
-                    debugInstance = ModelInstance(nodeModel)
-                )
+                val startNode = CarPathNode(position = position, debugInstance = ModelInstance(nodeModel))
                 nodes[startNode.id] = startNode
                 firstNode = startNode
+                // Link to the absolute last node placed in the previous chain, if it exists
                 lastPlacedNode?.let {
-                    it.nextNodeId = startNode.id
-                    startNode.previousNodeId = it.id
-                    println("Linked previous path to new start node ${startNode.id}")
+                    // Only link if the new line isn't a reversed one-way
+                    if (currentDirectionality == PathDirectionality.BI_DIRECTIONAL || !isDirectionFlipped) {
+                        it.nextNodeId = startNode.id
+                        startNode.previousNodeId = it.id
+                    }
                 }
                 placementState = LinePlacementState.PLACING_LINE
                 println("Car Path: Set starting point.")
             }
             LinePlacementState.PLACING_LINE -> {
-                // This is the SECOND click. Create the end node and link it.
-                val endNode = CarPathNode(
-                    position = position,
-                    debugInstance = ModelInstance(nodeModel)
-                )
+                val endNode = CarPathNode(position = position, debugInstance = ModelInstance(nodeModel))
                 nodes[endNode.id] = endNode
+                val startNode = firstNode!!
 
-                firstNode?.nextNodeId = endNode.id
-                endNode.previousNodeId = firstNode?.id
-                println("Car Path: Set end point. Line created from ${firstNode?.id} to ${endNode.id}")
+                if (isDirectionFlipped && currentDirectionality == PathDirectionality.ONE_WAY) {
+                    // REVERSED ONE-WAY: The flow is from the new node (end) to the old one (start)
+                    endNode.nextNodeId = startNode.id
+                    startNode.previousNodeId = endNode.id
+                    endNode.isOneWay = true // The one-way flag is on the source of the flow
+                    lastPlacedNode?.nextNodeId = null // Break link from previous path if reversed
+                } else {
+                    // NORMAL (BI-DIRECTIONAL or ONE-WAY FORWARD)
+                    startNode.nextNodeId = endNode.id
+                    endNode.previousNodeId = startNode.id
+                    if (currentDirectionality == PathDirectionality.ONE_WAY) {
+                        startNode.isOneWay = true // The one-way flag is on the source of the flow
+                    }
+                }
 
-                // The new end point becomes the start of the next potential line segment
+                println("Car Path: Line created. Mode: ${currentDirectionality.displayName}, Reversed: $isDirectionFlipped")
+
                 firstNode = endNode
-                lastPlacedNode = endNode // Keep track of the very last node placed
-                // State remains PLACING_LINE, ready for the next click
+                lastPlacedNode = endNode
             }
         }
     }
@@ -162,6 +209,21 @@ class CarPathSystem : Disposable {
             .minByOrNull { it.position.dst2(position) }
     }
 
+    fun findNodeAtRay(ray: Ray): CarPathNode? {
+        return nodes.values.minByOrNull {
+            ray.origin.dst2(it.position)
+        }?.takeIf {
+            // Ensure the closest node is actually near the ray
+            Intersector.intersectRaySphere(ray, it.position, NODE_VISUAL_RADIUS, null)
+        }
+    }
+
+    fun toggleNodeDirectionality(node: CarPathNode) {
+        node.isOneWay = !node.isOneWay
+        val status = if (node.isOneWay) "ONE-WAY" else "BI-DIRECTIONAL"
+        println("Path segment from ${node.id} is now $status.")
+    }
+
     fun update(camera: Camera) {
         if (placementState == LinePlacementState.PLACING_LINE && firstNode != null) {
             val ray = camera.getPickRay(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
@@ -169,13 +231,27 @@ class CarPathSystem : Disposable {
                 val start = firstNode!!.position
                 val end = tempVec3.cpy().add(0f, NODE_VISUAL_RADIUS, 0f)
 
-                // Calculate transform for the preview line, same as the final lines
-                val direction = end.cpy().sub(start)
+                // Determine direction based on the flip state for the preview
+                val previewStart = if (isDirectionFlipped) end else start
+                val previewEnd = if (isDirectionFlipped) start else end
+
+                val direction = previewEnd.cpy().sub(previewStart)
                 val distance = direction.len()
 
+                // Position the line itself correctly between the two points
                 previewLineInstance.transform.setToTranslation(start)
-                previewLineInstance.transform.rotateTowardDirection(direction, Vector3.Y)
+                previewLineInstance.transform.rotateTowardDirection(end.cpy().sub(start), Vector3.Y)
+                previewLineInstance.transform.rotate(Vector3.Y, 180f)
                 previewLineInstance.transform.scale(1f, 1f, distance)
+
+                // Position and orient the arrow based on the preview direction
+                if (currentDirectionality == PathDirectionality.ONE_WAY) {
+                    val midPoint = previewStart.cpy().lerp(previewEnd, 0.5f)
+                    arrowInstance.transform.setToTranslation(midPoint)
+                    arrowInstance.transform.rotateTowardDirection(direction, Vector3.Y)
+                    arrowInstance.transform.rotate(Vector3.X, -90f)
+                }
+
                 isPreviewVisible = true
             } else {
                 isPreviewVisible = false
@@ -195,25 +271,36 @@ class CarPathSystem : Disposable {
             node.debugInstance.transform.setToTranslation(node.position)
             modelBatch.render(node.debugInstance)
 
-            // Render the line to the next node
-            node.nextNodeId?.let { nextId ->
-                val nextNode = nodes[nextId]
-                if (nextNode != null) {
-                    val start = node.position
-                    val end = nextNode.position
-                    val direction = end.cpy().sub(start)
-                    val distance = direction.len()
+            val nextNode = node.nextNodeId?.let { nodes[it] }
+            if (nextNode != null) {
+                val start = node.position
+                val end = nextNode.position
 
-                    lineInstance.transform.setToTranslation(start)
-                    lineInstance.transform.rotateTowardDirection(direction, Vector3.Y)
-                    lineInstance.transform.scale(1f, 1f, distance)
-                    modelBatch.render(lineInstance)
+                // Render line
+                val direction = end.cpy().sub(start)
+                val distance = direction.len()
+                lineInstance.transform.setToTranslation(start)
+                lineInstance.transform.rotateTowardDirection(direction, Vector3.Y)
+                lineInstance.transform.rotate(Vector3.Y, 180f)
+                lineInstance.transform.scale(1f, 1f, distance)
+                modelBatch.render(lineInstance)
+
+                // Render arrow if this segment is one-way
+                if (node.isOneWay) {
+                    val midPoint = start.cpy().lerp(end, 0.5f)
+                    arrowInstance.transform.setToTranslation(midPoint)
+                    arrowInstance.transform.rotateTowardDirection(direction, Vector3.Y)
+                    arrowInstance.transform.rotate(Vector3.X, -90f)
+                    modelBatch.render(arrowInstance)
                 }
             }
         }
 
         if (isPreviewVisible) {
             modelBatch.render(previewLineInstance)
+            if (currentDirectionality == PathDirectionality.ONE_WAY) {
+                modelBatch.render(arrowInstance)
+            }
         }
 
         modelBatch.end()
@@ -222,6 +309,7 @@ class CarPathSystem : Disposable {
     override fun dispose() {
         nodeModel.dispose()
         lineModel.dispose()
+        arrowModel?.dispose()
         modelBatch.dispose()
     }
 }

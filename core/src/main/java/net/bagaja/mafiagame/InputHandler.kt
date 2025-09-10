@@ -392,6 +392,13 @@ class InputHandler(
                         return true
                     }
 
+                    if (uiManager.selectedTool == Tool.CAR && carPathSystem.isInPlacementMode) {
+                        carPathSystem.cancelPlacement()
+                        // Give user feedback that the action was cancelled
+                        uiManager.updatePlacementInfo("Line placement cancelled.")
+                        return true // Consume the key press to prevent opening the pause menu
+                    }
+
                     // First, handle cancelling any ongoing actions
                     if (game.teleporterSystem.isLinkingMode) {
                         game.teleporterSystem.cancelLinking()
@@ -598,6 +605,12 @@ class InputHandler(
                             return false
                         }
                         Input.Keys.R -> {
+                            // Also has multiple contexts now
+                            if (uiManager.selectedTool == Tool.CAR && carPathSystem.isInPlacementMode) {
+                                val status = carPathSystem.toggleDirectionFlip()
+                                uiManager.updatePlacementInfo(status)
+                                return true
+                            }
                             if (isBlockSelectionMode) {
                                 blockSystem.toggleRotationMode()
                                 uiManager.updateBlockSelection()
@@ -642,6 +655,11 @@ class InputHandler(
 
                         // Other special keys
                         Input.Keys.L -> {
+                            if (uiManager.selectedTool == Tool.CAR && carPathSystem.isInPlacementMode) {
+                                val status = carPathSystem.cycleDirectionality()
+                                uiManager.updatePlacementInfo(status)
+                                return true
+                            }
                             if (isHouseSelectionMode) { houseSystem.toggleLockState(); uiManager.updateHouseSelection(); return true }
                             if (isCarSelectionMode) { carSystem.toggleLockState(); uiManager.updateCarSelection(); return true }
                             if (isParallaxSelectionMode) { uiManager.nextParallaxLayer(); return true }
