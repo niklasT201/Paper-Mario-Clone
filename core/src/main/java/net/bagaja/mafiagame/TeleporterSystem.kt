@@ -131,10 +131,11 @@ class TeleporterSystem(
     }
 
     fun renderNameplates(camera: Camera, playerSystem: PlayerSystem) {
-        // SETUP FOR 3D SPRITEBATCH RENDERING
+        // --- MODIFIED BLOCK START ---
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST) // ADDED: Re-enable the depth test
         Gdx.gl.glEnable(GL20.GL_BLEND)
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
-        Gdx.gl.glDepthMask(false)
+        Gdx.gl.glDepthMask(false) // This is correct, it prevents writing to the depth buffer
 
         spriteBatch.projectionMatrix = camera.combined
         spriteBatch.begin()
@@ -203,6 +204,7 @@ class TeleporterSystem(
         spriteBatch.transformMatrix.idt()
         Gdx.gl.glDepthMask(true)
         Gdx.gl.glDisable(GL20.GL_BLEND)
+        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
     }
 
     fun findClosestTeleporter(position: Vector3, maxDistance: Float): GameTeleporter? {

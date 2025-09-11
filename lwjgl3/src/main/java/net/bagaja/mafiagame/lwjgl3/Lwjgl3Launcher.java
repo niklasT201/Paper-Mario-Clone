@@ -66,7 +66,6 @@ public class Lwjgl3Launcher {
 // maybe adding bouncy dynamite (1 bounce max)
 // step up stair
 // maybe improving billboard shader
-// maybe adding player hiding tp point text behind it
 // south park like animation
 // map saving
 // mission starting, saving and ending
