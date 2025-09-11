@@ -599,6 +599,21 @@ data class GameCar(
             sceneManager.cameraManager.startShake(duration, intensity.coerceAtLeast(0.1f))
         }
 
+        for (seat in this.seats) {
+            when (val occupant = seat.occupant) {
+                is GameEnemy -> {
+                    // Start the death sequence for the enemy
+                    carSystem.sceneManager.enemySystem.startDeathSequence(occupant, carSystem.sceneManager)
+                    occupant.exitCar() // This updates the enemy's state
+                }
+                is GameNPC -> {
+                    // Start the death sequence for the NPC
+                    carSystem.sceneManager.npcSystem.startDeathSequence(occupant, carSystem.sceneManager)
+                    occupant.exitCar() // This updates the NPC's state
+                }
+            }
+        }
+
         // 1. Spawn the explosion particle effect
         val explosionPos = position.cpy().add(0f, carType.height / 1.15f, 0f)
 
