@@ -149,6 +149,8 @@ data class GameEnemy(
     }
 
     fun takeDamage(damage: Float, type: DamageType, sceneManager: SceneManager): Boolean {
+        if (isInCar) return false
+
         if (health <= 0) return false // Already dead, don't process more damage
 
         // Provoke neutral enemies BEFORE applying damage, so they can react

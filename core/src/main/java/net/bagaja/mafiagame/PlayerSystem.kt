@@ -65,6 +65,7 @@ class PlayerSystem {
     private lateinit var sceneManager: SceneManager
 
     fun takeDamage(amount: Float) {
+        if (isDriving) return
         if (health > 0) {
             health -= amount
             println("Player took damage! Health is now: ${health.toInt()}")
