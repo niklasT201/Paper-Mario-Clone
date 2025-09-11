@@ -795,6 +795,10 @@ class EnemySystem : IFinePositionable {
     }
 
     private fun updateAI(enemy: GameEnemy, playerSystem: PlayerSystem, deltaTime: Float, sceneManager: SceneManager) {
+        if (enemy.currentState == AIState.DYING) {
+            return
+        }
+
         if (enemy.isInCar) {
             val car = enemy.drivingCar!!
             val playerPos = playerSystem.getPosition()
