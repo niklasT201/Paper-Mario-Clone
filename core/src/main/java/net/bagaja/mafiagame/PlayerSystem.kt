@@ -1935,6 +1935,12 @@ class PlayerSystem {
     }
 
     private fun spawnBloodEffects(position: Vector3, sceneManager: SceneManager) {
+        val violenceLevel = sceneManager.game.uiManager.getViolenceLevel()
+
+        if (violenceLevel == ViolenceLevel.NO_VIOLENCE) {
+            return // Don't spawn any blood effects
+        }
+
         val bloodSplatterEffects = listOf(
             ParticleEffectType.BLOOD_SPLATTER_1,
             ParticleEffectType.BLOOD_SPLATTER_2,
@@ -1946,7 +1952,11 @@ class PlayerSystem {
         val allBloodEffects = bloodSplatterEffects + bloodDripEffect
 
         // Spawn a random number of particles
-        val particleCount = (1..3).random()
+        val particleCount = when (violenceLevel) {
+            ViolenceLevel.REDUCED_VIOLENCE -> (0..1).random() // Spawns 0 or 1 particles
+            ViolenceLevel.FULL_VIOLENCE -> (1..3).random()    // Original behavior
+            else -> 0
+        }
 
         for (i in 0 until particleCount) {
             // Pick a random effect from our list

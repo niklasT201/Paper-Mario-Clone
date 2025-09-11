@@ -68,7 +68,6 @@ public class Lwjgl3Launcher {
 // maybe improving billboard shader
 // maybe adding player hiding tp point text behind it
 // south park like animation
-// npc and enemy ui option for choosing death level
 // map saving
 // mission starting, saving and ending
 // The Core Foundation (Making it Data-Driven)

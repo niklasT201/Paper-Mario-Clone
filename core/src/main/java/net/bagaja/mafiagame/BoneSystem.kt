@@ -92,6 +92,10 @@ class BoneSystem {
      * The main function to call on enemy/NPC death. Handles all randomization.
      */
     fun spawnBones(deathPosition: Vector3, facingRotationY: Float, sceneManager: SceneManager) {
+        if (sceneManager.game.uiManager.getViolenceLevel() != ViolenceLevel.FULL_VIOLENCE) {
+            return
+        }
+
         val groundY = sceneManager.findHighestSupportY(deathPosition.x, deathPosition.z, deathPosition.y, 0.1f, 4f)
         val bonesToSpawn = mutableListOf<GameBone>()
         val layingBoneTypes = listOf(BoneType.BONE_ONE, BoneType.BONE_TWO, BoneType.BROKEN_BONE)

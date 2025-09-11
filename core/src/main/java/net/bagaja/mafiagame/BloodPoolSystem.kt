@@ -77,6 +77,10 @@ class BloodPoolSystem {
     }
 
     fun addPool(deathPosition: Vector3, sceneManager: SceneManager) {
+        if (sceneManager.game.uiManager.getViolenceLevel() != ViolenceLevel.FULL_VIOLENCE) {
+            return
+        }
+
         if (models.isEmpty) return // Can't create a pool if no models loaded
 
         // Find the ground level at the death position to ensure the pool is flat

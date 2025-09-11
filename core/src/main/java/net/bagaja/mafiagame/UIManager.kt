@@ -22,6 +22,12 @@ enum class HudStyle(val displayName: String) {
     MINIMALIST("Minimalist")
 }
 
+enum class ViolenceLevel(val displayName: String) {
+    NO_VIOLENCE("Off"),
+    REDUCED_VIOLENCE("Reduced"),
+    FULL_VIOLENCE("Full")
+}
+
 class UIManager(
     private val game: MafiaGame,
     private val blockSystem: BlockSystem,
@@ -107,6 +113,8 @@ class UIManager(
     private lateinit var fpsLabel: Label
     private lateinit var fpsTable: Table
     private lateinit var missionObjectiveLabel: Label
+
+    private var currentViolenceLevel = ViolenceLevel.FULL_VIOLENCE
 
     private var isUIVisible = false
         private set
@@ -1042,6 +1050,13 @@ class UIManager(
         hideAllEditorPanels()
         characterInventoryUI.show(npc)
     }
+
+    fun cycleViolenceLevel() {
+        val nextOrdinal = (currentViolenceLevel.ordinal + 1) % ViolenceLevel.entries.size
+        currentViolenceLevel = ViolenceLevel.entries[nextOrdinal]
+    }
+
+    fun getViolenceLevel(): ViolenceLevel = currentViolenceLevel
 
     fun render() {
         dialogSystem.update(Gdx.graphics.deltaTime)

@@ -519,12 +519,14 @@ class EnemySystem : IFinePositionable {
                         enemy.bloodDripSpawnTimer = GameEnemy.BLOOD_DRIP_INTERVAL
 
                         // Spawn a drip at the enemy's position with a slight random offset
-                        val spawnPosition = enemy.physics.position.cpy().add(
-                            (Random.nextFloat() - 0.5f) * 1f,
-                            (Random.nextFloat() - 0.5f) * 2f,
-                            (Random.nextFloat() - 0.5f) * 1f
-                        )
-                        sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BLOOD_DRIP, spawnPosition)
+                        if (sceneManager.game.uiManager.getViolenceLevel() != ViolenceLevel.NO_VIOLENCE) {
+                            val spawnPosition = enemy.physics.position.cpy().add(
+                                (Random.nextFloat() - 0.5f) * 1f,
+                                (Random.nextFloat() - 0.5f) * 2f,
+                                (Random.nextFloat() - 0.5f) * 1f
+                            )
+                            sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BLOOD_DRIP, spawnPosition)
+                        }
                     }
                 }
             }

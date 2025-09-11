@@ -538,12 +538,14 @@ class NPCSystem : IFinePositionable {
                         npc.bloodDripSpawnTimer = GameNPC.BLOOD_DRIP_INTERVAL
 
                         // Spawn a drip at the NPC's position with a slight random offset
-                        val spawnPosition = npc.physics.position.cpy().add(
-                            (Random.nextFloat() - 0.5f) * 1f,
-                            (Random.nextFloat() - 0.5f) * 2f,
-                            (Random.nextFloat() - 0.5f) * 1f
-                        )
-                        sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BLOOD_DRIP, spawnPosition)
+                        if (sceneManager.game.uiManager.getViolenceLevel() != ViolenceLevel.NO_VIOLENCE) {
+                            val spawnPosition = npc.physics.position.cpy().add(
+                                (Random.nextFloat() - 0.5f) * 1f,
+                                (Random.nextFloat() - 0.5f) * 2f,
+                                (Random.nextFloat() - 0.5f) * 1f
+                            )
+                            sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BLOOD_DRIP, spawnPosition)
+                        }
                     }
                 }
             }

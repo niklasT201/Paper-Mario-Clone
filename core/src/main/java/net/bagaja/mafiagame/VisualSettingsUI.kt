@@ -40,6 +40,7 @@ class VisualSettingsUI(
     private val trajectoryCheckbox: CheckBox
     private var meleeRangeCheckbox: CheckBox
     private val muzzleFlashCheckbox: CheckBox
+    private lateinit var violenceLevelButton: TextButton
     private lateinit var indicatorStyleButton: TextButton
     private lateinit var hudStyleButton: TextButton
 
@@ -142,6 +143,10 @@ class VisualSettingsUI(
         checkboxTable.add(muzzleFlashCheckbox).left().padBottom(10f).row()
 
         settingsTable.add(checkboxTable).fillX().row()
+
+        violenceLevelButton = createVintageButton("Violence: Full", Color.valueOf("#654321"))
+        updateViolenceButtonText() // Set initial text
+        settingsTable.add(violenceLevelButton).width(320f).height(50f).padTop(10f).row()
 
         // Melee Indicator Style Button
         indicatorStyleButton = createVintageButton("Melee Style: Solid", Color.valueOf("#654321"))
@@ -505,6 +510,11 @@ class VisualSettingsUI(
         hudStyleButton.setText("HUD Style: ${style.displayName}")
     }
 
+    private fun updateViolenceButtonText() {
+        val style = uiManager.getViolenceLevel()
+        violenceLevelButton.setText("Violence: ${style.displayName}")
+    }
+
     private fun setupListeners() {
         // Fullscreen checkbox listener
         fullscreenCheckbox.addListener(object : ClickListener() {
@@ -553,6 +563,13 @@ class VisualSettingsUI(
             }
         })
 
+        violenceLevelButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                uiManager.cycleViolenceLevel()
+                updateViolenceButtonText()
+            }
+        })
+
         indicatorStyleButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 val nextStyle = when (meleeRangeIndicatorSystem.getCurrentStyle()) {
@@ -586,6 +603,7 @@ class VisualSettingsUI(
         trajectoryCheckbox.isChecked = trajectorySystem.isEnabled()
         meleeRangeCheckbox.isChecked = meleeRangeIndicatorSystem.isEnabled()
         muzzleFlashCheckbox.isChecked = playerSystem.isMuzzleFlashLightEnabled()
+        updateViolenceButtonText()
         updateIndicatorButtonStyle()
         updateHudStyleButtonText()
         stage.addActor(overlay)
