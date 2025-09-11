@@ -1175,8 +1175,22 @@ class PlayerSystem {
                         particleTypeToSpawn = ParticleEffectType.MOVEMENT_WIPE
                         wipeRotation = MathUtils.atan2(-desiredMovement.x, -desiredMovement.z) * MathUtils.radiansToDegrees + 90f
 
+                        val xOffset: Float
+                        val zOffset: Float
+
+                        if (desiredMovement.z != 0f) {
+                            // DIAGONAL MOVEMENT (W/S + A/D keys are pressed)
+                            xOffset = if (desiredMovement.x < 0) 1.0f else -1.0f
+
+                            zOffset = if (desiredMovement.z < 0) 1.0f else -1.0f
+                        } else {
+                            // PURE SIDEWAYS MOVEMENT (A/D keys only)
+                            xOffset = 0f
+                            zOffset = -0.5f
+                        }
+
                         // Use the original, correct position for this case.
-                        wipePosition = physicsComponent.position.cpy().add(0f, -1.0f, -0.5f)
+                        wipePosition = physicsComponent.position.cpy().add(xOffset, -1.0f, zOffset)
                     }
 
                     particleSystem.spawnEffect(
