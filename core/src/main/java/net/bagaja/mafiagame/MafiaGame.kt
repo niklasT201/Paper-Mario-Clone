@@ -6,6 +6,8 @@ import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.*
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.g3d.*
+import com.badlogic.gdx.graphics.g3d.shaders.DefaultShader
+import com.badlogic.gdx.graphics.g3d.utils.DefaultShaderProvider
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.utils.Array
@@ -227,7 +229,11 @@ class MafiaGame : ApplicationAdapter() {
         //shaderProvider = BillboardShaderProvider()
         //shaderProvider.setBlockCartoonySaturation(1.3f)
         //modelBatch = ModelBatch(shaderProvider)
-        modelBatch = ModelBatch()
+        val shaderConfig = DefaultShader.Config()
+        shaderConfig.numPointLights = 16
+        shaderConfig.numDirectionalLights = 1
+        val shaderProvider = DefaultShaderProvider(shaderConfig)
+        modelBatch = ModelBatch(shaderProvider)
         spriteBatch = SpriteBatch()
 
         // Initialize camera manager
