@@ -21,6 +21,11 @@ enum class AmmoSpawnMode {
     RANDOM // Uses a random value between a min/max
 }
 
+enum class CarSpawnDirection(val displayName: String) {
+    LEFT("Left"),
+    RIGHT("Right")
+}
+
 data class GameSpawner(
     val id: String = UUID.randomUUID().toString(),
     var position: Vector3,
@@ -78,7 +83,8 @@ data class GameSpawner(
     var carIsLocked: Boolean = false,
     var carDriverType: String = "None", // "None", "Enemy", or "NPC"
     var carEnemyDriverType: EnemyType = EnemyType.MOUSE_THUG,
-    var carNpcDriverType: NPCType = NPCType.GEORGE_MELES
+    var carNpcDriverType: NPCType = NPCType.GEORGE_MELES,
+    var carSpawnDirection: CarSpawnDirection = CarSpawnDirection.LEFT
 )
 
 class SpawnerSystem(
@@ -274,10 +280,16 @@ class SpawnerSystem(
     }
 
     private fun spawnCar(spawner: GameSpawner) {
+        val initialRotation = when (spawner.carSpawnDirection) {
+            CarSpawnDirection.LEFT -> 0f
+            CarSpawnDirection.RIGHT -> 180f
+        }
+
         val newCar = sceneManager.game.carSystem.spawnCar(
             spawner.position,
             spawner.carType,
-            spawner.carIsLocked
+            spawner.carIsLocked,
+            initialRotation
         )
 
         if (newCar != null) {

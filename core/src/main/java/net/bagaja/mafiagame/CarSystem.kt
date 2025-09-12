@@ -158,16 +158,15 @@ class CarSystem: IFinePositionable {
         return false
     }
 
-    fun spawnCar(position: Vector3, carType: CarType, isLocked: Boolean): GameCar? {
-        // This function simply calls your existing private logic.
-        return addCar(position.x, position.y, position.z, carType, isLocked)
+    fun spawnCar(position: Vector3, carType: CarType, isLocked: Boolean, initialVisualRotation: Float = 0f): GameCar? {
+        return addCar(position.x, position.y, position.z, carType, isLocked, initialVisualRotation)
     }
 
-    private fun addCar(x: Float, y: Float, z: Float, carType: CarType, isLocked: Boolean): GameCar? {
+    private fun addCar(x: Float, y: Float, z: Float, carType: CarType, isLocked: Boolean, initialVisualRotation: Float = 0f): GameCar? {
         val carInstance = createCarInstance(carType)
         if (carInstance != null) {
             val position = Vector3(x, y, z)
-            val gameCar = GameCar(carInstance, carType, position, 0f, isLocked)
+            val gameCar = GameCar(carInstance, carType, position, 0f, isLocked, carType.baseHealth, initialVisualRotation)
             sceneManager.activeCars.add(gameCar)
             sceneManager.game.lastPlacedInstance = gameCar
             println("Placed ${carType.displayName}. Locked: $isLocked")
@@ -367,7 +366,8 @@ data class GameCar(
     val position: Vector3,
     var direction: Float = 0f, // Direction in degrees (0 = facing forward/north)
     val isLocked: Boolean = false,
-    var health: Float = carType.baseHealth
+    var health: Float = carType.baseHealth,
+    val initialVisualRotation: Float = 0f
 ) {
     companion object {
         const val WRECKED_DURATION = 25f
@@ -403,6 +403,11 @@ data class GameCar(
         private set
 
     init {
+        this.visualRotationY = initialVisualRotation
+        this.targetRotationY = initialVisualRotation
+        // Set lastHorizontalDirection to prevent an immediate flip on first movement
+        this.lastHorizontalDirection = if (initialVisualRotation == 180f) -1f else 1f
+
         seats.add(CarSeat(Vector3(0.8f, 4.5f, -0.2f)))
         // seats.add(CarSeat(Vector3(1.5f, 4.0f, 0f))) // Passenger seat
 

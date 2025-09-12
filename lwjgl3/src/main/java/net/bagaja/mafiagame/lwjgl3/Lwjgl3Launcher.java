@@ -61,8 +61,6 @@ public class Lwjgl3Launcher {
 // fire using not real light sources like muzzle flash and headlights
 // Environmental State Changes from Effects
 // Faction & Alert System
-// car spawner
-// car ai to drive around
 // maybe adding bouncy dynamite (1 bounce max)
 // step up stair
 // maybe improving billboard shader

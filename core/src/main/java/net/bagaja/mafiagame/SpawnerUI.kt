@@ -90,6 +90,7 @@ class SpawnerUI(
 
     private val carTypeSelectBox: SelectBox<String>
     private val carLockedCheckbox: CheckBox
+    private val carDirectionSelectBox: SelectBox<String>
     private val carDriverTypeSelectBox: SelectBox<String>
     private val carEnemyDriverSelectBox: SelectBox<String>
     private val carNpcDriverSelectBox: SelectBox<String>
@@ -223,11 +224,13 @@ class SpawnerUI(
         // --- Build Car Tab ---
         carTypeSelectBox = SelectBox(skin); carTypeSelectBox.items = GdxArray(CarType.entries.map { it.displayName }.toTypedArray())
         carLockedCheckbox = CheckBox(" Start Locked", skin)
+        carDirectionSelectBox = SelectBox(skin); carDirectionSelectBox.items = GdxArray(CarSpawnDirection.entries.map { it.displayName }.toTypedArray())
         carDriverTypeSelectBox = SelectBox(skin); carDriverTypeSelectBox.items = GdxArray(arrayOf("None", "Enemy", "NPC"))
         carEnemyDriverSelectBox = SelectBox(skin); carEnemyDriverSelectBox.items = GdxArray(EnemyType.entries.map { it.displayName }.toTypedArray())
         carNpcDriverSelectBox = SelectBox(skin); carNpcDriverSelectBox.items = GdxArray(NPCType.entries.map { it.displayName }.toTypedArray())
 
         carSettingsTable.add(Label("Car Type:", skin)).left(); carSettingsTable.add(carTypeSelectBox).growX().row()
+        carSettingsTable.add(Label("Spawn Facing:", skin)).left().padTop(5f); carSettingsTable.add(carDirectionSelectBox).growX().row()
         carSettingsTable.add(carLockedCheckbox).colspan(2).left().padTop(5f).row()
         carSettingsTable.add(Label("Driver:", skin)).left().padTop(10f); carSettingsTable.add(carDriverTypeSelectBox).growX().row()
 
@@ -370,6 +373,7 @@ class SpawnerUI(
 
         carTypeSelectBox.selected = spawner.carType.displayName
         carLockedCheckbox.isChecked = spawner.carIsLocked
+        carDirectionSelectBox.selected = spawner.carSpawnDirection.displayName
         carDriverTypeSelectBox.selected = spawner.carDriverType
         carEnemyDriverSelectBox.selected = spawner.carEnemyDriverType.displayName
         carNpcDriverSelectBox.selected = spawner.carNpcDriverType.displayName
@@ -453,6 +457,7 @@ class SpawnerUI(
                 spawner.spawnerType = SpawnerType.CAR
                 spawner.carType = CarType.entries.find { it.displayName == carTypeSelectBox.selected } ?: spawner.carType
                 spawner.carIsLocked = carLockedCheckbox.isChecked
+                spawner.carSpawnDirection = CarSpawnDirection.entries.find { it.displayName == carDirectionSelectBox.selected } ?: spawner.carSpawnDirection
                 spawner.carDriverType = carDriverTypeSelectBox.selected
                 spawner.carEnemyDriverType = EnemyType.entries.find { it.displayName == carEnemyDriverSelectBox.selected } ?: spawner.carEnemyDriverType
                 spawner.carNpcDriverType = NPCType.entries.find { it.displayName == carNpcDriverSelectBox.selected } ?: spawner.carNpcDriverType
