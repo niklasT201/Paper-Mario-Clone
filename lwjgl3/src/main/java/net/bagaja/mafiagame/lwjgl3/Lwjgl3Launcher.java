@@ -84,7 +84,7 @@ public class Lwjgl3Launcher {
 // The "Mission Editor" Main Panel
 // Creating Objectives (The Core Logic)
 // "Placing" Mission Logic in the World
-// adding multiple city areas
+// adding multiple city areas, district 2d polygons
 
 // maybe, not intended for now:
 // Asynchronous/Multi-threaded Chunk Building

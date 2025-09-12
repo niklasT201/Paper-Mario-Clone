@@ -158,6 +158,11 @@ class CarSystem: IFinePositionable {
         return false
     }
 
+    fun spawnCar(position: Vector3, carType: CarType, isLocked: Boolean): GameCar? {
+        // This function simply calls your existing private logic.
+        return addCar(position.x, position.y, position.z, carType, isLocked)
+    }
+
     private fun addCar(x: Float, y: Float, z: Float, carType: CarType, isLocked: Boolean): GameCar? {
         val carInstance = createCarInstance(carType)
         if (carInstance != null) {

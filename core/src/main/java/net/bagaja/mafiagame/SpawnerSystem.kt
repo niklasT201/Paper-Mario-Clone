@@ -6,7 +6,7 @@ import java.util.*
 import kotlin.random.Random
 
 enum class SpawnerType {
-    PARTICLE, ITEM, WEAPON, ENEMY, NPC
+    PARTICLE, ITEM, WEAPON, ENEMY, NPC, CAR
 }
 
 // NEW: Spawner behavior modes
@@ -68,11 +68,17 @@ data class GameSpawner(
     var enemyCanCollectItems: Boolean = true,
     var enemyInitialMoney: Int = 0,
 
-    // --- NEW: NPC specific settings ---
+    // NPC specific settings
     var npcType: NPCType = NPCType.GEORGE_MELES,
     var npcBehavior: NPCBehavior = NPCBehavior.WANDER,
     var npcIsHonest: Boolean = true,
-    var npcCanCollectItems: Boolean = true
+    var npcCanCollectItems: Boolean = true,
+
+    var carType: CarType = CarType.DEFAULT,
+    var carIsLocked: Boolean = false,
+    var carDriverType: String = "None", // "None", "Enemy", or "NPC"
+    var carEnemyDriverType: EnemyType = EnemyType.MOUSE_THUG,
+    var carNpcDriverType: NPCType = NPCType.GEORGE_MELES
 )
 
 class SpawnerSystem(
@@ -131,8 +137,9 @@ class SpawnerSystem(
                     SpawnerType.PARTICLE -> spawnParticles(spawner)
                     SpawnerType.ITEM -> spawnItems(spawner)
                     SpawnerType.WEAPON -> spawnWeaponPickup(spawner)
-                    SpawnerType.ENEMY -> spawnEnemyFromSpawner(spawner)   // NEW
-                    SpawnerType.NPC -> spawnNpcFromSpawner(spawner)     // NEW
+                    SpawnerType.ENEMY -> spawnEnemyFromSpawner(spawner)
+                    SpawnerType.NPC -> spawnNpcFromSpawner(spawner)
+                    SpawnerType.CAR -> spawnCar(spawner)
                 }
 
                 if (spawner.spawnerMode == SpawnerMode.ONE_SHOT) {
@@ -263,6 +270,56 @@ class SpawnerSystem(
             sceneManager.activeItems.add(weaponItem)
 
             println("Weapon spawner created ${weaponItem.itemType.displayName}. It will grant $ammoToGive ammo on pickup.")
+        }
+    }
+
+    private fun spawnCar(spawner: GameSpawner) {
+        val newCar = sceneManager.game.carSystem.spawnCar(
+            spawner.position,
+            spawner.carType,
+            spawner.carIsLocked
+        )
+
+        if (newCar != null) {
+            // If the spawner is set to track the entity, store its ID
+            if (spawner.spawnOnlyWhenPreviousIsGone || spawner.spawnerMode == SpawnerMode.ONE_SHOT) {
+                spawner.spawnedEntityId = newCar.id
+            }
+
+            // Now, check if we need to add a driver
+            when (spawner.carDriverType) {
+                "Enemy" -> {
+                    val enemyConfig = EnemySpawnConfig(
+                        enemyType = spawner.carEnemyDriverType,
+                        behavior = EnemyBehavior.AGGRESSIVE_RUSHER, // Default behavior for car drivers
+                        position = newCar.position
+                    )
+                    val driver = sceneManager.enemySystem.createEnemy(enemyConfig)
+                    if (driver != null) {
+                        driver.enterCar(newCar)
+                        driver.currentState = AIState.PATROLLING_IN_CAR
+                        sceneManager.activeEnemies.add(driver)
+                        println("Spawner ${spawner.id} spawned a ${spawner.carType.displayName} with an Enemy driver.")
+                    }
+                }
+                "NPC" -> {
+                    val npcConfig = NPCSpawnConfig(
+                        npcType = spawner.carNpcDriverType,
+                        behavior = NPCBehavior.WANDER, // Default behavior for car drivers
+                        position = newCar.position
+                    )
+                    val driver = sceneManager.npcSystem.createNPC(npcConfig)
+                    if (driver != null) {
+                        driver.enterCar(newCar)
+                        driver.currentState = NPCState.PATROLLING_IN_CAR
+                        sceneManager.activeNPCs.add(driver)
+                        println("Spawner ${spawner.id} spawned a ${spawner.carType.displayName} with an NPC driver.")
+                    }
+                }
+                else -> {
+                    println("Spawner ${spawner.id} spawned an empty ${spawner.carType.displayName}.")
+                }
+            }
         }
     }
 

@@ -24,12 +24,14 @@ class SpawnerUI(
     private val weaponTabButton: TextButton
     private val enemyTabButton: TextButton
     private val npcTabButton: TextButton
+    private val carTabButton: TextButton
 
     private val particleSettingsTable: Table
     private val itemSettingsTable: Table
     private val weaponSettingsTable: Table
     private val enemySettingsTable: Table
     private val npcSettingsTable: Table
+    private val carSettingsTable: Table
 
     // General Settings
     private val spawnerModeSelectBox: SelectBox<String>
@@ -86,8 +88,13 @@ class SpawnerUI(
     // Cache for preview textures
     private val previewTextures = mutableMapOf<String, Texture>()
 
+    private val carTypeSelectBox: SelectBox<String>
+    private val carLockedCheckbox: CheckBox
+    private val carDriverTypeSelectBox: SelectBox<String>
+    private val carEnemyDriverSelectBox: SelectBox<String>
+    private val carNpcDriverSelectBox: SelectBox<String>
+
     init {
-        // --- NEW: TEXTURE PRE-LOADING RESTORED ---
         // Pre-load all preview textures for performance. This was the missing part.
         ParticleEffectType.entries.forEach { type ->
             try {
@@ -114,17 +121,20 @@ class SpawnerUI(
         weaponTabButton = TextButton("Weapon", skin, "toggle")
         enemyTabButton = TextButton("Enemy", skin, "toggle")
         npcTabButton = TextButton("NPC", skin, "toggle")
-        val buttonGroup = ButtonGroup(particleTabButton, itemTabButton, weaponTabButton, enemyTabButton, npcTabButton)
+        carTabButton = TextButton("Car", skin, "toggle")
+        val buttonGroup = ButtonGroup(particleTabButton, itemTabButton, weaponTabButton, enemyTabButton, npcTabButton, carTabButton)
         buttonGroup.setMaxCheckCount(1); buttonGroup.setMinCheckCount(1)
         tabButtonTable.add(particleTabButton).expandX().fillX()
         tabButtonTable.add(itemTabButton).expandX().fillX()
         tabButtonTable.add(weaponTabButton).expandX().fillX()
         tabButtonTable.add(enemyTabButton).expandX().fillX()
         tabButtonTable.add(npcTabButton).expandX().fillX()
+        tabButtonTable.add(carTabButton).expandX().fillX()
         window.add(tabButtonTable).fillX().colspan(2).padBottom(10f).row()
 
         particleSettingsTable = Table(); itemSettingsTable = Table(); weaponSettingsTable = Table()
         enemySettingsTable = Table(); npcSettingsTable = Table()
+        carSettingsTable = Table()
 
         // --- Build Particle Tab with Preview Image ---
         particlePreviewImage = Image()
@@ -210,8 +220,38 @@ class SpawnerUI(
         npcSettingsTable.add(npcCanCollectItemsCheckbox).colspan(2).left().padTop(10f).row()
         npcSettingsTable.add(npcIsHonestCheckbox).colspan(2).left().row()
 
+        // --- Build Car Tab ---
+        carTypeSelectBox = SelectBox(skin); carTypeSelectBox.items = GdxArray(CarType.entries.map { it.displayName }.toTypedArray())
+        carLockedCheckbox = CheckBox(" Start Locked", skin)
+        carDriverTypeSelectBox = SelectBox(skin); carDriverTypeSelectBox.items = GdxArray(arrayOf("None", "Enemy", "NPC"))
+        carEnemyDriverSelectBox = SelectBox(skin); carEnemyDriverSelectBox.items = GdxArray(EnemyType.entries.map { it.displayName }.toTypedArray())
+        carNpcDriverSelectBox = SelectBox(skin); carNpcDriverSelectBox.items = GdxArray(NPCType.entries.map { it.displayName }.toTypedArray())
+
+        carSettingsTable.add(Label("Car Type:", skin)).left(); carSettingsTable.add(carTypeSelectBox).growX().row()
+        carSettingsTable.add(carLockedCheckbox).colspan(2).left().padTop(5f).row()
+        carSettingsTable.add(Label("Driver:", skin)).left().padTop(10f); carSettingsTable.add(carDriverTypeSelectBox).growX().row()
+
+        val carEnemyRow = Table()
+        carEnemyRow.add(Label("Enemy Driver:", skin)).left().padRight(10f); carEnemyRow.add(carEnemyDriverSelectBox).growX()
+        carSettingsTable.add(carEnemyRow).colspan(2).left().padTop(5f).row()
+
+        val carNpcRow = Table()
+        carNpcRow.add(Label("NPC Driver:", skin)).left().padRight(10f); carNpcRow.add(carNpcDriverSelectBox).growX()
+        carSettingsTable.add(carNpcRow).colspan(2).left().padTop(5f).row()
+
+        carDriverTypeSelectBox.addListener(object: ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                val driverType = carDriverTypeSelectBox.selected
+                carEnemyRow.isVisible = driverType == "Enemy"
+                carNpcRow.isVisible = driverType == "NPC"
+                window.pack()
+            }
+        })
+        carEnemyRow.isVisible = false
+        carNpcRow.isVisible = false
+
         // Add tabs to a Stack
-        val settingsStack = Stack(particleSettingsTable, itemSettingsTable, weaponSettingsTable, enemySettingsTable, npcSettingsTable)
+        val settingsStack = Stack(particleSettingsTable, itemSettingsTable, weaponSettingsTable, enemySettingsTable, npcSettingsTable, carSettingsTable) // ADDED carSettingsTable
         window.add(settingsStack).colspan(2).fillX().padBottom(15f).row()
 
         // --- General Settings ---
@@ -253,11 +293,12 @@ class SpawnerUI(
                     weaponTabButton.isChecked -> showTab(SpawnerType.WEAPON)
                     enemyTabButton.isChecked -> showTab(SpawnerType.ENEMY)
                     npcTabButton.isChecked -> showTab(SpawnerType.NPC)
+                    carTabButton.isChecked -> showTab(SpawnerType.CAR)
                 }
             }
         }
         particleTabButton.addListener(tabListener); itemTabButton.addListener(tabListener); weaponTabButton.addListener(tabListener)
-        enemyTabButton.addListener(tabListener); npcTabButton.addListener(tabListener)
+        enemyTabButton.addListener(tabListener); npcTabButton.addListener(tabListener); carTabButton.addListener(tabListener)
 
         ammoModeSelectBox.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { updateAmmoFieldVisibility() } })
         enemyHealthSettingSelectBox.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { updateEnemyHealthFieldVisibility() } })
@@ -288,6 +329,7 @@ class SpawnerUI(
         weaponSettingsTable.isVisible = type == SpawnerType.WEAPON
         enemySettingsTable.isVisible = type == SpawnerType.ENEMY
         npcSettingsTable.isVisible = type == SpawnerType.NPC
+        carSettingsTable.isVisible = type == SpawnerType.CAR
         window.pack()
     }
 
@@ -326,6 +368,12 @@ class SpawnerUI(
         npcCanCollectItemsCheckbox.isChecked = spawner.npcCanCollectItems
         npcIsHonestCheckbox.isChecked = spawner.npcIsHonest
 
+        carTypeSelectBox.selected = spawner.carType.displayName
+        carLockedCheckbox.isChecked = spawner.carIsLocked
+        carDriverTypeSelectBox.selected = spawner.carDriverType
+        carEnemyDriverSelectBox.selected = spawner.carEnemyDriverType.displayName
+        carNpcDriverSelectBox.selected = spawner.carNpcDriverType.displayName
+
         // Set Tab
         when (spawner.spawnerType) {
             SpawnerType.PARTICLE -> particleTabButton.isChecked = true
@@ -333,6 +381,7 @@ class SpawnerUI(
             SpawnerType.WEAPON -> weaponTabButton.isChecked = true
             SpawnerType.ENEMY -> enemyTabButton.isChecked = true
             SpawnerType.NPC -> npcTabButton.isChecked = true
+            SpawnerType.CAR -> carTabButton.isChecked = true
         }
         showTab(spawner.spawnerType)
         updatePreviewImages()
@@ -399,6 +448,14 @@ class SpawnerUI(
                 spawner.npcBehavior = NPCBehavior.entries.find { it.displayName == npcBehaviorSelectBox.selected } ?: spawner.npcBehavior
                 spawner.npcCanCollectItems = npcCanCollectItemsCheckbox.isChecked
                 spawner.npcIsHonest = npcIsHonestCheckbox.isChecked
+            }
+            carTabButton.isChecked -> {
+                spawner.spawnerType = SpawnerType.CAR
+                spawner.carType = CarType.entries.find { it.displayName == carTypeSelectBox.selected } ?: spawner.carType
+                spawner.carIsLocked = carLockedCheckbox.isChecked
+                spawner.carDriverType = carDriverTypeSelectBox.selected
+                spawner.carEnemyDriverType = EnemyType.entries.find { it.displayName == carEnemyDriverSelectBox.selected } ?: spawner.carEnemyDriverType
+                spawner.carNpcDriverType = NPCType.entries.find { it.displayName == carNpcDriverSelectBox.selected } ?: spawner.carNpcDriverType
             }
         }
     }
