@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.Plane
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Disposable
 import java.util.*
@@ -39,6 +40,8 @@ class CarPathSystem : Disposable {
     val nodes = mutableMapOf<String, CarPathNode>()
     private var lastPlacedNode: CarPathNode? = null
     var isVisible = false
+    lateinit var sceneManager: SceneManager
+    lateinit var raycastSystem: RaycastSystem
 
     private val modelBuilder = ModelBuilder()
     private val modelBatch = ModelBatch()
@@ -110,6 +113,24 @@ class CarPathSystem : Disposable {
         }
     }
 
+    private fun getPlacementPositionFromRay(ray: Ray): Vector3? {
+        // First, try to hit a block
+        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
+        if (hitBlock != null) {
+            val blockBounds = hitBlock.getBoundingBox(sceneManager.game.blockSize, BoundingBox())
+            if (Intersector.intersectRayBounds(ray, blockBounds, tempVec3)) {
+                return tempVec3.cpy() // Return the exact intersection point
+            }
+        }
+
+        // If no block was hit, fall back to the ground plane
+        if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            return tempVec3.cpy()
+        }
+
+        return null // Nothing was hit
+    }
+
     fun cycleDirectionality(): String {
         currentDirectionality = if (currentDirectionality == PathDirectionality.BI_DIRECTIONAL) {
             PathDirectionality.ONE_WAY
@@ -132,14 +153,16 @@ class CarPathSystem : Disposable {
     }
 
     fun handlePlaceAction(ray: Ray) {
-        if (!Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) return
-        val position = tempVec3.cpy().add(0f, NODE_VISUAL_RADIUS, 0f)
+        val hitPosition = getPlacementPositionFromRay(ray) ?: return
+        val position = hitPosition.add(0f, NODE_VISUAL_RADIUS, 0f) // Place node on top of the surface
 
         when (placementState) {
             LinePlacementState.IDLE -> {
                 val startNode = CarPathNode(position = position, debugInstance = ModelInstance(nodeModel))
                 nodes[startNode.id] = startNode
                 firstNode = startNode
+
+                sceneManager.game.lastPlacedInstance = startNode
                 // Link to the absolute last node placed in the previous chain, if it exists
                 lastPlacedNode?.let {
                     // Only link if the new line isn't a reversed one-way
@@ -154,6 +177,9 @@ class CarPathSystem : Disposable {
             LinePlacementState.PLACING_LINE -> {
                 val endNode = CarPathNode(position = position, debugInstance = ModelInstance(nodeModel))
                 nodes[endNode.id] = endNode
+
+                sceneManager.game.lastPlacedInstance = endNode
+
                 val startNode = firstNode!!
 
                 if (isDirectionFlipped && currentDirectionality == PathDirectionality.ONE_WAY) {
@@ -227,9 +253,10 @@ class CarPathSystem : Disposable {
     fun update(camera: Camera) {
         if (placementState == LinePlacementState.PLACING_LINE && firstNode != null) {
             val ray = camera.getPickRay(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
-            if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val hitPosition = getPlacementPositionFromRay(ray)
+            if (hitPosition != null) {
                 val start = firstNode!!.position
-                val end = tempVec3.cpy().add(0f, NODE_VISUAL_RADIUS, 0f)
+                val end = hitPosition.add(0f, NODE_VISUAL_RADIUS, 0f)
 
                 // Determine direction based on the flip state for the preview
                 val previewStart = if (isDirectionFlipped) end else start

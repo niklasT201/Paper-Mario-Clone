@@ -86,6 +86,7 @@ class MafiaGame : ApplicationAdapter() {
 
     override fun create() {
         setupGraphics()
+        raycastSystem = RaycastSystem(blockSize)
         carPathSystem = CarPathSystem()
         particleSystem = ParticleSystem()
         blockSystem = BlockSystem()
@@ -142,8 +143,10 @@ class MafiaGame : ApplicationAdapter() {
             enemySystem, npcSystem, roomTemplateManager, cameraManager, houseSystem, transitionSystem,
             faceCullingSystem, this, particleSystem, fireSystem, boneSystem
         )
+        sceneManager.raycastSystem = this.raycastSystem
         pathfindingSystem = PathfindingSystem(sceneManager, blockSize, playerSystem.playerSize)
         characterPhysicsSystem = CharacterPhysicsSystem(sceneManager)
+        carPathSystem.sceneManager = sceneManager
 
         blockSystem.sceneManager = sceneManager
         objectSystem.sceneManager = sceneManager
@@ -213,7 +216,6 @@ class MafiaGame : ApplicationAdapter() {
             carPathSystem
         )
         inputHandler.initialize()
-        raycastSystem = RaycastSystem(blockSize)
 
         // Pass the initial world data to the SceneManager
         sceneManager.initializeWorld(
@@ -561,6 +563,11 @@ class MafiaGame : ApplicationAdapter() {
                 instance.position.add(deltaX, deltaY, deltaZ)
                 instance.debugInstance.transform.setTranslation(instance.position)
                 println("Moved Entry Point to ${instance.position}")
+            }
+            is CarPathNode -> {
+                instance.position.add(deltaX, deltaY, deltaZ)
+                // The visual will update automatically in the render loop
+                println("Moved Path Node to ${instance.position}")
             }
             else -> println("Fine positioning not supported for this object type.")
         }

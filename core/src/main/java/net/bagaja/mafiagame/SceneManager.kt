@@ -42,6 +42,7 @@ class SceneManager(
     val fireSystem: FireSystem,
     val boneSystem: BoneSystem
 ) {
+    lateinit var raycastSystem: RaycastSystem
     lateinit var teleporterSystem: TeleporterSystem
     // --- ACTIVE SCENE DATA ---
     private lateinit var worldChunkManager: ChunkManager

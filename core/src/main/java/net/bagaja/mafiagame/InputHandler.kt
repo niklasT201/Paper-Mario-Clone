@@ -83,6 +83,7 @@ class InputHandler(
     }
 
     fun initialize() {
+        carPathSystem.raycastSystem = game.sceneManager.raycastSystem
         val inputMultiplexer = InputMultiplexer()
 
         inputMultiplexer.addProcessor(uiManager.getStage())
