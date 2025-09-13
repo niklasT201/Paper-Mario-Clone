@@ -32,8 +32,6 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
     private val missionTriggers = mutableMapOf<String, VisualMissionTrigger>()
     private val renderableInstances = Array<ModelInstance>()
 
-    private var editorCylinderModel: Model? = null
-    private var editorCylinderInstance: ModelInstance? = null
     var isEditorVisible = false // Controlled by the new UI tool
     var selectedMissionIdForEditing: String? = null
 
@@ -95,6 +93,8 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
     }
 
     private fun getOrCreateModelForRadius(radius: Float): Model {
+        // We now use a constant visual radius (VISUAL_RADIUS) as the key,
+        // so we only ever create ONE model for all triggers.
         return models.getOrPut(VISUAL_RADIUS) {
             println("Creating new trigger model for visual radius: $VISUAL_RADIUS")
             val modelBuilder = ModelBuilder()
@@ -103,28 +103,18 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
                 BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
                 IntAttribute.createCullFace(GL20.GL_NONE)
             )
-            // Use VISUAL_RADIUS to build the rectangle, NOT the functional radius.
+            // Use the constant VISUAL_RADIUS to build the rectangle, NOT the functional 'radius' parameter.
+            val size = VISUAL_RADIUS * 2
             modelBuilder.createRect(
-                -VISUAL_RADIUS, 0f,  VISUAL_RADIUS,
-                -VISUAL_RADIUS, 0f, -VISUAL_RADIUS,
-                VISUAL_RADIUS, 0f, -VISUAL_RADIUS,
-                VISUAL_RADIUS, 0f,  VISUAL_RADIUS,
+                -size / 2f, 0f,  size / 2f,
+                -size / 2f, 0f, -size / 2f,
+                size / 2f, 0f, -size / 2f,
+                size / 2f, 0f,  size / 2f,
                 0f, 1f, 0f, // Normal pointing straight up
                 material,
                 (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
             )
         }
-    }
-
-    fun createOrUpdateEditorCylinder(radius: Float, height: Float) {
-        editorCylinderModel?.dispose() // Dispose old model first
-        val material = Material(
-            ColorAttribute.createDiffuse(Color.CYAN.r, Color.CYAN.g, Color.CYAN.b, 0.3f),
-            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
-        )
-        editorCylinderModel = modelBuilder.createCylinder(radius * 2, height, radius * 2, 32, material,
-            (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong())
-        editorCylinderInstance = ModelInstance(editorCylinderModel)
     }
 
     fun update() {
@@ -146,20 +136,18 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
                     game.missionSystem.startMission(missionId)
                 }
 
-                // --- MODIFIED VISUAL LOGIC ---
                 val distanceToVisual = playerPos.dst(center)
                 if (distanceToVisual < VISUAL_ACTIVATION_DISTANCE) {
                     // Find the ground height to place the visual correctly
                     val groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
 
-                    // THIS IS THE CRITICAL FIX: Update the position every frame
+                    // Update the position every frame
                     trigger.modelInstance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)
 
                     trigger.isVisible = true
                 } else {
                     trigger.isVisible = false
                 }
-                // --- END MODIFIED VISUAL LOGIC ---
             }
         }
     }
@@ -186,32 +174,36 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
     fun render(camera: Camera, environment: Environment) {
         renderableInstances.clear()
         for (trigger in missionTriggers.values) {
+            // RENDER RULE 1: If it's a gameplay trigger and should be visible, add it.
             if (trigger.isVisible) {
                 renderableInstances.add(trigger.modelInstance)
             }
         }
+
+        // --- NEW RENDER LOGIC FOR EDITOR ---
+        // RENDER RULE 2: If we are in editor mode, show the selected trigger's visual.
+        if (isEditorVisible) {
+            selectedMissionIdForEditing?.let { missionId ->
+                missionTriggers[missionId]?.let { visualTrigger ->
+                    // Update its position before rendering
+                    val center = visualTrigger.definition.areaCenter
+                    val groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
+                    visualTrigger.modelInstance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)
+
+                    // Add it to the render list if it's not already there
+                    if (!renderableInstances.contains(visualTrigger.modelInstance, true)) {
+                        renderableInstances.add(visualTrigger.modelInstance)
+                    }
+                }
+            }
+        }
+        // --- END NEW RENDER LOGIC ---
 
         if (renderableInstances.size > 0) {
             shaderProvider.setEnvironment(environment)
             modelBatch.begin(camera)
             modelBatch.render(renderableInstances, environment)
             modelBatch.end()
-        }
-
-
-        if (isEditorVisible && editorCylinderInstance != null) {
-            val missionId = selectedMissionIdForEditing
-            val trigger = missionTriggers[missionId]?.definition
-            if (trigger != null) {
-                // Update the cylinder's position and render it
-                editorCylinderInstance!!.transform.setToTranslation(trigger.areaCenter)
-
-                Gdx.gl.glEnable(GL20.GL_BLEND)
-                modelBatch.begin(camera)
-                modelBatch.render(editorCylinderInstance!!, environment)
-                modelBatch.end()
-                Gdx.gl.glDisable(GL20.GL_BLEND)
-            }
         }
     }
 

@@ -45,14 +45,11 @@ class TriggerEditorUI(
                 val selectedText = missionSelectBox.selected ?: return
                 val missionId = selectedText.split(":")[0].trim()
 
-                // Tell the TriggerSystem which mission is now selected for editing
                 triggerSystem.selectedMissionIdForEditing = missionId
 
-                // Set the selected trigger as the "last placed instance" for fine-tuning
                 val mission = missionSystem.getMissionDefinition(missionId)
                 if (mission != null) {
                     sceneManager.game.lastPlacedInstance = mission.startTrigger
-                    triggerSystem.createOrUpdateEditorCylinder(mission.startTrigger.areaRadius, 10f) // Update visual
                 }
             }
         })

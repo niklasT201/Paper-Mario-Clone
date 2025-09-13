@@ -74,12 +74,8 @@ public class Lwjgl3Launcher {
 // Save and Load Player Progress
 // Expanding & Polishing
 // Add More Objective Types
-// Polish the UI
 // connect dialog and mission system
 // spawnpoints working with mission system
-// mission system knowing if its in open world or room
-// In-Game Mission Editor
-// The "Mission Editor" Main Panel
 // Creating Objectives (The Core Logic)
 // "Placing" Mission Logic in the World
 // adding multiple city areas, district 2d polygons
