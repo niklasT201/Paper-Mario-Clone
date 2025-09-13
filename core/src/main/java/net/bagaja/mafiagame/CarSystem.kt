@@ -56,7 +56,7 @@ class CarSystem: IFinePositionable {
     override val fineStep = 0.25f
 
     lateinit var sceneManager: SceneManager
-    private lateinit var raycastSystem: RaycastSystem
+    lateinit var raycastSystem: RaycastSystem
     private val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
     private val tempVec3 = Vector3()
     private var blockSize: Float = 4f

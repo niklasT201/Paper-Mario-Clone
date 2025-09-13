@@ -18,7 +18,7 @@ object UIToolIconFactory {
      * Tool types that can have icons created for them
      */
     enum class ToolType {
-        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE
+        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE, TRIGGER
     }
 
     /**
@@ -69,6 +69,7 @@ object UIToolIconFactory {
             ToolType.ENEMY -> Color.RED
             ToolType.NPC -> Color(0.2f, 0.8f, 1f, 1f)
             ToolType.PARTICLE -> Color(1f, 0.5f, 0.2f, 1f)
+            ToolType.TRIGGER -> Color.valueOf("#20B2AA")
         }
     }
 
@@ -89,6 +90,7 @@ object UIToolIconFactory {
             ToolType.ENEMY -> "Enemy"
             ToolType.NPC -> "NPC"
             ToolType.PARTICLE -> "Particle"
+            ToolType.TRIGGER -> "Trigger"
         }
     }
 
@@ -106,6 +108,7 @@ object UIToolIconFactory {
             ToolType.ENEMY -> Color.RED
             ToolType.NPC -> Color(0.2f, 0.8f, 1f, 1f)
             ToolType.PARTICLE -> Color(1f, 0.5f, 0.2f, 1f)
+            ToolType.TRIGGER -> Color.valueOf("#20B2AA")
         }
     }
 
@@ -126,6 +129,7 @@ object UIToolIconFactory {
             ToolType.ENEMY -> drawEnemyIcon(pixmap, shadowColor, highlightColor)
             ToolType.NPC -> drawNPCIcon(pixmap, shadowColor, highlightColor)
             ToolType.PARTICLE -> drawParticleIcon(pixmap, shadowColor, highlightColor)
+            ToolType.TRIGGER -> drawTriggerIcon(pixmap, shadowColor, highlightColor)
         }
     }
 
@@ -335,5 +339,26 @@ object UIToolIconFactory {
             val y2 = 18 + sin(angle) * 14
             pixmap.drawLine(x1.toInt(), y1.toInt(), x2.toInt(), y2.toInt())
         }
+    }
+
+    private fun drawTriggerIcon(pixmap: Pixmap, shadowColor: Color, highlightColor: Color) {
+        // Bullseye/Target icon
+        pixmap.setColor(shadowColor)
+        pixmap.fillCircle(19, 19, 14) // Shadow
+
+        pixmap.setColor(highlightColor)
+        pixmap.fillCircle(18, 18, 14) // Outer ring highlight
+
+        pixmap.setColor(getToolBaseColor(ToolType.TRIGGER))
+        pixmap.fillCircle(18, 18, 13) // Outer ring main color
+
+        pixmap.setColor(highlightColor)
+        pixmap.fillCircle(18, 18, 8) // Inner ring highlight
+
+        pixmap.setColor(getToolBaseColor(ToolType.TRIGGER).cpy().mul(0.7f)) // Darker inner ring
+        pixmap.fillCircle(18, 18, 7)
+
+        pixmap.setColor(Color.WHITE)
+        pixmap.fillCircle(18, 18, 3) // Center dot
     }
 }

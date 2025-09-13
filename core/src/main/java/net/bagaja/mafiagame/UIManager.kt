@@ -61,6 +61,7 @@ class UIManager(
     lateinit var npcSelectionUI: NPCSelectionUI
     private lateinit var particleSelectionUI: ParticleSelectionUI
     private lateinit var spawnerUI: SpawnerUI
+    private lateinit var missionEditorUI: MissionEditorUI
     private lateinit var lightSourceUI: LightSourceUI
     private lateinit var skyCustomizationUI: SkyCustomizationUI
     private lateinit var shaderEffectUI: ShaderEffectUI
@@ -68,6 +69,7 @@ class UIManager(
     private lateinit var visualSettingsUI: VisualSettingsUI
     private lateinit var enemyDebugUI: EnemyDebugUI
     private lateinit var characterInventoryUI: CharacterInventoryUI
+    private lateinit var triggerEditorUI: TriggerEditorUI
     private lateinit var mainTable: Table
     private lateinit var letterboxTable: Table
     private lateinit var cinematicBarsTable: Table
@@ -110,6 +112,7 @@ class UIManager(
     private lateinit var statsLabels: MutableMap<String, Label>
     private lateinit var placementInfoLabel: Label
     private lateinit var persistentMessageLabel: Label
+    private lateinit var temporaryMessageLabel: Label
     private lateinit var fpsLabel: Label
     private lateinit var fpsTable: Table
     private lateinit var missionObjectiveLabel: Label
@@ -131,7 +134,7 @@ class UIManager(
         private set
 
     enum class Tool {
-        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE
+        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE, TRIGGER
     }
 
     lateinit var dialogSystem: DialogSystem
@@ -157,6 +160,16 @@ class UIManager(
         setupCinematicBarsUI()
         setupGameHUD() // This function will now build BOTH HUDs
         setupMoneyDisplay()
+
+        temporaryMessageLabel = Label("", skin, "title")
+        temporaryMessageLabel.setAlignment(Align.center)
+        temporaryMessageLabel.color = Color.GREEN // Use a different color for feedback
+        temporaryMessageLabel.isVisible = false
+        val tempMessageTable = Table()
+        tempMessageTable.setFillParent(true)
+        tempMessageTable.top().pad(90f) // Position it slightly below the persistent message
+        tempMessageTable.add(temporaryMessageLabel)
+        stage.addActor(tempMessageTable)
 
         // Setup persistent message
         persistentMessageLabel = layoutBuilder.createPersistentMessageLabel()
@@ -243,6 +256,26 @@ class UIManager(
 
         // Set initial visibility for the main UI panel
         mainTable.isVisible = isUIVisible && game.isEditorMode
+        missionEditorUI = MissionEditorUI(skin, stage, game.missionSystem, this)
+        triggerEditorUI = TriggerEditorUI(skin, stage, game.missionSystem, game.triggerSystem)
+    }
+
+    fun showTemporaryMessage(message: String) {
+        temporaryMessageLabel.setText(message)
+        temporaryMessageLabel.pack()
+
+        // Always stop any previous animation before starting a new one
+        temporaryMessageLabel.clearActions()
+        temporaryMessageLabel.isVisible = true
+        temporaryMessageLabel.color.a = 0f // Start fully transparent
+
+        // Create the fade-in, delay, and fade-out sequence
+        temporaryMessageLabel.addAction(Actions.sequence(
+            Actions.fadeIn(0.3f, Interpolation.fade),  // Fade in over 0.3s
+            Actions.delay(2.5f),                      // Stay visible for 2.5s
+            Actions.fadeOut(0.5f, Interpolation.fade), // Fade out over 0.5s
+            Actions.run { temporaryMessageLabel.isVisible = false } // Hide when done
+        ))
     }
 
     private fun setupGameHUD() {
@@ -461,6 +494,12 @@ class UIManager(
 
     fun updateToolDisplay() {
         layoutBuilder.updateToolButtons(toolButtons, selectedTool)
+
+        if (selectedTool == Tool.TRIGGER) {
+            triggerEditorUI.show()
+        } else {
+            triggerEditorUI.hide()
+        }
     }
 
     fun updatePlacementInfo(info: String) {
@@ -923,6 +962,30 @@ class UIManager(
         // Hide other selection UIs to avoid clutter
         hideAllEditorPanels()
         enemyDebugUI.show(enemy)
+    }
+
+    fun toggleMissionEditor() {
+        if (missionEditorUI.isVisible()) {
+            missionEditorUI.hide()
+        } else {
+            missionEditorUI.show()
+        }
+    }
+
+    fun showTextInputDialog(title: String, initialText: String, onConfirm: (String) -> Unit) {
+        val dialog = Dialog(title, skin, "dialog")
+        val field = TextField(initialText, skin)
+        dialog.contentTable.add(field).width(300f)
+        dialog.button("OK").addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                onConfirm(field.text)
+            }
+        })
+        dialog.button("Cancel")
+        dialog.key(com.badlogic.gdx.Input.Keys.ENTER, true)
+        dialog.key(com.badlogic.gdx.Input.Keys.ESCAPE, false)
+        dialog.show(stage)
+        stage.keyboardFocus = field
     }
 
     fun getStage(): Stage = stage

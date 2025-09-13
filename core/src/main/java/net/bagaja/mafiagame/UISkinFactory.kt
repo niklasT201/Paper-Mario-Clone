@@ -78,6 +78,17 @@ object UISkinFactory {
             println("Could not update SelectBoxStyle: ${e.message}")
         }
 
+        // Update Lists and ScrollPanes
+        try {
+            val listStyle = skin.get("default", com.badlogic.gdx.scenes.scene2d.ui.List.ListStyle::class.java)
+            listStyle.font = font
+
+            // This line is just to ensure the style exists, no font to set here directly
+            skin.get("default", ScrollPane.ScrollPaneStyle::class.java)
+        } catch (e: Exception) {
+            println("Could not update ListStyle: ${e.message}")
+        }
+
         // Update Windows/Dialogs
         try {
             skin.get(Window.WindowStyle::class.java).titleFont = font

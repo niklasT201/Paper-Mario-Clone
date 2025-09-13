@@ -47,7 +47,8 @@ class HighlightSystem(private val blockSize: Float) {
         UIManager.Tool.INTERIOR to Color(0.8f, 0.5f, 0.2f, 0.3f), // Brown
         UIManager.Tool.ENEMY to Color(1f, 0f, 0f, 0.4f), // Red highlight for enemies
         UIManager.Tool.NPC to Color(0.2f, 0.8f, 1f, 0.4f),
-        UIManager.Tool.PARTICLE to Color(1f, 0.5f, 0.2f, 0.4f)
+        UIManager.Tool.PARTICLE to Color(1f, 0.5f, 0.2f, 0.4f),
+        UIManager.Tool.TRIGGER to Color(0f, 0.8f, 0.8f, 0.35f)
 
     )
 
@@ -127,6 +128,7 @@ class HighlightSystem(private val blockSize: Float) {
             UIManager.Tool.ENEMY -> updateEnemyHighlight(ray, gameEnemies, raycastSystem)
             UIManager.Tool.NPC -> updateNPCHighlight(ray, gameNPCs, raycastSystem)
             UIManager.Tool.PARTICLE -> updateParticleHighlight(ray, particleSystem)
+            UIManager.Tool.TRIGGER -> updateTriggerHighlight(ray)
         }
         if (uiManager.selectedTool != UIManager.Tool.INTERIOR) {
             interiorSystem.hidePreview()
@@ -609,6 +611,18 @@ class HighlightSystem(private val blockSize: Float) {
 
         if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
             showHighlight(intersection, toolColors[UIManager.Tool.PARTICLE]!!)
+        } else {
+            hideHighlight()
+        }
+    }
+
+    private fun updateTriggerHighlight(ray: Ray) {
+        updateHighlightSize(Vector3(2f, 0.5f, 2f))
+
+        // Check for intersection with the ground plane
+        if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            // Show the highlight at the exact intersection point, slightly raised to prevent Z-fighting.
+            showHighlight(tempVec3.add(0f, 0.1f, 0f), toolColors[UIManager.Tool.TRIGGER]!!)
         } else {
             hideHighlight()
         }

@@ -5,11 +5,12 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Json
 import com.badlogic.gdx.utils.JsonWriter
 
-class MissionSystem(private val game: MafiaGame) {
+class MissionSystem(val game: MafiaGame) {
 
     private val allMissions = mutableMapOf<String, MissionDefinition>()
     private var activeMission: MissionState? = null
     private var gameState = GameState() // This will be loaded from a file later
+    private fun isPlayerInInterior(): Boolean = game.sceneManager.currentScene == SceneType.HOUSE_INTERIOR
 
     // LibGDX's JSON parser
     private val json = Json().apply {
@@ -57,15 +58,23 @@ class MissionSystem(private val game: MafiaGame) {
         println("MissionSystem: Finished loading. Total missions loaded: ${allMissions.size}")
     }
 
-    // THIS FUNCTION IS NO LONGER NEEDED, YOU CAN DELETE IT
-    // private fun loadTestMissions() { ... }
+    private fun isScopeValid(objective: MissionObjective, mission: MissionState): Boolean {
+        return when (mission.definition.scope) {
+            MissionScope.WORLD_ONLY -> !isPlayerInInterior()
+            MissionScope.INTERIOR_ONLY -> isPlayerInInterior()
+            MissionScope.ANYWHERE -> true
+        }
+    }
 
     fun update(deltaTime: Float) {
-        val currentMission = activeMission ?: return // If no mission is active, do nothing
-
+        val currentMission = activeMission ?: return
         val objective = currentMission.getCurrentObjective() ?: return
 
-        // Check if the current objective is complete
+        // Scope check at the beginning of the update loop
+        if (!isScopeValid(objective, currentMission)) {
+            return
+        }
+
         if (isObjectiveComplete(objective, currentMission)) {
             advanceObjective()
         }
@@ -75,6 +84,33 @@ class MissionSystem(private val game: MafiaGame) {
             val timer = currentMission.missionVariables["timer"] as? Float ?: objective.completionCondition.timerDuration ?: 0f
             currentMission.missionVariables["timer"] = timer - deltaTime
         }
+    }
+
+    fun getMissionDefinition(id: String): MissionDefinition? = allMissions[id]
+
+    fun createNewMission(): MissionDefinition {
+        val newId = "mission_${System.currentTimeMillis()}"
+        val newMission = MissionDefinition(id = newId, title = "New Mission")
+        saveMission(newMission) // Save it immediately
+        return newMission
+    }
+
+    fun deleteMission(id: String) {
+        allMissions.remove(id)
+        try {
+            val file = Gdx.files.local("$missionsDir/$id.json")
+            if (file.exists()) {
+                file.delete()
+                println("Deleted mission file for ID: $id")
+            }
+        } catch (e: Exception) {
+            println("Error deleting mission file for ID: $id - ${e.message}")
+        }
+    }
+
+    fun saveMission(missionDef: MissionDefinition) {
+        allMissions[missionDef.id] = missionDef
+        saveMissionToFile(missionDef)
     }
 
     private fun isObjectiveComplete(objective: MissionObjective, state: MissionState): Boolean {
@@ -98,6 +134,12 @@ class MissionSystem(private val game: MafiaGame) {
                 // Logic for this will be added later
                 return false
             }
+            ConditionType.INTERACT_WITH_OBJECT -> {
+                return false // Placeholder for future implementation
+            }
+            ConditionType.COLLECT_ITEM -> {
+                return false // Placeholder for future implementation
+            }
         }
     }
 
@@ -110,25 +152,7 @@ class MissionSystem(private val game: MafiaGame) {
         println("--- MISSION STARTED: ${missionDef.title} ---")
         activeMission = MissionState(missionDef)
 
-        // --- CORRECTED CODE BLOCK ---
-        if (id == "test_mission_01") {
-            // Build the configuration object for the enemy
-            val missionThugConfig = EnemySpawnConfig(
-                position = Vector3(-25f, 2f, -20f),
-                enemyType = EnemyType.MOUSE_THUG,
-                behavior = EnemyBehavior.STATIONARY_SHOOTER,
-                id = "mission_thug_01", // The specific ID for the objective
-                initialWeapon = WeaponType.LIGHT_TOMMY_GUN // Give him a weapon
-            )
-
-            // Call createEnemy with the single config object
-            val missionThug = game.enemySystem.createEnemy(missionThugConfig)
-
-            if (missionThug != null) {
-                game.sceneManager.activeEnemies.add(missionThug)
-            }
-        }
-        // --- END CORRECTION ---
+        missionDef.eventsOnStart.forEach { executeEvent(it) }
 
         updateUIForCurrentObjective()
     }
@@ -137,12 +161,12 @@ class MissionSystem(private val game: MafiaGame) {
         val missionState = activeMission ?: return
         missionState.currentObjectiveIndex++
 
-        if (missionState.getCurrentObjective() == null) {
-            // Mission is complete!
-            endMission(true)
+        val nextObjective = missionState.getCurrentObjective()
+        if (nextObjective == null) {
+            endMission(true) // Mission is complete
         } else {
-            // Moved to the next objective
-            println("Objective complete! New objective: ${missionState.getCurrentObjective()!!.description}")
+            println("Objective complete! New objective: ${nextObjective.description}")
+            nextObjective.eventsOnStart.forEach { executeEvent(it) }
             updateUIForCurrentObjective()
         }
     }
@@ -152,13 +176,54 @@ class MissionSystem(private val game: MafiaGame) {
         if (completed) {
             println("--- MISSION COMPLETE: ${mission.definition.title} ---")
             gameState.completedMissionIds.add(mission.definition.id)
-            // TODO: Give rewards, apply world changes
+
+            // ADDED: Execute mission-complete events and grant rewards
+            mission.definition.eventsOnComplete.forEach { executeEvent(it) }
+            mission.definition.rewards.forEach { grantReward(it) }
+
         } else {
             println("--- MISSION FAILED: ${mission.definition.title} ---")
             // TODO: Reset any changes made by the mission
         }
         activeMission = null
-        game.uiManager.updateMissionObjective("") // Clear the UI
+        game.uiManager.updateMissionObjective("")
+    }
+
+    private fun grantReward(reward: MissionReward) {
+        when (reward.type) {
+            RewardType.GIVE_MONEY -> game.playerSystem.addMoney(reward.amount)
+            RewardType.SHOW_MESSAGE -> game.uiManager.setPersistentMessage(reward.message)
+            // Other reward types would be handled here
+            else -> println("Reward type ${reward.type} not yet implemented.")
+        }
+        println("Granted reward: ${reward.type}")
+    }
+
+    private fun executeEvent(event: GameEvent) {
+        println("Executing mission event: ${event.type}")
+        when (event.type) {
+            GameEventType.SPAWN_ENEMY -> {
+                if (event.enemyType != null && event.enemyBehavior != null && event.spawnPosition != null) {
+                    val config = EnemySpawnConfig(
+                        enemyType = event.enemyType,
+                        behavior = event.enemyBehavior,
+                        position = event.spawnPosition,
+                        id = event.targetId // The ID is crucial for objectives
+                    )
+                    game.enemySystem.createEnemy(config)?.let { game.sceneManager.activeEnemies.add(it) }
+                }
+            }
+            GameEventType.DESPAWN_ENTITY -> {
+                event.targetId?.let { id ->
+                    game.sceneManager.activeEnemies.find { it.id == id }?.let { game.sceneManager.activeEnemies.removeValue(it, true) }
+                    game.sceneManager.activeNPCs.find { it.id == id }?.let { game.sceneManager.activeNPCs.removeValue(it, true) }
+                    game.sceneManager.activeCars.find { it.id == id }?.let { game.sceneManager.activeCars.removeValue(it, true) }
+                    println("Despawned entity with ID: $id")
+                }
+            }
+            // Add cases for SPAWN_NPC and SPAWN_CAR here following the same pattern
+            else -> println("Event type ${event.type} not yet implemented.")
+        }
     }
 
     private fun updateUIForCurrentObjective() {
@@ -177,4 +242,16 @@ class MissionSystem(private val game: MafiaGame) {
     }
 
     fun getAllMissionDefinitions(): Map<String, MissionDefinition> = allMissions
+
+    private fun saveMissionToFile(missionDef: MissionDefinition) {
+        try {
+            val dirHandle = Gdx.files.local(missionsDir)
+            if (!dirHandle.exists()) dirHandle.mkdirs()
+            val fileHandle = dirHandle.child("${missionDef.id}.json")
+            fileHandle.writeString(json.prettyPrint(missionDef), false)
+            println("Saved mission '${missionDef.title}' to ${fileHandle.path()}")
+        } catch (e: Exception) {
+            println("ERROR saving mission '${missionDef.id}': ${e.message}")
+        }
+    }
 }

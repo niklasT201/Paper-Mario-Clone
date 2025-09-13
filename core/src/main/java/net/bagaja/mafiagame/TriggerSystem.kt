@@ -1,12 +1,10 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.graphics.Camera
-import com.badlogic.gdx.graphics.GL20
-import com.badlogic.gdx.graphics.Texture
-import com.badlogic.gdx.graphics.VertexAttributes
+import com.badlogic.gdx.graphics.*
 import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
+import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
@@ -27,11 +25,17 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
     private lateinit var modelBatch: ModelBatch
     private lateinit var shaderProvider: BillboardShaderProvider
     private lateinit var triggerTexture: Texture
+    private val modelBuilder = ModelBuilder()
     private val models = mutableMapOf<Float, Model>()
 
     // --- State ---
     private val missionTriggers = mutableMapOf<String, VisualMissionTrigger>()
     private val renderableInstances = Array<ModelInstance>()
+
+    private var editorCylinderModel: Model? = null
+    private var editorCylinderInstance: ModelInstance? = null
+    var isEditorVisible = false // Controlled by the new UI tool
+    var selectedMissionIdForEditing: String? = null
 
     // --- Configuration ---
     companion object {
@@ -61,6 +65,23 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
                 addTrigger(missionId, missionDef.startTrigger)
             }
         }
+    }
+
+    fun refreshTriggers() {
+        println("Refreshing mission triggers...")
+        // Clear out the old visual triggers
+        missionTriggers.clear()
+
+        // Get the most up-to-date list of all missions from the MissionSystem
+        val allMissions = game.missionSystem.getAllMissionDefinitions()
+
+        // Re-build the visual triggers, just like we do in initialize()
+        for ((missionId, missionDef) in allMissions) {
+            if (missionDef.startTrigger.type == TriggerType.ON_ENTER_AREA) {
+                addTrigger(missionId, missionDef.startTrigger)
+            }
+        }
+        println("Triggers refreshed. Total active triggers: ${missionTriggers.size}")
     }
 
     private fun addTrigger(missionId: String, definition: MissionTrigger) {
@@ -93,6 +114,17 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
                 (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
             )
         }
+    }
+
+    private fun createOrUpdateEditorCylinder(radius: Float, height: Float) {
+        editorCylinderModel?.dispose() // Dispose old model first
+        val material = Material(
+            ColorAttribute.createDiffuse(Color.CYAN.r, Color.CYAN.g, Color.CYAN.b, 0.3f),
+            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+        )
+        editorCylinderModel = modelBuilder.createCylinder(radius * 2, height, radius * 2, 32, material,
+            (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong())
+        editorCylinderInstance = ModelInstance(editorCylinderModel)
     }
 
     fun update() {
@@ -128,6 +160,25 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
         }
     }
 
+    fun removeTriggerForSelectedMission(): Boolean {
+        // Get the ID of the mission currently selected in the TriggerEditorUI
+        val missionId = selectedMissionIdForEditing ?: return false
+
+        // Find the mission definition
+        val mission = game.missionSystem.getMissionDefinition(missionId) ?: return false
+
+        // Reset its trigger's position and radius to a default state
+        mission.startTrigger.areaCenter.set(Vector3.Zero)
+        mission.startTrigger.areaRadius = 20f // A default radius
+
+        // Save the mission file with the now-reset trigger
+        game.missionSystem.saveMission(mission)
+
+        game.uiManager.updatePlacementInfo("Removed/Reset trigger for '${mission.title}'")
+
+        return true // Indicate that an action was successfully performed
+    }
+
     fun render(camera: Camera, environment: Environment) {
         renderableInstances.clear()
         for (trigger in missionTriggers.values) {
@@ -141,6 +192,22 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
             modelBatch.begin(camera)
             modelBatch.render(renderableInstances, environment)
             modelBatch.end()
+        }
+
+
+        if (isEditorVisible && editorCylinderInstance != null) {
+            val missionId = selectedMissionIdForEditing
+            val trigger = missionTriggers[missionId]?.definition
+            if (trigger != null) {
+                // Update the cylinder's position and render it
+                editorCylinderInstance!!.transform.setToTranslation(trigger.areaCenter)
+
+                Gdx.gl.glEnable(GL20.GL_BLEND)
+                modelBatch.begin(camera)
+                modelBatch.render(editorCylinderInstance!!, environment)
+                modelBatch.end()
+                Gdx.gl.glDisable(GL20.GL_BLEND)
+            }
         }
     }
 

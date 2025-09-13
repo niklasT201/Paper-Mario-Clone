@@ -4,6 +4,7 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Input
 import com.badlogic.gdx.InputAdapter
 import com.badlogic.gdx.InputMultiplexer
+import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.Vector3
 import net.bagaja.mafiagame.UIManager.Tool
 
@@ -64,13 +65,13 @@ class InputHandler(
     private var downPressed = false
     private var pageUpPressed = false
     private var pageDownPressed = false
+    val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
     // NEW: Helper function to handle preview logic to avoid code duplication
     private fun handleBackgroundPreviewUpdate(screenX: Int, screenY: Int) {
         if (uiManager.selectedTool == Tool.BACKGROUND) {
             val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
             val intersection = Vector3()
-            val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
             if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
                 val adjustedPos = backgroundSystem.updatePreview(intersection)
@@ -143,6 +144,21 @@ class InputHandler(
                                 Tool.ENEMY -> enemySystem.handlePlaceAction(ray)
                                 Tool.NPC -> npcSystem.handlePlaceAction(ray)
                                 Tool.PARTICLE -> particleSystem.handlePlaceAction(ray)
+                                Tool.TRIGGER -> {
+                                    val intersection = Vector3()
+                                    if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+                                        game.triggerSystem.selectedMissionIdForEditing?.let { missionId ->
+                                            val mission = game.missionSystem.getMissionDefinition(missionId)
+                                            if (mission != null) {
+                                                // Update the mission's trigger data
+                                                mission.startTrigger.areaCenter.set(intersection)
+                                                // Save the mission file with the new trigger position
+                                                game.missionSystem.saveMission(mission)
+                                                uiManager.updatePlacementInfo("Set trigger for '${mission.title}'")
+                                            }
+                                        }
+                                    }
+                                }
                             }
                             // Reset timer and track position for continuous placement
                             continuousActionTimer = 0f
@@ -188,20 +204,13 @@ class InputHandler(
 
                         // PRIORITY 2: Handle removal actions in Editor Mode.
                         if (game.isEditorMode) {
-                            if (uiManager.selectedTool == Tool.CAR && isPlacingCarPath) {
-                                carPathSystem.cancelPlacement()
-                                return true // Consume this click to prevent camera drag
-                            }
-
                             // Try to remove a block. If successful, consume the event.
                             val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
 
-                            if (uiManager.selectedTool == Tool.PLAYER) {
-                                val enemyToInspect = enemySystem.raycastSystem.getEnemyAtRay(ray, sceneManager.activeEnemies)
-                                if (enemyToInspect != null) {
-                                    uiManager.showEnemyDebugInfo(enemyToInspect)
-                                    return true // Consume the click so it doesn't trigger camera drag
-                                }
+                            // --- Special Action Canceling (Highest Priority) ---
+                            if (uiManager.selectedTool == Tool.CAR && isPlacingCarPath) {
+                                carPathSystem.cancelPlacement()
+                                return true // Consume this click to prevent camera drag
                             }
 
                             // Handle cancelling teleporter linking first
@@ -210,14 +219,25 @@ class InputHandler(
                                 return true // Consume the click
                             }
 
-                            if (uiManager.selectedTool == Tool.HOUSE) {
-                                val entryPointToSelect = particleSystem.raycastSystem.getEntryPointAtRay(ray, sceneManager.activeEntryPoints)
-                                if (entryPointToSelect != null) {
-                                    game.lastPlacedInstance = entryPointToSelect
-                                    println("Selected Entry Point ${entryPointToSelect.id} for fine positioning.")
-                                    uiManager.updatePlacementInfo("Selected Entry Point for Fine Positioning (F key)")
-                                    return true // Consume the click, don't rotate camera
-                                }
+                            val enemy = enemySystem.raycastSystem.getEnemyAtRay(ray, sceneManager.activeEnemies)
+                            if (enemy != null && uiManager.selectedTool != UIManager.Tool.ENEMY) {
+                                Gdx.app.clipboard.contents = enemy.id
+                                uiManager.showTemporaryMessage("Copied Enemy ID: ${enemy.id}")
+                                return true // Inspection successful, consume the click and stop everything else.
+                            }
+
+                            val npc = npcSystem.raycastSystem.getNPCAtRay(ray, sceneManager.activeNPCs)
+                            if (npc != null && uiManager.selectedTool != UIManager.Tool.NPC) {
+                                Gdx.app.clipboard.contents = npc.id
+                                uiManager.showTemporaryMessage("Copied NPC ID: ${npc.id}")
+                                return true // Inspection successful
+                            }
+
+                            val car = carSystem.raycastSystem.getCarAtRay(ray, sceneManager.activeCars)
+                            if (car != null && uiManager.selectedTool != UIManager.Tool.CAR) {
+                                Gdx.app.clipboard.contents = car.id
+                                uiManager.showTemporaryMessage("Copied Car ID: ${car.id}")
+                                return true // Inspection successful
                             }
 
                             var removed = false
@@ -232,6 +252,7 @@ class InputHandler(
                                 Tool.INTERIOR -> removed = interiorSystem.handleRemoveAction(ray)
                                 Tool.ENEMY -> removed = enemySystem.handleRemoveAction(ray)
                                 Tool.NPC -> removed = npcSystem.handleRemoveAction(ray)
+                                Tool.TRIGGER -> removed = game.triggerSystem.removeTriggerForSelectedMission()
                                 Tool.PLAYER, Tool.PARTICLE -> { /* No removal action */ }
                             }
 
@@ -541,6 +562,10 @@ class InputHandler(
                             }
                             return true
                         }
+                        Input.Keys.F7 -> {
+                            uiManager.toggleMissionEditor()
+                            return true
+                        }
                         Input.Keys.K -> {
                             uiManager.toggleSkyCustomizationUI()
                             return true
@@ -689,6 +714,7 @@ class InputHandler(
                         Input.Keys.NUMPAD_0 -> uiManager.selectedTool = Tool.ENEMY
                         Input.Keys.NUM_7 -> uiManager.selectedTool = Tool.NPC
                         Input.Keys.NUM_6 -> uiManager.selectedTool = Tool.PARTICLE
+                        Input.Keys.NUM_5 -> uiManager.selectedTool = Tool.TRIGGER
                         // Fine positioning controls
                         Input.Keys.LEFT -> { if (getCurrentPositionableSystem()?.finePosMode == true) { leftPressed = true; continuousFineTimer = 0f; return true } }
                         Input.Keys.RIGHT -> { if (getCurrentPositionableSystem()?.finePosMode == true) { rightPressed = true; continuousFineTimer = 0f; return true } }
@@ -702,7 +728,7 @@ class InputHandler(
                     }
 
                     // Update UI after tool selection
-                    if (keycode in Input.Keys.NUMPAD_0..Input.Keys.NUMPAD_9 || keycode == Input.Keys.NUM_6 || keycode == Input.Keys.NUM_7) {
+                    if (keycode in Input.Keys.NUMPAD_0..Input.Keys.NUMPAD_9 || keycode == Input.Keys.NUM_6 || keycode == Input.Keys.NUM_7 || keycode == Input.Keys.NUM_5) {
                         // When switching tools, always reset to car placement mode
                         if (uiManager.selectedTool != Tool.CAR && isPlacingCarPath) {
                             isPlacingCarPath = false
@@ -824,6 +850,19 @@ class InputHandler(
                     Tool.ENEMY -> enemySystem.handlePlaceAction(ray)
                     Tool.NPC -> npcSystem.handlePlaceAction(ray)
                     Tool.PARTICLE -> particleSystem.handlePlaceAction(ray)
+                    Tool.TRIGGER -> {
+                        val intersection = Vector3()
+                        if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+                            game.triggerSystem.selectedMissionIdForEditing?.let { missionId ->
+                                val mission = game.missionSystem.getMissionDefinition(missionId)
+                                if (mission != null) {
+                                    mission.startTrigger.areaCenter.set(intersection)
+                                    game.missionSystem.saveMission(mission)
+                                    uiManager.updatePlacementInfo("Set trigger for '${mission.title}'")
+                                }
+                            }
+                        }
+                    }
                 }
                 lastPlacementX = currentMouseX
                 lastPlacementY = currentMouseY
@@ -851,6 +890,7 @@ class InputHandler(
                     Tool.INTERIOR -> removed = interiorSystem.handleRemoveAction(ray)
                     Tool.ENEMY -> removed = enemySystem.handleRemoveAction(ray)
                     Tool.NPC -> removed = npcSystem.handleRemoveAction(ray)
+                    Tool.TRIGGER -> removed = game.triggerSystem.removeTriggerForSelectedMission()
                     Tool.PLAYER, Tool.PARTICLE -> { /* No removal action */ }
                 }
 

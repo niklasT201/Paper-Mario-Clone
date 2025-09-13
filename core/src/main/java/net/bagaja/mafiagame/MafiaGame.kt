@@ -20,7 +20,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var spriteBatch: SpriteBatch
     lateinit var cameraManager: CameraManager
     lateinit var shaderEffectManager: ShaderEffectManager
-    private lateinit var triggerSystem: TriggerSystem
+    lateinit var triggerSystem: TriggerSystem
     lateinit var missionSystem: MissionSystem
 
     // UI and Input Managers
@@ -107,53 +107,58 @@ class MafiaGame : ApplicationAdapter() {
         enemySystem = EnemySystem()
         npcSystem = NPCSystem()
         roomTemplateManager = RoomTemplateManager()
-        // Initialize Transition System
         transitionSystem = TransitionSystem()
         playerSystem = PlayerSystem()
-        // Initialize Shader Effect Manager
         shaderEffectManager = ShaderEffectManager()
         spawnerSystem = SpawnerSystem(particleSystem, itemSystem)
         highlightSystem = HighlightSystem(blockSize)
-        highlightSystem.initialize()
-
         targetingIndicatorSystem = TargetingIndicatorSystem()
-        targetingIndicatorSystem.initialize()
-
         meleeRangeIndicatorSystem = MeleeRangeIndicatorSystem()
-        meleeRangeIndicatorSystem.initialize()
-
         trajectorySystem = TrajectorySystem()
-        trajectorySystem.initialize()
-        blockDebugRenderer = BlockDebugRenderer() // NEW
-        blockDebugRenderer.initialize()
+        blockDebugRenderer = BlockDebugRenderer()
 
-        // Initialize UI Manager
-        uiManager = UIManager(
-            this, blockSystem, objectSystem, itemSystem, carSystem, houseSystem,
-            backgroundSystem, parallaxBackgroundSystem, roomTemplateManager, interiorSystem,
-            lightingManager, shaderEffectManager, enemySystem, npcSystem, particleSystem, spawnerSystem
-        )
-        teleporterSystem = TeleporterSystem(objectSystem, uiManager)
+        missionSystem = MissionSystem(this)
+        triggerSystem = TriggerSystem(this)
 
-        carSystem.uiManager = uiManager
-        carSystem.enemySystem = enemySystem
-        carSystem.npcSystem = npcSystem
-
+        // SceneManager depends on many systems, so it's created here.
         faceCullingSystem = FaceCullingSystem(blockSize)
         sceneManager = SceneManager(
             playerSystem, blockSystem, objectSystem, itemSystem, interiorSystem,
             enemySystem, npcSystem, roomTemplateManager, cameraManager, houseSystem, transitionSystem,
             faceCullingSystem, this, particleSystem, fireSystem, boneSystem
         )
-        sceneManager.raycastSystem = this.raycastSystem
+
         pathfindingSystem = PathfindingSystem(sceneManager, blockSize, playerSystem.playerSize)
         characterPhysicsSystem = CharacterPhysicsSystem(sceneManager)
+
+        uiManager = UIManager(
+            this, blockSystem, objectSystem, itemSystem, carSystem, houseSystem,
+            backgroundSystem, parallaxBackgroundSystem, roomTemplateManager, interiorSystem,
+            lightingManager, shaderEffectManager, enemySystem, npcSystem, particleSystem, spawnerSystem
+        )
+
+        teleporterSystem = TeleporterSystem(objectSystem, uiManager)
+
+        inputHandler = InputHandler(
+            this, uiManager, cameraManager, blockSystem, objectSystem, itemSystem,
+            carSystem, houseSystem, backgroundSystem, parallaxBackgroundSystem, interiorSystem,
+            enemySystem, npcSystem, particleSystem, spawnerSystem, teleporterSystem,
+            sceneManager, roomTemplateManager, shaderEffectManager, carPathSystem
+        )
+
+       sceneManager.raycastSystem = this.raycastSystem
+        sceneManager.teleporterSystem = this.teleporterSystem
+
         carPathSystem.sceneManager = sceneManager
+        carPathSystem.raycastSystem = raycastSystem
 
         blockSystem.sceneManager = sceneManager
         objectSystem.sceneManager = sceneManager
         itemSystem.sceneManager = sceneManager
         carSystem.sceneManager = sceneManager
+        carSystem.uiManager = uiManager
+        carSystem.enemySystem = enemySystem
+        carSystem.npcSystem = npcSystem
         houseSystem.sceneManager = sceneManager
         backgroundSystem.sceneManager = sceneManager
         parallaxBackgroundSystem.sceneManager = sceneManager
@@ -162,12 +167,19 @@ class MafiaGame : ApplicationAdapter() {
         npcSystem.sceneManager = sceneManager
         particleSystem.sceneManager = sceneManager
         spawnerSystem.sceneManager = sceneManager
-        sceneManager.teleporterSystem = teleporterSystem
 
-        // Initialize systems in an order that makes sense
+        highlightSystem.initialize()
+        targetingIndicatorSystem.initialize()
+        meleeRangeIndicatorSystem.initialize()
+        trajectorySystem.initialize()
+        blockDebugRenderer.initialize()
+
+        missionSystem.initialize()
+        triggerSystem.initialize(missionSystem.getAllMissionDefinitions())
+
         particleSystem.initialize(blockSize)
         blockSystem.initialize(blockSize)
-        objectSystem.initialize(blockSize, lightingManager, fireSystem, teleporterSystem, uiManager) // CORRECTED: Pass dependencies
+        objectSystem.initialize(blockSize, lightingManager, fireSystem, teleporterSystem, uiManager)
         fireSystem.initialize()
         bloodPoolSystem.initialize()
         footprintSystem.initialize()
@@ -187,36 +199,8 @@ class MafiaGame : ApplicationAdapter() {
 
         // Initialize managers that depend on initialized systems
         transitionSystem.create(cameraManager.findUiCamera())
+
         uiManager.initialize()
-
-        missionSystem = MissionSystem(this)
-        missionSystem.initialize()
-        triggerSystem = TriggerSystem(this)
-        triggerSystem.initialize(missionSystem.getAllMissionDefinitions())
-
-        // Initialize Input Handler
-        inputHandler = InputHandler(
-            this,
-            uiManager,
-            cameraManager,
-            blockSystem,
-            objectSystem,
-            itemSystem,
-            carSystem,
-            houseSystem,
-            backgroundSystem,
-            parallaxBackgroundSystem,
-            interiorSystem,
-            enemySystem,
-            npcSystem,
-            particleSystem,
-            spawnerSystem,
-            teleporterSystem,
-            sceneManager,
-            roomTemplateManager,
-            shaderEffectManager,
-            carPathSystem
-        )
         inputHandler.initialize()
 
         // Pass the initial world data to the SceneManager

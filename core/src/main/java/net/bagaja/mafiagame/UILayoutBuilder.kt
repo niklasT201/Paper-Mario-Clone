@@ -241,7 +241,8 @@ class UILayoutBuilder(private val skin: Skin) {
             "Parallax" to "0" to "🏞️",
             "Interiors" to "0" to "🛋️",
             "Enemies" to "0" to "💀",
-            "NPCs" to "0" to "💬"
+            "NPCs" to "0" to "💬",
+            "Triggers" to "0" to "🎯"
         )
 
         for ((data, icon) in statItems) {
