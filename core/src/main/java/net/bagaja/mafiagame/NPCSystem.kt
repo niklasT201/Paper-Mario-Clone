@@ -575,11 +575,11 @@ class NPCSystem : IFinePositionable {
             }
 
             // Reset moving flag
-            val distanceToPlayer = npc.physics.position.dst(playerPos)
+           val distanceToPlayer = npc.physics.position.dst(playerPos)
             // ACTIVATION CHECK
             if (distanceToPlayer > activationRange) {
                 // This NPC is too far away to matter
-                if ((npc.currentState == NPCState.WANDERING || npc.currentState == NPCState.FOLLOWING) && npc.currentState != NPCState.DYING) {
+                if (npc.currentState != NPCState.IDLE && npc.currentState != NPCState.DYING) {
                     npc.currentState = NPCState.IDLE
                     npc.targetPosition = null
                 }
@@ -627,6 +627,10 @@ class NPCSystem : IFinePositionable {
     }
 
     private fun updateAI(npc: GameNPC, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {
+        if (npc.currentState == NPCState.DYING) {
+            return // A dead NPC should not think.
+        }
+
         if (npc.isInCar) {
             val car = npc.drivingCar!!
 
@@ -739,11 +743,9 @@ class NPCSystem : IFinePositionable {
         else {
             when (npc.behaviorType) {
                 NPCBehavior.STATIONARY -> {
-                    npc.currentState = NPCState.IDLE
                     // No movement, facing direction is fixed from placement
                 }
                 NPCBehavior.WATCHER -> {
-                    npc.currentState = NPCState.IDLE
                     // Face the player
                     npc.physics.facingRotationY = if (playerPos.x > npc.physics.position.x) 0f else 180f
                 }
@@ -775,10 +777,14 @@ class NPCSystem : IFinePositionable {
                 NPCBehavior.FOLLOW -> {
                     val distanceToPlayer = npc.physics.position.dst(playerPos)
                     if (distanceToPlayer > stopFollowingDistance) {
-                        npc.currentState = NPCState.FOLLOWING
+                        if (npc.currentState != NPCState.FOLLOWING) {
+                            npc.currentState = NPCState.FOLLOWING
+                        }
                         desiredMovement = playerPos.cpy().sub(npc.physics.position).nor()
                     } else {
-                        npc.currentState = NPCState.IDLE
+                        if (npc.currentState != NPCState.IDLE) {
+                            npc.currentState = NPCState.IDLE
+                        }
                     }
                 }
                 NPCBehavior.GUARD -> { // Permanently hostile
