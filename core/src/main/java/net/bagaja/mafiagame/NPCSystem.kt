@@ -579,7 +579,7 @@ class NPCSystem : IFinePositionable {
             // ACTIVATION CHECK
             if (distanceToPlayer > activationRange) {
                 // This NPC is too far away to matter
-                if (npc.currentState == NPCState.WANDERING || npc.currentState == NPCState.FOLLOWING) {
+                if ((npc.currentState == NPCState.WANDERING || npc.currentState == NPCState.FOLLOWING) && npc.currentState != NPCState.DYING) {
                     npc.currentState = NPCState.IDLE
                     npc.targetPosition = null
                 }

@@ -538,8 +538,7 @@ class EnemySystem : IFinePositionable {
             // If the enemy is outside our activation range, skip its update entirely.
             val distanceToPlayer = enemy.physics.position.dst(playerPos)
             if (distanceToPlayer > activationRange) {
-                // To prevent enemies getting "stuck" in a state, reset them to IDLE if they deactivate.
-                if (enemy.currentState != AIState.IDLE) {
+                if (enemy.currentState != AIState.IDLE && enemy.currentState != AIState.DYING) {
                     enemy.currentState = AIState.IDLE
                     enemy.targetPosition = null // Clear any old target
                 }

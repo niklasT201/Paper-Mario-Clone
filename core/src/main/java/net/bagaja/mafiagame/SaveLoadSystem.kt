@@ -3,6 +3,7 @@ package net.bagaja.mafiagame
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.utils.Json
+import com.badlogic.gdx.utils.JsonValue
 import com.badlogic.gdx.utils.JsonWriter
 import com.badlogic.gdx.utils.Array as GdxArray
 import com.badlogic.gdx.utils.ObjectMap
@@ -12,6 +13,35 @@ class SaveLoadSystem(private val game: MafiaGame) {
     private val json = Json().apply {
         setOutputType(JsonWriter.OutputType.json)
         setUsePrototypes(false)
+
+        setSerializer(ObjectMap::class.java, object : Json.Serializer<ObjectMap<*, *>> {
+            override fun write(json: Json, map: ObjectMap<*, *>, knownType: Class<*>?) {
+                json.writeObjectStart()
+                for (entry in map) {
+                    // Convert the enum key to its string name for saving
+                    json.writeValue((entry.key as Enum<*>).name, entry.value)
+                }
+                json.writeObjectEnd()
+            }
+
+            override fun read(json: Json, jsonData: JsonValue, type: Class<*>?): ObjectMap<WeaponType, Int> {
+                val map = ObjectMap<WeaponType, Int>()
+                var entry = jsonData.child
+                while (entry != null) {
+                    try {
+                        // Read the string key and convert it back to a WeaponType enum
+                        val weaponType = WeaponType.valueOf(entry.name)
+                        val ammo = entry.asInt()
+                        map.put(weaponType, ammo)
+                    } catch (e: IllegalArgumentException) {
+                        // This handles cases where a saved weapon might be removed from the game later
+                        println("Warning: Could not find WeaponType for saved key '${entry.name}'. Skipping.")
+                    }
+                    entry = entry.next
+                }
+                return map
+            }
+        })
     }
     private val saveFile = Gdx.files.local("savegame.json")
 
