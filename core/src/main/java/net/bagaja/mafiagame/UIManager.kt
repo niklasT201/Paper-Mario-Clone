@@ -251,7 +251,7 @@ class UIManager(
             game.playerSystem
         )
 
-        pauseMenuUI = PauseMenuUI(skin, stage, this)
+        pauseMenuUI = PauseMenuUI(skin, stage, this, game.saveLoadSystem)
         pauseMenuUI.initialize()
 
         // Set initial visibility for the main UI panel

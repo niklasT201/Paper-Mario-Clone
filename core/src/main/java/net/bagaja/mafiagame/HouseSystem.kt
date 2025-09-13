@@ -42,7 +42,6 @@ class HouseSystem: IFinePositionable {
     var isNextHouseLocked: Boolean = false
         private set
     var currentRotation: Float = 0f
-        private set
     private val rotationStep = 90f
 
     var selectedRoomTemplateId: String? = null
@@ -159,6 +158,16 @@ class HouseSystem: IFinePositionable {
             return true
         }
         return false
+    }
+
+    fun addHouse(x: Float, y: Float, z: Float, houseType: HouseType, isLocked: Boolean): GameHouse? {
+        val houseInstance = createHouseInstance(houseType) ?: return null
+        val position = Vector3(x, y, z)
+        val gameHouse = GameHouse(houseInstance, houseType, position, isLocked, null, null, currentRotation)
+        gameHouse.updateTransform()
+        sceneManager.activeHouses.add(gameHouse)
+        // Don't set lastPlacedInstance when loading from a save
+        return gameHouse
     }
 
     private fun addHouse(x: Float, y: Float, z: Float, houseType: HouseType): GameHouse? {

@@ -766,6 +766,22 @@ class SceneManager(
         setSceneLights(state.lights)
     }
 
+    fun clearActiveSceneForLoad() {
+        // Clear all dynamic entities
+        activeObjects.clear()
+        activeCars.clear()
+        activeItems.clear()
+        activeEnemies.clear()
+        activeNPCs.clear()
+        activeSpawners.clear()
+        activeBloodPools.clear()
+        activeFootprints.clear()
+        activeBones.clear()
+        teleporterSystem.activeTeleporters.clear()
+
+        activeChunkManager.getAllBlocks().forEach { removeBlock(it) }
+        activeChunkManager.processDirtyChunks()
+    }
 
     private fun saveCurrentInteriorState() {
         val id = currentInteriorId ?: return

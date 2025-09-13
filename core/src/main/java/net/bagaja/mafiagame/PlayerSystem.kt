@@ -837,6 +837,22 @@ class PlayerSystem {
         return equippedWeapon.actionType == WeaponActionType.SHOOTING
     }
 
+    fun countItemInInventory(itemType: ItemType): Int {
+        // This is a placeholder for a real inventory system.
+        // It just checks the currently held weapon.
+        return if (equippedWeapon == itemType.correspondingWeapon) 1 else 0
+    }
+
+    fun addAmmoToReserves(weaponType: WeaponType, amount: Int) {
+        val currentAmmo = ammoReserves.getOrDefault(weaponType, 0)
+        ammoReserves[weaponType] = currentAmmo + amount
+        println("Added $amount ammo for ${weaponType.displayName}. Total reserve: ${ammoReserves[weaponType]}")
+        // Make sure the weapon is in the player's inventory list if they get ammo for it
+        if (weaponType != WeaponType.UNARMED && !weapons.contains(weaponType)) {
+            weapons.add(weaponType)
+        }
+    }
+
     fun getControlledEntityPosition(): Vector3 {
         return if (isDriving && drivingCar != null) {
             drivingCar!!.position
@@ -2085,6 +2101,20 @@ class PlayerSystem {
 
     fun getHealth(): Float = health
     fun getMaxHealth(): Float = maxHealth
+
+    fun getWeaponReserves(): Map<WeaponType, Int> = ammoReserves
+
+    fun loadState(data: PlayerStateData) {
+        setPosition(data.position)
+        health = maxHealth
+        money = data.money
+        ammoReserves.clear()
+        data.weapons.forEach { ammoReserves[it.key] = it.value }
+        weapons.clear()
+        weapons.add(WeaponType.UNARMED)
+        data.weapons.keys().forEach { if (!weapons.contains(it)) weapons.add(it) }
+        equipWeapon(data.equippedWeapon)
+    }
 
     fun dispose() {
         playerModel.dispose()

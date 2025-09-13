@@ -1,6 +1,7 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.math.Vector3
+import java.util.*
 
 enum class MissionScope {
     WORLD_ONLY,     // Objectives can only be completed in the main world.
@@ -54,6 +55,7 @@ data class MissionState(
 // --- Mission Objectives & Conditions ---
 
 data class MissionObjective(
+    val id: String = UUID.randomUUID().toString(), // ADD this unique ID
     val description: String = "",
     val markerType: ObjectiveMarkerType = ObjectiveMarkerType.NONE,
     val markerTargetId: String? = null,
@@ -119,7 +121,8 @@ enum class GameEventType {
     SPAWN_ENEMY,
     SPAWN_NPC,
     SPAWN_CAR,
-    DESPAWN_ENTITY
+    DESPAWN_ENTITY,
+    START_DIALOG
 }
 
 data class GameEvent(
@@ -131,11 +134,12 @@ data class GameEvent(
     val npcType: NPCType? = null,
     val npcBehavior: NPCBehavior? = null,
     val carType: CarType? = null,
-    val carIsLocked: Boolean = false
+    val carIsLocked: Boolean = false,
+    val dialogId: String? = null
 )
 
 // --- Game State (For Saving/Loading Progress) ---
 
 data class GameState(
-    val completedMissionIds: MutableSet<String> = mutableSetOf()
+    var completedMissionIds: MutableSet<String> = mutableSetOf()
 )

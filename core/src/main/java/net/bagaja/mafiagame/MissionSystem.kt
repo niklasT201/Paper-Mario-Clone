@@ -10,7 +10,39 @@ class MissionSystem(val game: MafiaGame) {
     private val allMissions = mutableMapOf<String, MissionDefinition>()
     private var activeMission: MissionState? = null
     private var gameState = GameState() // This will be loaded from a file later
+
+    fun getSaveData(): MissionProgressData {
+        return MissionProgressData(
+            activeMissionId = activeMission?.definition?.id,
+            activeMissionObjectiveIndex = activeMission?.currentObjectiveIndex ?: 0,
+            completedMissionIds = gameState.completedMissionIds
+        )
+    }
+
+    fun loadSaveData(data: MissionProgressData) {
+        gameState.completedMissionIds = data.completedMissionIds
+        data.activeMissionId?.let {
+            startMission(it) // This will create a new MissionState
+            activeMission?.currentObjectiveIndex = data.activeMissionObjectiveIndex
+            updateUIForCurrentObjective()
+        } ?: run {
+            activeMission = null // No active mission
+            game.uiManager.updateMissionObjective("")
+        }
+    }
+
     private fun isPlayerInInterior(): Boolean = game.sceneManager.currentScene == SceneType.HOUSE_INTERIOR
+    private val allDialogs = mutableMapOf<String, DialogSequence>()
+
+    init {
+        val testDialog = DialogSequence(
+            lines = listOf(
+                DialogLine("Mr. Big", "I've been expecting you. We have much to discuss."),
+                DialogLine("Player", "I'm listening.")
+            )
+        )
+        allDialogs["mr_big_intro"] = testDialog
+    }
 
     // LibGDX's JSON parser
     private val json = Json().apply {
@@ -120,6 +152,18 @@ class MissionSystem(val game: MafiaGame) {
         saveMissionToFile(missionDef)
     }
 
+    fun reportDialogComplete(dialogId: String) {
+        val objective = activeMission?.getCurrentObjective() ?: return
+
+        // Check if the current objective was to complete this specific dialog
+        // (This is a simplified way to handle "TALK_TO_NPC")
+        if (objective.completionCondition.type == ConditionType.TALK_TO_NPC) {
+            // In a more complex system, you'd check targetId here too
+            activeMission?.missionVariables?.set("dialog_complete_${objective.completionCondition.targetId}", true)
+            println("Reported dialog completion for objective.")
+        }
+    }
+
     private fun isObjectiveComplete(objective: MissionObjective, state: MissionState): Boolean {
         val condition = objective.completionCondition
         when (condition.type) {
@@ -138,14 +182,16 @@ class MissionSystem(val game: MafiaGame) {
                 return timer <= 0f
             }
             ConditionType.TALK_TO_NPC -> {
-                // Logic for this will be added later
-                return false
+                return state.missionVariables["dialog_complete_${condition.targetId}"] == true
             }
             ConditionType.INTERACT_WITH_OBJECT -> {
-                return false // Placeholder for future implementation
+                return state.missionVariables["interacted_${condition.targetId}"] == true
             }
             ConditionType.COLLECT_ITEM -> {
-                return false // Placeholder for future implementation
+                val requiredItem = condition.itemType ?: return false
+                val requiredCount = condition.itemCount
+                val currentCount = game.playerSystem.countItemInInventory(requiredItem)
+                return currentCount >= requiredCount
             }
         }
     }
@@ -173,6 +219,14 @@ class MissionSystem(val game: MafiaGame) {
             endMission(true) // Mission is complete
         } else {
             println("Objective complete! New objective: ${nextObjective.description}")
+
+            // If the new objective is a timer, set its starting value now.
+            if (nextObjective.completionCondition.type == ConditionType.TIMER_EXPIRES) {
+                val duration = nextObjective.completionCondition.timerDuration ?: 60f
+                missionState.missionVariables["timer"] = duration
+                println("Mission timer started for $duration seconds.")
+            }
+
             nextObjective.eventsOnStart.forEach { executeEvent(it) }
             updateUIForCurrentObjective()
         }
@@ -196,11 +250,32 @@ class MissionSystem(val game: MafiaGame) {
         game.uiManager.updateMissionObjective("")
     }
 
+    fun reportInteraction(objectId: String) {
+        val objective = activeMission?.getCurrentObjective() ?: return
+        if (objective.completionCondition.type == ConditionType.INTERACT_WITH_OBJECT &&
+            objective.completionCondition.targetId == objectId) {
+            activeMission?.missionVariables?.set("interacted_$objectId", true)
+            println("Player interacted with mission-critical object: $objectId")
+        }
+    }
+
     private fun grantReward(reward: MissionReward) {
         when (reward.type) {
             RewardType.GIVE_MONEY -> game.playerSystem.addMoney(reward.amount)
-            RewardType.SHOW_MESSAGE -> game.uiManager.setPersistentMessage(reward.message)
-            // Other reward types would be handled here
+            RewardType.SHOW_MESSAGE -> game.uiManager.showTemporaryMessage(reward.message)
+
+            RewardType.GIVE_AMMO -> {
+                reward.weaponType?.let {
+                    game.playerSystem.addAmmoToReserves(it, reward.amount)
+                }
+            }
+            RewardType.GIVE_ITEM -> {
+                reward.itemType?.let {
+                    game.itemSystem.createItem(game.playerSystem.getPosition(), it)?.let { item ->
+                        game.sceneManager.activeItems.add(item)
+                    }
+                }
+            }
             else -> println("Reward type ${reward.type} not yet implemented.")
         }
         println("Granted reward: ${reward.type}")
@@ -228,7 +303,20 @@ class MissionSystem(val game: MafiaGame) {
                     println("Despawned entity with ID: $id")
                 }
             }
-            // Add cases for SPAWN_NPC and SPAWN_CAR here following the same pattern
+            GameEventType.START_DIALOG -> {
+                event.dialogId?.let { dialogId ->
+                    allDialogs[dialogId]?.let { sequence ->
+                        // Create a new sequence with an onComplete callback
+                        val sequenceWithCallback = sequence.copy(
+                            onComplete = {
+                                // When the dialog finishes, report it to the mission system
+                                reportDialogComplete(dialogId)
+                            }
+                        )
+                        game.uiManager.dialogSystem.startDialog(sequenceWithCallback)
+                    }
+                }
+            }
             else -> println("Event type ${event.type} not yet implemented.")
         }
     }

@@ -1,5 +1,6 @@
 package net.bagaja.mafiagame
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
@@ -24,7 +25,7 @@ import kotlin.random.Random
  * A 1920s Mafia-style pause menu with vintage newspaper and speakeasy charm.
  * Features a prohibition-era design with art deco elements and smoky atmosphere.
  */
-class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val uiManager: UIManager ) {
+class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val uiManager: UIManager, private val saveLoadSystem: SaveLoadSystem) {
 
     private lateinit var mainContainer: Table
     private lateinit var overlay: Image
@@ -76,6 +77,8 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val 
         mainContainer.isVisible = false
         stage.addActor(mainContainer)
 
+        val buttonsTable = Table()
+
         // Main newspaper/wanted poster container
         val newspaperTable = Table()
         newspaperTable.background = createNewspaperBackground()
@@ -101,10 +104,14 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val 
         newspaperTable.add(subtitleLabel).padBottom(30f).row()
 
         // Menu buttons with 1920s styling
-        val buttonsTable = Table()
-        // Original: "✦ RESUME ✦"
-        buttonsTable.add(createVintageButton("⚡ RESUME OPERATIONS ⚡", Color.valueOf("#8B4513"))).fillX().height(60f).padBottom(10f).row()
-        // Original: "⚙ SETTINGS ⚙"
+        val resumeButton = createVintageButton("⚡ RESUME OPERATIONS ⚡", Color.valueOf("#8B4513"))
+        resumeButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                hide() // Resume is the same as closing the menu
+            }
+        })
+        buttonsTable.add(resumeButton).fillX().height(60f).padBottom(10f).row()
+
         val visualSettingsButton = createVintageButton("👁️ VISUAL SETTINGS 👁️", Color.valueOf("#654321"))
         visualSettingsButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
@@ -114,9 +121,31 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val 
         // Original: "💾 SAVE GAME 💾"
         buttonsTable.add(visualSettingsButton).fillX().height(60f).padBottom(10f).row()
 
-        buttonsTable.add(createVintageButton("💰 STASH THE LOOT 💰", Color.valueOf("#2F4F2F"))).fillX().height(60f).padBottom(10f).row()
-        // Original: "🚪 QUIT TO MENU 🚪"
-        buttonsTable.add(createVintageButton("🚪 ABANDON TERRITORY 🚪", Color.valueOf("#8B0000"))).fillX().height(60f).padTop(15f).row()
+        val saveButton = createVintageButton("💰 SAVE GAME 💰", Color.valueOf("#2F4F2F"))
+        saveButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                saveLoadSystem.saveGame()
+                hide()
+            }
+        })
+        buttonsTable.add(saveButton).fillX().height(60f).padBottom(10f).row()
+
+        val loadButton = createVintageButton("📂 LOAD GAME 📂", Color.valueOf("#654321"))
+        loadButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                saveLoadSystem.loadGame()
+                hide()
+            }
+        })
+        buttonsTable.add(loadButton).fillX().height(60f).padBottom(10f).row()
+
+        val quitButton = createVintageButton("🚪 QUIT TO DESKTOP 🚪", Color.valueOf("#8B0000"))
+        quitButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                Gdx.app.exit()
+            }
+        })
+        buttonsTable.add(quitButton).fillX().height(60f).padTop(15f).row()
 
         newspaperTable.add(buttonsTable).width(380f).row()
 

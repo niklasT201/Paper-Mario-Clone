@@ -66,19 +66,17 @@ public class Lwjgl3Launcher {
 // maybe improving billboard shader
 // south park like animation
 // map saving
-// mission starting, saving and ending
-// The Core Foundation (Making it Data-Driven)
 // Making Missions Dynamic & Fun
-// Implement Mission Modifiers
 // Persistence & Consequences
 // Save and Load Player Progress
 // Expanding & Polishing
-// Add More Objective Types
 // connect dialog and mission system
 // spawnpoints working with mission system
-// Creating Objectives (The Core Logic)
-// "Placing" Mission Logic in the World
 // adding multiple city areas, district 2d polygons
+// TALK_TO_NPC Logic: The game doesn't yet have a system for initiating conversations with specific NPCs by pressing 'E'.
+// INTERACT_WITH_OBJECT Logic: Similar to the above, you don't have a generic "interaction" system for objects yet
+// COLLECT_ITEM Logic: As we discussed, this requires a proper player inventory system to be fully functional.
+// Advanced Rewards: The logic for GIVE_AMMO and GIVE_ITEM is in place, but things like UNLOCK_CAR_SPAWN would require a "garage" or "player property" system.
 
 // maybe, not intended for now:
 // Asynchronous/Multi-threaded Chunk Building
@@ -91,4 +89,3 @@ public class Lwjgl3Launcher {
 // fbx-conv -f house.obj house.g3dj
 
 // can you help me with my kotlin 3d game? I have this billboard shader for my player, items, npcs and enemies. it worls fine but i would like to modify it a bit. as you maybe see, the shader makes, that the things that has a userdata set = player are full bright. so you can see them clear. this is fine, but originally i wanted to make it so, that when i place a light source and the light source shines at a billobard, the billboard gets shiny, and when i rotate so now the other side of the billboard is visible, it also gets shiny. as you maybe know, in default in libgdx this is not possible. a billboard can only get shined at from one side and not both. so i wanted to change this, but as it didnt work what i wanted, i made at so they are for now always completely bright. for the player i noticed that i liked this even more, but i dont like it so much for everything eslse. i would like it when the player would stay as it is, so always fully bright, but everything else can be shined from both sides and not only one. but the problem is, that it seems like when i place a light source that shines at something that uses this billboard shader, it completely ignores it, like these things dont exist. why is this happening and is there a way to fix it?
-// when i place mutliple lights in a room for example, lets say 6, then the big room that should have only light where the light sources are, gets completely bright. BUT this is only a visual bug. when i move to the area where is no light placed and i move away from the light sources i placed, then the room area gets dark again. this is a really weird bug, and i think it has to do with this visible light area or maybe not. im not so sure

@@ -22,6 +22,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var shaderEffectManager: ShaderEffectManager
     lateinit var triggerSystem: TriggerSystem
     lateinit var missionSystem: MissionSystem
+    lateinit var saveLoadSystem: SaveLoadSystem
 
     // UI and Input Managers
     lateinit var uiManager: UIManager
@@ -31,16 +32,16 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var raycastSystem: RaycastSystem
 
     // Block system
-    private lateinit var blockSystem: BlockSystem
+    lateinit var blockSystem: BlockSystem
     lateinit var objectSystem: ObjectSystem
     lateinit var itemSystem: ItemSystem
     lateinit var carSystem: CarSystem
     lateinit var sceneManager: SceneManager
     lateinit var enemySystem: EnemySystem
-    private lateinit var npcSystem: NPCSystem
+    lateinit var npcSystem: NPCSystem
     private lateinit var pathfindingSystem: PathfindingSystem
     private lateinit var roomTemplateManager: RoomTemplateManager
-    private lateinit var houseSystem: HouseSystem
+    lateinit var houseSystem: HouseSystem
 
     // Highlight System
     private lateinit var highlightSystem: HighlightSystem
@@ -117,6 +118,7 @@ class MafiaGame : ApplicationAdapter() {
         trajectorySystem = TrajectorySystem()
         blockDebugRenderer = BlockDebugRenderer()
 
+        saveLoadSystem = SaveLoadSystem(this)
         missionSystem = MissionSystem(this)
         triggerSystem = TriggerSystem(this)
 

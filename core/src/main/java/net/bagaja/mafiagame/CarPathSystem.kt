@@ -51,7 +51,7 @@ class CarPathSystem : Disposable {
     private var isDirectionFlipped = false
 
     // Visuals for the editor
-    private val nodeModel: Model
+    val nodeModel: Model
     private val lineModel: Model
     private lateinit var lineInstance: ModelInstance
 
