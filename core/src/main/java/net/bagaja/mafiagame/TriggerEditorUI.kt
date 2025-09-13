@@ -17,9 +17,10 @@ class TriggerEditorUI(
 ) {
     private val window: Window = Window("Trigger Placer", skin)
     private val missionSelectBox: SelectBox<String>
+    private val radiusField: TextField
 
     init {
-        window.setSize(550f, 200f)
+        window.setSize(550f, 240f)
         window.setPosition(stage.width / 2f, stage.height - 160f, Align.center)
         window.padTop(30f)
 
@@ -34,11 +35,16 @@ class TriggerEditorUI(
         })
 
         missionSelectBox = SelectBox(skin)
+        radiusField = TextField("", skin)
 
         window.add(Label("Mission to Place:", skin)).padRight(10f)
-        window.add(missionSelectBox).growX()
-        window.row()
-        window.add(Label("Left-Click to place at cursor.", skin, "small")).colspan(2).padTop(10f)
+        window.add(missionSelectBox).growX().row()
+        window.add(Label("Trigger Radius:", skin)).padRight(10f).padTop(10f)
+        window.add(radiusField).width(100f).row()
+
+        window.add(Label("L-Click: Place | R-Click: Reset", skin, "small")).colspan(2).padTop(10f)
+        window.add(Label("F: Fine-Tune | Scroll: Adjust Radius", skin, "small")).colspan(2).row()
+
 
         missionSelectBox.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
@@ -50,12 +56,28 @@ class TriggerEditorUI(
                 val mission = missionSystem.getMissionDefinition(missionId)
                 if (mission != null) {
                     sceneManager.game.lastPlacedInstance = mission.startTrigger
+                    // ADD this line to update the radius field
+                    radiusField.text = mission.startTrigger.areaRadius.toString()
+                }
+            }
+        })
+
+        radiusField.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                triggerSystem.selectedMissionIdForEditing?.let { missionId ->
+                    missionSystem.getMissionDefinition(missionId)?.let { mission ->
+                        mission.startTrigger.areaRadius = radiusField.text.toFloatOrNull() ?: TriggerSystem.VISUAL_RADIUS
+                    }
                 }
             }
         })
 
         window.isVisible = false
         stage.addActor(window)
+    }
+
+    fun setRadiusText(text: String) {
+        radiusField.text = text
     }
 
     fun show() {

@@ -299,6 +299,19 @@ class InputHandler(
             }
 
             override fun scrolled(amountX: Float, amountY: Float): Boolean {
+                if (uiManager.selectedTool == UIManager.Tool.TRIGGER && game.lastPlacedInstance is MissionTrigger) {
+                    val trigger = game.lastPlacedInstance as MissionTrigger
+                    val step = if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)) 5.0f else 1.0f // Hold shift for bigger steps
+                    val change = -amountY * step // Invert scroll direction
+
+                    trigger.areaRadius = (trigger.areaRadius + change).coerceAtLeast(1.0f) // Don't allow radius < 1
+
+                    // We need to tell the UIManager to update the text field
+                    uiManager.updateTriggerRadiusField(trigger.areaRadius)
+
+                    println("Trigger radius changed to: ${trigger.areaRadius}")
+                    return true // Consume the scroll event
+                }
                 // Check if block selection mode is active
                 if (isBlockSelectionMode) {
                     // Use mouse scroll to change blocks

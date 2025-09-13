@@ -101,8 +101,8 @@ enum class TriggerType {
 data class MissionTrigger(
     val type: TriggerType = TriggerType.ON_ENTER_AREA,
     var areaCenter: Vector3 = Vector3(),
-    var areaRadius: Float = 20f,
-    var targetNpcId: String? = null
+    var areaRadius: Float = TriggerSystem.VISUAL_RADIUS,
+    val targetNpcId: String? = null
 )
 
 // --- Mission Modifiers (Special Rules) ---

@@ -37,7 +37,7 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
 
     // --- Configuration ---
     companion object {
-        private const val VISUAL_RADIUS = 2.5f
+        const val VISUAL_RADIUS = 2.5f
         private const val VISUAL_ACTIVATION_DISTANCE = 40f
         private const val GROUND_OFFSET = 0.08f
     }

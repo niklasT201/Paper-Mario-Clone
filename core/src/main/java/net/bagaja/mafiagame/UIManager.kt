@@ -1123,6 +1123,10 @@ class UIManager(
 
     fun getViolenceLevel(): ViolenceLevel = currentViolenceLevel
 
+    fun updateTriggerRadiusField(newRadius: Float) {
+        triggerEditorUI.setRadiusText(newRadius.toString())
+    }
+
     fun render() {
         dialogSystem.update(Gdx.graphics.deltaTime)
         // Update HUD visibility and values based on game state
