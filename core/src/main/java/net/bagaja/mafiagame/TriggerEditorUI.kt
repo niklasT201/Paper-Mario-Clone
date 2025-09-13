@@ -11,7 +11,8 @@ class TriggerEditorUI(
     private val skin: Skin,
     private val stage: Stage,
     private val missionSystem: MissionSystem,
-    private val triggerSystem: TriggerSystem
+    private val triggerSystem: TriggerSystem,
+    private val sceneManager: SceneManager
 ) {
     private val window: Window = Window("Trigger Placer", skin)
     private val missionSelectBox: SelectBox<String>
@@ -30,10 +31,18 @@ class TriggerEditorUI(
 
         missionSelectBox.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
-                // Tell the TriggerSystem which mission is now selected
-                val selectedText = missionSelectBox.selected
+                val selectedText = missionSelectBox.selected ?: return
                 val missionId = selectedText.split(":")[0].trim()
+
+                // Tell the TriggerSystem which mission is now selected for editing
                 triggerSystem.selectedMissionIdForEditing = missionId
+
+                // Set the selected trigger as the "last placed instance" for fine-tuning
+                val mission = missionSystem.getMissionDefinition(missionId)
+                if (mission != null) {
+                    sceneManager.game.lastPlacedInstance = mission.startTrigger
+                    triggerSystem.createOrUpdateEditorCylinder(mission.startTrigger.areaRadius, 10f) // Update visual
+                }
             }
         })
 

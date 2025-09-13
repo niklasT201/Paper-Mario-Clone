@@ -559,6 +559,10 @@ class MafiaGame : ApplicationAdapter() {
                 // The visual will update automatically in the render loop
                 println("Moved Path Node to ${instance.position}")
             }
+            is MissionTrigger -> {
+                instance.areaCenter.add(deltaX, deltaY, deltaZ)
+                println("Moved Trigger to ${instance.areaCenter}")
+            }
             else -> println("Fine positioning not supported for this object type.")
         }
     }

@@ -116,7 +116,7 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
         }
     }
 
-    private fun createOrUpdateEditorCylinder(radius: Float, height: Float) {
+    fun createOrUpdateEditorCylinder(radius: Float, height: Float) {
         editorCylinderModel?.dispose() // Dispose old model first
         val material = Material(
             ColorAttribute.createDiffuse(Color.CYAN.r, Color.CYAN.g, Color.CYAN.b, 0.3f),

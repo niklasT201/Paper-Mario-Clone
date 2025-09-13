@@ -30,12 +30,12 @@ data class MissionDefinition(
     val id: String = "",
     val title: String = "",
     val description: String = "",
-    val prerequisites: List<String> = emptyList(),
+    val prerequisites: MutableList<String> = mutableListOf(),
     val scope: MissionScope = MissionScope.WORLD_ONLY,
-    val eventsOnStart: List<GameEvent> = emptyList(),
-    val eventsOnComplete: List<GameEvent> = emptyList(),
-    val objectives: List<MissionObjective> = emptyList(),
-    val rewards: List<MissionReward> = emptyList(),
+    val eventsOnStart: MutableList<GameEvent> = mutableListOf(),
+    val eventsOnComplete: MutableList<GameEvent> = mutableListOf(),
+    val objectives: MutableList<MissionObjective> = mutableListOf(),
+    val rewards: MutableList<MissionReward> = mutableListOf(),
     val startTrigger: MissionTrigger = MissionTrigger()
 )
 
@@ -60,7 +60,7 @@ data class MissionObjective(
     val markerPosition: Vector3? = null,
     val markerRadius: Float = 10f,
     val completionCondition: CompletionCondition = CompletionCondition(),
-    val eventsOnStart: List<GameEvent> = emptyList() // Note: List should be non-nullable with a default
+    val eventsOnStart: MutableList<GameEvent> = mutableListOf()
 )
 
 data class MissionReward(

@@ -163,8 +163,8 @@ class MissionEditorUI(
     private fun populateEditor(missionId: String) {
         val mission = missionSystem.getMissionDefinition(missionId) ?: return
         currentMissionDef = mission
-        tempObjectives = mission.objectives.toMutableList()
-        tempRewards = mission.rewards.toMutableList()
+        tempObjectives = mission.objectives
+        tempRewards = mission.rewards
 
         missionIdField.text = mission.id
         missionTitleField.text = mission.title
@@ -188,10 +188,10 @@ class MissionEditorUI(
         val newDef = mission.copy(
             title = missionTitleField.text.ifBlank { "Untitled Mission" },
             description = missionDescriptionArea.text,
-            prerequisites = prerequisitesField.text.split(",").map { it.trim() }.filter { it.isNotEmpty() },
+            prerequisites = prerequisitesField.text.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toMutableList(),
             scope = MissionScope.valueOf(scopeSelectBox.selected),
-            objectives = tempObjectives.toList(),
-            rewards = tempRewards.toList()
+            objectives = tempObjectives,
+            rewards = tempRewards
         )
         missionSystem.saveMission(newDef)
         refreshMissionList()

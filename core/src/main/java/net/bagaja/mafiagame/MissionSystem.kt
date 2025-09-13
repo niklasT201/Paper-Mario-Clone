@@ -26,20 +26,26 @@ class MissionSystem(val game: MafiaGame) {
     private fun loadAllMissionsFromFiles() {
         allMissions.clear()
         val dirHandle = Gdx.files.local(missionsDir)
-        println("MissionSystem: Attempting to load missions from ${dirHandle.path()}...")
+        // --- ADDED DEBUGGING ---
+        println("---- MISSION LOADING DEBUG ----")
+        println("Attempting to load missions from absolute path: ${dirHandle.file().absolutePath}")
 
         if (!dirHandle.exists() || !dirHandle.isDirectory) {
-            println("MissionSystem: ERROR - Directory '$missionsDir' not found or is not a directory.")
+            println("ERROR: Directory does not exist or is not a directory. Stopping load process.")
+            println("-----------------------------")
             return
         }
 
         val missionFiles = dirHandle.list(".json")
         if (missionFiles.isEmpty()) {
-            println("MissionSystem: Directory exists but contains no '.json' files.")
+            println("Directory exists but contains no '.json' files.")
+            println("-----------------------------")
             return
         }
 
-        println("MissionSystem: Found ${missionFiles.size} potential mission file(s).")
+        println("Found ${missionFiles.size} potential mission file(s): ${missionFiles.joinToString { it.name() }}")
+        // --- END OF DEBUGGING ---
+
         missionFiles.forEach { file ->
             try {
                 val jsonString = file.readString()
@@ -47,15 +53,16 @@ class MissionSystem(val game: MafiaGame) {
 
                 if (missionDef != null && missionDef.id.isNotEmpty()) {
                     allMissions[missionDef.id] = missionDef
-                    println(" -> Successfully loaded mission: ${missionDef.title} (ID: ${missionDef.id})")
+                    println(" -> SUCCESS: Loaded mission '${missionDef.title}' (ID: ${missionDef.id})")
                 } else {
-                    println(" -> ERROR: Failed to parse mission from ${file.name()}.")
+                    println(" -> ERROR: Failed to parse mission from ${file.name()}. JSON might be invalid or ID is missing.")
                 }
             } catch (e: Exception) {
-                println(" -> EXCEPTION while loading mission from ${file.name()}: ${e.message}")
+                println(" -> CRITICAL EXCEPTION while loading ${file.name()}: ${e.message}")
             }
         }
-        println("MissionSystem: Finished loading. Total missions loaded: ${allMissions.size}")
+        println("Finished loading. Total missions in memory: ${allMissions.size}")
+        println("-----------------------------")
     }
 
     private fun isScopeValid(objective: MissionObjective, mission: MissionState): Boolean {

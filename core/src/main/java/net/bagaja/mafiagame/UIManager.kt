@@ -257,7 +257,7 @@ class UIManager(
         // Set initial visibility for the main UI panel
         mainTable.isVisible = isUIVisible && game.isEditorMode
         missionEditorUI = MissionEditorUI(skin, stage, game.missionSystem, this)
-        triggerEditorUI = TriggerEditorUI(skin, stage, game.missionSystem, game.triggerSystem)
+        triggerEditorUI = TriggerEditorUI(skin, stage, game.missionSystem, game.triggerSystem, game.sceneManager)
     }
 
     fun showTemporaryMessage(message: String) {
