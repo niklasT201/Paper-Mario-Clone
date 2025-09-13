@@ -257,7 +257,7 @@ class UIManager(
         // Set initial visibility for the main UI panel
         mainTable.isVisible = isUIVisible && game.isEditorMode
         missionEditorUI = MissionEditorUI(skin, stage, game.missionSystem, this)
-        triggerEditorUI = TriggerEditorUI(skin, stage, game.missionSystem, game.triggerSystem, game.sceneManager)
+        triggerEditorUI = TriggerEditorUI(skin, stage, game.missionSystem, game.triggerSystem, game.sceneManager, this)
     }
 
     fun showTemporaryMessage(message: String) {
@@ -493,13 +493,15 @@ class UIManager(
     }
 
     fun updateToolDisplay() {
-        layoutBuilder.updateToolButtons(toolButtons, selectedTool)
-
         if (selectedTool == Tool.TRIGGER) {
             triggerEditorUI.show()
+            game.triggerSystem.isEditorVisible = true // Tell the system to draw its editor visual
         } else {
             triggerEditorUI.hide()
+            game.triggerSystem.isEditorVisible = false // Tell the system to HIDE its editor visual
         }
+
+        layoutBuilder.updateToolButtons(toolButtons, selectedTool)
     }
 
     fun updatePlacementInfo(info: String) {

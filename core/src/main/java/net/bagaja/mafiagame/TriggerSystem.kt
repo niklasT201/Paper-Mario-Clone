@@ -146,16 +146,20 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
                     game.missionSystem.startMission(missionId)
                 }
 
-                // Check for visual activation
+                // --- MODIFIED VISUAL LOGIC ---
                 val distanceToVisual = playerPos.dst(center)
                 if (distanceToVisual < VISUAL_ACTIVATION_DISTANCE) {
                     // Find the ground height to place the visual correctly
                     val groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
+
+                    // THIS IS THE CRITICAL FIX: Update the position every frame
                     trigger.modelInstance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)
+
                     trigger.isVisible = true
                 } else {
                     trigger.isVisible = false
                 }
+                // --- END MODIFIED VISUAL LOGIC ---
             }
         }
     }

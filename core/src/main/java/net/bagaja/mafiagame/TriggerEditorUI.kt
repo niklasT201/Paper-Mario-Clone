@@ -12,15 +12,26 @@ class TriggerEditorUI(
     private val stage: Stage,
     private val missionSystem: MissionSystem,
     private val triggerSystem: TriggerSystem,
-    private val sceneManager: SceneManager
+    private val sceneManager: SceneManager,
+    private val uiManager: UIManager
 ) {
     private val window: Window = Window("Trigger Placer", skin)
     private val missionSelectBox: SelectBox<String>
 
     init {
-        window.setSize(350f, 150f)
+        window.setSize(550f, 200f)
         window.setPosition(stage.width / 2f, stage.height - 160f, Align.center)
         window.padTop(30f)
+
+        val closeButton = TextButton("X", skin, "default")
+        window.titleTable.add(closeButton).size(30f, 30f).padLeft(10f)
+        closeButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                // When closed, deselect the tool and update the UI
+                uiManager.selectedTool = UIManager.Tool.BLOCK
+                uiManager.updateToolDisplay()
+            }
+        })
 
         missionSelectBox = SelectBox(skin)
 
@@ -65,12 +76,10 @@ class TriggerEditorUI(
         }
 
         window.isVisible = true
-        triggerSystem.isEditorVisible = true
     }
 
     fun hide() {
         window.isVisible = false
-        triggerSystem.isEditorVisible = false
-        triggerSystem.selectedMissionIdForEditing = null
+        stage.unfocusAll()
     }
 }

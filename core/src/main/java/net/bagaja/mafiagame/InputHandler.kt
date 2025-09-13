@@ -714,7 +714,7 @@ class InputHandler(
                         Input.Keys.NUMPAD_0 -> uiManager.selectedTool = Tool.ENEMY
                         Input.Keys.NUM_7 -> uiManager.selectedTool = Tool.NPC
                         Input.Keys.NUM_6 -> uiManager.selectedTool = Tool.PARTICLE
-                        Input.Keys.NUM_5 -> uiManager.selectedTool = Tool.TRIGGER
+                        Input.Keys.NUM_5 -> uiManager.selectedTool = UIManager.Tool.TRIGGER
                         // Fine positioning controls
                         Input.Keys.LEFT -> { if (getCurrentPositionableSystem()?.finePosMode == true) { leftPressed = true; continuousFineTimer = 0f; return true } }
                         Input.Keys.RIGHT -> { if (getCurrentPositionableSystem()?.finePosMode == true) { rightPressed = true; continuousFineTimer = 0f; return true } }

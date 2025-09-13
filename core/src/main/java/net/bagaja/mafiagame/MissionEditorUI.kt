@@ -163,8 +163,9 @@ class MissionEditorUI(
     private fun populateEditor(missionId: String) {
         val mission = missionSystem.getMissionDefinition(missionId) ?: return
         currentMissionDef = mission
-        tempObjectives = mission.objectives
-        tempRewards = mission.rewards
+
+        tempObjectives = mission.objectives.toMutableList()
+        tempRewards = mission.rewards.toMutableList()
 
         missionIdField.text = mission.id
         missionTitleField.text = mission.title
@@ -198,34 +199,75 @@ class MissionEditorUI(
     }
 
     private fun showObjectiveDialog(existingObjective: MissionObjective?) {
-        val dialog = Dialog(if(existingObjective == null) "Add Objective" else "Edit Objective", skin, "dialog")
+        val dialog = Dialog(if (existingObjective == null) "Add Objective" else "Edit Objective", skin, "dialog")
+        dialog.isModal = true
         val content = dialog.contentTable
-        content.pad(10f).defaults().pad(5f)
+        content.pad(10f).defaults().pad(5f).align(Align.left)
 
+        // --- UI Elements ---
         val descField = TextField(existingObjective?.description ?: "", skin)
-        val typeSelect = SelectBox<String>(skin).apply { items = GdxArray(ConditionType.entries.map { it.name }.toTypedArray()) }
+        val typeSelect = SelectBox<String>(skin).apply {
+            items = GdxArray(ConditionType.entries.map { it.name }.toTypedArray())
+            selected = existingObjective?.completionCondition?.type?.name ?: ConditionType.ENTER_AREA.name
+        }
         val targetIdField = TextField(existingObjective?.completionCondition?.targetId ?: "", skin)
+        val areaRadiusField = TextField(existingObjective?.completionCondition?.areaRadius?.toString() ?: "10.0", skin)
 
-        content.add("Description:"); content.add(descField).growX().row()
-        content.add("Condition Type:"); content.add(typeSelect).growX().row()
-        content.add("Target ID:"); content.add(targetIdField).growX().row()
+        // --- Layout ---
+        content.add("Description:"); content.add(descField).width(300f).row()
+        content.add("Condition Type:"); content.add(typeSelect).row()
 
-        dialog.button("Save", true).addListener(object: ChangeListener() {
+        // Create tables for each condition type to show/hide them
+        val targetIdTable = Table(skin)
+        targetIdTable.add("Target ID:"); targetIdTable.add(targetIdField).width(250f)
+
+        val areaTable = Table(skin)
+        areaTable.add("Area Radius:"); areaTable.add(areaRadiusField).width(80f)
+
+        content.add(targetIdTable).colspan(2).row()
+        content.add(areaTable).colspan(2).row()
+
+        // --- Dynamic UI Logic ---
+        fun updateVisibleFields() {
+            val selectedType = try { ConditionType.valueOf(typeSelect.selected) } catch (e: Exception) { ConditionType.ENTER_AREA }
+            targetIdTable.isVisible = selectedType == ConditionType.ELIMINATE_TARGET || selectedType == ConditionType.TALK_TO_NPC
+            areaTable.isVisible = selectedType == ConditionType.ENTER_AREA
+            dialog.pack()
+        }
+
+        typeSelect.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
+                updateVisibleFields()
+            }
+        })
+
+        // Set initial visibility
+        updateVisibleFields()
+
+        // --- Buttons ---
+        dialog.button("Save", true).addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                // Safely create the new condition and objective
+                val conditionType = try { ConditionType.valueOf(typeSelect.selected) } catch (e: Exception) { ConditionType.ENTER_AREA }
+
                 val newCondition = CompletionCondition(
-                    type = ConditionType.valueOf(typeSelect.selected),
-                    targetId = targetIdField.text.ifBlank { null }
+                    type = conditionType,
+                    targetId = targetIdField.text.ifBlank { null },
+                    areaRadius = areaRadiusField.text.toFloatOrNull() ?: 10.0f
+                    // We'll get areaCenter when the trigger is placed, so no need to set it here
                 )
+
                 val newObjective = existingObjective?.copy(
-                    description = descField.text.ifBlank { "Objective" },
+                    description = descField.text.ifBlank { "New Objective" },
                     completionCondition = newCondition
                 ) ?: MissionObjective(
-                    description = descField.text.ifBlank { "Objective" },
+                    description = descField.text.ifBlank { "New Objective" },
                     completionCondition = newCondition
                 )
 
-                if (existingObjective == null) tempObjectives.add(newObjective)
-                else {
+                if (existingObjective == null) {
+                    tempObjectives.add(newObjective)
+                } else {
                     val index = tempObjectives.indexOf(existingObjective)
                     if (index != -1) tempObjectives[index] = newObjective
                 }
@@ -234,6 +276,7 @@ class MissionEditorUI(
         })
         dialog.button("Cancel", false)
         dialog.show(stage)
+        stage.keyboardFocus = descField // Start by focusing the description field
     }
 
     private fun showRewardDialog(existingReward: MissionReward?) {
