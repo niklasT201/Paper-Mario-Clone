@@ -391,6 +391,7 @@ class NPCSystem : IFinePositionable {
                 sceneManager.activeMissionPreviewNPCs.add(previewNpc)
                 sceneManager.game.lastPlacedInstance = previewNpc
                 sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_NPC to '${mission.title}'")
+                sceneManager.game.uiManager.missionEditorUI.refreshEventWidgets()
             }
         }
     }

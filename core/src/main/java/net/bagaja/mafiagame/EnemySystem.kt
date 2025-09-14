@@ -350,6 +350,7 @@ class EnemySystem : IFinePositionable {
                 sceneManager.activeMissionPreviewEnemies.add(previewEnemy)
                 sceneManager.game.lastPlacedInstance = previewEnemy
                 sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_ENEMY to '${mission.title}'")
+                sceneManager.game.uiManager.missionEditorUI.refreshEventWidgets()
             }
         }
     }

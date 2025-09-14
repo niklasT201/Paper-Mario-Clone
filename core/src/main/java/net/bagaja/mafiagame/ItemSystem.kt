@@ -224,6 +224,7 @@ class ItemSystem: IFinePositionable {
                 sceneManager.activeMissionPreviewItems.add(previewItem)
                 sceneManager.game.lastPlacedInstance = previewItem
                 sceneManager.game.uiManager.updatePlacementInfo("Added $eventType to '${mission.title}'")
+                sceneManager.game.uiManager.missionEditorUI.refreshEventWidgets()
 
                 println("Preview item created at position: $itemPosition")
                 println("Preview item modelInstance transform: ${previewItem.modelInstance.transform}")

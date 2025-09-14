@@ -223,6 +223,7 @@ class CarSystem: IFinePositionable {
                     }
                 }
                 sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_CAR to '${mission.title}'")
+                sceneManager.game.uiManager.missionEditorUI.refreshEventWidgets()
             }
         }
     }
