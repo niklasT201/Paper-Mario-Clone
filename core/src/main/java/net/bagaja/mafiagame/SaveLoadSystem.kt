@@ -82,7 +82,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
             sm.activeNPCs.forEach { n -> world.npcs.add(NpcData(n.id, n.npcType, n.behaviorType, n.position, n.health)) }
             sm.activeItems.forEach { i -> world.items.add(ItemData(i.itemType, i.position, i.ammo, i.value)) }
             sm.activeObjects.forEach { o -> world.objects.add(ObjectData(o.objectType, o.position)) }
-            sm.activeHouses.forEach { h -> world.houses.add(HouseData(h.houseType, h.position, h.isLocked, h.rotationY)) }
+            sm.activeHouses.forEach { h -> world.houses.add(HouseData(h.houseType, h.position, h.isLocked, h.rotationY, h.entryPointId)) }
+            sm.activeEntryPoints.forEach { ep -> world.entryPoints.add(EntryPointData(ep.id, ep.houseId, ep.position)) }
             game.lightingManager.getLightSources().values.forEach { l -> world.lights.add(LightData(l.position, l.color, l.intensity, l.range)) }
             sm.activeSpawners.forEach { s -> world.spawners.add(SpawnerData(s.position, s.spawnerType, s.spawnInterval, s.minSpawnRange, s.maxSpawnRange)) }
             state.worldState = world
@@ -117,6 +118,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
 
             // --- CLEAR CURRENT WORLD STATE ---
             sm.clearActiveSceneForLoad()
+            sm.activeEntryPoints.clear()
 
             // 1. Restore World State (Characters must be created before they can be put in cars)
             val enemyMap = mutableMapOf<String, GameEnemy>()
@@ -154,7 +156,19 @@ class SaveLoadSystem(private val game: MafiaGame) {
             }
             state.worldState.items.forEach { data -> game.itemSystem.createItem(data.position, data.itemType)?.let { it.ammo = data.ammo; it.value = data.value; sm.activeItems.add(it) } }
             state.worldState.objects.forEach { data -> game.objectSystem.createGameObjectWithLight(data.objectType, data.position, game.lightingManager)?.let { sm.activeObjects.add(it) } }
-            state.worldState.houses.forEach { data -> game.houseSystem.currentRotation = data.rotationY; game.houseSystem.addHouse(data.position.x, data.position.y, data.position.z, data.houseType, data.isLocked) }
+            state.worldState.houses.forEach { data ->
+                game.houseSystem.currentRotation = data.rotationY
+                val newHouse = game.houseSystem.addHouse(data.position.x, data.position.y, data.position.z, data.houseType, data.isLocked)
+                if (newHouse != null) {
+                    // Restore the link to the custom entry point
+                    newHouse.entryPointId = data.entryPointId
+                }
+            }
+            state.worldState.entryPoints.forEach { data ->
+                val debugInstance = ModelInstance(game.houseSystem.entryPointDebugModel!!) // Recreate the visual model
+                val entryPoint = GameEntryPoint(data.id, data.houseId, data.position, debugInstance)
+                sm.activeEntryPoints.add(entryPoint)
+            }
             state.worldState.lights.forEach { data ->
                 val light = game.objectSystem.createLightSource(data.position, data.intensity, data.range, data.color)
                 game.lightingManager.addLightSource(light, game.objectSystem.createLightSourceInstances(light))

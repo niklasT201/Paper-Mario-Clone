@@ -31,7 +31,7 @@ class HouseSystem: IFinePositionable {
     private val houseTextures = mutableMapOf<HouseType, Texture>()
 
     // Model for the entry point's debug visual
-    private var entryPointDebugModel: Model? = null
+    var entryPointDebugModel: Model? = null
 
     private lateinit var modelLoader: G3dModelLoader
 

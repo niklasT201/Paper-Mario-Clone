@@ -22,6 +22,12 @@ data class PlayerStateData(
     var equippedWeapon: WeaponType = WeaponType.UNARMED
 )
 
+data class EntryPointData(
+    var id: String = "",
+    var houseId: String = "",
+    var position: Vector3 = Vector3()
+)
+
 data class WorldStateData(
     var blocks: GdxArray<BlockData> = GdxArray(),
     var cars: GdxArray<CarData> = GdxArray(),
@@ -31,7 +37,8 @@ data class WorldStateData(
     var objects: GdxArray<ObjectData> = GdxArray(),
     var houses: GdxArray<HouseData> = GdxArray(),
     var lights: GdxArray<LightData> = GdxArray(),
-    var spawners: GdxArray<SpawnerData> = GdxArray()
+    var spawners: GdxArray<SpawnerData> = GdxArray(),
+    var entryPoints: GdxArray<EntryPointData> = GdxArray() // ADD THIS LINE
 )
 
 data class CarPathData(
@@ -100,7 +107,8 @@ data class HouseData(
     var houseType: HouseType = HouseType.HOUSE_1,
     var position: Vector3 = Vector3(),
     var isLocked: Boolean = false,
-    var rotationY: Float = 0f
+    var rotationY: Float = 0f,
+    var entryPointId: String? = null
 )
 
 data class LightData(

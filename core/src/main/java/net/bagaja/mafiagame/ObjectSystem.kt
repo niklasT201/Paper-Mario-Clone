@@ -201,8 +201,6 @@ class ObjectSystem: IFinePositionable {
             mission.eventsOnStart.add(event)
             sceneManager.game.missionSystem.saveMission(mission)
 
-            // The preview object is just visual, so it doesn't need all the properties.
-            // The real object will be created with these properties when the mission starts.
             val previewObject = createGameObjectWithLight(objectType, objectPosition)
             if (previewObject != null) {
                 sceneManager.activeMissionPreviewObjects.add(previewObject)
