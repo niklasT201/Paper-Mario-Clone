@@ -50,8 +50,6 @@ public class Lwjgl3Launcher {
 // edge houses
 // using new animation images
 // collected ammunition label for bullets and weapons
-// npc spawnpoint
-// enemy spawnpoint
 // rusher stopping in front of the player
 // fire system uses spread fire, fire or flame particle folder
 // blocks being visible behind transparent enemies etc.

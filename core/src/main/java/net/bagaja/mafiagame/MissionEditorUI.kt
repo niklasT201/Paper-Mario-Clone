@@ -44,9 +44,9 @@ class MissionEditorUI(
     private var tempCompleteEvents = mutableListOf<GameEvent>()
 
     init {
-        window.isModal = false
         window.isMovable = true
-        window.setSize(Gdx.graphics.width * 1.8f, Gdx.graphics.height * 1.8f)
+        window.isModal = false
+        window.setSize(Gdx.graphics.width * 1.9f, Gdx.graphics.height * 1.8f)
         window.setPosition(stage.width / 2f, stage.height / 2f, Align.center)
         window.padTop(40f)
 
@@ -58,7 +58,7 @@ class MissionEditorUI(
         missionSelectionTable = Table()
         missionSelectionTable.add(Label("Editing Mission:", skin)).padRight(10f)
         missionSelectionTable.add(missionSelectBox).growX()
-        missionSelectionTable.isVisible = false // Hide until Mission Mode is active
+        missionSelectionTable.isVisible = false
 
         topBar.add(modeSwitchButton).padRight(20f)
         topBar.add(missionSelectionTable).growX()
@@ -67,14 +67,23 @@ class MissionEditorUI(
         // --- Left Panel ---
         val leftPanel = Table()
         missionList = com.badlogic.gdx.scenes.scene2d.ui.List(skin)
-        val listScrollPane = ScrollPane(missionList, skin); listScrollPane.setFadeScrollBars(false)
+        val listScrollPane = ScrollPane(missionList, skin)
+        listScrollPane.setFadeScrollBars(false) // Keep scrollbars visible
         val newMissionButton = TextButton("New Mission", skin)
         val deleteMissionButton = TextButton("Delete Selected", skin)
-        val buttonTable = Table(); buttonTable.add(newMissionButton).growX().pad(5f); buttonTable.add(deleteMissionButton).growX().pad(5f)
-        leftPanel.add(listScrollPane).expand().fill().row(); leftPanel.add(buttonTable).fillX()
+        val listButtonTable = Table()
+        listButtonTable.add(newMissionButton).growX().pad(5f)
+        listButtonTable.add(deleteMissionButton).growX().pad(5f)
 
-        // --- Right Panel (All the mission details) ---
-        val editorTable = Table(); editorTable.pad(10f); editorTable.align(Align.topLeft)
+        leftPanel.add(listScrollPane).expand().fill().row()
+        leftPanel.add(listButtonTable).fillX()
+
+        // --- Right Panel (for all mission details) ---
+        val editorDetailsTable = Table()
+        editorDetailsTable.pad(10f)
+        editorDetailsTable.align(Align.topLeft)
+
+        // All your existing fields for ID, Title, etc. go in here
         missionIdField = TextField("", skin).apply { isDisabled = true }
         missionTitleField = TextField("", skin)
         missionDescriptionArea = TextArea("", skin)
@@ -86,41 +95,51 @@ class MissionEditorUI(
         startEventsContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.topLeft) }
         completeEventsContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.topLeft) }
 
-        editorTable.add(Label("ID:", skin)).left(); editorTable.add(missionIdField).growX().row()
-        editorTable.add(Label("Title:", skin)).left(); editorTable.add(missionTitleField).growX().row()
-        editorTable.add(Label("Description:", skin)).left().top(); editorTable.add(ScrollPane(missionDescriptionArea, skin)).growX().height(60f).row()
-        editorTable.add(Label("Prerequisites (IDs):", skin)).left(); editorTable.add(prerequisitesField).growX().row()
-        editorTable.add(Label("Scope:", skin)).left(); editorTable.add(scopeSelectBox).left().row()
+        editorDetailsTable.add(Label("ID:", skin)).left(); editorDetailsTable.add(missionIdField).growX().row()
+        editorDetailsTable.add(Label("Title:", skin)).left(); editorDetailsTable.add(missionTitleField).growX().row()
+        editorDetailsTable.add(Label("Description:", skin)).left().top(); editorDetailsTable.add(ScrollPane(missionDescriptionArea, skin)).growX().height(60f).row()
+        editorDetailsTable.add(Label("Prerequisites (IDs):", skin)).left(); editorDetailsTable.add(prerequisitesField).growX().row()
+        editorDetailsTable.add(Label("Scope:", skin)).left(); editorDetailsTable.add(scopeSelectBox).left().row()
 
-        editorTable.add(Label("--- Events on Start ---", skin, "title")).colspan(2).padTop(15f).row()
-        editorTable.add(ScrollPane(startEventsContainer, skin)).colspan(2).growX().height(100f).row()
+        editorDetailsTable.add(Label("--- Events on Start ---", skin, "title")).colspan(2).padTop(15f).row()
+        editorDetailsTable.add(ScrollPane(startEventsContainer, skin)).colspan(2).growX().height(100f).row()
         val addStartEventButton = TextButton("Add Start Event", skin)
-        editorTable.add(addStartEventButton).colspan(2).left().padTop(5f).row()
+        editorDetailsTable.add(addStartEventButton).colspan(2).left().padTop(5f).row()
 
-        editorTable.add(Label("--- Objectives ---", skin, "title")).colspan(2).padTop(15f).row()
-        editorTable.add(ScrollPane(objectivesContainer, skin)).colspan(2).growX().height(150f).row()
+        editorDetailsTable.add(Label("--- Objectives ---", skin, "title")).colspan(2).padTop(15f).row()
+        editorDetailsTable.add(ScrollPane(objectivesContainer, skin)).colspan(2).growX().height(150f).row()
         val addObjectiveButton = TextButton("Add Objective", skin)
-        editorTable.add(addObjectiveButton).colspan(2).left().padTop(5f).row()
+        editorDetailsTable.add(addObjectiveButton).colspan(2).left().padTop(5f).row()
 
-        editorTable.add(Label("--- Events on Complete ---", skin, "title")).colspan(2).padTop(15f).row()
-        editorTable.add(ScrollPane(completeEventsContainer, skin)).colspan(2).growX().height(100f).row()
+        editorDetailsTable.add(Label("--- Events on Complete ---", skin, "title")).colspan(2).padTop(15f).row()
+        editorDetailsTable.add(ScrollPane(completeEventsContainer, skin)).colspan(2).growX().height(100f).row()
         val addCompleteEventButton = TextButton("Add Complete Event", skin)
-        editorTable.add(addCompleteEventButton).colspan(2).left().padTop(5f).row()
+        editorDetailsTable.add(addCompleteEventButton).colspan(2).left().padTop(5f).row()
 
-        editorTable.add(Label("--- Rewards ---", skin, "title")).colspan(2).padTop(15f).row()
-        editorTable.add(ScrollPane(rewardsContainer, skin)).colspan(2).growX().height(100f).row()
+        editorDetailsTable.add(Label("--- Rewards ---", skin, "title")).colspan(2).padTop(15f).row()
+        editorDetailsTable.add(ScrollPane(rewardsContainer, skin)).colspan(2).growX().height(100f).row()
         val addRewardButton = TextButton("Add Reward", skin)
-        editorTable.add(addRewardButton).colspan(2).left().padTop(5f).row()
+        editorDetailsTable.add(addRewardButton).colspan(2).left().padTop(5f).row()
 
-        // --- Assembly ---
-        val editorScrollPane = ScrollPane(editorTable, skin); editorScrollPane.setFadeScrollBars(false)
-        val splitPane = SplitPane(leftPanel, editorScrollPane, false, skin); splitPane.splitAmount = 0.25f
+
+        // --- Assembly using SplitPane ---
+        // The right panel is put in its own ScrollPane so IT can scroll independently
+        val editorScrollPane = ScrollPane(editorDetailsTable, skin)
+        editorScrollPane.setFadeScrollBars(false)
+
+        // The SplitPane connects the left and right panels
+        val splitPane = SplitPane(leftPanel, editorScrollPane, false, skin)
+        splitPane.splitAmount = 0.25f // Left panel takes 25% of the width
         mainContentTable.add(splitPane).expand().fill().row()
 
+        // Bottom buttons
         val saveButton = TextButton("Save and Close", skin); val closeButton = TextButton("Close Without Saving", skin)
         val bottomButtonTable = Table(); bottomButtonTable.add(saveButton).pad(10f); bottomButtonTable.add(closeButton).pad(10f)
         mainContentTable.add(bottomButtonTable).padTop(10f)
-        window.add(mainContentTable).expand().fill(); window.isVisible = false; stage.addActor(window)
+
+        window.add(mainContentTable).expand().fill()
+        window.isVisible = false
+        stage.addActor(window)
 
         // --- Listeners ---
         modeSwitchButton.addListener(object : ChangeListener() {

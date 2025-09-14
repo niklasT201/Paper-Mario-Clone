@@ -208,7 +208,8 @@ class ItemSystem: IFinePositionable {
                 type = eventType,
                 spawnPosition = itemPosition,
                 itemType = itemType,
-                itemValue = itemType.value // Save the default value
+                itemValue = itemType.value,
+                targetId = null // Ensure this is null for items
             )
 
             // 2. Add and save
@@ -218,9 +219,16 @@ class ItemSystem: IFinePositionable {
             // 3. Create preview item
             val previewItem = createItem(itemPosition, itemType, pickupDelay = 9999f) // Long delay so it can't be picked up
             if (previewItem != null) {
+                previewItem.modelInstance.transform.setToTranslation(itemPosition)
+
                 sceneManager.activeMissionPreviewItems.add(previewItem)
                 sceneManager.game.lastPlacedInstance = previewItem
                 sceneManager.game.uiManager.updatePlacementInfo("Added $eventType to '${mission.title}'")
+
+                println("Preview item created at position: $itemPosition")
+                println("Preview item modelInstance transform: ${previewItem.modelInstance.transform}")
+            } else {
+                println("Failed to create preview item!")
             }
         }
     }

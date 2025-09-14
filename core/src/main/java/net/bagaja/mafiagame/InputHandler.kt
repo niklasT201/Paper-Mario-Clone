@@ -6,6 +6,7 @@ import com.badlogic.gdx.InputAdapter
 import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.collision.Ray
 import net.bagaja.mafiagame.UIManager.Tool
 
 class InputHandler(
@@ -204,6 +205,14 @@ class InputHandler(
 
                         // PRIORITY 2: Handle removal actions in Editor Mode.
                         if (game.isEditorMode) {
+                            // If in mission mode, try to remove a preview object first.
+                            if (uiManager.currentEditorMode == EditorMode.MISSION) {
+                                val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+                                if (handleMissionPreviewRemoval(ray)) {
+                                    return true // A preview was removed, consume the click.
+                                }
+                            }
+
                             // Try to remove a block. If successful, consume the event.
                             val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
 
@@ -965,6 +974,63 @@ class InputHandler(
             Tool.NPC -> npcSystem
             else -> null
         }
+    }
+
+    private fun handleMissionPreviewRemoval(ray: Ray): Boolean {
+        val mission = uiManager.selectedMissionForEditing ?: return false
+
+        // Check for each type of preview object
+        val enemyToRemove = game.sceneManager.raycastSystem.getPreviewEnemyAtRay(ray, game.sceneManager.activeMissionPreviewEnemies)
+        if (enemyToRemove != null) {
+            mission.eventsOnStart.removeAll { it.targetId == enemyToRemove.id }
+            game.sceneManager.activeMissionPreviewEnemies.removeValue(enemyToRemove, true)
+            game.missionSystem.saveMission(mission)
+            uiManager.updatePlacementInfo("Removed SPAWN_ENEMY from '${mission.title}'")
+            return true
+        }
+
+        val npcToRemove = game.sceneManager.raycastSystem.getPreviewNpcAtRay(ray, game.sceneManager.activeMissionPreviewNPCs)
+        if (npcToRemove != null) {
+            mission.eventsOnStart.removeAll { it.targetId == npcToRemove.id }
+            game.sceneManager.activeMissionPreviewNPCs.removeValue(npcToRemove, true)
+            game.missionSystem.saveMission(mission)
+            uiManager.updatePlacementInfo("Removed SPAWN_NPC from '${mission.title}'")
+            return true
+        }
+
+        val carToRemove = game.sceneManager.raycastSystem.getPreviewCarAtRay(ray, game.sceneManager.activeMissionPreviewCars)
+        if (carToRemove != null) {
+            mission.eventsOnStart.removeAll { it.targetId == carToRemove.id }
+            game.sceneManager.activeMissionPreviewCars.removeValue(carToRemove, true)
+
+            // Also remove any associated driver from the preview
+            carToRemove.seats.forEach { seat ->
+                when (val occupant = seat.occupant) {
+                    is GameEnemy -> game.sceneManager.activeMissionPreviewEnemies.removeValue(occupant, true)
+                    is GameNPC -> game.sceneManager.activeMissionPreviewNPCs.removeValue(occupant, true)
+                }
+            }
+
+            game.missionSystem.saveMission(mission)
+            uiManager.updatePlacementInfo("Removed SPAWN_CAR from '${mission.title}'")
+            return true
+        }
+
+        val itemToRemove = game.sceneManager.raycastSystem.getPreviewItemAtRay(ray, game.sceneManager.activeMissionPreviewItems)
+        if (itemToRemove != null) {
+            // Items don't have IDs, so we remove based on position and type
+            val removed = mission.eventsOnStart.removeAll {
+                it.itemType == itemToRemove.itemType && it.spawnPosition?.epsilonEquals(itemToRemove.position, 0.1f) == true
+            }
+            if (removed) {
+                game.sceneManager.activeMissionPreviewItems.removeValue(itemToRemove, true)
+                game.missionSystem.saveMission(mission)
+                uiManager.updatePlacementInfo("Removed SPAWN_ITEM from '${mission.title}'")
+                return true
+            }
+        }
+
+        return false
     }
 
     fun isTimeSpeedUpActive(): Boolean = isTimeSpeedUpPressed

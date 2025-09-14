@@ -345,7 +345,9 @@ class EnemySystem : IFinePositionable {
             val previewConfig = finalConfig.copy(id = event.targetId)
             val previewEnemy = createEnemy(previewConfig)
             if (previewEnemy != null) {
-                sceneManager.activeMissionPreviewEnemies.add(previewEnemy) // Add to preview list
+                previewEnemy.modelInstance.transform.setToTranslation(previewEnemy.position)
+
+                sceneManager.activeMissionPreviewEnemies.add(previewEnemy)
                 sceneManager.game.lastPlacedInstance = previewEnemy
                 sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_ENEMY to '${mission.title}'")
             }

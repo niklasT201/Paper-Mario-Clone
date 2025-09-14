@@ -288,4 +288,70 @@ class RaycastSystem(private val blockSize: Float) {
         }
         return closestNPC
     }
+
+    fun getPreviewEnemyAtRay(ray: Ray, gameEnemies: Array<GameEnemy>): GameEnemy? {
+        var closestEnemy: GameEnemy? = null
+        var closestDistance = Float.MAX_VALUE
+
+        for (enemy in gameEnemies) {
+            if (Intersector.intersectRayBounds(ray, enemy.physics.bounds, intersection)) {
+                val distance = ray.origin.dst2(intersection)
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestEnemy = enemy
+                }
+            }
+        }
+        return closestEnemy
+    }
+
+    fun getPreviewNpcAtRay(ray: Ray, gameNpcs: Array<GameNPC>): GameNPC? {
+        var closestNpc: GameNPC? = null
+        var closestDistance = Float.MAX_VALUE
+
+        for (npc in gameNpcs) {
+            if (Intersector.intersectRayBounds(ray, npc.physics.bounds, intersection)) {
+                val distance = ray.origin.dst2(intersection)
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestNpc = npc
+                }
+            }
+        }
+        return closestNpc
+    }
+
+    fun getPreviewCarAtRay(ray: Ray, gameCars: Array<GameCar>): GameCar? {
+        var closestCar: GameCar? = null
+        var closestDistance = Float.MAX_VALUE
+
+        for (car in gameCars) {
+            val carBounds = car.getBoundingBox()
+            if (Intersector.intersectRayBounds(ray, carBounds, intersection)) {
+                val distance = ray.origin.dst2(intersection)
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestCar = car
+                }
+            }
+        }
+        return closestCar
+    }
+
+    fun getPreviewItemAtRay(ray: Ray, gameItems: Array<GameItem>): GameItem? {
+        var closestItem: GameItem? = null
+        var closestDistance = Float.MAX_VALUE
+
+        for (item in gameItems) {
+            val itemBounds = item.getBoundingBox()
+            if (Intersector.intersectRayBounds(ray, itemBounds, intersection)) {
+                val distance = ray.origin.dst2(intersection)
+                if (distance < closestDistance) {
+                    closestDistance = distance
+                    closestItem = item
+                }
+            }
+        }
+        return closestItem
+    }
 }

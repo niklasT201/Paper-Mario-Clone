@@ -385,6 +385,9 @@ class NPCSystem : IFinePositionable {
             val previewConfig = config.copy(position = npcPosition, id = event.targetId)
             val previewNpc = createNPC(previewConfig, currentRotation)
             if (previewNpc != null) {
+                previewNpc.modelInstance.transform.setToTranslation(previewNpc.position)
+                previewNpc.modelInstance.transform.rotate(Vector3.Y, currentRotation)
+
                 sceneManager.activeMissionPreviewNPCs.add(previewNpc)
                 sceneManager.game.lastPlacedInstance = previewNpc
                 sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_NPC to '${mission.title}'")
