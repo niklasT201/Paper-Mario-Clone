@@ -800,6 +800,7 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render cars first as they are mostly opaque
         carSystem.render(cameraManager.camera, environment, sceneManager.activeCars)
+        carSystem.render(cameraManager.camera, environment, sceneManager.activeMissionPreviewCars)
         lockIndicatorSystem.render(cameraManager.camera, environment)
 
         // Render effects that should appear BEHIND characters
@@ -813,11 +814,14 @@ class MafiaGame : ApplicationAdapter() {
         // Render all potentially transparent billboards AFTER the fire
         playerSystem.render(cameraManager.camera, environment)
         enemySystem.renderEnemies(cameraManager.camera, environment, sceneManager.activeEnemies)
+        enemySystem.renderEnemies(cameraManager.camera, environment, sceneManager.activeMissionPreviewEnemies)
         npcSystem.renderNPCs(cameraManager.camera, environment, sceneManager.activeNPCs)
+        npcSystem.renderNPCs(cameraManager.camera, environment, sceneManager.activeMissionPreviewNPCs)
         particleSystem.render(cameraManager.camera, environment)
 
         // Render items
         itemSystem.render(cameraManager.camera, environment)
+        itemSystem.render(cameraManager.camera, environment, sceneManager.activeMissionPreviewItems)
 
         if (!isEditorMode) {
             trajectorySystem.render(cameraManager.camera, environment)

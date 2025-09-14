@@ -330,6 +330,12 @@ class NPCSystem : IFinePositionable {
     }
 
     fun handlePlaceAction(ray: Ray) {
+        // Check the current editor mode
+        if (sceneManager.game.uiManager.currentEditorMode == EditorMode.MISSION) {
+            handleMissionPlacement(ray)
+            return
+        }
+
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
 
@@ -346,6 +352,42 @@ class NPCSystem : IFinePositionable {
                 sceneManager.activeNPCs.add(newNPC)
                 sceneManager.game.lastPlacedInstance = newNPC
                 println("Placed ${newNPC.npcType.displayName} with ${newNPC.behaviorType.displayName} behavior at $npcPosition")
+            }
+        }
+    }
+
+    private fun handleMissionPlacement(ray: Ray) {
+        val mission = sceneManager.game.uiManager.selectedMissionForEditing
+        if (mission == null) {
+            sceneManager.game.uiManager.updatePlacementInfo("ERROR: No mission selected for editing!")
+            return
+        }
+
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+            val config = sceneManager.game.uiManager.npcSelectionUI.getSpawnConfig(Vector3.Zero)
+            val npcPosition = Vector3(tempVec3.x, surfaceY + config.npcType.height / 2f, tempVec3.z)
+
+            // 1. Create the GameEvent for the mission file
+            val event = GameEvent(
+                type = GameEventType.SPAWN_NPC,
+                spawnPosition = npcPosition,
+                targetId = "npc_${UUID.randomUUID()}",
+                npcType = config.npcType,
+                npcBehavior = config.behavior
+            )
+
+            // 2. Add the event and save the mission
+            mission.eventsOnStart.add(event)
+            sceneManager.game.missionSystem.saveMission(mission)
+
+            // 3. Create a temporary "preview" NPC to see in the world
+            val previewConfig = config.copy(position = npcPosition, id = event.targetId)
+            val previewNpc = createNPC(previewConfig, currentRotation)
+            if (previewNpc != null) {
+                sceneManager.activeMissionPreviewNPCs.add(previewNpc)
+                sceneManager.game.lastPlacedInstance = previewNpc
+                sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_NPC to '${mission.title}'")
             }
         }
     }

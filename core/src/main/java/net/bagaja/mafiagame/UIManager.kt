@@ -34,7 +34,7 @@ enum class ViolenceLevel(val displayName: String) {
 }
 
 class UIManager(
-    private val game: MafiaGame,
+    val game: MafiaGame,
     private val blockSystem: BlockSystem,
     private val objectSystem: ObjectSystem,
     private val itemSystem: ItemSystem,

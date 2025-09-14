@@ -60,6 +60,10 @@ class SceneManager(
     val activeBloodPools = Array<BloodPool>()
     val activeFootprints = Array<GameFootprint>()
     val activeBones = Array<GameBone>()
+    val activeMissionPreviewEnemies = Array<GameEnemy>()
+    val activeMissionPreviewNPCs = Array<GameNPC>()
+    val activeMissionPreviewCars = Array<GameCar>()
+    val activeMissionPreviewItems = Array<GameItem>()
 
 
     // State Management
@@ -102,6 +106,14 @@ class SceneManager(
         currentScene = SceneType.WORLD
 
         println("SceneManager initialized. World scene is active with ChunkManager.")
+    }
+
+    fun clearMissionPreviews() {
+        activeMissionPreviewEnemies.clear()
+        activeMissionPreviewNPCs.clear()
+        activeMissionPreviewCars.clear()
+        activeMissionPreviewItems.clear()
+        println("Cleared all mission preview entities.")
     }
 
     fun addBlock(block: GameBlock) {

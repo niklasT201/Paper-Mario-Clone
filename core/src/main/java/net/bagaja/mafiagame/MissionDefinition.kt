@@ -135,6 +135,16 @@ data class GameEvent(
     // Enemy-specific
     val enemyType: EnemyType? = null,
     val enemyBehavior: EnemyBehavior? = null,
+    val healthSetting: HealthSetting? = null,
+    val customHealthValue: Float? = null,
+    val minRandomHealth: Float? = null,
+    val maxRandomHealth: Float? = null,
+    val initialWeapon: WeaponType? = null,
+    val ammoSpawnMode: AmmoSpawnMode? = null,
+    val setAmmoValue: Int? = null,
+    val weaponCollectionPolicy: WeaponCollectionPolicy? = null,
+    val canCollectItems: Boolean? = null,
+
 
     // NPC-specific
     val npcType: NPCType? = null,
@@ -143,12 +153,16 @@ data class GameEvent(
     // Car-specific
     val carType: CarType? = null,
     val carIsLocked: Boolean = false,
+    val carDriverType: String? = null,
+    val carEnemyDriverType: EnemyType? = null,
+    val carNpcDriverType: NPCType? = null,
+
 
     // Item/Money-specific properties
     val itemType: ItemType? = null,
     val itemValue: Int = 0,
 
-    // ADD THIS MISSING PROPERTY
+    // Dialog-specific
     val dialogId: String? = null
 )
 

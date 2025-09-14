@@ -290,7 +290,16 @@ class MissionSystem(val game: MafiaGame) {
                         enemyType = event.enemyType,
                         behavior = event.enemyBehavior,
                         position = event.spawnPosition,
-                        id = event.targetId // The ID is crucial for objectives
+                        id = event.targetId,
+                        healthSetting = event.healthSetting ?: HealthSetting.FIXED_DEFAULT,
+                        customHealthValue = event.customHealthValue ?: 100f,
+                        minRandomHealth = event.minRandomHealth ?: 80f,
+                        maxRandomHealth = event.maxRandomHealth ?: 120f,
+                        initialWeapon = event.initialWeapon ?: WeaponType.UNARMED,
+                        ammoSpawnMode = event.ammoSpawnMode ?: AmmoSpawnMode.FIXED,
+                        setAmmoValue = event.setAmmoValue ?: 30,
+                        weaponCollectionPolicy = event.weaponCollectionPolicy ?: WeaponCollectionPolicy.CANNOT_COLLECT,
+                        canCollectItems = event.canCollectItems ?: true
                     )
                     game.enemySystem.createEnemy(config)?.let { game.sceneManager.activeEnemies.add(it) }
                 }
@@ -308,7 +317,34 @@ class MissionSystem(val game: MafiaGame) {
             }
             GameEventType.SPAWN_CAR -> {
                 if (event.carType != null && event.spawnPosition != null) {
-                    game.carSystem.spawnCar(event.spawnPosition, event.carType, event.carIsLocked)
+                    val newCar = game.carSystem.spawnCar(event.spawnPosition, event.carType, event.carIsLocked)
+                    if (newCar != null) {
+                        // --- NEW: Spawn a driver if specified in the event ---
+                        when (event.carDriverType) {
+                            "Enemy" -> {
+                                event.carEnemyDriverType?.let { enemyType ->
+                                    val enemyConfig = EnemySpawnConfig(enemyType, EnemyBehavior.AGGRESSIVE_RUSHER, newCar.position)
+                                    val driver = game.enemySystem.createEnemy(enemyConfig)
+                                    if (driver != null) {
+                                        driver.enterCar(newCar)
+                                        driver.currentState = AIState.PATROLLING_IN_CAR
+                                        game.sceneManager.activeEnemies.add(driver)
+                                    }
+                                }
+                            }
+                            "NPC" -> {
+                                event.carNpcDriverType?.let { npcType ->
+                                    val npcConfig = NPCSpawnConfig(npcType, NPCBehavior.WANDER, newCar.position)
+                                    val driver = game.npcSystem.createNPC(npcConfig)
+                                    if (driver != null) {
+                                        driver.enterCar(newCar)
+                                        driver.currentState = NPCState.PATROLLING_IN_CAR
+                                        game.sceneManager.activeNPCs.add(driver)
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
             GameEventType.SPAWN_ITEM -> {

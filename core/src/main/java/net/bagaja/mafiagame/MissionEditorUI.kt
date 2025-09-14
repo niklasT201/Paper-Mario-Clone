@@ -44,10 +44,13 @@ class MissionEditorUI(
     private var tempCompleteEvents = mutableListOf<GameEvent>()
 
     init {
-        window.isModal = true; window.isMovable = true
+        window.isModal = false
+        window.isMovable = true
         window.setSize(Gdx.graphics.width * 1.8f, Gdx.graphics.height * 1.8f)
         window.setPosition(stage.width / 2f, stage.height / 2f, Align.center)
         window.padTop(40f)
+
+        val mainContentTable = Table()
 
         val topBar = Table()
         modeSwitchButton = TextButton("Mode: World Editing", skin)
@@ -58,7 +61,8 @@ class MissionEditorUI(
         missionSelectionTable.isVisible = false // Hide until Mission Mode is active
 
         topBar.add(modeSwitchButton).padRight(20f)
-        topBar.add(missionSelectionTable)
+        topBar.add(missionSelectionTable).growX()
+        mainContentTable.add(topBar).fillX().pad(10f).colspan(2).row()
 
         // --- Left Panel ---
         val leftPanel = Table()
@@ -69,6 +73,7 @@ class MissionEditorUI(
         val buttonTable = Table(); buttonTable.add(newMissionButton).growX().pad(5f); buttonTable.add(deleteMissionButton).growX().pad(5f)
         leftPanel.add(listScrollPane).expand().fill().row(); leftPanel.add(buttonTable).fillX()
 
+        // --- Right Panel (All the mission details) ---
         val editorTable = Table(); editorTable.pad(10f); editorTable.align(Align.topLeft)
         missionIdField = TextField("", skin).apply { isDisabled = true }
         missionTitleField = TextField("", skin)
@@ -107,17 +112,20 @@ class MissionEditorUI(
         val addRewardButton = TextButton("Add Reward", skin)
         editorTable.add(addRewardButton).colspan(2).left().padTop(5f).row()
 
+        // --- Assembly ---
         val editorScrollPane = ScrollPane(editorTable, skin); editorScrollPane.setFadeScrollBars(false)
         val splitPane = SplitPane(leftPanel, editorScrollPane, false, skin); splitPane.splitAmount = 0.25f
+        mainContentTable.add(splitPane).expand().fill().row()
 
-        val mainContentTable = Table(); mainContentTable.add(splitPane).expand().fill().row()
         val saveButton = TextButton("Save and Close", skin); val closeButton = TextButton("Close Without Saving", skin)
         val bottomButtonTable = Table(); bottomButtonTable.add(saveButton).pad(10f); bottomButtonTable.add(closeButton).pad(10f)
         mainContentTable.add(bottomButtonTable).padTop(10f)
         window.add(mainContentTable).expand().fill(); window.isVisible = false; stage.addActor(window)
 
+        // --- Listeners ---
         modeSwitchButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
+                uiManager.game.sceneManager.clearMissionPreviews() // Clear old previews
                 if (uiManager.currentEditorMode == EditorMode.WORLD) {
                     uiManager.currentEditorMode = EditorMode.MISSION
                     modeSwitchButton.setText("Mode: Mission Editing")
@@ -127,20 +135,27 @@ class MissionEditorUI(
                         missionSelectBox.selectedIndex = 0
                         val missionId = missionSelectBox.selected.split(":")[0].trim()
                         uiManager.selectedMissionForEditing = missionSystem.getMissionDefinition(missionId)
+                        uiManager.setPersistentMessage("MISSION EDITING: ${uiManager.selectedMissionForEditing?.title}")
+                    } else {
+                        uiManager.selectedMissionForEditing = null
+                        uiManager.setPersistentMessage("MISSION EDITING: No missions available!")
                     }
                 } else {
                     uiManager.currentEditorMode = EditorMode.WORLD
                     modeSwitchButton.setText("Mode: World Editing")
                     missionSelectionTable.isVisible = false
                     uiManager.selectedMissionForEditing = null
+                    uiManager.clearPersistentMessage()
                 }
             }
         })
 
         missionSelectBox.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
+                uiManager.game.sceneManager.clearMissionPreviews() // Clear old previews when changing mission
                 val missionId = missionSelectBox.selected.split(":")[0].trim()
                 uiManager.selectedMissionForEditing = missionSystem.getMissionDefinition(missionId)
+                uiManager.setPersistentMessage("MISSION EDITING: ${uiManager.selectedMissionForEditing?.title}")
             }
         })
 

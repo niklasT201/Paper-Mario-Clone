@@ -281,13 +281,17 @@ class EnemySystem : IFinePositionable {
     }
 
     fun handlePlaceAction(ray: Ray) {
+        // Check the current editor mode
+        if (sceneManager.game.uiManager.currentEditorMode == EditorMode.MISSION) {
+            handleMissionPlacement(ray)
+            return
+        }
+
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
-            val enemyType = sceneManager.game.uiManager.enemySelectionUI.getSpawnConfig(Vector3()).enemyType // Get type to calculate height
+            val enemyType = sceneManager.game.uiManager.enemySelectionUI.getSpawnConfig(Vector3()).enemyType
             val enemyPosition = Vector3(tempVec3.x, surfaceY + enemyType.height / 2f, tempVec3.z)
 
-            // --- THIS IS THE KEY CHANGE ---
-            // Get the full configuration directly from the UI
             val config = sceneManager.game.uiManager.enemySelectionUI.getSpawnConfig(enemyPosition)
 
             val newEnemy = createEnemy(config)
@@ -295,6 +299,55 @@ class EnemySystem : IFinePositionable {
                 sceneManager.activeEnemies.add(newEnemy)
                 sceneManager.game.lastPlacedInstance = newEnemy
                 println("Placed ${newEnemy.enemyType.displayName} with custom config at $enemyPosition")
+            }
+        }
+    }
+
+    private fun handleMissionPlacement(ray: Ray) {
+        val mission = sceneManager.game.uiManager.selectedMissionForEditing
+        if (mission == null) {
+            sceneManager.game.uiManager.updatePlacementInfo("ERROR: No mission selected for editing!")
+            return
+        }
+
+        if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            // First, get the config with a temporary position to determine the enemy's height
+            val tempConfig = sceneManager.game.uiManager.enemySelectionUI.getSpawnConfig(Vector3.Zero)
+            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+            val finalEnemyPosition = Vector3(tempVec3.x, surfaceY + tempConfig.enemyType.height / 2f, tempVec3.z)
+
+            // Now, get the final, complete config using the correct spawn position
+            val finalConfig = sceneManager.game.uiManager.enemySelectionUI.getSpawnConfig(finalEnemyPosition)
+
+            // 1. Create the GameEvent for the mission file, now including ALL config details
+            val event = GameEvent(
+                type = GameEventType.SPAWN_ENEMY,
+                spawnPosition = finalEnemyPosition,
+                targetId = "enemy_${UUID.randomUUID()}",
+                enemyType = finalConfig.enemyType,
+                enemyBehavior = finalConfig.behavior,
+                healthSetting = finalConfig.healthSetting,
+                customHealthValue = finalConfig.customHealthValue,
+                minRandomHealth = finalConfig.minRandomHealth,
+                maxRandomHealth = finalConfig.maxRandomHealth,
+                initialWeapon = finalConfig.initialWeapon,
+                ammoSpawnMode = finalConfig.ammoSpawnMode,
+                setAmmoValue = finalConfig.setAmmoValue,
+                weaponCollectionPolicy = finalConfig.weaponCollectionPolicy,
+                canCollectItems = finalConfig.canCollectItems
+            )
+
+            // 2. Add the event and save the mission
+            mission.eventsOnStart.add(event)
+            sceneManager.game.missionSystem.saveMission(mission)
+
+            // 3. Create a temporary "preview" enemy to see in the world
+            val previewConfig = finalConfig.copy(id = event.targetId)
+            val previewEnemy = createEnemy(previewConfig)
+            if (previewEnemy != null) {
+                sceneManager.activeMissionPreviewEnemies.add(previewEnemy) // Add to preview list
+                sceneManager.game.lastPlacedInstance = previewEnemy
+                sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_ENEMY to '${mission.title}'")
             }
         }
     }

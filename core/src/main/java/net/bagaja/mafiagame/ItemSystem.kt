@@ -151,6 +151,12 @@ class ItemSystem: IFinePositionable {
     }
 
     fun handlePlaceAction(ray: Ray) {
+        // Check the current editor mode
+        if (sceneManager.game.uiManager.currentEditorMode == EditorMode.MISSION) {
+            handleMissionPlacement(ray)
+            return
+        }
+
         val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
         if (hitBlock != null) {
             // We hit a block directly - place item on top of it
@@ -158,6 +164,64 @@ class ItemSystem: IFinePositionable {
         } else {
             // No block hit, use the original ground plane method
             placeItemOnGround(ray)
+        }
+    }
+
+    private fun handleMissionPlacement(ray: Ray) {
+        val mission = sceneManager.game.uiManager.selectedMissionForEditing
+        if (mission == null) {
+            sceneManager.game.uiManager.updatePlacementInfo("ERROR: No mission selected for editing!")
+            return
+        }
+
+        var itemPosition: Vector3? = null
+        val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
+        if (hitBlock != null) {
+            val blockBounds = BoundingBox()
+            hitBlock.getBoundingBox(blockSize, blockBounds)
+            val intersection = Vector3()
+            if (com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, blockBounds, intersection)) {
+                val relativePos = Vector3(intersection).sub(hitBlock.position)
+                val absY = kotlin.math.abs(relativePos.y)
+                val absX = kotlin.math.abs(relativePos.x)
+                val absZ = kotlin.math.abs(relativePos.z)
+                itemPosition = when {
+                    absY >= absX && absY >= absZ && relativePos.y > 0 -> Vector3(hitBlock.position.x, hitBlock.position.y + blockSize / 2 + ITEM_SURFACE_OFFSET, hitBlock.position.z)
+                    else -> Vector3(intersection.x, hitBlock.position.y + blockSize / 2 + ITEM_SURFACE_OFFSET, intersection.z)
+                }
+            }
+        } else {
+            if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+                val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+                val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
+                val properY = calculateGroundYAt(gridX, gridZ, ITEM_SURFACE_OFFSET)
+                itemPosition = Vector3(gridX, properY, gridZ)
+            }
+        }
+
+        if (itemPosition != null) {
+            val itemType = currentSelectedItem
+            val eventType = if (itemType == ItemType.MONEY_STACK) GameEventType.SPAWN_MONEY_STACK else GameEventType.SPAWN_ITEM
+
+            // 1. Create the GameEvent
+            val event = GameEvent(
+                type = eventType,
+                spawnPosition = itemPosition,
+                itemType = itemType,
+                itemValue = itemType.value // Save the default value
+            )
+
+            // 2. Add and save
+            mission.eventsOnStart.add(event)
+            sceneManager.game.missionSystem.saveMission(mission)
+
+            // 3. Create preview item
+            val previewItem = createItem(itemPosition, itemType, pickupDelay = 9999f) // Long delay so it can't be picked up
+            if (previewItem != null) {
+                sceneManager.activeMissionPreviewItems.add(previewItem)
+                sceneManager.game.lastPlacedInstance = previewItem
+                sceneManager.game.uiManager.updatePlacementInfo("Added $eventType to '${mission.title}'")
+            }
         }
     }
 
@@ -314,26 +378,26 @@ class ItemSystem: IFinePositionable {
         }
     }
 
-    fun render(camera: Camera, environment: Environment) {
-        if (sceneManager.activeItems.isEmpty) return
+    fun render(camera: Camera, environment: Environment, items: Array<GameItem>) {
+        if (items.isEmpty) return
 
         billboardShaderProvider.setEnvironment(environment)
         itemModelBatch.begin(camera)
-
-        // Collect all visible items.
         renderableInstances.clear()
-        for (item in sceneManager.activeItems) {
+        for (item in items) {
             if (!item.isCollected) {
                 renderableInstances.add(item.modelInstance)
             }
         }
-
-        // Render all visible items at once
         if (renderableInstances.size > 0) {
             itemModelBatch.render(renderableInstances, environment)
         }
-
         itemModelBatch.end()
+    }
+
+    // Modify the original render function to call the new one
+    fun render(camera: Camera, environment: Environment) {
+        render(camera, environment, sceneManager.activeItems)
     }
 
     fun getItemAtPosition(position: Vector3, radius: Float = 2f): GameItem? {
