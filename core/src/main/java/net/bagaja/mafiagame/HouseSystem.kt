@@ -101,6 +101,11 @@ class HouseSystem: IFinePositionable {
     }
 
     fun handlePlaceAction(ray: Ray) {
+        if (sceneManager.game.uiManager.currentEditorMode == EditorMode.MISSION) {
+            handleMissionPlacement(ray)
+            return
+        }
+
         if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
@@ -119,6 +124,33 @@ class HouseSystem: IFinePositionable {
                 }
             } else {
                 println("House already exists near this position")
+            }
+        }
+    }
+
+    private fun handleMissionPlacement(ray: Ray) {
+        val mission = sceneManager.game.uiManager.selectedMissionForEditing ?: return
+        if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
+            val properY = findHighestSurfaceYAt(gridX, gridZ)
+            val housePosition = Vector3(gridX, properY, gridZ)
+
+            val event = GameEvent(
+                type = GameEventType.SPAWN_HOUSE,
+                spawnPosition = housePosition,
+                houseType = currentSelectedHouse,
+                houseIsLocked = isNextHouseLocked,
+                houseRotationY = currentRotation
+            )
+            mission.eventsOnStart.add(event)
+            sceneManager.game.missionSystem.saveMission(mission)
+
+            val previewHouse = addHouse(housePosition.x, housePosition.y, housePosition.z, currentSelectedHouse)
+            if (previewHouse != null) {
+                sceneManager.activeHouses.removeValue(previewHouse, true) // Remove from real list
+                sceneManager.activeMissionPreviewHouses.add(previewHouse) // Add to preview list
+                sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_HOUSE to '${mission.title}'")
             }
         }
     }

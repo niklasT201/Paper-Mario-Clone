@@ -757,6 +757,12 @@ class MafiaGame : ApplicationAdapter() {
             }
         }
 
+        for (gameObject in sceneManager.activeMissionPreviewObjects) { // NEW
+            gameObject.getRenderInstance(objectSystem.debugMode)?.let {
+                modelBatch.render(it, environment)
+            }
+        }
+
         // Render teleporter pads
         for (teleporter in teleporterSystem.activeTeleporters) {
             teleporter.gameObject.getRenderInstance(objectSystem.debugMode)?.let {
@@ -778,6 +784,10 @@ class MafiaGame : ApplicationAdapter() {
         houseSystem.renderEntryPoints(modelBatch, environment, objectSystem)
 
         for (house in sceneManager.activeHouses) {
+            modelBatch.render(house.modelInstance, environment)
+        }
+
+        for (house in sceneManager.activeMissionPreviewHouses) { // NEW
             modelBatch.render(house.modelInstance, environment)
         }
 

@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
@@ -161,12 +162,52 @@ class ObjectSystem: IFinePositionable {
     }
 
     fun handlePlaceAction(ray: Ray, objectType: ObjectType) {
+        if (sceneManager.game.uiManager.currentEditorMode == EditorMode.MISSION) {
+            handleMissionPlacement(ray, objectType)
+            return
+        }
+
         when (objectType) {
             ObjectType.LIGHT_SOURCE -> placeLightSourceFromRay(ray)
             ObjectType.SPAWNER -> placeSpawner(ray)
             ObjectType.FIRE_SPREAD -> placeFire(ray)
             ObjectType.TELEPORTER -> placeTeleporter(ray)
             else -> placeGenericObject(ray, objectType)
+        }
+    }
+
+    private fun handleMissionPlacement(ray: Ray, objectType: ObjectType) {
+        val mission = sceneManager.game.uiManager.selectedMissionForEditing ?: return
+        if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+            val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
+            val properY = findHighestSurfaceYAt(gridX, gridZ)
+            val objectPosition = Vector3(gridX, properY, gridZ)
+
+            // Get light settings from the UI if we are placing a light source
+            val lightSettings = if (objectType == ObjectType.LIGHT_SOURCE) uiManager.getLightSourceSettings() else null
+
+            val event = GameEvent(
+                type = GameEventType.SPAWN_OBJECT,
+                spawnPosition = objectPosition,
+                objectType = objectType,
+                lightColor = lightSettings?.color,
+                lightIntensity = lightSettings?.intensity,
+                lightRange = lightSettings?.range,
+                flickerMode = lightSettings?.flickerMode,
+                loopOnDuration = lightSettings?.loopOnDuration,
+                loopOffDuration = lightSettings?.loopOffDuration
+            )
+            mission.eventsOnStart.add(event)
+            sceneManager.game.missionSystem.saveMission(mission)
+
+            // The preview object is just visual, so it doesn't need all the properties.
+            // The real object will be created with these properties when the mission starts.
+            val previewObject = createGameObjectWithLight(objectType, objectPosition)
+            if (previewObject != null) {
+                sceneManager.activeMissionPreviewObjects.add(previewObject)
+                uiManager.updatePlacementInfo("Added SPAWN_OBJECT to '${mission.title}'")
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 package net.bagaja.mafiagame
 
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.math.Vector3
 import java.util.*
 
@@ -124,7 +125,10 @@ enum class GameEventType {
     SPAWN_ITEM,
     SPAWN_MONEY_STACK,
     DESPAWN_ENTITY,
-    START_DIALOG
+    START_DIALOG,
+    SPAWN_HOUSE,
+    SPAWN_OBJECT,
+    SPAWN_BLOCK
 }
 
 data class GameEvent(
@@ -145,12 +149,12 @@ data class GameEvent(
     val weaponCollectionPolicy: WeaponCollectionPolicy? = null,
     val canCollectItems: Boolean? = null,
 
-
     // NPC-specific
     val npcType: NPCType? = null,
     val npcBehavior: NPCBehavior? = null,
+    val npcRotation: Float? = null, // ADDED: To match RoomElement
 
-    // Car-specific
+    // Car-specific (Already complete)
     val carType: CarType? = null,
     val carIsLocked: Boolean = false,
     val carDriverType: String? = null,
@@ -163,7 +167,31 @@ data class GameEvent(
     val itemValue: Int = 0,
 
     // Dialog-specific
-    val dialogId: String? = null
+    val dialogId: String? = null,
+
+    // --- SYNCHRONIZED PROPERTIES FOR HOUSE, OBJECT, AND BLOCK ---
+
+    // House Properties
+    val houseType: HouseType? = null,
+    val houseRotationY: Float? = null,
+    val houseIsLocked: Boolean? = null,
+
+    // Object Properties (Includes light source details)
+    val objectType: ObjectType? = null,
+    val lightColor: Color? = null,
+    val lightIntensity: Float? = null,
+    val lightRange: Float? = null,
+    val flickerMode: FlickerMode? = null,
+    val loopOnDuration: Float? = null,
+    val loopOffDuration: Float? = null,
+
+    // Block Properties
+    val blockType: BlockType? = null,
+    val blockShape: BlockShape? = null,
+    val blockRotationY: Float? = null,
+    val blockTextureRotationY: Float? = null,
+    val blockTopTextureRotationY: Float? = null,
+    val blockCameraVisibility: CameraVisibility? = null
 )
 
 // --- Game State (For Saving/Loading Progress) ---

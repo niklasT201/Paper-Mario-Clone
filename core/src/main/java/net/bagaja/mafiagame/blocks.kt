@@ -78,6 +78,7 @@ data class GameBlock(
     val cameraVisibility: CameraVisibility = CameraVisibility.ALWAYS_VISIBLE,
     val faceInstances: Map<BlockFace, ModelInstance>? = null, // For FULL_BLOCK
     val modelInstance: ModelInstance? = null,                // For all other shapes
+    var isMissionOwned: Boolean = false
 ) {
     val visibleFaces: MutableSet<BlockFace> = if (shape == BlockShape.FULL_BLOCK) BlockFace.entries.toMutableSet() else mutableSetOf()
 

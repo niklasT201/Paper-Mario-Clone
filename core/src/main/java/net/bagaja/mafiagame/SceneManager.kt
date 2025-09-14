@@ -64,6 +64,8 @@ class SceneManager(
     val activeMissionPreviewNPCs = Array<GameNPC>()
     val activeMissionPreviewCars = Array<GameCar>()
     val activeMissionPreviewItems = Array<GameItem>()
+    val activeMissionPreviewHouses = Array<GameHouse>()
+    val activeMissionPreviewObjects = Array<GameObject>()
 
 
     // State Management
@@ -113,7 +115,18 @@ class SceneManager(
         activeMissionPreviewNPCs.clear()
         activeMissionPreviewCars.clear()
         activeMissionPreviewItems.clear()
+        activeMissionPreviewHouses.clear()
+        activeMissionPreviewObjects.clear()
         println("Cleared all mission preview entities.")
+    }
+
+    fun clearMissionBlockPreviews() {
+        val blocksToRemove = activeChunkManager.getAllBlocks().filter { it.isMissionOwned }
+        if (blocksToRemove.isNotEmpty()) {
+            println("Removing ${blocksToRemove.size} mission preview blocks...")
+            blocksToRemove.forEach { removeBlock(it) }
+            activeChunkManager.processDirtyChunks() // Force the chunks to rebuild their visuals
+        }
     }
 
     fun addBlock(block: GameBlock) {

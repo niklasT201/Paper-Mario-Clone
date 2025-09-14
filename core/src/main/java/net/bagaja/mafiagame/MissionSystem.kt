@@ -1,6 +1,7 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Json
 import com.badlogic.gdx.utils.JsonWriter
@@ -312,7 +313,10 @@ class MissionSystem(val game: MafiaGame) {
                         position = event.spawnPosition,
                         id = event.targetId
                     )
-                    game.npcSystem.createNPC(config)?.let { game.sceneManager.activeNPCs.add(it) }
+                    // Pass the saved rotation to the create function
+                    game.npcSystem.createNPC(config, event.npcRotation ?: 0f)?.let {
+                        game.sceneManager.activeNPCs.add(it)
+                    }
                 }
             }
             GameEventType.SPAWN_CAR -> {
@@ -382,6 +386,60 @@ class MissionSystem(val game: MafiaGame) {
                         )
                         game.uiManager.dialogSystem.startDialog(sequenceWithCallback)
                     }
+                }
+            }
+            GameEventType.SPAWN_HOUSE -> {
+                if (event.houseType != null && event.spawnPosition != null) {
+                    game.houseSystem.currentRotation = event.houseRotationY ?: 0f
+                    game.houseSystem.addHouse(
+                        event.spawnPosition.x,
+                        event.spawnPosition.y,
+                        event.spawnPosition.z,
+                        event.houseType,
+                        event.houseIsLocked ?: false
+                    )
+                }
+            }
+            GameEventType.SPAWN_OBJECT -> {
+                if (event.objectType != null && event.spawnPosition != null) {
+                    // Handle light sources separately
+                    if (event.objectType == ObjectType.LIGHT_SOURCE) {
+                        val light = game.objectSystem.createLightSource(
+                            position = event.spawnPosition,
+                            intensity = event.lightIntensity ?: LightSource.DEFAULT_INTENSITY,
+                            range = event.lightRange ?: LightSource.DEFAULT_RANGE,
+                            color = event.lightColor ?: Color.WHITE,
+                            flickerMode = event.flickerMode ?: FlickerMode.NONE,
+                            loopOnDuration = event.loopOnDuration ?: 0.1f,
+                            loopOffDuration = event.loopOffDuration ?: 0.2f
+                        )
+                        val instances = game.objectSystem.createLightSourceInstances(light)
+                        game.lightingManager.addLightSource(light, instances)
+                    } else {
+                        // Handle regular objects
+                        game.objectSystem.createGameObjectWithLight(
+                            event.objectType,
+                            event.spawnPosition,
+                            game.lightingManager
+                        )?.let {
+                            game.sceneManager.activeObjects.add(it)
+                        }
+                    }
+                }
+            }
+            GameEventType.SPAWN_BLOCK -> {
+                if (event.blockType != null && event.spawnPosition != null) {
+                    val block = game.blockSystem.createGameBlock(
+                        type = event.blockType,
+                        shape = event.blockShape ?: BlockShape.FULL_BLOCK,
+                        position = event.spawnPosition,
+                        geometryRotation = event.blockRotationY ?: 0f,
+                        textureRotation = event.blockTextureRotationY ?: 0f,
+                        topTextureRotation = event.blockTopTextureRotationY ?: 0f
+                    ).copy(
+                        cameraVisibility = event.blockCameraVisibility ?: CameraVisibility.ALWAYS_VISIBLE
+                    )
+                    game.sceneManager.addBlock(block)
                 }
             }
             else -> println("Event type ${event.type} not yet implemented.")

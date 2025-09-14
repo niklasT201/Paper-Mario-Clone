@@ -145,6 +145,7 @@ class MissionEditorUI(
         modeSwitchButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 uiManager.game.sceneManager.clearMissionPreviews() // Clear old previews
+                uiManager.game.sceneManager.clearMissionBlockPreviews()
                 if (uiManager.currentEditorMode == EditorMode.WORLD) {
                     uiManager.currentEditorMode = EditorMode.MISSION
                     modeSwitchButton.setText("Mode: Mission Editing")
@@ -393,6 +394,9 @@ class MissionEditorUI(
             GameEventType.SPAWN_MONEY_STACK -> "SPAWN Money Stack ($${event.itemValue})"
             GameEventType.DESPAWN_ENTITY -> "DESPAWN entity with ID '${event.targetId}'"
             GameEventType.START_DIALOG -> "START DIALOG '${event.dialogId}'"
+            GameEventType.SPAWN_HOUSE -> "SPAWN House: ${event.houseType?.displayName}"
+            GameEventType.SPAWN_OBJECT -> "SPAWN Object: ${event.objectType?.displayName}"
+            GameEventType.SPAWN_BLOCK -> "SPAWN Block: ${event.blockType?.displayName}"
         }
         table.add(Label(text, skin)).growX()
         val editButton = TextButton("Edit", skin)
