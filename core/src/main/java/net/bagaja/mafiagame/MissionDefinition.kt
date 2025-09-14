@@ -29,10 +29,10 @@ enum class RewardType {
 
 data class MissionDefinition(
     val id: String = "",
-    val title: String = "",
-    val description: String = "",
-    val prerequisites: MutableList<String> = mutableListOf(),
-    val scope: MissionScope = MissionScope.WORLD_ONLY,
+    var title: String = "",
+    var description: String = "",
+    var prerequisites: MutableList<String> = mutableListOf(),
+    var scope: MissionScope = MissionScope.WORLD_ONLY,
     val eventsOnStart: MutableList<GameEvent> = mutableListOf(),
     val eventsOnComplete: MutableList<GameEvent> = mutableListOf(),
     val objectives: MutableList<MissionObjective> = mutableListOf(),

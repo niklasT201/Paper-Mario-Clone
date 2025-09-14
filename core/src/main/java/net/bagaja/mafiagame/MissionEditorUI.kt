@@ -243,17 +243,15 @@ class MissionEditorUI(
 
     private fun applyChanges() {
         val mission = currentMissionDef ?: return
-        val newDef = mission.copy(
-            title = missionTitleField.text.ifBlank { "Untitled Mission" },
-            description = missionDescriptionArea.text,
-            prerequisites = prerequisitesField.text.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toMutableList(),
-            scope = MissionScope.valueOf(scopeSelectBox.selected),
-            objectives = tempObjectives,
-            rewards = tempRewards,
-            eventsOnStart = tempStartEvents,
-            eventsOnComplete = tempCompleteEvents
-        )
-        missionSystem.saveMission(newDef)
+
+        // Directly modify the mission object that MissionSystem holds a reference to.
+        mission.title = missionTitleField.text.ifBlank { "Untitled Mission" }
+        mission.description = missionDescriptionArea.text
+        mission.prerequisites = prerequisitesField.text.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
+        mission.scope = MissionScope.valueOf(scopeSelectBox.selected)
+
+        // Now, save the modified mission object.
+        missionSystem.saveMission(mission)
     }
 
     private fun showEventDialog(existingEvent: GameEvent?, isStartEvent: Boolean) {
@@ -375,10 +373,16 @@ class MissionEditorUI(
 
         val removeButton = TextButton("X", skin)
         removeButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) {
-                // Use the local copy
-                if (isStartEvent) tempStartEvents.remove(eventCopy) else tempCompleteEvents.remove(eventCopy)
-                refreshEventWidgets()
+            override fun changed(eventChanged: ChangeEvent?, actor: Actor?) {
+                currentMissionDef?.let { mission ->
+                    val listToModify = if (isStartEvent) mission.eventsOnStart else mission.eventsOnComplete
+                    listToModify.remove(event)
+
+                    // Also remove from our temporary list to keep the UI in sync immediately
+                    if (isStartEvent) tempStartEvents.remove(event) else tempCompleteEvents.remove(event)
+
+                    refreshEventWidgets() // Refresh the UI
+                }
             }
         })
 
@@ -580,7 +584,11 @@ class MissionEditorUI(
             })
             val removeButton = TextButton("X", skin)
             removeButton.addListener(object : ChangeListener() {
-                override fun changed(event: ChangeEvent?, actor: Actor?) { tempObjectives.remove(objectiveCopy); refreshObjectiveWidgets() }
+                override fun changed(event: ChangeEvent?, actor: Actor?) {
+                    currentMissionDef?.objectives?.remove(objective)
+                    tempObjectives.remove(objective)
+                    refreshObjectiveWidgets()
+                }
             })
             table.add(editButton); table.add(removeButton)
             objectivesContainer.addActor(table)
@@ -606,7 +614,11 @@ class MissionEditorUI(
             })
             val removeButton = TextButton("X", skin)
             removeButton.addListener(object : ChangeListener() {
-                override fun changed(event: ChangeEvent?, actor: Actor?) { tempRewards.remove(rewardCopy); refreshRewardWidgets() }
+                override fun changed(event: ChangeEvent?, actor: Actor?) {
+                    currentMissionDef?.rewards?.remove(reward)
+                    tempRewards.remove(reward)
+                    refreshRewardWidgets()
+                }
             })
             table.add(editButton); table.add(removeButton)
             rewardsContainer.addActor(table)

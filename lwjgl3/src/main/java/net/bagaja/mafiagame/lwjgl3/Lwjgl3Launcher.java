@@ -70,6 +70,7 @@ public class Lwjgl3Launcher {
 // Expanding & Polishing
 // connect dialog and mission system
 // spawnpoints working with mission system
+// objects and blocks adding to mission editor
 // adding multiple city areas, district 2d polygons
 // TALK_TO_NPC Logic: The game doesn't yet have a system for initiating conversations with specific NPCs by pressing 'E'.
 // INTERACT_WITH_OBJECT Logic: Similar to the above, you don't have a generic "interaction" system for objects yet
