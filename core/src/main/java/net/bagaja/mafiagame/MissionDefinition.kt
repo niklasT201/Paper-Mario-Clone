@@ -121,6 +121,8 @@ enum class GameEventType {
     SPAWN_ENEMY,
     SPAWN_NPC,
     SPAWN_CAR,
+    SPAWN_ITEM,
+    SPAWN_MONEY_STACK,
     DESPAWN_ENTITY,
     START_DIALOG
 }
@@ -129,12 +131,24 @@ data class GameEvent(
     val type: GameEventType = GameEventType.SPAWN_ENEMY,
     val spawnPosition: Vector3? = null,
     val targetId: String? = null,
+
+    // Enemy-specific
     val enemyType: EnemyType? = null,
     val enemyBehavior: EnemyBehavior? = null,
+
+    // NPC-specific
     val npcType: NPCType? = null,
     val npcBehavior: NPCBehavior? = null,
+
+    // Car-specific
     val carType: CarType? = null,
     val carIsLocked: Boolean = false,
+
+    // Item/Money-specific properties
+    val itemType: ItemType? = null,
+    val itemValue: Int = 0,
+
+    // ADD THIS MISSING PROPERTY
     val dialogId: String? = null
 )
 

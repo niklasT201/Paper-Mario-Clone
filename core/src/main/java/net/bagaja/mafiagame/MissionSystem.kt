@@ -295,6 +295,37 @@ class MissionSystem(val game: MafiaGame) {
                     game.enemySystem.createEnemy(config)?.let { game.sceneManager.activeEnemies.add(it) }
                 }
             }
+            GameEventType.SPAWN_NPC -> {
+                if (event.npcType != null && event.npcBehavior != null && event.spawnPosition != null) {
+                    val config = NPCSpawnConfig(
+                        npcType = event.npcType,
+                        behavior = event.npcBehavior,
+                        position = event.spawnPosition,
+                        id = event.targetId
+                    )
+                    game.npcSystem.createNPC(config)?.let { game.sceneManager.activeNPCs.add(it) }
+                }
+            }
+            GameEventType.SPAWN_CAR -> {
+                if (event.carType != null && event.spawnPosition != null) {
+                    game.carSystem.spawnCar(event.spawnPosition, event.carType, event.carIsLocked)
+                }
+            }
+            GameEventType.SPAWN_ITEM -> {
+                if (event.itemType != null && event.spawnPosition != null) {
+                    game.itemSystem.createItem(event.spawnPosition, event.itemType)?.let {
+                        game.sceneManager.activeItems.add(it)
+                    }
+                }
+            }
+            GameEventType.SPAWN_MONEY_STACK -> {
+                if (event.spawnPosition != null) {
+                    game.itemSystem.createItem(event.spawnPosition, ItemType.MONEY_STACK)?.let {
+                        it.value = event.itemValue
+                        game.sceneManager.activeItems.add(it)
+                    }
+                }
+            }
             GameEventType.DESPAWN_ENTITY -> {
                 event.targetId?.let { id ->
                     game.sceneManager.activeEnemies.find { it.id == id }?.let { game.sceneManager.activeEnemies.removeValue(it, true) }

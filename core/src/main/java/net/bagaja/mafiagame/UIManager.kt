@@ -17,6 +17,11 @@ import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.Scaling
 import com.badlogic.gdx.utils.viewport.ScreenViewport
 
+enum class EditorMode {
+    WORLD,
+    MISSION
+}
+
 enum class HudStyle(val displayName: String) {
     WANTED_POSTER("Poster"),
     MINIMALIST("Minimalist")
@@ -61,7 +66,7 @@ class UIManager(
     lateinit var npcSelectionUI: NPCSelectionUI
     private lateinit var particleSelectionUI: ParticleSelectionUI
     private lateinit var spawnerUI: SpawnerUI
-    private lateinit var missionEditorUI: MissionEditorUI
+    lateinit var missionEditorUI: MissionEditorUI
     private lateinit var lightSourceUI: LightSourceUI
     private lateinit var skyCustomizationUI: SkyCustomizationUI
     private lateinit var shaderEffectUI: ShaderEffectUI
@@ -118,6 +123,8 @@ class UIManager(
     private lateinit var missionObjectiveLabel: Label
 
     private var currentViolenceLevel = ViolenceLevel.FULL_VIOLENCE
+    var currentEditorMode = EditorMode.WORLD
+    var selectedMissionForEditing: MissionDefinition? = null
 
     private var isUIVisible = false
         private set
