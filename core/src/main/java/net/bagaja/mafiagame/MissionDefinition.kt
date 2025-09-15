@@ -156,7 +156,7 @@ data class GameEvent(
     // NPC-specific
     val npcType: NPCType? = null,
     val npcBehavior: NPCBehavior? = null,
-    val npcRotation: Float? = null, // ADDED: To match RoomElement
+    val npcRotation: Float? = null,
 
     // Car-specific (Already complete)
     val carType: CarType? = null,
@@ -216,6 +216,17 @@ data class GameEvent(
     val spawnerWeaponItemType: ItemType? = null,
     val randomMinAmmo: Int? = null,
     val randomMaxAmmo: Int? = null,
+    // Enemy Spawner
+    val spawnerEnemyType: EnemyType? = null,
+    // NPC Spawner
+    val spawnerNpcType: NPCType? = null,
+    // Car Spawner
+    val spawnerCarType: CarType? = null,
+    val spawnerCarIsLocked: Boolean? = null,
+    val spawnerCarDriverType: String? = null,
+    val spawnerCarEnemyDriverType: EnemyType? = null,
+    val spawnerCarNpcDriverType: NPCType? = null,
+    val spawnerCarSpawnDirection: CarSpawnDirection? = null,
 
     // Teleporter Properties
     val teleporterId: String? = null,
@@ -230,7 +241,7 @@ data class GameEvent(
     val dealsDamage: Boolean? = null,
     val damagePerSecond: Float? = null,
     val damageRadius: Float? = null,
-    val fireScale: Float? = null
+    val fireScale: Float? = null // Using a single value for scale
 )
 
 // --- Game State (For Saving/Loading Progress) ---

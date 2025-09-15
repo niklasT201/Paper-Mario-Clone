@@ -151,6 +151,7 @@ class HouseSystem: IFinePositionable {
                 sceneManager.activeHouses.removeValue(previewHouse, true) // Remove from real list
                 sceneManager.activeMissionPreviewHouses.add(previewHouse) // Add to preview list
                 sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_HOUSE to '${mission.title}'")
+                sceneManager.game.uiManager.missionEditorUI.refreshEventWidgets()
             }
         }
     }

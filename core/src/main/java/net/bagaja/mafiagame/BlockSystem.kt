@@ -295,7 +295,7 @@ class BlockSystem {
                 gameBlock.position.dst(position) < 0.1f
             }
             if (existingBlock == null) {
-                addBlock(cornerX, cornerY, cornerZ, blockType)
+                addBlock(cornerX, cornerY, cornerZ, blockType, isMissionMode)
                 println("${blockType.displayName} (${this.currentSelectedShape.getDisplayName()}) placed at: $cornerX, $cornerY, $cornerZ")
             } else {
                 println("Block already exists at this position")
@@ -438,6 +438,8 @@ class BlockSystem {
             )
             mission.eventsOnStart.add(event)
             sceneManager.game.missionSystem.saveMission(mission)
+            sceneManager.game.uiManager.missionEditorUI.refreshEventWidgets()
+
             // Only show the message for the primary block in an area fill
             if (sceneManager.game.lastPlacedInstance !is GameBlock) {
                 sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_BLOCK to '${mission.title}'")

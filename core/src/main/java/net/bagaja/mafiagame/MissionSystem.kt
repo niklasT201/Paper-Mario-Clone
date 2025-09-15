@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Json
 import com.badlogic.gdx.utils.JsonWriter
+import java.util.*
 
 class MissionSystem(val game: MafiaGame) {
 
@@ -440,6 +441,83 @@ class MissionSystem(val game: MafiaGame) {
                         cameraVisibility = event.blockCameraVisibility ?: CameraVisibility.ALWAYS_VISIBLE
                     )
                     game.sceneManager.addBlock(block)
+                }
+            }
+            GameEventType.SPAWN_SPAWNER -> {
+                if (event.spawnPosition != null) {
+                    val spawnerGameObject = game.objectSystem.createGameObjectWithLight(ObjectType.SPAWNER, event.spawnPosition.cpy())
+                    if (spawnerGameObject != null) {
+                        spawnerGameObject.debugInstance?.transform?.setTranslation(event.spawnPosition)
+                        val newSpawner = GameSpawner(
+                            id = event.targetId ?: UUID.randomUUID().toString(),
+                            position = event.spawnPosition.cpy(),
+                            gameObject = spawnerGameObject
+                        )
+
+                        // Load all saved spawner properties from the event
+                        newSpawner.spawnerType = event.spawnerType ?: newSpawner.spawnerType
+                        newSpawner.spawnerMode = event.spawnerMode ?: newSpawner.spawnerMode
+                        newSpawner.spawnInterval = event.spawnInterval ?: newSpawner.spawnInterval
+                        newSpawner.minSpawnRange = event.minSpawnRange ?: newSpawner.minSpawnRange
+                        newSpawner.maxSpawnRange = event.maxSpawnRange ?: newSpawner.maxSpawnRange
+                        newSpawner.spawnOnlyWhenPreviousIsGone = event.spawnOnlyWhenPreviousIsGone ?: false
+
+                        // Type-specific settings
+                        newSpawner.particleEffectType = event.particleEffectType ?: newSpawner.particleEffectType
+                        newSpawner.itemType = event.spawnerItemType ?: newSpawner.itemType
+                        newSpawner.weaponItemType = event.spawnerWeaponItemType ?: newSpawner.weaponItemType
+                        newSpawner.ammoSpawnMode = event.ammoSpawnMode ?: newSpawner.ammoSpawnMode
+                        newSpawner.setAmmoValue = event.setAmmoValue ?: newSpawner.setAmmoValue
+                        newSpawner.randomMinAmmo = event.randomMinAmmo ?: newSpawner.randomMinAmmo
+                        newSpawner.randomMaxAmmo = event.randomMaxAmmo ?: newSpawner.randomMaxAmmo
+                        newSpawner.enemyType = event.spawnerEnemyType ?: newSpawner.enemyType
+                        newSpawner.npcType = event.spawnerNpcType ?: newSpawner.npcType
+                        newSpawner.carType = event.spawnerCarType ?: newSpawner.carType
+                        newSpawner.carIsLocked = event.spawnerCarIsLocked ?: newSpawner.carIsLocked
+                        newSpawner.carDriverType = event.spawnerCarDriverType ?: newSpawner.carDriverType
+                        newSpawner.carEnemyDriverType = event.spawnerCarEnemyDriverType ?: newSpawner.carEnemyDriverType
+                        newSpawner.carNpcDriverType = event.spawnerCarNpcDriverType ?: newSpawner.carNpcDriverType
+                        newSpawner.carSpawnDirection = event.spawnerCarSpawnDirection ?: newSpawner.carSpawnDirection
+
+                        game.sceneManager.activeSpawners.add(newSpawner)
+                    }
+                }
+            }
+            GameEventType.SPAWN_TELEPORTER -> {
+                if (event.spawnPosition != null) {
+                    val gameObject = game.objectSystem.createGameObjectWithLight(ObjectType.TELEPORTER, event.spawnPosition.cpy())
+                    if (gameObject != null) {
+                        gameObject.modelInstance.transform.setTranslation(event.spawnPosition)
+                        gameObject.debugInstance?.transform?.setTranslation(event.spawnPosition)
+                        val newTeleporter = GameTeleporter(
+                            id = event.teleporterId ?: UUID.randomUUID().toString(),
+                            gameObject = gameObject,
+                            linkedTeleporterId = event.linkedTeleporterId,
+                            name = event.teleporterName ?: "Teleporter"
+                        )
+                        game.teleporterSystem.activeTeleporters.add(newTeleporter)
+                    }
+                }
+            }
+            GameEventType.SPAWN_FIRE -> {
+                if (event.spawnPosition != null) {
+                    val fireSystem = game.fireSystem
+                    fireSystem.nextFireIsLooping = event.isLooping ?: true
+                    fireSystem.nextFireFadesOut = event.fadesOut ?: false
+                    fireSystem.nextFireLifetime = event.lifetime ?: 20f
+                    fireSystem.nextFireCanBeExtinguished = event.canBeExtinguished ?: true
+                    fireSystem.nextFireDealsDamage = event.dealsDamage ?: true
+                    fireSystem.nextFireDamagePerSecond = event.damagePerSecond ?: 10f
+                    fireSystem.nextFireDamageRadius = event.damageRadius ?: 5f
+                    fireSystem.nextFireMinScale = event.fireScale ?: 1f // Use fireScale for both min/max
+                    fireSystem.nextFireMaxScale = event.fireScale ?: 1f
+
+                    // Create the fire using the dedicated system
+                    val newFire = fireSystem.addFire(event.spawnPosition.cpy(), game.objectSystem, game.lightingManager)
+                    if (newFire != null) {
+                        // Add its underlying game object to the active scene objects
+                        game.sceneManager.activeObjects.add(newFire.gameObject)
+                    }
                 }
             }
             else -> println("Event type ${event.type} not yet implemented.")

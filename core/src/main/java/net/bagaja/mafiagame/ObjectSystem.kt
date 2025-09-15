@@ -205,6 +205,7 @@ class ObjectSystem: IFinePositionable {
             if (previewObject != null) {
                 sceneManager.activeMissionPreviewObjects.add(previewObject)
                 uiManager.updatePlacementInfo("Added SPAWN_OBJECT to '${mission.title}'")
+                sceneManager.game.uiManager.missionEditorUI.refreshEventWidgets()
             }
         }
     }

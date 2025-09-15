@@ -69,7 +69,6 @@ public class Lwjgl3Launcher {
 // Save and Load Player Progress
 // Expanding & Polishing
 // save teleporter, spawner, day time, enemies with weapons, shaders
-// rooms saving for enemies
 // locked houses dont allow to place door entry
 // number before mission list
 // id under mission name
@@ -80,7 +79,6 @@ public class Lwjgl3Launcher {
 // fast loading mission
 // multiple profiles
 // dying fire not despawning light source
-// blocks not being used for missions
 // connect dialog and mission system
 // adding multiple city areas, district 2d polygons
 // TALK_TO_NPC Logic: The game doesn't yet have a system for initiating conversations with specific NPCs by pressing 'E'.
