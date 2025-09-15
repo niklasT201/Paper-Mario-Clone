@@ -63,7 +63,32 @@ data class RoomElement(
     val dealsDamage: Boolean? = null,
     val damagePerSecond: Float? = null,
     val damageRadius: Float? = null,
-    val spawnOnlyWhenPreviousIsGone: Boolean? = null
+    val spawnOnlyWhenPreviousIsGone: Boolean? = null,
+
+    // Enemy Configuration
+    val healthSetting: HealthSetting? = null,
+    val customHealthValue: Float? = null,
+    val minRandomHealth: Float? = null,
+    val maxRandomHealth: Float? = null,
+    val initialWeapon: WeaponType? = null,
+    val weaponCollectionPolicy: WeaponCollectionPolicy? = null,
+    val canCollectItems: Boolean? = null,
+    val enemyInitialMoney: Int? = null,
+
+    // NPC Configuration
+    val npcIsHonest: Boolean? = null,
+    val npcCanCollectItems: Boolean? = null,
+    val npcInventory: List<ItemData>? = null,
+
+    // Spawner Entity Configuration
+    val spawnerEnemyType: EnemyType? = null,
+    val spawnerNpcType: NPCType? = null,
+    val spawnerCarType: CarType? = null,
+    val spawnerCarIsLocked: Boolean? = null,
+    val spawnerCarDriverType: String? = null,
+    val spawnerCarEnemyDriverType: EnemyType? = null,
+    val spawnerCarNpcDriverType: NPCType? = null,
+    val spawnerCarSpawnDirection: CarSpawnDirection? = null
 )
 
 enum class RoomElementType {

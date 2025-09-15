@@ -68,7 +68,7 @@ public class Lwjgl3Launcher {
 // Persistence & Consequences
 // Save and Load Player Progress
 // Expanding & Polishing
-// save backgrounds, parallax, teleporter, spawner, day time, enemies with weapons, shaders
+// save teleporter, spawner, day time, enemies with weapons, shaders
 // rooms saving for enemies
 // locked houses dont allow to place door entry
 // number before mission list

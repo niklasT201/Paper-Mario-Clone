@@ -948,17 +948,31 @@ class SceneManager(
                 }
                 RoomElementType.ENEMY -> {
                     if (element.enemyType != null && element.enemyBehavior != null) {
-                        // --- CORRECTED CODE ---
+                        // Create a full config using all the new properties from the RoomElement
                         val config = EnemySpawnConfig(
                             enemyType = element.enemyType,
                             behavior = element.enemyBehavior,
                             position = element.position.cpy(),
-                            id = element.targetId // Use the ID from the template if it exists
+                            id = element.targetId,
+                            healthSetting = element.healthSetting ?: HealthSetting.FIXED_DEFAULT,
+                            customHealthValue = element.customHealthValue ?: element.enemyType.baseHealth,
+                            minRandomHealth = element.minRandomHealth ?: (element.enemyType.baseHealth * 0.8f),
+                            maxRandomHealth = element.maxRandomHealth ?: (element.enemyType.baseHealth * 1.2f),
+                            initialWeapon = element.initialWeapon ?: WeaponType.UNARMED,
+                            ammoSpawnMode = element.ammoSpawnMode ?: AmmoSpawnMode.FIXED,
+                            setAmmoValue = element.setAmmoValue ?: 30,
+                            weaponCollectionPolicy = element.weaponCollectionPolicy ?: WeaponCollectionPolicy.CANNOT_COLLECT,
+                            canCollectItems = element.canCollectItems ?: true
                         )
                         enemySystem.createEnemy(config)?.let { gameEnemy ->
+                            // Add initial money if it was saved in the template
+                            if ((element.enemyInitialMoney ?: 0) > 0) {
+                                val moneyItem = itemSystem.createItem(Vector3.Zero, ItemType.MONEY_STACK)!!
+                                moneyItem.value = element.enemyInitialMoney!!
+                                gameEnemy.inventory.add(moneyItem)
+                            }
                             newEnemies.add(gameEnemy)
                         }
-                        // --- END CORRECTION ---
                     }
                 }
                 RoomElementType.NPC -> {
@@ -967,9 +981,19 @@ class SceneManager(
                             npcType = element.npcType,
                             behavior = element.npcBehavior,
                             position = element.position.cpy(),
-                            id = element.targetId
+                            id = element.targetId,
+                            isHonest = element.npcIsHonest ?: true, // Provide defaults
+                            canCollectItems = element.npcCanCollectItems ?: true
                         )
                         npcSystem.createNPC(config, element.npcRotation)?.let { gameNPC ->
+                            // Load the NPC's starting inventory from the template
+                            element.npcInventory?.forEach { itemData ->
+                                itemSystem.createItem(gameNPC.position, itemData.itemType)?.let { gameItem ->
+                                    gameItem.ammo = itemData.ammo
+                                    gameItem.value = itemData.value
+                                    gameNPC.inventory.add(gameItem)
+                                }
+                            }
                             newNPCs.add(gameNPC)
                         }
                     }
@@ -988,15 +1012,19 @@ class SceneManager(
                         newSpawner.spawnInterval = element.spawnerInterval ?: newSpawner.spawnInterval
                         newSpawner.minSpawnRange = element.spawnerMinRange ?: newSpawner.minSpawnRange
                         newSpawner.maxSpawnRange = element.spawnerMaxRange ?: newSpawner.maxSpawnRange
+                        newSpawner.spawnOnlyWhenPreviousIsGone = element.spawnOnlyWhenPreviousIsGone ?: false
 
+                        // Particle properties
                         newSpawner.particleEffectType = element.particleEffectType ?: newSpawner.particleEffectType
                         newSpawner.minParticles = element.spawnerMinParticles ?: newSpawner.minParticles
                         newSpawner.maxParticles = element.spawnerMaxParticles ?: newSpawner.maxParticles
 
+                        // Item properties
                         newSpawner.itemType = element.spawnerItemType ?: newSpawner.itemType
                         newSpawner.minItems = element.spawnerMinItems ?: newSpawner.minItems
                         newSpawner.maxItems = element.spawnerMaxItems ?: newSpawner.maxItems
 
+                        // Weapon properties
                         newSpawner.weaponItemType = element.spawnerWeaponItemType ?: newSpawner.weaponItemType
 
                         // Load the ammo settings from the template element
@@ -1004,7 +1032,31 @@ class SceneManager(
                         newSpawner.setAmmoValue = element.setAmmoValue ?: newSpawner.setAmmoValue
                         newSpawner.randomMinAmmo = element.randomMinAmmo ?: newSpawner.randomMinAmmo
                         newSpawner.randomMaxAmmo = element.randomMaxAmmo ?: newSpawner.randomMaxAmmo
-                        newSpawner.spawnOnlyWhenPreviousIsGone = element.spawnOnlyWhenPreviousIsGone ?: false
+
+                        // NPC Spawner properties
+                        newSpawner.npcType = element.spawnerNpcType ?: newSpawner.npcType
+                        newSpawner.npcBehavior = element.npcBehavior ?: newSpawner.npcBehavior
+                        newSpawner.npcIsHonest = element.npcIsHonest ?: newSpawner.npcIsHonest
+                        newSpawner.npcCanCollectItems = element.npcCanCollectItems ?: newSpawner.npcCanCollectItems
+
+                        // Car Spawner properties
+                        newSpawner.carType = element.spawnerCarType ?: newSpawner.carType
+                        newSpawner.carIsLocked = element.spawnerCarIsLocked ?: newSpawner.carIsLocked
+                        newSpawner.carDriverType = element.spawnerCarDriverType ?: newSpawner.carDriverType
+                        newSpawner.carEnemyDriverType = element.spawnerCarEnemyDriverType ?: newSpawner.carEnemyDriverType
+                        newSpawner.carNpcDriverType = element.spawnerCarNpcDriverType ?: newSpawner.carNpcDriverType
+                        newSpawner.carSpawnDirection = element.spawnerCarSpawnDirection ?: newSpawner.carSpawnDirection
+
+                        newSpawner.enemyType = element.enemyType ?: newSpawner.enemyType
+                        newSpawner.enemyBehavior = element.enemyBehavior ?: newSpawner.enemyBehavior
+                        newSpawner.enemyHealthSetting = element.healthSetting ?: newSpawner.enemyHealthSetting
+                        newSpawner.enemyCustomHealth = element.customHealthValue ?: newSpawner.enemyCustomHealth
+                        newSpawner.enemyMinHealth = element.minRandomHealth ?: newSpawner.enemyMinHealth
+                        newSpawner.enemyMaxHealth = element.maxRandomHealth ?: newSpawner.enemyMaxHealth
+                        newSpawner.enemyInitialWeapon = element.initialWeapon ?: newSpawner.enemyInitialWeapon
+                        newSpawner.enemyWeaponCollectionPolicy = element.weaponCollectionPolicy ?: newSpawner.enemyWeaponCollectionPolicy
+                        newSpawner.enemyCanCollectItems = element.canCollectItems ?: newSpawner.enemyCanCollectItems
+                        newSpawner.enemyInitialMoney = element.enemyInitialMoney ?: newSpawner.enemyInitialMoney
 
                         newParticleSpawners.add(newSpawner)
                     }
@@ -1221,24 +1273,45 @@ class SceneManager(
 
         // Convert active enemies to RoomElements
         activeEnemies.forEach { enemy ->
+            // Calculate starting money from inventory
+            val startingMoney = enemy.inventory
+                .filter { it.itemType == ItemType.MONEY_STACK }
+                .sumOf { it.value }
+
             elements.add(RoomElement(
                 position = enemy.position.cpy(),
                 elementType = RoomElementType.ENEMY,
                 enemyType = enemy.enemyType,
                 enemyBehavior = enemy.behaviorType,
-                targetId = enemy.id
+                targetId = enemy.id,
+                healthSetting = HealthSetting.FIXED_CUSTOM,
+                customHealthValue = enemy.health,
+                initialWeapon = enemy.equippedWeapon,
+                ammoSpawnMode = AmmoSpawnMode.SET, // We save the exact ammo count
+                setAmmoValue = enemy.weapons.getOrDefault(enemy.equippedWeapon, 0) + enemy.currentMagazineCount,
+                weaponCollectionPolicy = enemy.weaponCollectionPolicy,
+                canCollectItems = enemy.canCollectItems,
+                enemyInitialMoney = startingMoney
             ))
         }
 
         // Convert active NPCs to RoomElements
         activeNPCs.forEach { npc ->
+            // Convert the NPC's live inventory into savable ItemData
+            val inventoryData = npc.inventory.map { gameItem ->
+                ItemData(gameItem.itemType, gameItem.position, gameItem.ammo, gameItem.value)
+            }
+
             elements.add(RoomElement(
                 position = npc.position.cpy(),
                 elementType = RoomElementType.NPC,
                 npcType = npc.npcType,
                 npcBehavior = npc.behaviorType,
                 npcRotation = npc.facingRotationY,
-                targetId = npc.id
+                targetId = npc.id,
+                npcIsHonest = npc.isHonest,
+                npcCanCollectItems = npc.canCollectItems,
+                npcInventory = inventoryData
             ))
         }
 
@@ -1247,23 +1320,25 @@ class SceneManager(
                 position = spawner.position.cpy(),
                 elementType = RoomElementType.PARTICLE_SPAWNER,
 
-                // Saving all spawner properties
+                // --- THIS BLOCK IS NOW CORRECTED ---
+                // General Spawner Settings
                 spawnerType = spawner.spawnerType,
                 spawnerInterval = spawner.spawnInterval,
                 spawnerMinRange = spawner.minSpawnRange,
                 spawnerMaxRange = spawner.maxSpawnRange,
+                spawnOnlyWhenPreviousIsGone = spawner.spawnOnlyWhenPreviousIsGone,
 
-                // Particle properties
+                // Particle Spawner
                 particleEffectType = spawner.particleEffectType,
                 spawnerMinParticles = spawner.minParticles,
                 spawnerMaxParticles = spawner.maxParticles,
 
-                // Item properties
+                // Item Spawner
                 spawnerItemType = spawner.itemType,
                 spawnerMinItems = spawner.minItems,
                 spawnerMaxItems = spawner.maxItems,
 
-                // Weapon properties
+                // Weapon Spawner
                 spawnerWeaponItemType = spawner.weaponItemType,
 
                 // Save the new ammo settings
@@ -1271,7 +1346,31 @@ class SceneManager(
                 setAmmoValue = spawner.setAmmoValue,
                 randomMinAmmo = spawner.randomMinAmmo,
                 randomMaxAmmo = spawner.randomMaxAmmo,
-                spawnOnlyWhenPreviousIsGone = spawner.spawnOnlyWhenPreviousIsGone
+
+                // NPC Spawner
+                spawnerNpcType = spawner.npcType,
+                npcBehavior = spawner.npcBehavior,
+                npcIsHonest = spawner.npcIsHonest,
+                npcCanCollectItems = spawner.npcCanCollectItems,
+
+                // Car Spawner
+                spawnerCarType = spawner.carType,
+                spawnerCarIsLocked = spawner.carIsLocked,
+                spawnerCarDriverType = spawner.carDriverType,
+                spawnerCarEnemyDriverType = spawner.carEnemyDriverType,
+                spawnerCarNpcDriverType = spawner.carNpcDriverType,
+                spawnerCarSpawnDirection = spawner.carSpawnDirection,
+
+                enemyType = spawner.enemyType,
+                enemyBehavior = spawner.enemyBehavior,
+                healthSetting = spawner.enemyHealthSetting,
+                customHealthValue = spawner.enemyCustomHealth,
+                minRandomHealth = spawner.enemyMinHealth,
+                maxRandomHealth = spawner.enemyMaxHealth,
+                initialWeapon = spawner.enemyInitialWeapon,
+                weaponCollectionPolicy = spawner.enemyWeaponCollectionPolicy,
+                canCollectItems = spawner.enemyCanCollectItems,
+                enemyInitialMoney = spawner.enemyInitialMoney
             ))
         }
 
