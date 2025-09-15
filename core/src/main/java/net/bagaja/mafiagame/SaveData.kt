@@ -41,6 +41,28 @@ data class ParallaxImageData(
     var layerIndex: Int = 0
 )
 
+data class TeleporterData(
+    var id: String = "",
+    var name: String = "Teleporter",
+    var linkedTeleporterId: String? = null,
+    var position: Vector3 = Vector3()
+)
+
+data class FireData(
+    var id: String = "",
+    var position: Vector3 = Vector3(),
+    var isLooping: Boolean = true,
+    var fadesOut: Boolean = false,
+    var lifetime: Float = 20f,
+    var canBeExtinguished: Boolean = true,
+    var dealsDamage: Boolean = true,
+    var damagePerSecond: Float = 10f,
+    var damageRadius: Float = 5f,
+    var initialScale: Float = 1f,
+    var canSpread: Boolean = false,
+    var generation: Int = 0
+)
+
 data class WorldStateData(
     var blocks: GdxArray<BlockData> = GdxArray(),
     var cars: GdxArray<CarData> = GdxArray(),
@@ -54,7 +76,9 @@ data class WorldStateData(
     var entryPoints: GdxArray<EntryPointData> = GdxArray(),
     var backgrounds: GdxArray<BackgroundData> = GdxArray(),
     var parallaxImages: GdxArray<ParallaxImageData> = GdxArray(),
-    var dayNightCycleTime: Float = 0f
+    var dayNightCycleTime: Float = 0f,
+    var teleporters: GdxArray<TeleporterData> = GdxArray(),
+    var fires: GdxArray<FireData> = GdxArray()
 )
 
 data class CarPathData(

@@ -142,6 +142,25 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     carSpawnDirection = s.carSpawnDirection
                 ))
             }
+            game.teleporterSystem.activeTeleporters.forEach { tp ->
+                world.teleporters.add(TeleporterData(tp.id, tp.name, tp.linkedTeleporterId, tp.gameObject.position))
+            }
+            game.fireSystem.activeFires.forEach { fire ->
+                world.fires.add(FireData(
+                    fire.id,
+                    fire.gameObject.position,
+                    fire.isLooping,
+                    fire.fadesOut,
+                    fire.lifetime,
+                    fire.canBeExtinguished,
+                    fire.dealsDamage,
+                    fire.damagePerSecond,
+                    fire.damageRadius,
+                    fire.initialScale,
+                    fire.canSpread,
+                    fire.generation
+                ))
+            }
             game.backgroundSystem.getBackgrounds().forEach { bg ->
                 world.backgrounds.add(BackgroundData(bg.backgroundType, bg.position))
             }
@@ -303,6 +322,49 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     )
 
                     sm.activeSpawners.add(newSpawner)
+                }
+            }
+            // Load Teleporters
+            state.worldState.teleporters.forEach { data ->
+                val gameObject = game.objectSystem.createGameObjectWithLight(ObjectType.TELEPORTER, data.position.cpy())
+                if (gameObject != null) {
+                    gameObject.modelInstance.transform.setTranslation(data.position)
+                    gameObject.debugInstance?.transform?.setTranslation(data.position)
+                    val newTeleporter = GameTeleporter(
+                        id = data.id,
+                        gameObject = gameObject,
+                        linkedTeleporterId = data.linkedTeleporterId, // Link will be correct on load
+                        name = data.name
+                    )
+                    game.teleporterSystem.activeTeleporters.add(newTeleporter)
+                }
+            }
+
+            // Load Fires
+            state.worldState.fires.forEach { data ->
+                val fireSystem = game.fireSystem
+                // Temporarily configure fire system from saved data
+                fireSystem.nextFireIsLooping = data.isLooping
+                fireSystem.nextFireFadesOut = data.fadesOut
+                fireSystem.nextFireLifetime = data.lifetime
+                fireSystem.nextFireCanBeExtinguished = data.canBeExtinguished
+                fireSystem.nextFireDealsDamage = data.dealsDamage
+                fireSystem.nextFireDamagePerSecond = data.damagePerSecond
+                fireSystem.nextFireDamageRadius = data.damageRadius
+                fireSystem.nextFireMinScale = data.initialScale
+                fireSystem.nextFireMaxScale = data.initialScale
+
+                // Create the fire object
+                val newFire = fireSystem.addFire(
+                    position = data.position,
+                    objectSystem = game.objectSystem,
+                    lightingManager = game.lightingManager,
+                    generation = data.generation,
+                    canSpread = data.canSpread
+                )
+                if (newFire != null) {
+                    newFire.gameObject.id = 0 // Resetting the GameObject ID part as it's not saved for fires
+                    sm.activeObjects.add(newFire.gameObject)
                 }
             }
 

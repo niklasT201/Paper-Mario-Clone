@@ -670,7 +670,7 @@ class ObjectSystem: IFinePositionable {
 
 // Game object class to store object data
 data class GameObject(
-    val id: Int,
+    var id: Int,
     val modelInstance: ModelInstance,
     val objectType: ObjectType,
     val position: Vector3,

@@ -68,12 +68,14 @@ public class Lwjgl3Launcher {
 // Persistence & Consequences
 // Save and Load Player Progress
 // Expanding & Polishing
-// save teleporter, spawner, day time, enemies with weapons, shaders
+// save shaders and visual settings
+// save particles for current session
+// save room changes for current session
 // locked houses dont allow to place door entry
 // number before mission list
 // id under mission name
 // C button to copy mission id
-// Spawner, Fire, and Teleporter Systems (Placement Logic)
+// Spawner, Fire, and Teleporter Systems (Placement Logic) for missions working
 // light sources visible in user mode
 // mission loader
 // fast loading mission
