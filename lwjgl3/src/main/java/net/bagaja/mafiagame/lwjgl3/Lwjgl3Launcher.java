@@ -69,7 +69,6 @@ public class Lwjgl3Launcher {
 // Save and Load Player Progress
 // Expanding & Polishing
 // mission editing text disappearing when not in editor mode
-// trigger and rooms separated
 // number before mission list
 // id under mission name
 // C button to copy mission id

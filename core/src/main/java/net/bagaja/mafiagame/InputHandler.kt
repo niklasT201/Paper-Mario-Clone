@@ -153,9 +153,23 @@ class InputHandler(
                                             if (mission != null) {
                                                 // Update the mission's trigger data
                                                 mission.startTrigger.areaCenter.set(intersection)
-                                                // Save the mission file with the new trigger position
+
+                                                // Check which scene we are in and assign the correct ID
+                                                if (game.sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+                                                    val currentHouseId = game.sceneManager.getCurrentHouse()?.id
+                                                    if (currentHouseId != null) {
+                                                        mission.startTrigger.sceneId = currentHouseId
+                                                        uiManager.updatePlacementInfo("Set trigger for '${mission.title}' in this room.")
+                                                    } else {
+                                                        uiManager.updatePlacementInfo("ERROR: Could not get current house ID!")
+                                                    }
+                                                } else {
+                                                    mission.startTrigger.sceneId = "WORLD"
+                                                    uiManager.updatePlacementInfo("Set trigger for '${mission.title}' in the world.")
+                                                }
+
+                                                // Save the mission file with the new trigger position and sceneId
                                                 game.missionSystem.saveMission(mission)
-                                                uiManager.updatePlacementInfo("Set trigger for '${mission.title}'")
                                             }
                                         }
                                     }

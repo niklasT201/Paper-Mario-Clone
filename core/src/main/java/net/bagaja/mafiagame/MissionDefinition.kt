@@ -105,7 +105,8 @@ data class MissionTrigger(
     val type: TriggerType = TriggerType.ON_ENTER_AREA,
     var areaCenter: Vector3 = Vector3(),
     var areaRadius: Float = TriggerSystem.VISUAL_RADIUS,
-    val targetNpcId: String? = null
+    val targetNpcId: String? = null,
+    var sceneId: String = "WORLD"
 )
 
 // --- Mission Modifiers (Special Rules) ---

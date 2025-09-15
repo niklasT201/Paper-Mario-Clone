@@ -120,7 +120,22 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
     fun update() {
         val playerPos = game.playerSystem.getPosition()
 
+        // Determine the ID of the currently active scene
+        val currentSceneId = if (game.sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+            game.sceneManager.getCurrentHouse()?.id
+        } else {
+            "WORLD"
+        }
+        // If we're in an interior but can't get the ID, do nothing to be safe.
+        if (currentSceneId == null) return
+
         for ((missionId, trigger) in missionTriggers) {
+            // Check if the trigger belongs to the current scene
+            if (trigger.definition.sceneId != currentSceneId) {
+                trigger.isVisible = false // Ensure triggers from other scenes are hidden
+                continue // Skip this trigger entirely
+            }
+
             // Skip triggers for missions that are already completed
             if (game.missionSystem.isMissionActive(missionId) || game.missionSystem.isMissionCompleted(missionId)) {
                 trigger.isVisible = false
@@ -128,8 +143,8 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
             }
 
             if (trigger.definition.type == TriggerType.ON_ENTER_AREA) {
-                val center = trigger.definition.areaCenter!!
-                val radius = trigger.definition.areaRadius!!
+                val center = trigger.definition.areaCenter
+                val radius = trigger.definition.areaRadius
 
                 // Check for mission activation
                 if (playerPos.dst(center) < radius) {
@@ -173,31 +188,39 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
 
     fun render(camera: Camera, environment: Environment) {
         renderableInstances.clear()
+
+        // Determine the ID of the currently active scene
+        val currentSceneId = if (game.sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+            game.sceneManager.getCurrentHouse()?.id
+        } else {
+            "WORLD"
+        }
+
         for (trigger in missionTriggers.values) {
-            // RENDER RULE 1: If it's a gameplay trigger and should be visible, add it.
-            if (trigger.isVisible) {
+            // RENDER RULE 1: Gameplay triggers that are visible AND in the current scene
+            if (trigger.isVisible && trigger.definition.sceneId == currentSceneId) {
                 renderableInstances.add(trigger.modelInstance)
             }
         }
 
-        // --- NEW RENDER LOGIC FOR EDITOR ---
-        // RENDER RULE 2: If we are in editor mode, show the selected trigger's visual.
+        // RENDER RULE 2: Editor visual for the selected trigger, but ONLY if it's in the current scene
         if (isEditorVisible) {
             selectedMissionIdForEditing?.let { missionId ->
                 missionTriggers[missionId]?.let { visualTrigger ->
-                    // Update its position before rendering
-                    val center = visualTrigger.definition.areaCenter
-                    val groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
-                    visualTrigger.modelInstance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)
+                    // Check if the trigger being edited belongs to the current scene
+                    if (visualTrigger.definition.sceneId == currentSceneId) {
+                        val center = visualTrigger.definition.areaCenter
+                        val groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
+                        visualTrigger.modelInstance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)
 
-                    // Add it to the render list if it's not already there
-                    if (!renderableInstances.contains(visualTrigger.modelInstance, true)) {
-                        renderableInstances.add(visualTrigger.modelInstance)
+                        // Add it to the render list if it's not already there
+                        if (!renderableInstances.contains(visualTrigger.modelInstance, true)) {
+                            renderableInstances.add(visualTrigger.modelInstance)
+                        }
                     }
                 }
             }
         }
-        // --- END NEW RENDER LOGIC ---
 
         if (renderableInstances.size > 0) {
             shaderProvider.setEnvironment(environment)
