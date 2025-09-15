@@ -2104,15 +2104,43 @@ class PlayerSystem {
 
     fun getWeaponReserves(): Map<WeaponType, Int> = ammoReserves
 
+    fun getMagazineCounts(): Map<WeaponType, Int> {
+        currentMagazineCounts[equippedWeapon] = currentMagazineCount
+        return currentMagazineCounts.toMap()
+    }
+
+    private fun setMagazineCount(weaponType: WeaponType, count: Int) {
+        currentMagazineCounts[weaponType] = count
+        // If the weapon being loaded is the one we have equipped, also update the live counter
+        if (equippedWeapon == weaponType) {
+            currentMagazineCount = count
+        }
+    }
+
     fun loadState(data: PlayerStateData) {
         setPosition(data.position)
         health = maxHealth
         money = data.money
+
+        // Load Reserve Ammo
         ammoReserves.clear()
-        data.weapons.forEach { ammoReserves[it.key] = it.value }
+        data.weapons.forEach { entry -> ammoReserves[entry.key] = entry.value }
+
+        // Rebuild the list of weapons the player possesses
         weapons.clear()
         weapons.add(WeaponType.UNARMED)
-        data.weapons.keys().forEach { if (!weapons.contains(it)) weapons.add(it) }
+        data.weapons.keys().forEach { weapon ->
+            if (weapon != WeaponType.UNARMED && !weapons.contains(weapon)) {
+                weapons.add(weapon)
+            }
+        }
+
+        // Load Magazine Counts
+        currentMagazineCounts.clear()
+        data.currentMagazineCounts.forEach { entry ->
+            setMagazineCount(entry.key, entry.value)
+        }
+
         equipWeapon(data.equippedWeapon)
     }
 

@@ -5,16 +5,6 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array as GdxArray
 import com.badlogic.gdx.utils.ObjectMap // Use ObjectMap for JSON compatibility
 
-data class BackgroundData(
-    var backgroundType: BackgroundType = BackgroundType.SMALL_HOUSE,
-    var position: Vector3 = Vector3()
-)
-
-data class ParallaxImageData(
-    var imageType: ParallaxBackgroundSystem.ParallaxImageType = ParallaxBackgroundSystem.ParallaxImageType.MOUNTAINS,
-    var basePositionX: Float = 0f,
-    var layerIndex: Int = 0
-)
 
 // This is the top-level class that will be saved to the JSON file.
 data class GameSaveState(
@@ -30,13 +20,25 @@ data class PlayerStateData(
     var position: Vector3 = Vector3(),
     var money: Int = 0,
     var weapons: ObjectMap<WeaponType, Int> = ObjectMap(),
-    var equippedWeapon: WeaponType = WeaponType.UNARMED
+    var equippedWeapon: WeaponType = WeaponType.UNARMED,
+    var currentMagazineCounts: ObjectMap<WeaponType, Int> = ObjectMap()
 )
 
 data class EntryPointData(
     var id: String = "",
     var houseId: String = "",
     var position: Vector3 = Vector3()
+)
+
+data class BackgroundData(
+    var backgroundType: BackgroundType = BackgroundType.SMALL_HOUSE,
+    var position: Vector3 = Vector3()
+)
+
+data class ParallaxImageData(
+    var imageType: ParallaxBackgroundSystem.ParallaxImageType = ParallaxBackgroundSystem.ParallaxImageType.MOUNTAINS,
+    var basePositionX: Float = 0f,
+    var layerIndex: Int = 0
 )
 
 data class WorldStateData(
@@ -51,7 +53,8 @@ data class WorldStateData(
     var spawners: GdxArray<SpawnerData> = GdxArray(),
     var entryPoints: GdxArray<EntryPointData> = GdxArray(),
     var backgrounds: GdxArray<BackgroundData> = GdxArray(),
-    var parallaxImages: GdxArray<ParallaxImageData> = GdxArray()
+    var parallaxImages: GdxArray<ParallaxImageData> = GdxArray(),
+    var dayNightCycleTime: Float = 0f
 )
 
 data class CarPathData(
@@ -133,13 +136,60 @@ data class LightData(
 )
 
 data class SpawnerData(
+    var id: String = "", // --- ADDED: Essential for tracking spawned entities
     var position: Vector3 = Vector3(),
     var spawnerType: SpawnerType = SpawnerType.PARTICLE,
-    // Add all spawner properties here to save/load them correctly
     var spawnInterval: Float = 5.0f,
     var minSpawnRange: Float = 0f,
-    var maxSpawnRange: Float = 100f
-    // ... etc. for all spawner settings if needed
+    var maxSpawnRange: Float = 100f,
+    // --- ADDED: All the missing spawner properties ---
+    var spawnerMode: SpawnerMode = SpawnerMode.CONTINUOUS,
+    var isDepleted: Boolean = false,
+    var spawnOnlyWhenPreviousIsGone: Boolean = false,
+    var spawnedEntityId: String? = null,
+
+    // Particle-specific
+    var particleEffectType: ParticleEffectType = ParticleEffectType.SMOKE_FRAME_1,
+    var minParticles: Int = 1,
+    var maxParticles: Int = 3,
+
+    // Item-specific
+    var itemType: ItemType = ItemType.MONEY_STACK,
+    var minItems: Int = 1,
+    var maxItems: Int = 1,
+
+    // Weapon-specific
+    var weaponItemType: ItemType = ItemType.REVOLVER,
+    var ammoSpawnMode: AmmoSpawnMode = AmmoSpawnMode.FIXED,
+    var setAmmoValue: Int = 12,
+    var randomMinAmmo: Int = 6,
+    var randomMaxAmmo: Int = 18,
+
+    // Enemy-specific
+    var enemyType: EnemyType = EnemyType.MOUSE_THUG,
+    var enemyBehavior: EnemyBehavior = EnemyBehavior.STATIONARY_SHOOTER,
+    var enemyHealthSetting: HealthSetting = HealthSetting.FIXED_DEFAULT,
+    var enemyCustomHealth: Float = 100f,
+    var enemyMinHealth: Float = 80f,
+    var enemyMaxHealth: Float = 120f,
+    var enemyInitialWeapon: WeaponType = WeaponType.UNARMED,
+    var enemyWeaponCollectionPolicy: WeaponCollectionPolicy = WeaponCollectionPolicy.CANNOT_COLLECT,
+    var enemyCanCollectItems: Boolean = true,
+    var enemyInitialMoney: Int = 0,
+
+    // NPC-specific
+    var npcType: NPCType = NPCType.GEORGE_MELES,
+    var npcBehavior: NPCBehavior = NPCBehavior.WANDER,
+    var npcIsHonest: Boolean = true,
+    var npcCanCollectItems: Boolean = true,
+
+    // Car-specific
+    var carType: CarType = CarType.DEFAULT,
+    var carIsLocked: Boolean = false,
+    var carDriverType: String = "None",
+    var carEnemyDriverType: EnemyType = EnemyType.MOUSE_THUG,
+    var carNpcDriverType: NPCType = NPCType.GEORGE_MELES,
+    var carSpawnDirection: CarSpawnDirection = CarSpawnDirection.LEFT
 )
 
 data class CarPathNodeData(

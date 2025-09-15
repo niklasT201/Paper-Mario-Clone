@@ -216,10 +216,10 @@ class MissionEditorUI(
         val mission = missionSystem.getMissionDefinition(missionId) ?: return
         currentMissionDef = mission
 
-        tempObjectives = mission.objectives.toMutableList()
-        tempRewards = mission.rewards.toMutableList()
-        tempStartEvents = mission.eventsOnStart.toMutableList()
-        tempCompleteEvents = mission.eventsOnComplete.toMutableList()
+        tempObjectives = mission.objectives
+        tempRewards = mission.rewards
+        tempStartEvents = mission.eventsOnStart
+        tempCompleteEvents = mission.eventsOnComplete
 
         missionIdField.text = mission.id
         missionTitleField.text = mission.title
@@ -244,13 +244,14 @@ class MissionEditorUI(
     private fun applyChanges() {
         val mission = currentMissionDef ?: return
 
-        // Directly modify the mission object that MissionSystem holds a reference to.
+        // Save the simple text fields
         mission.title = missionTitleField.text.ifBlank { "Untitled Mission" }
         mission.description = missionDescriptionArea.text
         mission.prerequisites = prerequisitesField.text.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
         mission.scope = MissionScope.valueOf(scopeSelectBox.selected)
 
-        // Now, save the modified mission object.
+        // The temporary lists have now been directly modifying the mission object,
+        // so we just need to save it.
         missionSystem.saveMission(mission)
     }
 
@@ -372,11 +373,11 @@ class MissionEditorUI(
 
     fun refreshEventWidgets() {
         startEventsContainer.clearChildren()
-        tempStartEvents.forEach { event ->
+        currentMissionDef?.eventsOnStart?.forEach { event ->
             startEventsContainer.addActor(createEventWidget(event, true))
         }
         completeEventsContainer.clearChildren()
-        tempCompleteEvents.forEach { event ->
+        currentMissionDef?.eventsOnComplete?.forEach { event ->
             completeEventsContainer.addActor(createEventWidget(event, false))
         }
     }
@@ -414,9 +415,6 @@ class MissionEditorUI(
                 currentMissionDef?.let { mission ->
                     val listToModify = if (isStartEvent) mission.eventsOnStart else mission.eventsOnComplete
                     listToModify.remove(event)
-
-                    // Also remove from our temporary list to keep the UI in sync immediately
-                    if (isStartEvent) tempStartEvents.remove(event) else tempCompleteEvents.remove(event)
 
                     refreshEventWidgets() // Refresh the UI
                 }

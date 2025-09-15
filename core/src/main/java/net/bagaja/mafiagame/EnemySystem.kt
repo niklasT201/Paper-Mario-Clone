@@ -662,7 +662,7 @@ class EnemySystem : IFinePositionable {
         updateEnemyTexture(enemy)
     }
 
-    private fun updateEnemyTexture(enemy: GameEnemy) {
+    fun updateEnemyTexture(enemy: GameEnemy) {
         val weaponTexture = enemyWeaponTextures[enemy.enemyType]?.get(enemy.equippedWeapon)
         val defaultTexture = enemyTextures[enemy.enemyType]
 

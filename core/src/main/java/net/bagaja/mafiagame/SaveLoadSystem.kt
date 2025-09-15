@@ -57,15 +57,17 @@ class SaveLoadSystem(private val game: MafiaGame) {
                 position = game.playerSystem.getPosition(),
                 money = game.playerSystem.getMoney(),
                 weapons = ObjectMap<WeaponType, Int>().apply {
-                    game.playerSystem.getWeaponReserves().forEach { (weapon, ammo) ->
-                        put(weapon, ammo)
-                    }
+                    game.playerSystem.getWeaponReserves().forEach { (weapon, ammo) -> put(weapon, ammo) }
                 },
-                equippedWeapon = game.playerSystem.equippedWeapon
+                equippedWeapon = game.playerSystem.equippedWeapon,
+                currentMagazineCounts = ObjectMap<WeaponType, Int>().apply {
+                    game.playerSystem.getMagazineCounts().forEach { (weapon, count) -> put(weapon, count) }
+                }
             )
 
             // 2. World Data
             val world = WorldStateData()
+            world.dayNightCycleTime = game.lightingManager.getDayNightCycle().currentTime
             sm.activeChunkManager.getAllBlocks().forEach { b -> world.blocks.add(BlockData(b.blockType, b.shape, b.position, b.rotationY, b.textureRotationY, b.topTextureRotationY, b.cameraVisibility)) }
             sm.activeCars.forEach { c -> world.cars.add(CarData(c.id, c.carType, c.position, c.health, c.isLocked, (c.seats.first()?.occupant as? GameEnemy)?.id ?: (c.seats.first()?.occupant as? GameNPC)?.id)) }
             sm.activeEnemies.forEach { e ->
@@ -95,7 +97,51 @@ class SaveLoadSystem(private val game: MafiaGame) {
             }
             sm.activeEntryPoints.forEach { ep -> world.entryPoints.add(EntryPointData(ep.id, ep.houseId, ep.position)) }
             game.lightingManager.getLightSources().values.forEach { l -> world.lights.add(LightData(l.position, l.color, l.intensity, l.range)) }
-            sm.activeSpawners.forEach { s -> world.spawners.add(SpawnerData(s.position, s.spawnerType, s.spawnInterval, s.minSpawnRange, s.maxSpawnRange)) }
+            sm.activeSpawners.forEach { s ->
+                world.spawners.add(SpawnerData(
+                    id = s.id,
+                    position = s.position,
+                    spawnerType = s.spawnerType,
+                    spawnInterval = s.spawnInterval,
+                    minSpawnRange = s.minSpawnRange,
+                    maxSpawnRange = s.maxSpawnRange,
+                    spawnerMode = s.spawnerMode,
+                    isDepleted = s.isDepleted,
+                    spawnOnlyWhenPreviousIsGone = s.spawnOnlyWhenPreviousIsGone,
+                    spawnedEntityId = s.spawnedEntityId,
+                    particleEffectType = s.particleEffectType,
+                    minParticles = s.minParticles,
+                    maxParticles = s.maxParticles,
+                    itemType = s.itemType,
+                    minItems = s.minItems,
+                    maxItems = s.maxItems,
+                    weaponItemType = s.weaponItemType,
+                    ammoSpawnMode = s.ammoSpawnMode,
+                    setAmmoValue = s.setAmmoValue,
+                    randomMinAmmo = s.randomMinAmmo,
+                    randomMaxAmmo = s.randomMaxAmmo,
+                    enemyType = s.enemyType,
+                    enemyBehavior = s.enemyBehavior,
+                    enemyHealthSetting = s.enemyHealthSetting,
+                    enemyCustomHealth = s.enemyCustomHealth,
+                    enemyMinHealth = s.enemyMinHealth,
+                    enemyMaxHealth = s.enemyMaxHealth,
+                    enemyInitialWeapon = s.enemyInitialWeapon,
+                    enemyWeaponCollectionPolicy = s.enemyWeaponCollectionPolicy,
+                    enemyCanCollectItems = s.enemyCanCollectItems,
+                    enemyInitialMoney = s.enemyInitialMoney,
+                    npcType = s.npcType,
+                    npcBehavior = s.npcBehavior,
+                    npcIsHonest = s.npcIsHonest,
+                    npcCanCollectItems = s.npcCanCollectItems,
+                    carType = s.carType,
+                    carIsLocked = s.carIsLocked,
+                    carDriverType = s.carDriverType,
+                    carEnemyDriverType = s.carEnemyDriverType,
+                    carNpcDriverType = s.carNpcDriverType,
+                    carSpawnDirection = s.carSpawnDirection
+                ))
+            }
             game.backgroundSystem.getBackgrounds().forEach { bg ->
                 world.backgrounds.add(BackgroundData(bg.backgroundType, bg.position))
             }
@@ -148,6 +194,10 @@ class SaveLoadSystem(private val game: MafiaGame) {
             sm.clearActiveSceneForLoad()
             sm.activeEntryPoints.clear()
 
+            val world = state.worldState
+
+            game.lightingManager.getDayNightCycle().currentTime = world.dayNightCycleTime
+
             // 1. Restore World State (Characters must be created before they can be put in cars)
             val enemyMap = mutableMapOf<String, GameEnemy>()
             state.worldState.enemies.forEach { data ->
@@ -157,6 +207,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     data.weapons.forEach { entry -> it.weapons[entry.key] = entry.value }
                     it.equippedWeapon = data.equippedWeapon
                     it.inventory.addAll(data.inventory.map { iData -> game.itemSystem.createItem(iData.position, iData.itemType)!!.apply { ammo = iData.ammo; value = iData.value } })
+                    game.enemySystem.updateEnemyTexture(it)
                     sm.activeEnemies.add(it)
                     enemyMap[it.id] = it
                 }
@@ -170,7 +221,6 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     npcMap[it.id] = it
                 }
             }
-
             // Now create other world entities
             state.worldState.blocks.forEach { data -> sm.addBlock(game.blockSystem.createGameBlock(data.blockType, data.shape, data.position, data.rotationY, data.textureRotationY, data.topTextureRotationY).copy(cameraVisibility = data.cameraVisibility)) }
             sm.activeChunkManager.processDirtyChunks()
@@ -202,7 +252,59 @@ class SaveLoadSystem(private val game: MafiaGame) {
                 val light = game.objectSystem.createLightSource(data.position, data.intensity, data.range, data.color)
                 game.lightingManager.addLightSource(light, game.objectSystem.createLightSourceInstances(light))
             }
-            state.worldState.spawners.forEach { data -> /* Spawner loading logic can be added here */ }
+            state.worldState.spawners.forEach { data ->
+                val spawnerGameObject = game.objectSystem.createGameObjectWithLight(ObjectType.SPAWNER, data.position.cpy())
+                if (spawnerGameObject != null) {
+                    spawnerGameObject.debugInstance?.transform?.setTranslation(data.position)
+
+                    val newSpawner = GameSpawner(
+                        id = data.id,
+                        position = data.position,
+                        gameObject = spawnerGameObject,
+                        spawnerType = data.spawnerType,
+                        spawnInterval = data.spawnInterval,
+                        minSpawnRange = data.minSpawnRange,
+                        maxSpawnRange = data.maxSpawnRange,
+                        spawnerMode = data.spawnerMode,
+                        isDepleted = data.isDepleted,
+                        spawnOnlyWhenPreviousIsGone = data.spawnOnlyWhenPreviousIsGone,
+                        spawnedEntityId = data.spawnedEntityId,
+                        particleEffectType = data.particleEffectType,
+                        minParticles = data.minParticles,
+                        maxParticles = data.maxParticles,
+                        itemType = data.itemType,
+                        minItems = data.minItems,
+                        maxItems = data.maxItems,
+                        weaponItemType = data.weaponItemType,
+                        ammoSpawnMode = data.ammoSpawnMode,
+                        setAmmoValue = data.setAmmoValue,
+                        randomMinAmmo = data.randomMinAmmo,
+                        randomMaxAmmo = data.randomMaxAmmo,
+                        enemyType = data.enemyType,
+                        enemyBehavior = data.enemyBehavior,
+                        enemyHealthSetting = data.enemyHealthSetting,
+                        enemyCustomHealth = data.enemyCustomHealth,
+                        enemyMinHealth = data.enemyMinHealth,
+                        enemyMaxHealth = data.enemyMaxHealth,
+                        enemyInitialWeapon = data.enemyInitialWeapon,
+                        enemyWeaponCollectionPolicy = data.enemyWeaponCollectionPolicy,
+                        enemyCanCollectItems = data.enemyCanCollectItems,
+                        enemyInitialMoney = data.enemyInitialMoney,
+                        npcType = data.npcType,
+                        npcBehavior = data.npcBehavior,
+                        npcIsHonest = data.npcIsHonest,
+                        npcCanCollectItems = data.npcCanCollectItems,
+                        carType = data.carType,
+                        carIsLocked = data.carIsLocked,
+                        carDriverType = data.carDriverType,
+                        carEnemyDriverType = data.carEnemyDriverType,
+                        carNpcDriverType = data.carNpcDriverType,
+                        carSpawnDirection = data.carSpawnDirection
+                    )
+
+                    sm.activeSpawners.add(newSpawner)
+                }
+            }
 
             // 2. Restore Car Paths
             game.carPathSystem.nodes.clear()
