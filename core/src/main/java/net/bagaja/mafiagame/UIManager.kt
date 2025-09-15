@@ -1136,6 +1136,11 @@ class UIManager(
 
     fun render() {
         dialogSystem.update(Gdx.graphics.deltaTime)
+
+        if (!game.isEditorMode && persistentMessageLabel.isVisible) {
+            persistentMessageLabel.isVisible = false
+        }
+
         // Update HUD visibility and values based on game state
         val shouldShowHud = !game.isEditorMode && !isPauseMenuVisible()
         wantedPosterHudTable.isVisible = shouldShowHud && currentHudStyle == HudStyle.WANTED_POSTER

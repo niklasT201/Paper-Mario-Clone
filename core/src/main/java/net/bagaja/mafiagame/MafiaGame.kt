@@ -64,8 +64,8 @@ class MafiaGame : ApplicationAdapter() {
     // Game objects
     var lastPlacedInstance: Any? = null
 
-    private lateinit var backgroundSystem: BackgroundSystem
-    private lateinit var parallaxBackgroundSystem: ParallaxBackgroundSystem
+    lateinit var backgroundSystem: BackgroundSystem
+    lateinit var parallaxBackgroundSystem: ParallaxBackgroundSystem
     private lateinit var interiorSystem: InteriorSystem
     var isPlacingExitDoorMode = false
     var houseRequiringDoor: GameHouse? = null
@@ -780,8 +780,8 @@ class MafiaGame : ApplicationAdapter() {
         lightingManager.renderLightInstances(modelBatch, environment, objectSystem.debugMode)
         if (isEditorMode) {
             lightingManager.renderLightAreas(modelBatch)
+            houseSystem.renderEntryPoints(modelBatch, environment, objectSystem)
         }
-        houseSystem.renderEntryPoints(modelBatch, environment, objectSystem)
 
         for (house in sceneManager.activeHouses) {
             modelBatch.render(house.modelInstance, environment)
@@ -838,7 +838,10 @@ class MafiaGame : ApplicationAdapter() {
         }
 
         modelBatch.end()
-        carPathSystem.render(cameraManager.camera)
+
+        if (isEditorMode) {
+            carPathSystem.render(cameraManager.camera)
+        }
 
         teleporterSystem.renderNameplates(cameraManager.camera, playerSystem)
         triggerSystem.render(cameraManager.camera, lightingManager.getEnvironment())

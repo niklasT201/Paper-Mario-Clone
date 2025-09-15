@@ -68,14 +68,20 @@ public class Lwjgl3Launcher {
 // Persistence & Consequences
 // Save and Load Player Progress
 // Expanding & Polishing
-// mission editing text disappearing when not in editor mode
+// save backgrounds, parallax, teleporter, spawner, day time, enemies with weapons, shaders
+// rooms saving for enemies
+// locked houses dont allow to place door entry
 // number before mission list
 // id under mission name
 // C button to copy mission id
 // Spawner, Fire, and Teleporter Systems (Placement Logic)
+// light sources visible in user mode
+// mission loader
+// fast loading mission
+// multiple profiles
+// dying fire not despawning light source
 // blocks not being used for missions
 // connect dialog and mission system
-// spawnpoints working with mission system
 // adding multiple city areas, district 2d polygons
 // TALK_TO_NPC Logic: The game doesn't yet have a system for initiating conversations with specific NPCs by pressing 'E'.
 // INTERACT_WITH_OBJECT Logic: Similar to the above, you don't have a generic "interaction" system for objects yet

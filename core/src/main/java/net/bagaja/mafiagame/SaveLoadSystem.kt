@@ -2,6 +2,7 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.g3d.ModelInstance
+import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.utils.Json
 import com.badlogic.gdx.utils.JsonValue
 import com.badlogic.gdx.utils.JsonWriter
@@ -95,6 +96,24 @@ class SaveLoadSystem(private val game: MafiaGame) {
             sm.activeEntryPoints.forEach { ep -> world.entryPoints.add(EntryPointData(ep.id, ep.houseId, ep.position)) }
             game.lightingManager.getLightSources().values.forEach { l -> world.lights.add(LightData(l.position, l.color, l.intensity, l.range)) }
             sm.activeSpawners.forEach { s -> world.spawners.add(SpawnerData(s.position, s.spawnerType, s.spawnInterval, s.minSpawnRange, s.maxSpawnRange)) }
+            game.backgroundSystem.getBackgrounds().forEach { bg ->
+                world.backgrounds.add(BackgroundData(bg.backgroundType, bg.position))
+            }
+            game.parallaxBackgroundSystem.getLayers().forEachIndexed { index, layer ->
+                layer.images.forEach { image ->
+                    world.parallaxImages.add(
+                        ParallaxImageData(
+                            (image.modelInstance.materials.first().get(TextureAttribute.Diffuse) as TextureAttribute)
+                                .textureDescription.texture.let { tex ->
+                                    ParallaxBackgroundSystem.ParallaxImageType.entries.find { it.texturePath == image.texture.toString() } // Find the type by texture path
+                                        ?: ParallaxBackgroundSystem.ParallaxImageType.MOUNTAINS // Fallback
+                                },
+                            image.basePosition.x,
+                            index
+                        )
+                    )
+                }
+            }
             state.worldState = world
 
             // 3. Mission Data
@@ -197,6 +216,16 @@ class SaveLoadSystem(private val game: MafiaGame) {
 
             // 3. Restore Player State
             game.playerSystem.loadState(state.playerState)
+
+            state.worldState.backgrounds.forEach { data ->
+                game.backgroundSystem.addBackground(data.position.x, data.position.y, data.position.z, data.backgroundType)
+            }
+
+            game.parallaxBackgroundSystem.clearAll()
+
+            state.worldState.parallaxImages.forEach { data ->
+                game.parallaxBackgroundSystem.addParallaxImage(data.imageType, data.basePositionX, data.layerIndex)
+            }
 
             // 4. Restore Mission State
             game.missionSystem.loadSaveData(state.missionState)

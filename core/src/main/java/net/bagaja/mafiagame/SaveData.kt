@@ -5,6 +5,17 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array as GdxArray
 import com.badlogic.gdx.utils.ObjectMap // Use ObjectMap for JSON compatibility
 
+data class BackgroundData(
+    var backgroundType: BackgroundType = BackgroundType.SMALL_HOUSE,
+    var position: Vector3 = Vector3()
+)
+
+data class ParallaxImageData(
+    var imageType: ParallaxBackgroundSystem.ParallaxImageType = ParallaxBackgroundSystem.ParallaxImageType.MOUNTAINS,
+    var basePositionX: Float = 0f,
+    var layerIndex: Int = 0
+)
+
 // This is the top-level class that will be saved to the JSON file.
 data class GameSaveState(
     var playerState: PlayerStateData = PlayerStateData(),
@@ -38,7 +49,9 @@ data class WorldStateData(
     var houses: GdxArray<HouseData> = GdxArray(),
     var lights: GdxArray<LightData> = GdxArray(),
     var spawners: GdxArray<SpawnerData> = GdxArray(),
-    var entryPoints: GdxArray<EntryPointData> = GdxArray() // ADD THIS LINE
+    var entryPoints: GdxArray<EntryPointData> = GdxArray(),
+    var backgrounds: GdxArray<BackgroundData> = GdxArray(),
+    var parallaxImages: GdxArray<ParallaxImageData> = GdxArray()
 )
 
 data class CarPathData(

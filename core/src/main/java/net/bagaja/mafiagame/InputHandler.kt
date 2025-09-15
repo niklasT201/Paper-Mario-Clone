@@ -611,31 +611,34 @@ class InputHandler(
                             return true
                         }
                         Input.Keys.G -> {
-                            if (uiManager.selectedTool == Tool.CAR) {
-                                carPathSystem.toggleVisibility()
-                                val status = if (carPathSystem.isVisible) "ON" else "OFF"
-                                uiManager.updatePlacementInfo("Car Path Visibility: $status")
+                            if (game.isEditorMode) {
+                                if (uiManager.selectedTool == Tool.CAR) {
+                                    carPathSystem.toggleVisibility()
+                                    val status = if (carPathSystem.isVisible) "ON" else "OFF"
+                                    uiManager.updatePlacementInfo("Car Path Visibility: $status")
+                                    return true
+                                }
+
+                                val shiftPressed = Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)
+                                if (shiftPressed) {
+                                    if (uiManager.selectedTool == Tool.OBJECT) {
+                                        game.lightingManager.toggleLightAreaVisibility()
+                                        val status = if (game.lightingManager.isLightAreaVisible) "ON" else "OFF"
+                                        uiManager.updatePlacementInfo("Light Area Visibility: $status")
+                                        return true // Consume the input so the original 'G' action doesn't run
+                                    }
+                                }
+                                if (uiManager.selectedTool == Tool.BLOCK) {
+                                    // If the block tool is active, toggle the collision wireframes
+                                    game.toggleBlockCollisionOutlines()
+                                } else {
+                                    // Otherwise, perform the original debug action for objects and invisible blocks
+                                    objectSystem.toggleDebugMode()
+                                    game.toggleInvisibleBlockOutlines()
+                                }
                                 return true
                             }
-
-                            val shiftPressed = Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)
-                            if (shiftPressed) {
-                                if (uiManager.selectedTool == Tool.OBJECT) {
-                                    game.lightingManager.toggleLightAreaVisibility()
-                                    val status = if (game.lightingManager.isLightAreaVisible) "ON" else "OFF"
-                                    uiManager.updatePlacementInfo("Light Area Visibility: $status")
-                                    return true // Consume the input so the original 'G' action doesn't run
-                                }
-                            }
-                            if (uiManager.selectedTool == Tool.BLOCK) {
-                                // If the block tool is active, toggle the collision wireframes
-                                game.toggleBlockCollisionOutlines()
-                            } else {
-                                // Otherwise, perform the original debug action for objects and invisible blocks
-                                objectSystem.toggleDebugMode()
-                                game.toggleInvisibleBlockOutlines()
-                            }
-                            return true
+                            return false
                         }
 
                         // Tool-specific hotkeys
