@@ -128,7 +128,10 @@ enum class GameEventType {
     START_DIALOG,
     SPAWN_HOUSE,
     SPAWN_OBJECT,
-    SPAWN_BLOCK
+    SPAWN_BLOCK,
+    SPAWN_SPAWNER,
+    SPAWN_TELEPORTER,
+    SPAWN_FIRE
 }
 
 data class GameEvent(
@@ -191,7 +194,42 @@ data class GameEvent(
     val blockRotationY: Float? = null,
     val blockTextureRotationY: Float? = null,
     val blockTopTextureRotationY: Float? = null,
-    val blockCameraVisibility: CameraVisibility? = null
+    val blockCameraVisibility: CameraVisibility? = null,
+
+    // Spawner Properties
+    val spawnerType: SpawnerType? = null,
+    val spawnerMode: SpawnerMode? = null,
+    val spawnInterval: Float? = null,
+    val minSpawnRange: Float? = null,
+    val maxSpawnRange: Float? = null,
+    val spawnOnlyWhenPreviousIsGone: Boolean? = null,
+    // Particle Spawner
+    val particleEffectType: ParticleEffectType? = null,
+    val minParticles: Int? = null,
+    val maxParticles: Int? = null,
+    // Item Spawner
+    val spawnerItemType: ItemType? = null,
+    val minItems: Int? = null,
+    val maxItems: Int? = null,
+    // Weapon Spawner
+    val spawnerWeaponItemType: ItemType? = null,
+    val randomMinAmmo: Int? = null,
+    val randomMaxAmmo: Int? = null,
+
+    // Teleporter Properties
+    val teleporterId: String? = null,
+    val linkedTeleporterId: String? = null,
+    val teleporterName: String? = null,
+
+    // Fire Properties
+    val isLooping: Boolean? = null,
+    val fadesOut: Boolean? = null,
+    val lifetime: Float? = null,
+    val canBeExtinguished: Boolean? = null,
+    val dealsDamage: Boolean? = null,
+    val damagePerSecond: Float? = null,
+    val damageRadius: Float? = null,
+    val fireScale: Float? = null
 )
 
 // --- Game State (For Saving/Loading Progress) ---

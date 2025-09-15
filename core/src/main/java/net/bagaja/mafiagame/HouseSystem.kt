@@ -321,7 +321,7 @@ data class GameHouse(
     val houseType: HouseType,
     val position: Vector3,
     val isLocked: Boolean,
-    val assignedRoomTemplateId: String? = null,
+    var assignedRoomTemplateId: String? = null,
     var exitDoorId: String? = null,
     var rotationY: Float = 0f,
     val id: String = UUID.randomUUID().toString(),

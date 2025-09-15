@@ -68,8 +68,13 @@ public class Lwjgl3Launcher {
 // Persistence & Consequences
 // Save and Load Player Progress
 // Expanding & Polishing
-// rooms connected with saved houses
+// mission editing text disappearing when not in editor mode
 // trigger and rooms separated
+// number before mission list
+// id under mission name
+// C button to copy mission id
+// Spawner, Fire, and Teleporter Systems (Placement Logic)
+// blocks not being used for missions
 // connect dialog and mission system
 // spawnpoints working with mission system
 // adding multiple city areas, district 2d polygons

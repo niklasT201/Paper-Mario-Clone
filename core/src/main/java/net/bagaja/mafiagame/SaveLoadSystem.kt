@@ -82,7 +82,16 @@ class SaveLoadSystem(private val game: MafiaGame) {
             sm.activeNPCs.forEach { n -> world.npcs.add(NpcData(n.id, n.npcType, n.behaviorType, n.position, n.health)) }
             sm.activeItems.forEach { i -> world.items.add(ItemData(i.itemType, i.position, i.ammo, i.value)) }
             sm.activeObjects.forEach { o -> world.objects.add(ObjectData(o.objectType, o.position)) }
-            sm.activeHouses.forEach { h -> world.houses.add(HouseData(h.houseType, h.position, h.isLocked, h.rotationY, h.entryPointId)) }
+            sm.activeHouses.forEach { h ->
+                world.houses.add(HouseData(
+                    h.houseType,
+                    h.position,
+                    h.isLocked,
+                    h.rotationY,
+                    h.entryPointId,
+                    h.assignedRoomTemplateId
+                ))
+            }
             sm.activeEntryPoints.forEach { ep -> world.entryPoints.add(EntryPointData(ep.id, ep.houseId, ep.position)) }
             game.lightingManager.getLightSources().values.forEach { l -> world.lights.add(LightData(l.position, l.color, l.intensity, l.range)) }
             sm.activeSpawners.forEach { s -> world.spawners.add(SpawnerData(s.position, s.spawnerType, s.spawnInterval, s.minSpawnRange, s.maxSpawnRange)) }
@@ -162,6 +171,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                 if (newHouse != null) {
                     // Restore the link to the custom entry point
                     newHouse.entryPointId = data.entryPointId
+                    newHouse.assignedRoomTemplateId = data.assignedRoomTemplateId
                 }
             }
             state.worldState.entryPoints.forEach { data ->

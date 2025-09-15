@@ -108,7 +108,8 @@ data class HouseData(
     var position: Vector3 = Vector3(),
     var isLocked: Boolean = false,
     var rotationY: Float = 0f,
-    var entryPointId: String? = null
+    var entryPointId: String? = null,
+    var assignedRoomTemplateId: String? = null
 )
 
 data class LightData(

@@ -417,12 +417,15 @@ class BlockSystem {
             geometryRotation = this.currentGeometryRotation,
             textureRotation = this.currentTextureRotation,
             topTextureRotation = this.currentTopTextureRotation
-        ).copy(isMissionOwned = isMissionOwned)
+        ).copy(isMissionOwned = isMissionOwned) // Apply the mission flag
 
-        // The only call needed now
-        sceneManager.addBlock(gameBlock)
+        // If it was a mission block, create and save the event
         if (isMissionOwned) {
-            val mission = sceneManager.game.uiManager.selectedMissionForEditing ?: return
+            val mission = sceneManager.game.uiManager.selectedMissionForEditing
+            if (mission == null) {
+                println("ERROR: Tried to place a mission block but no mission is selected!")
+                return // Don't place the block
+            }
             val event = GameEvent(
                 type = GameEventType.SPAWN_BLOCK,
                 spawnPosition = gameBlock.position,
@@ -435,8 +438,14 @@ class BlockSystem {
             )
             mission.eventsOnStart.add(event)
             sceneManager.game.missionSystem.saveMission(mission)
-            sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_BLOCK to '${mission.title}'")
+            // Only show the message for the primary block in an area fill
+            if (sceneManager.game.lastPlacedInstance !is GameBlock) {
+                sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_BLOCK to '${mission.title}'")
+            }
         }
+
+        sceneManager.addBlock(gameBlock)
+        sceneManager.game.lastPlacedInstance = gameBlock
     }
 
     private fun removeBlock(blockToRemove: GameBlock) {

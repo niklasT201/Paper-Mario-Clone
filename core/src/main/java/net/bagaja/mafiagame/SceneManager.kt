@@ -117,16 +117,16 @@ class SceneManager(
         activeMissionPreviewItems.clear()
         activeMissionPreviewHouses.clear()
         activeMissionPreviewObjects.clear()
-        println("Cleared all mission preview entities.")
-    }
 
-    fun clearMissionBlockPreviews() {
+        // Also remove any preview blocks
         val blocksToRemove = activeChunkManager.getAllBlocks().filter { it.isMissionOwned }
         if (blocksToRemove.isNotEmpty()) {
             println("Removing ${blocksToRemove.size} mission preview blocks...")
             blocksToRemove.forEach { removeBlock(it) }
             activeChunkManager.processDirtyChunks() // Force the chunks to rebuild their visuals
         }
+
+        println("Cleared all mission preview entities.")
     }
 
     fun addBlock(block: GameBlock) {

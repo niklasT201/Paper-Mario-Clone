@@ -145,7 +145,6 @@ class MissionEditorUI(
         modeSwitchButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 uiManager.game.sceneManager.clearMissionPreviews() // Clear old previews
-                uiManager.game.sceneManager.clearMissionBlockPreviews()
                 if (uiManager.currentEditorMode == EditorMode.WORLD) {
                     uiManager.currentEditorMode = EditorMode.MISSION
                     modeSwitchButton.setText("Mode: Mission Editing")
@@ -278,56 +277,50 @@ class MissionEditorUI(
             }
         }
 
+        // --- Common Fields ---
         val targetIdField = TextField(existingEvent?.targetId ?: "", skin)
         val posXField = TextField(existingEvent?.spawnPosition?.x?.toString() ?: "0", skin)
         val posYField = TextField(existingEvent?.spawnPosition?.y?.toString() ?: "0", skin)
         val posZField = TextField(existingEvent?.spawnPosition?.z?.toString() ?: "0", skin)
 
-        val enemyTypeSelect = SelectBox<String>(skin).apply {
-            items = GdxArray(EnemyType.entries.map { it.displayName }.toTypedArray())
-            if (existingEvent?.enemyType != null) selected = existingEvent.enemyType.displayName
-        }
-        val npcTypeSelect = SelectBox<String>(skin).apply {
-            items = GdxArray(NPCType.entries.map { it.displayName }.toTypedArray())
-            if (existingEvent?.npcType != null) selected = existingEvent.npcType.displayName
-        }
-        val carTypeSelect = SelectBox<String>(skin).apply {
-            items = GdxArray(CarType.entries.map { it.displayName }.toTypedArray())
-            if (existingEvent?.carType != null) selected = existingEvent.carType.displayName
-        }
-        val itemTypeSelect = SelectBox<String>(skin).apply {
-            items = GdxArray(ItemType.entries.map { it.displayName }.toTypedArray())
-            if (existingEvent?.itemType != null) selected = existingEvent.itemType.displayName
-        }
+        // --- Event-Specific Fields ---
+        val enemyTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(EnemyType.entries.map { it.displayName }.toTypedArray()); if (existingEvent?.enemyType != null) selected = existingEvent.enemyType.displayName }
+        val npcTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(NPCType.entries.map { it.displayName }.toTypedArray()); if (existingEvent?.npcType != null) selected = existingEvent.npcType.displayName }
+        val carTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(CarType.entries.map { it.displayName }.toTypedArray()); if (existingEvent?.carType != null) selected = existingEvent.carType.displayName }
+        val itemTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(ItemType.entries.map { it.displayName }.toTypedArray()); if (existingEvent?.itemType != null) selected = existingEvent.itemType.displayName }
         val moneyValueField = TextField(existingEvent?.itemValue?.toString() ?: "100", skin)
+        val houseTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(HouseType.entries.map { it.displayName }.toTypedArray()); if (existingEvent?.houseType != null) selected = existingEvent.houseType.displayName }
+        val objectTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(ObjectType.entries.map { it.displayName }.toTypedArray()); if (existingEvent?.objectType != null) selected = existingEvent.objectType.displayName }
+        val blockTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(BlockType.entries.map { it.displayName }.toTypedArray()); if (existingEvent?.blockType != null) selected = existingEvent.blockType.displayName }
 
-        val specificSettingsContainer = Table()
+        // --- Layout Tables for each Event Type ---
+        val targetIdTable = Table(skin).apply { add("Target/Spawn ID:"); add(targetIdField).growX() }
+        val posTable = Table(skin).apply { add("Spawn Pos X:"); add(posXField).width(60f); add("Y:"); add(posYField).width(60f); add("Z:"); add(posZField).width(60f) }
+
         val enemyTable = Table(skin).apply { add("Enemy Type:"); add(enemyTypeSelect).growX() }
         val npcTable = Table(skin).apply { add("NPC Type:"); add(npcTypeSelect).growX() }
         val carTable = Table(skin).apply { add("Car Type:"); add(carTypeSelect).growX() }
         val itemTable = Table(skin).apply { add("Item Type:"); add(itemTypeSelect).growX() }
         val moneyTable = Table(skin).apply { add("Amount:"); add(moneyValueField).width(100f) }
+        val houseTable = Table(skin).apply { add("House Type:"); add(houseTypeSelect).growX() }
+        val objectTable = Table(skin).apply { add("Object Type:"); add(objectTypeSelect).growX() }
+        val blockTable = Table(skin).apply { add("Block Type:"); add(blockTypeSelect).growX() }
 
-        // Using a Stack is cleaner than showing/hiding individual tables
+        // Stack to hold all the specific settings panels
         val settingsStack = Stack()
         settingsStack.add(enemyTable)
         settingsStack.add(npcTable)
         settingsStack.add(carTable)
         settingsStack.add(itemTable)
         settingsStack.add(moneyTable)
-        specificSettingsContainer.add(settingsStack).growX()
-
-
-        val targetIdTable = Table(skin).apply { add("Target/Spawn ID:"); add(targetIdField).growX() }
-        val posTable = Table(skin).apply {
-            add("Spawn Pos X:"); add(posXField).width(60f); add("Y:"); add(posYField).width(60f); add("Z:"); add(posZField).width(60f)
-        }
+        settingsStack.add(houseTable)
+        settingsStack.add(objectTable)
+        settingsStack.add(blockTable)
 
         content.add("Event Type:"); content.add(typeSelect).row()
         content.add(targetIdTable).colspan(2).growX().row()
         content.add(posTable).colspan(2).growX().row()
-        content.add(specificSettingsContainer).colspan(2).growX().row()
-
+        content.add(settingsStack).colspan(2).growX().row()
 
         fun updateVisibleFields() {
             val type = GameEventType.valueOf(typeSelect.selected)
@@ -336,13 +329,17 @@ class MissionEditorUI(
             posTable.isVisible = isSpawn
             targetIdTable.isVisible = type == GameEventType.SPAWN_ENEMY || type == GameEventType.SPAWN_NPC || type == GameEventType.DESPAWN_ENTITY
 
+            // Control visibility of each panel in the stack
             enemyTable.isVisible = type == GameEventType.SPAWN_ENEMY
             npcTable.isVisible = type == GameEventType.SPAWN_NPC
             carTable.isVisible = type == GameEventType.SPAWN_CAR
             itemTable.isVisible = type == GameEventType.SPAWN_ITEM
             moneyTable.isVisible = type == GameEventType.SPAWN_MONEY_STACK
+            houseTable.isVisible = type == GameEventType.SPAWN_HOUSE
+            objectTable.isVisible = type == GameEventType.SPAWN_OBJECT
+            blockTable.isVisible = type == GameEventType.SPAWN_BLOCK
 
-            dialog.pack() // This should now be safe
+            dialog.pack()
         }
 
         typeSelect.addListener(object: ChangeListener() {
@@ -359,16 +356,17 @@ class MissionEditorUI(
                     npcType = NPCType.entries.find { it.displayName == npcTypeSelect.selected },
                     carType = CarType.entries.find { it.displayName == carTypeSelect.selected },
                     itemType = ItemType.entries.find { it.displayName == itemTypeSelect.selected },
-                    itemValue = moneyValueField.text.toIntOrNull() ?: 100
+                    itemValue = moneyValueField.text.toIntOrNull() ?: 100,
+                    houseType = HouseType.entries.find { it.displayName == houseTypeSelect.selected },
+                    objectType = ObjectType.entries.find { it.displayName == objectTypeSelect.selected },
+                    blockType = BlockType.entries.find { it.displayName == blockTypeSelect.selected }
                 )
                 onSave(newEvent)
-                // dialog.hide() is handled by the button itself
             }
         })
         dialog.button("Cancel")
 
-        updateVisibleFields()
-
+        updateVisibleFields() // Set initial state
         dialog.show(stage)
     }
 
@@ -397,6 +395,9 @@ class MissionEditorUI(
             GameEventType.SPAWN_HOUSE -> "SPAWN House: ${event.houseType?.displayName}"
             GameEventType.SPAWN_OBJECT -> "SPAWN Object: ${event.objectType?.displayName}"
             GameEventType.SPAWN_BLOCK -> "SPAWN Block: ${event.blockType?.displayName}"
+            GameEventType.SPAWN_SPAWNER -> "SPAWN Spawner (${event.spawnerType?.name})"
+            GameEventType.SPAWN_TELEPORTER -> "SPAWN Teleporter: '${event.teleporterName}'"
+            GameEventType.SPAWN_FIRE -> "SPAWN Fire"
         }
         table.add(Label(text, skin)).growX()
         val editButton = TextButton("Edit", skin)
