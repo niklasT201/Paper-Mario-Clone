@@ -808,7 +808,7 @@ class SceneManager(
         activeChunkManager.processDirtyChunks()
     }
 
-    private fun saveCurrentInteriorState() {
+    fun saveCurrentInteriorState() {
         val id = currentInteriorId ?: return
         val currentState = interiorStates.getOrPut(id) { getInteriorStateFor(id) }
         println("Saving state for interior instance: $id")
@@ -1299,7 +1299,7 @@ class SceneManager(
         activeNPCs.forEach { npc ->
             // Convert the NPC's live inventory into savable ItemData
             val inventoryData = npc.inventory.map { gameItem ->
-                ItemData(gameItem.itemType, gameItem.position, gameItem.ammo, gameItem.value)
+                ItemData(gameItem.id, gameItem.itemType, gameItem.position, gameItem.ammo, gameItem.value)
             }
 
             elements.add(RoomElement(

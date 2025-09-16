@@ -325,7 +325,7 @@ data class GameHouse(
     var assignedRoomTemplateId: String? = null,
     var exitDoorId: String? = null,
     var rotationY: Float = 0f,
-    val id: String = UUID.randomUUID().toString(),
+    var id: String = UUID.randomUUID().toString(),
     var entryPointId: String? = null
 ) {
     // Data for Mesh Collision

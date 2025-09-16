@@ -442,7 +442,7 @@ data class GameItem(
     var ammo: Int = itemType.ammoAmount,
     var value: Int = itemType.value, // This is the changed line
     var pickupDelay: Float = 0f,
-    val id: String = UUID.randomUUID().toString()
+    var id: String = UUID.randomUUID().toString()
 ) {
     init {
         // Random bobbing offset so items don't all bob in sync

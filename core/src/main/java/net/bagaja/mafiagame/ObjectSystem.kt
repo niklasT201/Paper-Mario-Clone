@@ -638,6 +638,16 @@ class ObjectSystem: IFinePositionable {
         return lightSource
     }
 
+    fun loadLightSource(lightSource: LightSource) {
+        // Manually insert the light source with its saved ID
+        lightSources[lightSource.id] = lightSource
+
+        // IMPORTANT: Ensure the next auto-generated ID is higher than any loaded ID
+        if (lightSource.id >= nextLightId) {
+            nextLightId = lightSource.id + 1
+        }
+    }
+
     fun removeLightSource(lightId: Int): LightSource? {
         val lightSource = lightSources.remove(lightId)
         lightSource?.dispose()

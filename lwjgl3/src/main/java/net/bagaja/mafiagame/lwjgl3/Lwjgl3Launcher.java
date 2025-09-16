@@ -76,6 +76,9 @@ public class Lwjgl3Launcher {
 // id under mission name
 // C button to copy mission id
 // Spawner, Fire, and Teleporter Systems (Placement Logic) for missions working
+// save spawner id
+// loading in rooms, room will be placed in world
+// missions objects can be removed after a mission, and be mission only
 // light sources visible in user mode
 // mission loader
 // fast loading mission

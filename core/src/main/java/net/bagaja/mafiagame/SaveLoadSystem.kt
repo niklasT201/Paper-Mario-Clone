@@ -73,7 +73,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
             sm.activeEnemies.forEach { e ->
                 world.enemies.add(EnemyData(
                     e.id, e.enemyType, e.behaviorType, e.position, e.health,
-                    GdxArray(e.inventory.map { i -> ItemData(i.itemType, i.position, i.ammo, i.value) }.toTypedArray()),
+                    GdxArray(e.inventory.map { i -> ItemData(i.id, i.itemType, i.position, i.ammo, i.value) }.toTypedArray()),
                     ObjectMap<WeaponType, Int>().apply {
                         e.weapons.forEach { (weapon, ammo) ->
                             put(weapon, ammo)
@@ -83,20 +83,22 @@ class SaveLoadSystem(private val game: MafiaGame) {
                 ))
             }
             sm.activeNPCs.forEach { n -> world.npcs.add(NpcData(n.id, n.npcType, n.behaviorType, n.position, n.health)) }
-            sm.activeItems.forEach { i -> world.items.add(ItemData(i.itemType, i.position, i.ammo, i.value)) }
-            sm.activeObjects.forEach { o -> world.objects.add(ObjectData(o.objectType, o.position)) }
+            sm.activeItems.forEach { i -> world.items.add(ItemData(i.id, i.itemType, i.position, i.ammo, i.value)) }
+            sm.activeObjects.forEach { o -> world.objects.add(ObjectData(o.id, o.objectType, o.position, o.associatedLightId)) }
             sm.activeHouses.forEach { h ->
                 world.houses.add(HouseData(
+                    h.id,
                     h.houseType,
                     h.position,
                     h.isLocked,
                     h.rotationY,
                     h.entryPointId,
-                    h.assignedRoomTemplateId
+                    h.assignedRoomTemplateId,
+                    h.exitDoorId
                 ))
             }
             sm.activeEntryPoints.forEach { ep -> world.entryPoints.add(EntryPointData(ep.id, ep.houseId, ep.position)) }
-            game.lightingManager.getLightSources().values.forEach { l -> world.lights.add(LightData(l.position, l.color, l.intensity, l.range)) }
+            game.lightingManager.getLightSources().values.forEach { l -> world.lights.add(LightData(l.id, l.position, l.color, l.intensity, l.range)) }
             sm.activeSpawners.forEach { s ->
                 world.spawners.add(SpawnerData(
                     id = s.id,
@@ -251,15 +253,29 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     }
                 }
             }
-            state.worldState.items.forEach { data -> game.itemSystem.createItem(data.position, data.itemType)?.let { it.ammo = data.ammo; it.value = data.value; sm.activeItems.add(it) } }
-            state.worldState.objects.forEach { data -> game.objectSystem.createGameObjectWithLight(data.objectType, data.position, game.lightingManager)?.let { sm.activeObjects.add(it) } }
+            state.worldState.items.forEach { data -> game.itemSystem.createItem(data.position, data.itemType)?.let {
+                it.id = data.id
+                it.ammo = data.ammo
+                it.value = data.value
+                sm.activeItems.add(it)
+            } }
+            state.worldState.objects.forEach { data ->
+                // Create the GameObject with its saved ID and light link
+                val gameObject = game.objectSystem.createGameObjectWithLight(data.objectType, data.position, game.lightingManager)
+                if (gameObject != null) {
+                    gameObject.id = data.id
+                    gameObject.associatedLightId = data.associatedLightId
+                    sm.activeObjects.add(gameObject)
+                }
+            }
             state.worldState.houses.forEach { data ->
                 game.houseSystem.currentRotation = data.rotationY
                 val newHouse = game.houseSystem.addHouse(data.position.x, data.position.y, data.position.z, data.houseType, data.isLocked)
                 if (newHouse != null) {
-                    // Restore the link to the custom entry point
+                    newHouse.id = data.id
                     newHouse.entryPointId = data.entryPointId
                     newHouse.assignedRoomTemplateId = data.assignedRoomTemplateId
+                    newHouse.exitDoorId = data.exitDoorId
                 }
             }
             state.worldState.entryPoints.forEach { data ->
@@ -268,7 +284,14 @@ class SaveLoadSystem(private val game: MafiaGame) {
                 sm.activeEntryPoints.add(entryPoint)
             }
             state.worldState.lights.forEach { data ->
-                val light = game.objectSystem.createLightSource(data.position, data.intensity, data.range, data.color)
+                val light = LightSource(
+                    id = data.id,
+                    position = data.position,
+                    intensity = data.intensity,
+                    range = data.range,
+                    color = data.color
+                )
+                game.objectSystem.loadLightSource(light)
                 game.lightingManager.addLightSource(light, game.objectSystem.createLightSourceInstances(light))
             }
             state.worldState.spawners.forEach { data ->

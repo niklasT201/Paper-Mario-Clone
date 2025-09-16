@@ -132,6 +132,7 @@ data class NpcData(
 )
 
 data class ItemData(
+    var id: String = "",
     var itemType: ItemType = ItemType.MONEY_STACK,
     var position: Vector3 = Vector3(),
     var ammo: Int = 0,
@@ -139,20 +140,25 @@ data class ItemData(
 )
 
 data class ObjectData(
+    var id: Int = 0,
     var objectType: ObjectType = ObjectType.TREE,
-    var position: Vector3 = Vector3()
+    var position: Vector3 = Vector3(),
+    var associatedLightId: Int? = null
 )
 
 data class HouseData(
+    var id: String = "",
     var houseType: HouseType = HouseType.HOUSE_1,
     var position: Vector3 = Vector3(),
     var isLocked: Boolean = false,
     var rotationY: Float = 0f,
     var entryPointId: String? = null,
-    var assignedRoomTemplateId: String? = null
+    var assignedRoomTemplateId: String? = null,
+    var exitDoorId: String? = null // <-- ADD THIS
 )
 
 data class LightData(
+    var id: Int = 0,
     var position: Vector3 = Vector3(),
     var color: Color = Color.WHITE,
     var intensity: Float = 50f,
@@ -160,13 +166,12 @@ data class LightData(
 )
 
 data class SpawnerData(
-    var id: String = "", // --- ADDED: Essential for tracking spawned entities
+    var id: String = "",
     var position: Vector3 = Vector3(),
     var spawnerType: SpawnerType = SpawnerType.PARTICLE,
     var spawnInterval: Float = 5.0f,
     var minSpawnRange: Float = 0f,
     var maxSpawnRange: Float = 100f,
-    // --- ADDED: All the missing spawner properties ---
     var spawnerMode: SpawnerMode = SpawnerMode.CONTINUOUS,
     var isDepleted: Boolean = false,
     var spawnOnlyWhenPreviousIsGone: Boolean = false,
