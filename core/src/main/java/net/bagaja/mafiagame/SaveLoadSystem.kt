@@ -69,22 +69,37 @@ class SaveLoadSystem(private val game: MafiaGame) {
             val world = WorldStateData()
             world.dayNightCycleTime = game.lightingManager.getDayNightCycle().currentTime
             sm.activeChunkManager.getAllBlocks().forEach { b -> world.blocks.add(BlockData(b.blockType, b.shape, b.position, b.rotationY, b.textureRotationY, b.topTextureRotationY, b.cameraVisibility)) }
-            sm.activeCars.forEach { c -> world.cars.add(CarData(c.id, c.carType, c.position, c.health, c.isLocked, (c.seats.first()?.occupant as? GameEnemy)?.id ?: (c.seats.first()?.occupant as? GameNPC)?.id)) }
+            sm.activeCars.forEach { c ->
+                world.cars.add(CarData(
+                    c.id, c.carType, c.position, c.health, c.isLocked,
+                    (c.seats.first()?.occupant as? GameEnemy)?.id ?: (c.seats.first()?.occupant as? GameNPC)?.id,
+                    c.state, c.wreckedTimer, c.fadeOutTimer, c.visualRotationY
+                ))
+            }
             sm.activeEnemies.forEach { e ->
                 world.enemies.add(EnemyData(
                     e.id, e.enemyType, e.behaviorType, e.position, e.health,
                     GdxArray(e.inventory.map { i -> ItemData(i.id, i.itemType, i.position, i.ammo, i.value) }.toTypedArray()),
-                    ObjectMap<WeaponType, Int>().apply {
-                        e.weapons.forEach { (weapon, ammo) ->
-                            put(weapon, ammo)
-                        }
-                    },
-                    e.equippedWeapon
+                    ObjectMap<WeaponType, Int>().apply { e.weapons.forEach { (w, a) -> put(w, a) } },
+                    e.equippedWeapon,
+                    e.currentState, e.currentMagazineCount, e.provocationLevel
                 ))
             }
-            sm.activeNPCs.forEach { n -> world.npcs.add(NpcData(n.id, n.npcType, n.behaviorType, n.position, n.health)) }
+            sm.activeNPCs.forEach { n ->
+                world.npcs.add(NpcData(
+                    n.id, n.npcType, n.behaviorType, n.position, n.health,
+                    n.currentState, n.provocationLevel,
+                    GdxArray(n.inventory.map { i -> ItemData(i.id, i.itemType, i.position, i.ammo, i.value) }.toTypedArray()),
+                    n.isHonest, n.canCollectItems
+                ))
+            }
             sm.activeItems.forEach { i -> world.items.add(ItemData(i.id, i.itemType, i.position, i.ammo, i.value)) }
-            sm.activeObjects.forEach { o -> world.objects.add(ObjectData(o.id, o.objectType, o.position, o.associatedLightId)) }
+            sm.activeObjects.forEach { o ->
+                world.objects.add(ObjectData(
+                    o.id, o.objectType, o.position, o.associatedLightId,
+                    o.isBroken
+                ))
+            }
             sm.activeHouses.forEach { h ->
                 world.houses.add(HouseData(
                     h.id,
@@ -98,7 +113,13 @@ class SaveLoadSystem(private val game: MafiaGame) {
                 ))
             }
             sm.activeEntryPoints.forEach { ep -> world.entryPoints.add(EntryPointData(ep.id, ep.houseId, ep.position)) }
-            game.lightingManager.getLightSources().values.forEach { l -> world.lights.add(LightData(l.id, l.position, l.color, l.intensity, l.range)) }
+            game.lightingManager.getLightSources().values.forEach { l ->
+                world.lights.add(LightData(
+                    l.id, l.position, l.color, l.intensity, l.range,
+                    l.isEnabled, l.flickerMode, l.loopOnDuration, l.loopOffDuration, l.timedFlickerLifetime,
+                    l.rotationX, l.rotationY, l.rotationZ
+                ))
+            }
             sm.activeSpawners.forEach { s ->
                 world.spawners.add(SpawnerData(
                     id = s.id,
@@ -227,7 +248,12 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     it.health = data.health
                     data.weapons.forEach { entry -> it.weapons[entry.key] = entry.value }
                     it.equippedWeapon = data.equippedWeapon
-                    it.inventory.addAll(data.inventory.map { iData -> game.itemSystem.createItem(iData.position, iData.itemType)!!.apply { ammo = iData.ammo; value = iData.value } })
+                    it.inventory.addAll(data.inventory.map { iData -> game.itemSystem.createItem(iData.position, iData.itemType)!!.apply { id = iData.id; ammo = iData.ammo; value = iData.value } })
+
+                    it.currentState = data.currentState
+                    it.currentMagazineCount = data.currentMagazineCount
+                    it.provocationLevel = data.provocationLevel
+
                     game.enemySystem.updateEnemyTexture(it)
                     sm.activeEnemies.add(it)
                     enemyMap[it.id] = it
@@ -235,9 +261,13 @@ class SaveLoadSystem(private val game: MafiaGame) {
             }
             val npcMap = mutableMapOf<String, GameNPC>()
             state.worldState.npcs.forEach { data ->
-                val config = NPCSpawnConfig(id = data.id, npcType = data.npcType, behavior = data.behaviorType, position = data.position)
+                val config = NPCSpawnConfig(id = data.id, npcType = data.npcType, behavior = data.behaviorType, position = data.position, isHonest = data.isHonest, canCollectItems = data.canCollectItems)
                 game.npcSystem.createNPC(config)?.let {
                     it.health = data.health
+                    it.currentState = data.currentState
+                    it.provocationLevel = data.provocationLevel
+                    it.inventory.addAll(data.inventory.map { iData -> game.itemSystem.createItem(iData.position, iData.itemType)!!.apply { id = iData.id; ammo = iData.ammo; value = iData.value } })
+
                     sm.activeNPCs.add(it)
                     npcMap[it.id] = it
                 }
@@ -246,11 +276,19 @@ class SaveLoadSystem(private val game: MafiaGame) {
             state.worldState.blocks.forEach { data -> sm.addBlock(game.blockSystem.createGameBlock(data.blockType, data.shape, data.position, data.rotationY, data.textureRotationY, data.topTextureRotationY).copy(cameraVisibility = data.cameraVisibility)) }
             sm.activeChunkManager.processDirtyChunks()
             state.worldState.cars.forEach { data ->
-                game.carSystem.spawnCar(data.position, data.carType, data.isLocked, 0f)?.let {
-                    it.health = data.health
+                game.carSystem.spawnCar(data.position, data.carType, data.isLocked, 0f)?.let { car ->
+                    car.id = data.id
+                    car.health = data.health
+
+                    car.state = data.state
+                    car.wreckedTimer = data.wreckedTimer
+                    car.fadeOutTimer = data.fadeOutTimer
+                    car.visualRotationY = data.visualRotationY
+
                     data.driverId?.let { driverId ->
-                        enemyMap[driverId]?.enterCar(it) ?: npcMap[driverId]?.enterCar(it)
+                        enemyMap[driverId]?.enterCar(car) ?: npcMap[driverId]?.enterCar(car)
                     }
+                    sm.activeCars.add(car)
                 }
             }
             state.worldState.items.forEach { data -> game.itemSystem.createItem(data.position, data.itemType)?.let {
@@ -260,12 +298,12 @@ class SaveLoadSystem(private val game: MafiaGame) {
                 sm.activeItems.add(it)
             } }
             state.worldState.objects.forEach { data ->
-                // Create the GameObject with its saved ID and light link
-                val gameObject = game.objectSystem.createGameObjectWithLight(data.objectType, data.position, game.lightingManager)
-                if (gameObject != null) {
-                    gameObject.id = data.id
-                    gameObject.associatedLightId = data.associatedLightId
-                    sm.activeObjects.add(gameObject)
+                game.objectSystem.createGameObjectWithLight(data.objectType, data.position, game.lightingManager)?.let { obj ->
+                    obj.id = data.id
+                    obj.associatedLightId = data.associatedLightId
+                    obj.isBroken = data.isBroken
+
+                    sm.activeObjects.add(obj)
                 }
             }
             state.worldState.houses.forEach { data ->
@@ -285,11 +323,9 @@ class SaveLoadSystem(private val game: MafiaGame) {
             }
             state.worldState.lights.forEach { data ->
                 val light = LightSource(
-                    id = data.id,
-                    position = data.position,
-                    intensity = data.intensity,
-                    range = data.range,
-                    color = data.color
+                    data.id, data.position, data.intensity, data.range, data.color,
+                    data.isEnabled, data.rotationX, data.rotationY, data.rotationZ,
+                    data.flickerMode, data.loopOnDuration, data.loopOffDuration, data.timedFlickerLifetime
                 )
                 game.objectSystem.loadLightSource(light)
                 game.lightingManager.addLightSource(light, game.objectSystem.createLightSourceInstances(light))

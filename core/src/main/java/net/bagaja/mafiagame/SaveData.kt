@@ -109,7 +109,11 @@ data class CarData(
     var position: Vector3 = Vector3(),
     var health: Float = 100f,
     var isLocked: Boolean = false,
-    var driverId: String? = null // The ID of the NPC or Enemy driving it
+    var driverId: String? = null,
+    var state: CarState = CarState.DRIVABLE,
+    var wreckedTimer: Float = 0f,
+    var fadeOutTimer: Float = 0f,
+    var visualRotationY: Float = 0f
 )
 
 data class EnemyData(
@@ -120,7 +124,10 @@ data class EnemyData(
     var health: Float = 100f,
     var inventory: GdxArray<ItemData> = GdxArray(),
     var weapons: ObjectMap<WeaponType, Int> = ObjectMap(),
-    var equippedWeapon: WeaponType = WeaponType.UNARMED
+    var equippedWeapon: WeaponType = WeaponType.UNARMED,
+    var currentState: AIState = AIState.IDLE,
+    var currentMagazineCount: Int = 0,
+    var provocationLevel: Float = 0f
 )
 
 data class NpcData(
@@ -128,7 +135,12 @@ data class NpcData(
     var npcType: NPCType = NPCType.GEORGE_MELES,
     var behaviorType: NPCBehavior = NPCBehavior.WANDER,
     var position: Vector3 = Vector3(),
-    var health: Float = 100f
+    var health: Float = 100f,
+    var currentState: NPCState = NPCState.IDLE,
+    var provocationLevel: Float = 0f,
+    var inventory: GdxArray<ItemData> = GdxArray(),
+    var isHonest: Boolean = true,
+    var canCollectItems: Boolean = true
 )
 
 data class ItemData(
@@ -143,7 +155,8 @@ data class ObjectData(
     var id: Int = 0,
     var objectType: ObjectType = ObjectType.TREE,
     var position: Vector3 = Vector3(),
-    var associatedLightId: Int? = null
+    var associatedLightId: Int? = null,
+    var isBroken: Boolean = false
 )
 
 data class HouseData(
@@ -154,7 +167,7 @@ data class HouseData(
     var rotationY: Float = 0f,
     var entryPointId: String? = null,
     var assignedRoomTemplateId: String? = null,
-    var exitDoorId: String? = null // <-- ADD THIS
+    var exitDoorId: String? = null
 )
 
 data class LightData(
@@ -162,7 +175,15 @@ data class LightData(
     var position: Vector3 = Vector3(),
     var color: Color = Color.WHITE,
     var intensity: Float = 50f,
-    var range: Float = 50f
+    var range: Float = 50f,
+    var isEnabled: Boolean = true,
+    var flickerMode: FlickerMode = FlickerMode.NONE,
+    var loopOnDuration: Float = 0.1f,
+    var loopOffDuration: Float = 0.1f,
+    var timedFlickerLifetime: Float = 10f,
+    var rotationX: Float = 0f,
+    var rotationY: Float = 0f,
+    var rotationZ: Float = 0f
 )
 
 data class SpawnerData(

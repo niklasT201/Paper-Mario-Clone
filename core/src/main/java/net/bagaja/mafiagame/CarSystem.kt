@@ -452,7 +452,7 @@ data class GameCar(
     val modelInstance: ModelInstance,
     val carType: CarType,
     val position: Vector3,
-    val id: String = java.util.UUID.randomUUID().toString(),
+    var id: String = java.util.UUID.randomUUID().toString(),
     var direction: Float = 0f,
     val isLocked: Boolean = false,
     var health: Float = carType.baseHealth,
@@ -477,8 +477,8 @@ data class GameCar(
     var state: CarState = CarState.DRIVABLE
     var isVisible: Boolean = true
     private var wreckSpawnTimer: Float = 0f
-    private var wreckedTimer: Float = 0f
-    private var fadeOutTimer: Float = FADE_OUT_DURATION
+    var wreckedTimer: Float = 0f
+    var fadeOutTimer: Float = FADE_OUT_DURATION
 
     // Convenience properties
     val isDestroyed: Boolean get() = state == CarState.WRECKED || state == CarState.FADING_OUT
