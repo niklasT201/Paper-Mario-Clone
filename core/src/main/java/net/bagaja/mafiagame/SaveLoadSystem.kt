@@ -276,14 +276,14 @@ class SaveLoadSystem(private val game: MafiaGame) {
             state.worldState.blocks.forEach { data -> sm.addBlock(game.blockSystem.createGameBlock(data.blockType, data.shape, data.position, data.rotationY, data.textureRotationY, data.topTextureRotationY).copy(cameraVisibility = data.cameraVisibility)) }
             sm.activeChunkManager.processDirtyChunks()
             state.worldState.cars.forEach { data ->
-                game.carSystem.spawnCar(data.position, data.carType, data.isLocked, 0f)?.let { car ->
+                game.carSystem.spawnCar(data.position, data.carType, data.isLocked, data.visualRotationY)?.let { car ->
                     car.id = data.id
                     car.health = data.health
 
                     car.state = data.state
                     car.wreckedTimer = data.wreckedTimer
                     car.fadeOutTimer = data.fadeOutTimer
-                    car.visualRotationY = data.visualRotationY
+                    // car.visualRotationY is now set during creation
 
                     data.driverId?.let { driverId ->
                         enemyMap[driverId]?.enterCar(car) ?: npcMap[driverId]?.enterCar(car)
@@ -302,6 +302,16 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     obj.id = data.id
                     obj.associatedLightId = data.associatedLightId
                     obj.isBroken = data.isBroken
+
+                    // Also check if the light needs to be disabled for a broken object
+                    if (obj.isBroken) {
+                        obj.associatedLightId?.let { lightId ->
+                            game.lightingManager.getLightSources()[lightId]?.let { lightSource ->
+                                lightSource.isEnabled = false
+                                lightSource.updatePointLight()
+                            }
+                        }
+                    }
 
                     sm.activeObjects.add(obj)
                 }

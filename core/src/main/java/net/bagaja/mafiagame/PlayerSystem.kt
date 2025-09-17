@@ -161,8 +161,6 @@ class PlayerSystem {
     val bulletModels = mutableMapOf<String, Model>()
     private val throwableModels = mutableMapOf<WeaponType, Model>()
 
-    val activeBullets = Array<Bullet>()
-    private val activeThrowables = Array<ThrowableEntity>()
     private var teleportCooldown = 0f
     lateinit var bloodPoolSystem: BloodPoolSystem
     private lateinit var footprintSystem: FootprintSystem
@@ -223,7 +221,6 @@ class PlayerSystem {
         headlightLight = carLight
         // Directly add its PointLight to the environment. It is now a transient effect.
         lightingManager.getEnvironment().add(carLight.createPointLight())
-        activeBullets.clear()
     }
 
     private fun setupBillboardShader() {
@@ -655,11 +652,10 @@ class PlayerSystem {
             lifetime = 3.0f // 3-second fuse for dynamite
         )
 
-        activeThrowables.add(throwable)
+        sceneManager.activeThrowables.add(throwable)
 
-        println("Threw ${equippedWeapon.displayName} with power ${throwPower}")
+        println("Threw ${equippedWeapon.displayName} with power $throwPower")
 
-        // --- ADD THIS LINE AT THE END ---
         // After throwing, check if that was the last one.
         checkAndRemoveWeaponIfOutOfAmmo()
     }
@@ -709,7 +705,7 @@ class PlayerSystem {
             rotationY = bulletRotation,
             owner = this
         )
-        activeBullets.add(bullet)
+        sceneManager.activeBullets.add(bullet)
 
         // Trigger camera shake for heavy weapons
         if (equippedWeapon == WeaponType.MACHINE_GUN || equippedWeapon == WeaponType.TOMMY_GUN) {
@@ -1422,7 +1418,7 @@ class PlayerSystem {
             updatePlayerTexture(it)
         }
 
-        val bulletIterator = activeBullets.iterator()
+        val bulletIterator = sceneManager.activeBullets.iterator()
         while (bulletIterator.hasNext()) {
             val bullet = bulletIterator.next()
             bullet.update(deltaTime)
@@ -1510,7 +1506,7 @@ class PlayerSystem {
             }
         }
 
-        val throwableIterator = activeThrowables.iterator()
+        val throwableIterator = sceneManager.activeThrowables.iterator()
         while (throwableIterator.hasNext()) {
             val throwable = throwableIterator.next()
             throwable.update(deltaTime)
@@ -2043,12 +2039,12 @@ class PlayerSystem {
         }
 
         // Render all active bullets
-        for (bullet in activeBullets) {
+        for (bullet in sceneManager.activeBullets) {
             billboardModelBatch.render(bullet.modelInstance, environment)
         }
 
         // Render all active throwables
-        for (throwable in activeThrowables) {
+        for (throwable in sceneManager.activeThrowables) {
             billboardModelBatch.render(throwable.modelInstance, environment)
         }
 

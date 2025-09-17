@@ -1224,7 +1224,7 @@ class EnemySystem : IFinePositionable {
             owner = enemy // The owner is the enemy instance
         )
 
-        sceneManager.game.playerSystem.activeBullets.add(bullet)
+        sceneManager.activeBullets.add(bullet)
         println("${enemy.enemyType.displayName} shoots at player!")
     }
 

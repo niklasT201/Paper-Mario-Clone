@@ -60,6 +60,8 @@ class SceneManager(
     val activeBloodPools = Array<BloodPool>()
     val activeFootprints = Array<GameFootprint>()
     val activeBones = Array<GameBone>()
+    val activeBullets = Array<Bullet>()
+    val activeThrowables = Array<ThrowableEntity>()
     val activeMissionPreviewEnemies = Array<GameEnemy>()
     val activeMissionPreviewNPCs = Array<GameNPC>()
     val activeMissionPreviewCars = Array<GameCar>()
@@ -759,7 +761,10 @@ class SceneManager(
             lights = game.lightingManager.getLightSources(),
             bloodPools = Array(activeBloodPools),
             footprints = Array(activeFootprints),
-            bones = Array(activeBones)
+            bones = Array(activeBones),
+            fires = Array(fireSystem.activeFires),
+            bullets = Array(activeBullets),
+            throwables = Array(activeThrowables)
         )
         println("World state saved. Player at ${worldState!!.playerPosition}")
     }
@@ -787,6 +792,9 @@ class SceneManager(
         activeBloodPools.addAll(state.bloodPools)
         activeFootprints.addAll(state.footprints)
         activeBones.addAll(state.bones)
+        fireSystem.activeFires.addAll(state.fires)
+        activeBullets.addAll(state.bullets)
+        activeThrowables.addAll(state.throwables)
 
         setSceneLights(state.lights)
     }
@@ -808,7 +816,7 @@ class SceneManager(
         activeChunkManager.processDirtyChunks()
     }
 
-    fun saveCurrentInteriorState() {
+    private fun saveCurrentInteriorState() {
         val id = currentInteriorId ?: return
         val currentState = interiorStates.getOrPut(id) { getInteriorStateFor(id) }
         println("Saving state for interior instance: $id")
@@ -823,6 +831,9 @@ class SceneManager(
         currentState.bloodPools.clear(); currentState.bloodPools.addAll(activeBloodPools)
         currentState.footprints.clear(); currentState.footprints.addAll(activeFootprints)
         currentState.bones.clear(); currentState.bones.addAll(activeBones)
+        currentState.fires.clear(); currentState.fires.addAll(fireSystem.activeFires)
+        currentState.bullets.clear(); currentState.bullets.addAll(activeBullets)
+        currentState.throwables.clear(); currentState.throwables.addAll(activeThrowables)
         currentState.playerPosition.set(playerSystem.getPosition())
 
         currentState.lights.clear()
@@ -843,6 +854,7 @@ class SceneManager(
         activeBloodPools.addAll(state.bloodPools)
         activeFootprints.addAll(state.footprints)
         activeBones.addAll(state.bones)
+        fireSystem.activeFires.addAll(state.fires)
 
         setSceneLights(state.lights)
     }
@@ -1009,6 +1021,7 @@ class SceneManager(
 
                         // Load all saved spawner properties from the element
                         newSpawner.spawnerType = element.spawnerType ?: newSpawner.spawnerType
+                        newSpawner.spawnerMode = element.spawnerMode ?: newSpawner.spawnerMode
                         newSpawner.spawnInterval = element.spawnerInterval ?: newSpawner.spawnInterval
                         newSpawner.minSpawnRange = element.spawnerMinRange ?: newSpawner.minSpawnRange
                         newSpawner.maxSpawnRange = element.spawnerMaxRange ?: newSpawner.maxSpawnRange
@@ -1097,8 +1110,6 @@ class SceneManager(
                     fireSystem.nextFireDealsDamage = element.dealsDamage ?: true
                     fireSystem.nextFireDamagePerSecond = element.damagePerSecond ?: 10f
                     fireSystem.nextFireDamageRadius = element.damageRadius ?: 5f
-                    // When loading, set both min and max scale to the saved value
-                    // to ensure the fire is created with the exact saved size.
                     fireSystem.nextFireMinScale = element.scale.x
                     fireSystem.nextFireMaxScale = element.scale.x
 
@@ -1320,9 +1331,9 @@ class SceneManager(
                 position = spawner.position.cpy(),
                 elementType = RoomElementType.PARTICLE_SPAWNER,
 
-                // --- THIS BLOCK IS NOW CORRECTED ---
                 // General Spawner Settings
                 spawnerType = spawner.spawnerType,
+                spawnerMode = spawner.spawnerMode,
                 spawnerInterval = spawner.spawnInterval,
                 spawnerMinRange = spawner.minSpawnRange,
                 spawnerMaxRange = spawner.maxSpawnRange,
@@ -1672,6 +1683,9 @@ class SceneManager(
         activeBloodPools.clear()
         activeFootprints.clear()
         activeBones.clear()
+        fireSystem.activeFires.clear()
+        activeBullets.clear()
+        activeThrowables.clear()
 
         // Also clear any active lights from the lighting manager
         val currentLightIds = game.lightingManager.getLightSources().keys.toList()
@@ -1693,7 +1707,10 @@ data class WorldState(
     val lights: Map<Int, LightSource>,
     val bloodPools: Array<BloodPool>,
     val footprints: Array<GameFootprint>,
-    val bones: Array<GameBone>
+    val bones: Array<GameBone>,
+    val fires: Array<GameFire> = Array(),
+    val bullets: Array<Bullet> = Array(),
+    val throwables: Array<ThrowableEntity> = Array()
 )
 
 // The state for a single house interior.
@@ -1715,7 +1732,10 @@ data class InteriorState(
     var sourceTemplateId: String? = null,
     val bloodPools: Array<BloodPool> = Array(),
     val footprints: Array<GameFootprint> = Array(),
-    val bones: Array<GameBone> = Array()
+    val bones: Array<GameBone> = Array(),
+    val fires: Array<GameFire> = Array(),
+    val bullets: Array<Bullet> = Array(),
+    val throwables: Array<ThrowableEntity> = Array()
 )
 
 data class InteriorLayout(

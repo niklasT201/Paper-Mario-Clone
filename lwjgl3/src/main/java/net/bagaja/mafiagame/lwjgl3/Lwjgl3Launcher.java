@@ -83,7 +83,7 @@ public class Lwjgl3Launcher {
 // mission loader
 // fast loading mission
 // multiple profiles
-// dying fire not despawning light source
+// fire and light source being connected
 // connect dialog and mission system
 // adding multiple city areas, district 2d polygons
 // TALK_TO_NPC Logic: The game doesn't yet have a system for initiating conversations with specific NPCs by pressing 'E'.

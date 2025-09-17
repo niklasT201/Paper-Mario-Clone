@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Json
 import com.badlogic.gdx.utils.JsonWriter
+import com.badlogic.gdx.utils.ObjectMap
 import java.util.*
 
 class MissionSystem(val game: MafiaGame) {
@@ -14,18 +15,32 @@ class MissionSystem(val game: MafiaGame) {
     private var gameState = GameState() // This will be loaded from a file later
 
     fun getSaveData(): MissionProgressData {
+        val variablesToSave = ObjectMap<String, Any>()
+
+        activeMission?.missionVariables?.forEach { (key, value) ->
+            variablesToSave.put(key, value)
+        }
+
         return MissionProgressData(
             activeMissionId = activeMission?.definition?.id,
             activeMissionObjectiveIndex = activeMission?.currentObjectiveIndex ?: 0,
-            completedMissionIds = gameState.completedMissionIds
+            completedMissionIds = gameState.completedMissionIds,
+            missionVariables = variablesToSave
         )
     }
 
     fun loadSaveData(data: MissionProgressData) {
         gameState.completedMissionIds = data.completedMissionIds
         data.activeMissionId?.let {
-            startMission(it) // This will create a new MissionState
+            startMission(it)
             activeMission?.currentObjectiveIndex = data.activeMissionObjectiveIndex
+
+            activeMission?.missionVariables?.let { liveVariables ->
+                for (entry in data.missionVariables) {
+                    liveVariables[entry.key] = entry.value
+                }
+            }
+
             updateUIForCurrentObjective()
         } ?: run {
             activeMission = null // No active mission
@@ -324,6 +339,7 @@ class MissionSystem(val game: MafiaGame) {
                 if (event.carType != null && event.spawnPosition != null) {
                     val newCar = game.carSystem.spawnCar(event.spawnPosition, event.carType, event.carIsLocked)
                     if (newCar != null) {
+                        event.targetId?.let { newCar.id = it }
                         // --- NEW: Spawn a driver if specified in the event ---
                         when (event.carDriverType) {
                             "Enemy" -> {
@@ -392,13 +408,16 @@ class MissionSystem(val game: MafiaGame) {
             GameEventType.SPAWN_HOUSE -> {
                 if (event.houseType != null && event.spawnPosition != null) {
                     game.houseSystem.currentRotation = event.houseRotationY ?: 0f
-                    game.houseSystem.addHouse(
+                    val newHouse = game.houseSystem.addHouse(
                         event.spawnPosition.x,
                         event.spawnPosition.y,
                         event.spawnPosition.z,
                         event.houseType,
                         event.houseIsLocked ?: false
                     )
+                    if (newHouse != null) {
+                        event.targetId?.let { newHouse.id = it }
+                    }
                 }
             }
             GameEventType.SPAWN_OBJECT -> {
@@ -422,8 +441,10 @@ class MissionSystem(val game: MafiaGame) {
                             event.objectType,
                             event.spawnPosition,
                             game.lightingManager
-                        )?.let {
-                            game.sceneManager.activeObjects.add(it)
+                        )?.let { gameObject ->
+                            event.targetId?.let { gameObject.id = it.hashCode() }
+
+                            game.sceneManager.activeObjects.add(gameObject)
                         }
                     }
                 }

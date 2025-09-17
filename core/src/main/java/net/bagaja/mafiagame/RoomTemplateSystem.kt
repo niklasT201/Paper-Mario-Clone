@@ -34,6 +34,7 @@ data class RoomElement(
     val loopOffDuration: Float? = null,
     // General
     val spawnerType: SpawnerType? = null,
+    val spawnerMode: SpawnerMode? = null,
     val spawnerInterval: Float? = null,
     val spawnerMinRange: Float? = null,
     val spawnerMaxRange: Float? = null,

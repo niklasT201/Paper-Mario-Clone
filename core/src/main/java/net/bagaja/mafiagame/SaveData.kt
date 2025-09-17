@@ -88,7 +88,8 @@ data class CarPathData(
 data class MissionProgressData(
     var activeMissionId: String? = null,
     var activeMissionObjectiveIndex: Int = 0,
-    var completedMissionIds: MutableSet<String> = mutableSetOf()
+    var completedMissionIds: MutableSet<String> = mutableSetOf(),
+    var missionVariables: ObjectMap<String, Any> = ObjectMap()
 )
 
 // --- ENTITY-SPECIFIC SNAPSHOTS ---
