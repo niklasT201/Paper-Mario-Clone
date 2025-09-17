@@ -45,7 +45,10 @@ class TeleporterSystem(
         if (isLinkingMode) return
 
         // Ask for the first teleporter's name immediately
-        uiManager.showTeleporterNameDialog("Set Name for Point 1") { name ->
+        uiManager.showTeleporterNameDialog(
+            title = "Set Name for Point 1",
+            teleporter = null
+        ) { name ->
             firstTeleporter.name = name
             isLinkingMode = true
             firstTeleporterToLink = firstTeleporter
@@ -65,7 +68,10 @@ class TeleporterSystem(
         val first = firstTeleporterToLink ?: return
 
         // Now, ask for the second teleporter's name
-        uiManager.showTeleporterNameDialog("Set Name for Point 2") { name ->
+        uiManager.showTeleporterNameDialog(
+            title = "Set Name for Point 2",
+            teleporter = null
+        ) { name ->
             secondTeleporter.name = name
 
             // Link them together
@@ -102,14 +108,12 @@ class TeleporterSystem(
         // Find and remove its linked partner first
         teleporterToRemove.linkedTeleporterId?.let { linkedId ->
             val partner = activeTeleporters.find { it.id == linkedId }
-            partner?.let {
-                activeTeleporters.removeValue(it, true)
-                println("Removed linked teleporter partner: ${it.id}")
-            }
+            partner?.linkedTeleporterId = null
+            println("Unlinked partner teleporter: ${partner?.name} (${partner?.id})")
         }
         // Then remove the one that was clicked
         activeTeleporters.removeValue(teleporterToRemove, true)
-        println("Removed teleporter: ${teleporterToRemove.id}")
+        println("Removed teleporter: ${teleporterToRemove.name} (${teleporterToRemove.id})")
     }
 
     fun checkAndTeleportPlayer(playerSystem: PlayerSystem) {

@@ -278,8 +278,12 @@ class SpawnerUI(
         closeButton = TextButton("Close", skin)
         copyIdButton = TextButton("Copy ID", skin)
         removeButton.color.set(1f, 0.6f, 0.6f, 1f)
+
         val buttonTable = Table()
-        buttonTable.add(applyButton).pad(10f); buttonTable.add(removeButton).pad(10f); buttonTable.add(closeButton).pad(10f)
+        buttonTable.add(applyButton).pad(10f)
+        buttonTable.add(removeButton).pad(10f)
+        buttonTable.add(copyIdButton).pad(10f)
+        buttonTable.add(closeButton).pad(10f)
         window.add(buttonTable).colspan(2).expandY().bottom().padBottom(10f)
 
         window.isVisible = false

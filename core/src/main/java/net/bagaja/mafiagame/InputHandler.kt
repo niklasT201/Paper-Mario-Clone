@@ -249,11 +249,11 @@ class InputHandler(
                             if (hitTeleporterObject != null) {
                                 val teleporterToEdit = teleporterSystem.activeTeleporters.find { it.gameObject.id == hitTeleporterObject.id }
                                 if (teleporterToEdit != null) {
-                                    // Open the naming/editing dialog
+                                    // Open the naming/editing dialog in "edit mode"
                                     uiManager.showTeleporterNameDialog(
                                         title = "Edit Teleporter",
-                                        initialText = teleporterToEdit.name,
-                                        teleporterId = teleporterToEdit.id
+                                        teleporter = teleporterToEdit, // Pass the whole object
+                                        initialText = teleporterToEdit.name
                                     ) { newName ->
                                         teleporterToEdit.name = newName
                                     }

@@ -651,7 +651,7 @@ class UIManager(
     }
 
     // Dialog methods stay the same
-    fun showTeleporterNameDialog(title: String, initialText: String = "", teleporterId: String? = null, onConfirm: (name: String) -> Unit) {
+    fun showTeleporterNameDialog(title: String, teleporter: GameTeleporter?, initialText: String = "", onConfirm: (name: String) -> Unit) {
         val dialog = Dialog(title, skin, "dialog")
         val nameField = TextField(initialText, skin)
         nameField.messageText = "e.g., 'To the stage'"
@@ -662,15 +662,25 @@ class UIManager(
         val confirmButton = TextButton("Confirm", skin)
         buttonTable.add(confirmButton).pad(5f)
 
-        if (teleporterId != null) {
+        if (teleporter != null) {
             val copyIdButton = TextButton("Copy ID", skin)
             copyIdButton.addListener(object : ClickListener() {
                 override fun clicked(event: InputEvent?, x: Float, y: Float) {
-                    Gdx.app.clipboard.contents = teleporterId
-                    showTemporaryMessage("Copied ID: $teleporterId")
+                    Gdx.app.clipboard.contents = teleporter.id
+                    showTemporaryMessage("Copied ID: ${teleporter.id}")
                 }
             })
             buttonTable.add(copyIdButton).pad(5f)
+
+            val removeButton = TextButton("Remove", skin).apply { color.set(1f, 0.6f, 0.6f, 1f) }
+            removeButton.addListener(object : ClickListener() {
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                    game.teleporterSystem.removeTeleporter(teleporter)
+                    showTemporaryMessage("Teleporter '${teleporter.name}' removed.")
+                    dialog.hide()
+                }
+            })
+            buttonTable.add(removeButton).pad(5f)
         }
 
         dialog.buttonTable.add(buttonTable)
