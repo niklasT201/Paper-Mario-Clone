@@ -241,7 +241,7 @@ class UIManager(
         particleSelectionUI = ParticleSelectionUI(particleSystem, skin, stage)
         particleSelectionUI.initialize()
 
-        spawnerUI = SpawnerUI(skin, stage, spawnerSystem::removeSpawner)
+        spawnerUI = SpawnerUI(skin, stage, spawnerSystem::removeSpawner, this)
 
         shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager)
         shaderEffectUI.initialize()
@@ -651,14 +651,30 @@ class UIManager(
     }
 
     // Dialog methods stay the same
-    fun showTeleporterNameDialog(title: String, initialText: String = "", onConfirm: (name: String) -> Unit) {
+    fun showTeleporterNameDialog(title: String, initialText: String = "", teleporterId: String? = null, onConfirm: (name: String) -> Unit) {
         val dialog = Dialog(title, skin, "dialog")
         val nameField = TextField(initialText, skin)
         nameField.messageText = "e.g., 'To the stage'"
 
-        dialog.contentTable.add(nameField).width(300f).pad(10f)
+        dialog.contentTable.add(nameField).width(300f).pad(10f).row()
 
+        val buttonTable = Table()
         val confirmButton = TextButton("Confirm", skin)
+        buttonTable.add(confirmButton).pad(5f)
+
+        if (teleporterId != null) {
+            val copyIdButton = TextButton("Copy ID", skin)
+            copyIdButton.addListener(object : ClickListener() {
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                    Gdx.app.clipboard.contents = teleporterId
+                    showTemporaryMessage("Copied ID: $teleporterId")
+                }
+            })
+            buttonTable.add(copyIdButton).pad(5f)
+        }
+
+        dialog.buttonTable.add(buttonTable)
+
         confirmButton.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 val name = nameField.text.trim().ifBlank { "Teleporter" }
@@ -667,7 +683,6 @@ class UIManager(
             }
         })
 
-        dialog.button(confirmButton)
         dialog.key(com.badlogic.gdx.Input.Keys.ENTER, true)
         dialog.key(com.badlogic.gdx.Input.Keys.ESCAPE, false)
         dialog.show(stage)

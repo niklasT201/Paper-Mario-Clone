@@ -13,7 +13,8 @@ import com.badlogic.gdx.utils.Array as GdxArray
 class SpawnerUI(
     private val skin: Skin,
     private val stage: Stage,
-    private val onRemove: (spawner: GameSpawner) -> Unit
+    private val onRemove: (spawner: GameSpawner) -> Unit,
+    private val uiManager: UIManager
 ) {
     private val window: Window = Window("Spawner Configuration", skin, "dialog")
     private var currentSpawner: GameSpawner? = null
@@ -84,6 +85,7 @@ class SpawnerUI(
     private val applyButton: TextButton
     private val removeButton: TextButton
     private val closeButton: TextButton
+    private val copyIdButton: TextButton
 
     // Cache for preview textures
     private val previewTextures = mutableMapOf<String, Texture>()
@@ -271,7 +273,10 @@ class SpawnerUI(
         window.add(generalTable).colspan(2).padTop(10f).row()
 
         // --- Buttons ---
-        applyButton = TextButton("Apply", skin); removeButton = TextButton("Remove", skin); closeButton = TextButton("Close", skin)
+        applyButton = TextButton("Apply", skin)
+        removeButton = TextButton("Remove", skin)
+        closeButton = TextButton("Close", skin)
+        copyIdButton = TextButton("Copy ID", skin)
         removeButton.color.set(1f, 0.6f, 0.6f, 1f)
         val buttonTable = Table()
         buttonTable.add(applyButton).pad(10f); buttonTable.add(removeButton).pad(10f); buttonTable.add(closeButton).pad(10f)
@@ -310,6 +315,15 @@ class SpawnerUI(
         effectSelectBox.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { updatePreviewImages() }})
         itemSelectBox.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { updatePreviewImages() }})
         weaponSelectBox.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { updatePreviewImages() }})
+
+        copyIdButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                currentSpawner?.let {
+                    Gdx.app.clipboard.contents = it.id
+                    uiManager.showTemporaryMessage("Copied ID: ${it.id}")
+                }
+            }
+        })
     }
 
     private fun updateAmmoFieldVisibility() {

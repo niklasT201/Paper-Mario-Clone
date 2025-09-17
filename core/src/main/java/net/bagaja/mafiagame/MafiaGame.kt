@@ -29,7 +29,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var inputHandler: InputHandler
 
     // Raycast System
-    private lateinit var raycastSystem: RaycastSystem
+    lateinit var raycastSystem: RaycastSystem
 
     // Block system
     lateinit var blockSystem: BlockSystem

@@ -221,17 +221,6 @@ class ObjectSystem: IFinePositionable {
             return true
         }
 
-        // 2. Check for Teleporters
-        val teleporterGameObjects = Array(teleporterSystem.activeTeleporters.map { it.gameObject }.toTypedArray())
-        val teleporterToRemove = raycastSystem.getObjectAtRay(ray, teleporterGameObjects)
-        if (teleporterToRemove != null) {
-            val tp = teleporterSystem.activeTeleporters.find { it.gameObject.id == teleporterToRemove.id }
-            if (tp != null) {
-                teleporterSystem.removeTeleporter(tp)
-                return true
-            }
-        }
-
         // 3. Check for Light Sources
         val lightToRemove = raycastSystem.getLightSourceAtRay(ray, lightingManager)
         if (lightToRemove != null) {

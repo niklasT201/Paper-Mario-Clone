@@ -7,6 +7,7 @@ import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.Ray
+import com.badlogic.gdx.utils.Array
 import net.bagaja.mafiagame.UIManager.Tool
 
 class InputHandler(
@@ -240,6 +241,24 @@ class InputHandler(
                             if (teleporterSystem.isLinkingMode) {
                                 teleporterSystem.cancelLinking()
                                 return true // Consume the click
+                            }
+
+                            val teleporterGameObjects = Array(teleporterSystem.activeTeleporters.map { it.gameObject }.toTypedArray())
+                            val hitTeleporterObject = game.raycastSystem.getObjectAtRay(ray, teleporterGameObjects)
+
+                            if (hitTeleporterObject != null) {
+                                val teleporterToEdit = teleporterSystem.activeTeleporters.find { it.gameObject.id == hitTeleporterObject.id }
+                                if (teleporterToEdit != null) {
+                                    // Open the naming/editing dialog
+                                    uiManager.showTeleporterNameDialog(
+                                        title = "Edit Teleporter",
+                                        initialText = teleporterToEdit.name,
+                                        teleporterId = teleporterToEdit.id
+                                    ) { newName ->
+                                        teleporterToEdit.name = newName
+                                    }
+                                    return true // Consume the click
+                                }
                             }
 
                             val enemy = enemySystem.raycastSystem.getEnemyAtRay(ray, sceneManager.activeEnemies)
