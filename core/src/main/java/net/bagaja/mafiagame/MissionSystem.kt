@@ -276,6 +276,51 @@ class MissionSystem(val game: MafiaGame) {
         }
     }
 
+    fun startMissionDialog(missionDef: MissionDefinition) {
+        val dialogId = missionDef.startTrigger.dialogId ?: return
+        val dialogSequence = allDialogs[dialogId]
+
+        if (dialogSequence == null) {
+            println("ERROR: Mission '${missionDef.title}' wants to start dialog '$dialogId', but it was not found.")
+            // As a fallback, start the mission directly without dialogue.
+            startMission(missionDef.id)
+            return
+        }
+
+        // Create a new DialogSequence where the onComplete lambda starts the mission.
+        val sequenceWithCallback = dialogSequence.copy(
+            onComplete = {
+                println("Dialogue for '${missionDef.title}' finished. Starting mission now.")
+                startMission(missionDef.id)
+            }
+        )
+
+        game.uiManager.dialogSystem.startDialog(sequenceWithCallback)
+    }
+
+    fun checkTalkToNpcObjective(npcId: String): Boolean {
+        // Get the active mission state first
+        val currentMission = activeMission ?: return false
+        val objective = currentMission.getCurrentObjective() ?: return false
+        val condition = objective.completionCondition
+
+        if (condition.type == ConditionType.TALK_TO_NPC && condition.targetId == npcId) {
+            // The objective matches!
+
+            // Access the missionVariables map through the 'currentMission' object
+            currentMission.missionVariables["dialog_complete_${condition.targetId}"] = true
+
+            // The rest of the function is correct and can stay the same
+            if (isObjectiveComplete(objective, currentMission)) {
+                advanceObjective()
+            }
+
+            return true
+        }
+
+        return false
+    }
+
     private fun grantReward(reward: MissionReward) {
         when (reward.type) {
             RewardType.GIVE_MONEY -> game.playerSystem.addMoney(reward.amount)

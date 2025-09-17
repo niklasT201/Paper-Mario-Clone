@@ -186,6 +186,25 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
         return true // Indicate that an action was successfully performed
     }
 
+    fun findMissionForNpc(npcId: String): MissionDefinition? {
+        // Search through all loaded missions
+        for ((missionId, missionDef) in game.missionSystem.getAllMissionDefinitions()) {
+            val trigger = missionDef.startTrigger
+
+            // Check three conditions:
+            if (trigger.type == TriggerType.ON_TALK_TO_NPC &&
+                trigger.targetNpcId == npcId &&
+                !game.missionSystem.isMissionCompleted(missionId) &&
+                !game.missionSystem.isMissionActive(missionId)
+            ) {
+                // We found a match!
+                return missionDef
+            }
+        }
+        // No mission was found for this NPC
+        return null
+    }
+
     fun render(camera: Camera, environment: Environment) {
         renderableInstances.clear()
 

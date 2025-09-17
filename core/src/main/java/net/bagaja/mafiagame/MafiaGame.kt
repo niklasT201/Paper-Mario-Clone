@@ -316,10 +316,39 @@ class MafiaGame : ApplicationAdapter() {
                         return // Interaction handled, stop here.
                     }
 
+                    // Check for NPC interaction before checking for houses
+                    val closestNpc = sceneManager.activeNPCs.minByOrNull { it.position.dst2(playerPos) }
+                    if (closestNpc != null && playerPos.dst(closestNpc.position) < 5f) {
+
+                        // Check if this NPC is the start trigger for any available mission
+                        val missionToStart = triggerSystem.findMissionForNpc(closestNpc.id)
+
+                        if (missionToStart != null) {
+                            println("Player is near NPC '${closestNpc.npcType.displayName}' who is a trigger for mission '${missionToStart.title}'.")
+
+                            if (!missionToStart.startTrigger.dialogId.isNullOrBlank()) {
+                                missionSystem.startMissionDialog(missionToStart)
+                            } else {
+                                missionSystem.startMission(missionToStart.id)
+                            }
+                            return // Interaction handled, stop here.
+                        } else {
+                            // If no new mission starts, check if this NPC completes an ACTIVE objective
+                            val missionSystem = missionSystem
+                            if (missionSystem.checkTalkToNpcObjective(closestNpc.id)) {
+                                println("Player talked to '${closestNpc.npcType.displayName}' and completed an objective.")
+                                return // Interaction handled
+                            } else {
+                                println("Player is near NPC '${closestNpc.npcType.displayName}', but they have nothing to say right now.")
+                            }
+                        }
+                        // --- END OF NEW LOGIC ---
+                    }
+
                     // Try to enter a house
                     val closestHouse = sceneManager.activeHouses.minByOrNull { it.position.dst2(playerPos) }
 
-                    if (closestHouse != null) {
+                    if (closestHouse != null && playerPos.dst(closestHouse.position) < 15f) {
                         // First, check if the "house" is even enterable (e.g., not a stair model).
                         if (!closestHouse.houseType.canHaveRoom) {
                             return

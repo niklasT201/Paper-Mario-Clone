@@ -85,8 +85,9 @@ public class Lwjgl3Launcher {
 // multiple profiles
 // fire and light source being connected
 // connect dialog and mission system
+// trigger point changes design when switching mission trigger
+// remove dialog placeholders
 // adding multiple city areas, district 2d polygons
-// TALK_TO_NPC Logic: The game doesn't yet have a system for initiating conversations with specific NPCs by pressing 'E'.
 // INTERACT_WITH_OBJECT Logic: Similar to the above, you don't have a generic "interaction" system for objects yet
 // COLLECT_ITEM Logic: As we discussed, this requires a proper player inventory system to be fully functional.
 // Advanced Rewards: The logic for GIVE_AMMO and GIVE_ITEM is in place, but things like UNLOCK_CAR_SPAWN would require a "garage" or "player property" system.
@@ -102,3 +103,9 @@ public class Lwjgl3Launcher {
 // fbx-conv -f house.obj house.g3dj
 
 // can you help me with my kotlin 3d game? I have this billboard shader for my player, items, npcs and enemies. it worls fine but i would like to modify it a bit. as you maybe see, the shader makes, that the things that has a userdata set = player are full bright. so you can see them clear. this is fine, but originally i wanted to make it so, that when i place a light source and the light source shines at a billobard, the billboard gets shiny, and when i rotate so now the other side of the billboard is visible, it also gets shiny. as you maybe know, in default in libgdx this is not possible. a billboard can only get shined at from one side and not both. so i wanted to change this, but as it didnt work what i wanted, i made at so they are for now always completely bright. for the player i noticed that i liked this even more, but i dont like it so much for everything eslse. i would like it when the player would stay as it is, so always fully bright, but everything else can be shined from both sides and not only one. but the problem is, that it seems like when i place a light source that shines at something that uses this billboard shader, it completely ignores it, like these things dont exist. why is this happening and is there a way to fix it?
+
+// ah ok. now we can talk about the dialog and mission handling. first, as you see, and did yourself, there is hard coded dialog. is this normal in game development, as i cant imagine this, maybe for some things, but mostly its probably a json, if im right? so that would mean, i need to add a way to implement, that missions/npcs know which dialog to choose, and a way that i can check which dialog i give this npcs. second, so you added that the npc needs to be talked to so that a mission for example is finsihed, but what when i want for example, that i have to talk to a npc, that it triggers another part of the mission, for example spawn a car and enter it, so you can move to another spot and kill all enemies. this is not implemented i think, that i can have like 6 steps to finish a mission, currently its like, start a mission, something spawns, do this whatever and then after that mission is finished and reward thing happens and maybe something spawns after mission finished. third, maybe there should be more ways to start a mission, like collect item, hurt enemy, enter car, enter house, and maybe something else if you think so. fourth, would i noticed and is probably the most important part, to have a good overview of this whole stuff, a mission tree, that shows everything from start to finish like:
+//Mission name:
+//start, what is needed to start it -> what happens after started -> what happens after that -> what happens after that -> mission finished -> does sometihng happen after that, new mission unlocked, or multiple side missions unlocked, and is somehthing new spawned
+//
+//i know thats a lot, but maybe you can analyze it and we can talk about it :=)

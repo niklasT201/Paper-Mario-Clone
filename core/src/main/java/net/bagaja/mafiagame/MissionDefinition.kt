@@ -102,10 +102,11 @@ enum class TriggerType {
 }
 
 data class MissionTrigger(
-    val type: TriggerType = TriggerType.ON_ENTER_AREA,
+    var type: TriggerType = TriggerType.ON_ENTER_AREA,
     var areaCenter: Vector3 = Vector3(),
     var areaRadius: Float = TriggerSystem.VISUAL_RADIUS,
-    val targetNpcId: String? = null,
+    var targetNpcId: String? = null,
+    var dialogId: String? = null,
     var sceneId: String = "WORLD"
 )
 
