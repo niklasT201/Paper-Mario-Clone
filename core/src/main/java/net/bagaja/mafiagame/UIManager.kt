@@ -49,7 +49,8 @@ class UIManager(
     private val enemySystem: EnemySystem,
     private val npcSystem: NPCSystem,
     private val particleSystem: ParticleSystem,
-    private val spawnerSystem: SpawnerSystem
+    private val spawnerSystem: SpawnerSystem,
+    private val dialogueManager: DialogueManager
 ) {
     private lateinit var stage: Stage
     lateinit var skin: Skin
@@ -75,6 +76,7 @@ class UIManager(
     private lateinit var enemyDebugUI: EnemyDebugUI
     private lateinit var characterInventoryUI: CharacterInventoryUI
     private lateinit var triggerEditorUI: TriggerEditorUI
+    private lateinit var dialogueEditorUI: DialogueEditorUI
     private lateinit var mainTable: Table
     private lateinit var letterboxTable: Table
     private lateinit var cinematicBarsTable: Table
@@ -265,6 +267,15 @@ class UIManager(
         mainTable.isVisible = isUIVisible && game.isEditorMode
         missionEditorUI = MissionEditorUI(skin, stage, game.missionSystem, this)
         triggerEditorUI = TriggerEditorUI(skin, stage, game.missionSystem, game.triggerSystem, game.sceneManager, this)
+        dialogueEditorUI = DialogueEditorUI(skin, stage, this, dialogueManager)
+    }
+
+    fun toggleDialogueEditor() {
+        if (dialogueEditorUI.isVisible()) {
+            dialogueEditorUI.hide()
+        } else {
+            dialogueEditorUI.show()
+        }
     }
 
     fun showTemporaryMessage(message: String) {

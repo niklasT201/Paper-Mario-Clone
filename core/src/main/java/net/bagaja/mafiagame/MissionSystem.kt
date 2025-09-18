@@ -8,8 +8,7 @@ import com.badlogic.gdx.utils.JsonWriter
 import com.badlogic.gdx.utils.ObjectMap
 import java.util.*
 
-class MissionSystem(val game: MafiaGame) {
-
+class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueManager) {
     private val allMissions = mutableMapOf<String, MissionDefinition>()
     private var activeMission: MissionState? = null
     private var gameState = GameState() // This will be loaded from a file later
@@ -49,16 +48,10 @@ class MissionSystem(val game: MafiaGame) {
     }
 
     private fun isPlayerInInterior(): Boolean = game.sceneManager.currentScene == SceneType.HOUSE_INTERIOR
-    private val allDialogs = mutableMapOf<String, DialogSequence>()
 
-    init {
-        val testDialog = DialogSequence(
-            lines = listOf(
-                DialogLine("Mr. Big", "I've been expecting you. We have much to discuss."),
-                DialogLine("Player", "I'm listening.")
-            )
-        )
-        allDialogs["mr_big_intro"] = testDialog
+    fun refreshDialogueIds() {
+        dialogueManager.loadAllDialogues()
+        println("MissionSystem: Dialogue IDs have been refreshed for the editor.")
     }
 
     // LibGDX's JSON parser
@@ -69,6 +62,7 @@ class MissionSystem(val game: MafiaGame) {
     private val missionsDir = "missions"
 
     fun initialize() {
+        dialogueManager.loadAllDialogues()
         loadAllMissionsFromFiles()
     }
 
@@ -238,13 +232,15 @@ class MissionSystem(val game: MafiaGame) {
             println("Objective complete! New objective: ${nextObjective.description}")
 
             // If the new objective is a timer, set its starting value now.
+            nextObjective.eventsOnStart.forEach { executeEvent(it) }
+
+            // The existing timer and UI update logic remains unchanged
             if (nextObjective.completionCondition.type == ConditionType.TIMER_EXPIRES) {
                 val duration = nextObjective.completionCondition.timerDuration ?: 60f
                 missionState.missionVariables["timer"] = duration
                 println("Mission timer started for $duration seconds.")
             }
 
-            nextObjective.eventsOnStart.forEach { executeEvent(it) }
             updateUIForCurrentObjective()
         }
     }
@@ -278,7 +274,7 @@ class MissionSystem(val game: MafiaGame) {
 
     fun startMissionDialog(missionDef: MissionDefinition) {
         val dialogId = missionDef.startTrigger.dialogId ?: return
-        val dialogSequence = allDialogs[dialogId]
+        val dialogSequence = dialogueManager.getDialogue(dialogId)
 
         if (dialogSequence == null) {
             println("ERROR: Mission '${missionDef.title}' wants to start dialog '$dialogId', but it was not found.")
@@ -341,6 +337,11 @@ class MissionSystem(val game: MafiaGame) {
             else -> println("Reward type ${reward.type} not yet implemented.")
         }
         println("Granted reward: ${reward.type}")
+    }
+
+    fun getAllDialogueIds(): List<String> {
+        // We get the list from the dialogueLoader. The keys of its map are the IDs.
+        return dialogueManager.getAllDialogueIds()
     }
 
     private fun executeEvent(event: GameEvent) {
@@ -438,15 +439,19 @@ class MissionSystem(val game: MafiaGame) {
             }
             GameEventType.START_DIALOG -> {
                 event.dialogId?.let { dialogId ->
-                    allDialogs[dialogId]?.let { sequence ->
-                        // Create a new sequence with an onComplete callback
-                        val sequenceWithCallback = sequence.copy(
+                    val dialogSequence = dialogueManager.getDialogue(dialogId)
+
+                    if (dialogSequence != null) {
+                        // The rest of the logic is the same
+                        val sequenceWithCallback = dialogSequence.copy(
                             onComplete = {
                                 // When the dialog finishes, report it to the mission system
                                 reportDialogComplete(dialogId)
                             }
                         )
                         game.uiManager.dialogSystem.startDialog(sequenceWithCallback)
+                    } else {
+                        println("ERROR: Mission tried to start dialog '$dialogId', but it was not found by the DialogueLoader.")
                     }
                 }
             }

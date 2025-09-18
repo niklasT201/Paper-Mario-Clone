@@ -56,7 +56,7 @@ data class MissionState(
 // --- Mission Objectives & Conditions ---
 
 data class MissionObjective(
-    val id: String = UUID.randomUUID().toString(), // ADD this unique ID
+    val id: String = UUID.randomUUID().toString(),
     val description: String = "",
     val markerType: ObjectiveMarkerType = ObjectiveMarkerType.NONE,
     val markerTargetId: String? = null,

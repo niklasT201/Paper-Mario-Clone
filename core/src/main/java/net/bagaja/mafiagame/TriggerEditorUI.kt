@@ -7,6 +7,7 @@ import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.Array as GdxArray
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.utils.Array
 
 class TriggerEditorUI(
     private val skin: Skin,
@@ -25,7 +26,7 @@ class TriggerEditorUI(
     private val triggerTypeSelectBox: SelectBox<String>
     private val radiusField: TextField
     private val targetNpcIdField: TextField
-    private val dialogIdField: TextField
+    private val dialogIdSelectBox: SelectBox<String>
 
     // Tables to hold the dynamic settings
     private val areaSettingsTable: Table
@@ -61,12 +62,11 @@ class TriggerEditorUI(
         npcSettingsTable = Table()
         targetNpcIdField = TextField("", skin)
         targetNpcIdField.messageText = "Paste NPC ID here"
-        dialogIdField = TextField("", skin)
-        dialogIdField.messageText = "e.g., 'mr_big_intro'"
+        dialogIdSelectBox = SelectBox(skin)
         npcSettingsTable.add(Label("Target NPC ID:", skin)).left().row()
         npcSettingsTable.add(targetNpcIdField).growX().row()
         npcSettingsTable.add(Label("Dialog ID:", skin)).left().padTop(5f).row()
-        npcSettingsTable.add(dialogIdField).growX().row()
+        npcSettingsTable.add(dialogIdSelectBox).growX().row()
 
         val settingsStack = Stack()
         settingsStack.add(areaSettingsTable)
@@ -136,8 +136,9 @@ class TriggerEditorUI(
 
         triggerTypeSelectBox.selected = mission.startTrigger.type.name
         radiusField.text = mission.startTrigger.areaRadius.toString()
+        dialogIdSelectBox.items = GdxArray(missionSystem.getAllDialogueIds().toTypedArray())
         targetNpcIdField.text = mission.startTrigger.targetNpcId ?: ""
-        dialogIdField.text = mission.startTrigger.dialogId ?: ""
+        dialogIdSelectBox.selected = mission.startTrigger.dialogId
 
         updateVisibleFields()
     }
@@ -148,7 +149,7 @@ class TriggerEditorUI(
         mission.startTrigger.type = TriggerType.valueOf(triggerTypeSelectBox.selected)
         mission.startTrigger.areaRadius = radiusField.text.toFloatOrNull() ?: TriggerSystem.VISUAL_RADIUS
         mission.startTrigger.targetNpcId = targetNpcIdField.text.ifBlank { null }
-        mission.startTrigger.dialogId = dialogIdField.text.ifBlank { null }
+        mission.startTrigger.dialogId = dialogIdSelectBox.selected
 
         missionSystem.saveMission(mission)
         uiManager.showTemporaryMessage("Trigger for '${mission.title}' saved.")
@@ -172,6 +173,7 @@ class TriggerEditorUI(
         val missionDefs = missionSystem.getAllMissionDefinitions().values
         val missionStrings = GdxArray(missionDefs.map { "${it.id}: ${it.title}" }.toTypedArray())
         missionSelectBox.items = missionStrings
+        dialogIdSelectBox.items = GdxArray(missionSystem.getAllDialogueIds().toTypedArray())
 
         if (missionSelectBox.items.size > 0) {
             missionSelectBox.selectedIndex = 0

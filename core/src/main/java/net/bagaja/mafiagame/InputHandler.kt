@@ -519,6 +519,11 @@ class InputHandler(
                     return true
                 }
 
+                if (keycode == Input.Keys.F9) {
+                    uiManager.toggleDialogueEditor()
+                    return true
+                }
+
                 if (!game.isEditorMode) {
                     when (keycode) {
 //                        Input.Keys.Q -> {

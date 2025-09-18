@@ -255,16 +255,21 @@ class MissionEditorUI(
         missionSystem.saveMission(mission)
     }
 
-    private fun showEventDialog(existingEvent: GameEvent?, isStartEvent: Boolean) {
+    private fun showEventDialog(existingEvent: GameEvent?, isStartEvent: Boolean, onSaveEvent: ((GameEvent) -> Unit)? = null) {
         val onSave: (GameEvent) -> Unit = { newEvent ->
-            val list = if (isStartEvent) tempStartEvents else tempCompleteEvents
-            if (existingEvent == null) {
-                list.add(newEvent)
+            if (onSaveEvent != null) {
+                onSaveEvent(newEvent)
             } else {
-                val index = list.indexOf(existingEvent)
-                if (index != -1) list[index] = newEvent
+                // Otherwise, this is a main mission event (Start/Complete).
+                val list = if (isStartEvent) tempStartEvents else tempCompleteEvents
+                if (existingEvent == null) {
+                    list.add(newEvent)
+                } else {
+                    val index = list.indexOf(existingEvent)
+                    if (index != -1) list[index] = newEvent
+                }
+                refreshEventWidgets() // Refresh the main mission editor UI.
             }
-            refreshEventWidgets()
         }
 
         val dialog = Dialog(if (existingEvent == null) "Add Event" else "Edit Event", skin, "dialog")
@@ -431,7 +436,7 @@ class MissionEditorUI(
         val content = dialog.contentTable
         content.pad(10f).defaults().pad(5f).align(Align.left)
 
-        // --- UI Elements ---
+        // --- OBJECTIVE PROPERTY UI ---
         val descField = TextField(existingObjective?.description ?: "", skin)
         val typeSelect = SelectBox<String>(skin).apply {
             items = GdxArray(ConditionType.entries.map { it.name }.toTypedArray())
@@ -448,11 +453,7 @@ class MissionEditorUI(
         }
         val itemCountField = TextField(existingObjective?.completionCondition?.itemCount?.toString() ?: "1", skin)
 
-        // --- Layout ---
-        content.add("Description:"); content.add(descField).width(300f).row()
-        content.add("Condition Type:"); content.add(typeSelect).row()
-
-        // Create tables for each condition type to show/hide them
+        // --- DYNAMIC UI TABLES ---
         val targetIdTable = Table(skin).apply { add("Target ID:"); add(targetIdField).width(250f) }
         val areaTable = Table(skin).apply { add("Area Radius:"); add(areaRadiusField).width(80f) }
         val timerTable = Table(skin).apply { add("Duration (sec):"); add(timerDurationField).width(80f) }
@@ -461,29 +462,81 @@ class MissionEditorUI(
             add("Count:"); add(itemCountField).width(80f).row()
         }
 
+        // --- UI FOR OBJECTIVE-SPECIFIC EVENTS ---
+        val objectiveEventsContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.left) }
+        val objectiveEventsScrollPane = ScrollPane(objectiveEventsContainer, skin).apply {
+            setFadeScrollBars(false)
+            setScrollingDisabled(true, false)
+        }
+
+        // This is a local function that refreshes the event list inside THIS dialog
+        fun refreshObjectiveEventWidgets() {
+            objectiveEventsContainer.clearChildren()
+            // Use a safe copy of the list to avoid issues while editing
+            val events = existingObjective?.eventsOnStart?.toList() ?: emptyList()
+            events.forEach { event ->
+                val eventWidget = createEventWidget(event, isStartEvent = false)
+                val removeButton = (eventWidget as Table).children.find { it is TextButton && it.text.toString() == "X" } as? TextButton
+
+                removeButton?.clearListeners() // Important: remove the old listener
+                removeButton?.addListener(object : ChangeListener() {
+                    override fun changed(eventChanged: ChangeEvent?, actor: Actor?) {
+                        existingObjective?.eventsOnStart?.remove(event)
+                        refreshObjectiveEventWidgets()
+                    }
+                })
+                objectiveEventsContainer.addActor(eventWidget)
+            }
+        }
+
+        // --- DIALOG LAYOUT ---
+        content.add("Description:"); content.add(descField).width(300f).row()
+        content.add("Condition Type:"); content.add(typeSelect).row()
         content.add(targetIdTable).colspan(2).row()
         content.add(areaTable).colspan(2).row()
         content.add(timerTable).colspan(2).row()
         content.add(itemTable).colspan(2).row()
 
-        // --- Dynamic UI Logic ---
+        content.add(Label("--- Events on Objective Start ---", skin, "title")).colspan(2).padTop(15f).row()
+        content.add(objectiveEventsScrollPane).colspan(2).growX().height(80f).row()
+
+        val addEventToObjectiveButton = TextButton("Add Event", skin)
+        content.add(addEventToObjectiveButton).colspan(2).left().padTop(5f).row()
+
+        // If we are editing an existing objective, load its events
+        if (existingObjective != null) {
+            refreshObjectiveEventWidgets()
+        }
+
+        // --- LISTENER FOR "ADD EVENT" BUTTON ---
+        addEventToObjectiveButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                if (existingObjective == null) {
+                    uiManager.showTemporaryMessage("Save the objective first before adding events.")
+                    return
+                }
+                // Show the event editor dialog. When it saves, it will add the event
+                // to our 'existingObjective' and then call our refresh function.
+                showEventDialog(null, isStartEvent = false) { newEvent ->
+                    existingObjective.eventsOnStart.add(newEvent)
+                    refreshObjectiveEventWidgets()
+                }
+            }
+        })
+
+        // --- LOGIC TO SHOW/HIDE DYNAMIC FIELDS ---
         fun updateVisibleFields() {
             val selectedType = try { ConditionType.valueOf(typeSelect.selected) } catch (e: Exception) { ConditionType.ENTER_AREA }
-            targetIdTable.isVisible = selectedType == ConditionType.ELIMINATE_TARGET || selectedType == ConditionType.TALK_TO_NPC || selectedType == ConditionType.INTERACT_WITH_OBJECT
+            targetIdTable.isVisible = selectedType in listOf(ConditionType.ELIMINATE_TARGET, ConditionType.TALK_TO_NPC, ConditionType.INTERACT_WITH_OBJECT)
             areaTable.isVisible = selectedType == ConditionType.ENTER_AREA
             timerTable.isVisible = selectedType == ConditionType.TIMER_EXPIRES
             itemTable.isVisible = selectedType == ConditionType.COLLECT_ITEM
             dialog.pack()
         }
-
-        typeSelect.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) { updateVisibleFields() }
-        })
-
-        // Set initial visibility
+        typeSelect.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { updateVisibleFields() } })
         updateVisibleFields()
 
-        // --- Buttons ---
+        // --- MAIN "SAVE" BUTTON FOR THE OBJECTIVE ---
         val saveButton = TextButton("Save", skin)
         saveButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
@@ -500,16 +553,21 @@ class MissionEditorUI(
                     itemCount = itemCountField.text.toIntOrNull() ?: 1
                 )
 
+                // If we are editing, copy the existing event list. Otherwise, create a new one.
+                val eventsOnStart = existingObjective?.eventsOnStart ?: mutableListOf()
+
                 val newObjective = existingObjective?.copy(
                     description = descField.text.ifBlank { "New Objective" },
                     completionCondition = newCondition
                 ) ?: MissionObjective(
                     description = descField.text.ifBlank { "New Objective" },
-                    completionCondition = newCondition
+                    completionCondition = newCondition,
+                    eventsOnStart = eventsOnStart
                 )
 
-                if (existingObjective == null) tempObjectives.add(newObjective)
-                else {
+                if (existingObjective == null) {
+                    tempObjectives.add(newObjective)
+                } else {
                     val index = tempObjectives.indexOfFirst { it.id == existingObjective.id }
                     if (index != -1) tempObjectives[index] = newObjective
                 }
@@ -519,7 +577,7 @@ class MissionEditorUI(
         })
 
         dialog.button(saveButton)
-        dialog.button("Cancel", false)
+        dialog.button("Cancel")
         dialog.show(stage)
         stage.keyboardFocus = descField
     }

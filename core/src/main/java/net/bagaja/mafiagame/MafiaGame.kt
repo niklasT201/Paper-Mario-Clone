@@ -23,6 +23,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var triggerSystem: TriggerSystem
     lateinit var missionSystem: MissionSystem
     lateinit var saveLoadSystem: SaveLoadSystem
+    private lateinit var dialogueManager: DialogueManager
 
     // UI and Input Managers
     lateinit var uiManager: UIManager
@@ -88,6 +89,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var carPathSystem: CarPathSystem
 
     override fun create() {
+        dialogueManager = DialogueManager()
         setupGraphics()
         raycastSystem = RaycastSystem(blockSize)
         carPathSystem = CarPathSystem()
@@ -119,7 +121,7 @@ class MafiaGame : ApplicationAdapter() {
         blockDebugRenderer = BlockDebugRenderer()
 
         saveLoadSystem = SaveLoadSystem(this)
-        missionSystem = MissionSystem(this)
+        missionSystem = MissionSystem(this, dialogueManager)
         triggerSystem = TriggerSystem(this)
 
         // SceneManager depends on many systems, so it's created here.
@@ -136,7 +138,7 @@ class MafiaGame : ApplicationAdapter() {
         uiManager = UIManager(
             this, blockSystem, objectSystem, itemSystem, carSystem, houseSystem,
             backgroundSystem, parallaxBackgroundSystem, roomTemplateManager, interiorSystem,
-            lightingManager, shaderEffectManager, enemySystem, npcSystem, particleSystem, spawnerSystem
+            lightingManager, shaderEffectManager, enemySystem, npcSystem, particleSystem, spawnerSystem, dialogueManager
         )
 
         teleporterSystem = TeleporterSystem(objectSystem, uiManager)
