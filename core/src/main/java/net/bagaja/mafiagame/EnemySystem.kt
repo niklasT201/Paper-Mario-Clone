@@ -153,6 +153,9 @@ data class GameEnemy(
 
         if (health <= 0) return false // Already dead, don't process more damage
 
+        // Check if hurting this enemy triggers a mission
+        sceneManager.game.missionSystem.onPlayerHurtEnemy(this.id)
+
         // Provoke neutral enemies BEFORE applying damage, so they can react
         if (this.currentBehavior == EnemyBehavior.NEUTRAL) {
             this.provocationLevel += 25f // A simple provocation value per hit

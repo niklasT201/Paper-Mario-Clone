@@ -72,6 +72,7 @@ public class Lwjgl3Launcher {
 // save particles for current session
 // save room changes for current session
 // locked houses dont allow to place door entry
+// collected item checks value and not just item, maybe changing to id
 // number before mission list
 // id under mission name
 // C button to copy mission id
@@ -89,7 +90,9 @@ public class Lwjgl3Launcher {
 // fast loading mission
 // multiple profiles
 // fire and light source being connected
-// connect dialog and mission system
+// dialog preview image for characters
+// trigger point spawns anything in the room it is in
+// option to check if damage is done by player
 // trigger point changes design when switching mission trigger
 // remove dialog placeholders
 // adding multiple city areas, district 2d polygons

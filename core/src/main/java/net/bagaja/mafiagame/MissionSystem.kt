@@ -117,6 +117,37 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
     }
 
     fun update(deltaTime: Float) {
+        // It only runs if there is no currently active mission.
+        if (activeMission == null) {
+            for ((missionId, missionDef) in allMissions) {
+                // Skip missions that are already completed
+                if (gameState.completedMissionIds.contains(missionId)) continue
+
+                val trigger = missionDef.startTrigger
+                var shouldStartMission = false
+
+                when (trigger.type) {
+                    // This is the new trigger check
+                    TriggerType.ON_COLLECT_ITEM -> {
+                        val requiredItem = trigger.itemType ?: continue
+                        val currentCount = game.playerSystem.countItemInInventory(requiredItem)
+                        if (currentCount >= trigger.itemCount) {
+                            shouldStartMission = true
+                        }
+                    }
+                    // Add other non-standard trigger checks here in the future
+                    else -> {
+                        // Nothing here
+                    }
+                }
+
+                if (shouldStartMission) {
+                    startMission(missionId)
+                    break // Important: Start only one mission per frame to avoid conflicts
+                }
+            }
+        }
+
         val currentMission = activeMission ?: return
         val objective = currentMission.getCurrentObjective() ?: return
 
@@ -133,6 +164,51 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         if (objective.completionCondition.type == ConditionType.TIMER_EXPIRES) {
             val timer = currentMission.missionVariables["timer"] as? Float ?: objective.completionCondition.timerDuration ?: 0f
             currentMission.missionVariables["timer"] = timer - deltaTime
+        }
+    }
+
+    fun onPlayerEnteredHouse(houseId: String) {
+        if (activeMission != null) return // Don't start a new mission if one is already active
+
+        for ((missionId, missionDef) in allMissions) {
+            if (gameState.completedMissionIds.contains(missionId)) continue
+
+            val trigger = missionDef.startTrigger
+            if (trigger.type == TriggerType.ON_ENTER_HOUSE && trigger.targetHouseId == houseId) {
+                println("Player entered house '$houseId', triggering mission '${missionDef.title}'.")
+                startMission(missionId)
+                break // Start only one mission per house entry
+            }
+        }
+    }
+
+    fun onPlayerEnteredCar(carId: String) {
+        if (activeMission != null) return // Don't start a new mission if one is already active
+
+        for ((missionId, missionDef) in allMissions) {
+            if (gameState.completedMissionIds.contains(missionId)) continue
+
+            val trigger = missionDef.startTrigger
+            if (trigger.type == TriggerType.ON_ENTER_CAR && trigger.targetCarId == carId) {
+                println("Player entered car '$carId', triggering mission '${missionDef.title}'.")
+                startMission(missionId)
+                break
+            }
+        }
+    }
+
+    fun onPlayerHurtEnemy(enemyId: String) {
+        if (activeMission != null) return
+
+        for ((missionId, missionDef) in allMissions) {
+            if (gameState.completedMissionIds.contains(missionId)) continue
+
+            val trigger = missionDef.startTrigger
+            if (trigger.type == TriggerType.ON_HURT_ENEMY && trigger.targetNpcId == enemyId) {
+                println("Player hurt enemy '$enemyId', triggering mission '${missionDef.title}'.")
+                startMission(missionId)
+                break
+            }
         }
     }
 

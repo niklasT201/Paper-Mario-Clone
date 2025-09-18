@@ -875,6 +875,8 @@ class PlayerSystem {
             car.modelInstance.userData = "car"
 
             // If entering a wrecked car
+            sceneManager.game.missionSystem.onPlayerEnteredCar(car.id)
+
             println("Player entered car ${car.carType.displayName}")
         } else {
             println("Could not enter car: No seats available.")

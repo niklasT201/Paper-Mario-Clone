@@ -28,9 +28,20 @@ class TriggerEditorUI(
     private val targetNpcIdField: TextField
     private val dialogIdSelectBox: SelectBox<String>
 
+    private val itemTypeSelectBox: SelectBox<String>
+    private val itemCountField: TextField
+    private val targetHouseIdField: TextField
+    private val targetCarIdField: TextField
+
     // Tables to hold the dynamic settings
     private val areaSettingsTable: Table
     private val npcSettingsTable: Table
+    private val itemSettingsTable: Table
+    private val houseSettingsTable: Table
+    private val enemySettingsTable: Table
+    private val carSettingsTable: Table
+
+    private val instructions: Label
 
     init {
         window.setSize(550f, 350f)
@@ -68,13 +79,47 @@ class TriggerEditorUI(
         npcSettingsTable.add(Label("Dialog ID:", skin)).left().padTop(5f).row()
         npcSettingsTable.add(dialogIdSelectBox).growX().row()
 
+        // Panel for ON_COLLECT_ITEM settings
+        itemSettingsTable = Table()
+        itemTypeSelectBox = SelectBox(skin)
+        itemTypeSelectBox.items = GdxArray(ItemType.entries.map { it.displayName }.toTypedArray())
+        itemCountField = TextField("1", skin)
+        itemSettingsTable.add(Label("Item Type:", skin)).left()
+        itemSettingsTable.add(itemTypeSelectBox).growX().row()
+        itemSettingsTable.add(Label("Item Count:", skin)).left().padTop(5f)
+        itemSettingsTable.add(itemCountField).width(80f).row()
+
+        // Panel for ON_ENTER_HOUSE settings
+        houseSettingsTable = Table()
+        targetHouseIdField = TextField("", skin)
+        targetHouseIdField.messageText = "Paste House ID here"
+        houseSettingsTable.add(Label("Target House ID:", skin)).left().row()
+        houseSettingsTable.add(targetHouseIdField).growX().row()
+
+        // Panel for ON_HURT_ENEMY settings
+        enemySettingsTable = Table()
+        enemySettingsTable.add(Label("Target Enemy ID:", skin)).left().row()
+        enemySettingsTable.add(targetNpcIdField).growX().row() // Reusing the field is efficient
+
+        // Panel for ON_ENTER_CAR settings
+        carSettingsTable = Table()
+        targetCarIdField = TextField("", skin) // Create the new field
+        targetCarIdField.messageText = "Paste Car ID here"
+        carSettingsTable.add(Label("Target Car ID:", skin)).left().row()
+        carSettingsTable.add(targetCarIdField).growX().row()
+
+        // Use a Stack to easily show/hide the correct panel
         val settingsStack = Stack()
         settingsStack.add(areaSettingsTable)
         settingsStack.add(npcSettingsTable)
+        settingsStack.add(itemSettingsTable)
+        settingsStack.add(houseSettingsTable)
+        settingsStack.add(enemySettingsTable)
+        settingsStack.add(carSettingsTable)
         contentTable.add(settingsStack).colspan(2).growX().padTop(10f).row()
 
         // --- Instructions ---
-        val instructions = Label("Use L-Click with Trigger Tool to set position in the world.", skin, "small")
+        instructions = Label("Use L-Click with Trigger Tool to set position in the world.", skin, "small")
         contentTable.add(instructions).colspan(2).center().padTop(15f).row()
 
         // --- Add the content table to the window ---
@@ -139,6 +184,10 @@ class TriggerEditorUI(
         dialogIdSelectBox.items = GdxArray(missionSystem.getAllDialogueIds().toTypedArray())
         targetNpcIdField.text = mission.startTrigger.targetNpcId ?: ""
         dialogIdSelectBox.selected = mission.startTrigger.dialogId
+        itemTypeSelectBox.selected = mission.startTrigger.itemType?.displayName ?: ItemType.MONEY_STACK.displayName
+        itemCountField.text = mission.startTrigger.itemCount.toString()
+        targetHouseIdField.text = mission.startTrigger.targetHouseId ?: ""
+        targetCarIdField.text = mission.startTrigger.targetCarId ?: ""
 
         updateVisibleFields()
     }
@@ -151,6 +200,12 @@ class TriggerEditorUI(
         mission.startTrigger.targetNpcId = targetNpcIdField.text.ifBlank { null }
         mission.startTrigger.dialogId = dialogIdSelectBox.selected
 
+        // --- ADD SAVING LOGIC FOR NEW FIELDS ---
+        mission.startTrigger.itemType = ItemType.entries.find { it.displayName == itemTypeSelectBox.selected }
+        mission.startTrigger.itemCount = itemCountField.text.toIntOrNull() ?: 1
+        mission.startTrigger.targetHouseId = targetHouseIdField.text.ifBlank { null }
+        mission.startTrigger.targetCarId = targetCarIdField.text.ifBlank { null }
+
         missionSystem.saveMission(mission)
         uiManager.showTemporaryMessage("Trigger for '${mission.title}' saved.")
         hide()
@@ -161,6 +216,18 @@ class TriggerEditorUI(
 
         areaSettingsTable.isVisible = (selectedType == TriggerType.ON_ENTER_AREA)
         npcSettingsTable.isVisible = (selectedType == TriggerType.ON_TALK_TO_NPC)
+        itemSettingsTable.isVisible = (selectedType == TriggerType.ON_COLLECT_ITEM)
+        houseSettingsTable.isVisible = (selectedType == TriggerType.ON_ENTER_HOUSE)
+        enemySettingsTable.isVisible = (selectedType == TriggerType.ON_HURT_ENEMY)
+        carSettingsTable.isVisible = (selectedType == TriggerType.ON_ENTER_CAR)
+
+        // Relabel the NPC ID field when in "Hurt Enemy" mode for clarity
+        val npcLabel = npcSettingsTable.children.first() as Label
+        val enemyLabel = enemySettingsTable.children.first() as Label
+        npcLabel.setText("Target NPC ID:")
+        enemyLabel.setText("Target Enemy ID:")
+
+        instructions.isVisible = (selectedType == TriggerType.ON_ENTER_AREA)
 
         window.pack()
     }

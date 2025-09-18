@@ -619,6 +619,9 @@ class SceneManager(
 
     private fun completeTransitionToInterior() {
         val house = pendingHouse ?: return
+
+        game.missionSystem.onPlayerEnteredHouse(house.id)
+
         val interiorCm = interiorChunkManagers.getOrPut(house.id) {
             println("Creating new ChunkManager for house ID: ${house.id}")
             ChunkManager(faceCullingSystem, game.blockSize, game)

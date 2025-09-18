@@ -98,7 +98,11 @@ data class CompletionCondition(
 
 enum class TriggerType {
     ON_ENTER_AREA,
-    ON_TALK_TO_NPC
+    ON_TALK_TO_NPC,
+    ON_COLLECT_ITEM,
+    ON_ENTER_HOUSE,
+    ON_HURT_ENEMY,
+    ON_ENTER_CAR
 }
 
 data class MissionTrigger(
@@ -107,7 +111,12 @@ data class MissionTrigger(
     var areaRadius: Float = TriggerSystem.VISUAL_RADIUS,
     var targetNpcId: String? = null,
     var dialogId: String? = null,
-    var sceneId: String = "WORLD"
+    var sceneId: String = "WORLD",
+
+    var itemType: ItemType? = null,     // For ON_COLLECT_ITEM
+    var itemCount: Int = 1,             // For ON_COLLECT_ITEM
+    var targetHouseId: String? = null,  // For ON_ENTER_HOUSE
+    var targetCarId: String? = null     // For ON_ENTER_CAR
 )
 
 // --- Mission Modifiers (Special Rules) ---
