@@ -28,9 +28,6 @@ class MissionEditorUI(
     private val prerequisitesField: TextField
     private val scopeSelectBox: SelectBox<String>
 
-    private val missionFlowContainer: VerticalGroup
-    private val missionFlowScrollPane: ScrollPane
-
     private val objectivesContainer: VerticalGroup
     private val rewardsContainer: VerticalGroup
     private val startEventsContainer: VerticalGroup
@@ -89,32 +86,26 @@ class MissionEditorUI(
         editorDetailsTable.pad(10f)
         editorDetailsTable.align(Align.topLeft)
 
-        // --- ADD THE NEW UI ELEMENTS HERE ---
-        editorDetailsTable.add(Label("--- Mission Flow ---", skin, "title")).colspan(2).center().padBottom(5f).row()
-        missionFlowContainer = VerticalGroup().apply { space(3f); wrap(false); align(Align.left) }
-        missionFlowScrollPane = ScrollPane(missionFlowContainer, skin).apply {
-            setFadeScrollBars(false)
-            setScrollingDisabled(true, false) // Only scroll vertically
-        }
-        editorDetailsTable.add(missionFlowScrollPane).colspan(2).growX().height(120f).padBottom(20f).row()
-
-        // All your existing fields for ID, Title, etc. go in here
         missionIdField = TextField("", skin).apply { isDisabled = true }
         missionTitleField = TextField("", skin)
         missionDescriptionArea = TextArea("", skin)
         prerequisitesField = TextField("", skin)
         scopeSelectBox = SelectBox(skin); scopeSelectBox.items = GdxArray(MissionScope.entries.map { it.name }.toTypedArray())
 
-        objectivesContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.topLeft) }
-        rewardsContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.topLeft) }
-        startEventsContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.topLeft) }
-        completeEventsContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.topLeft) }
+        objectivesContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.left) }
+        rewardsContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.left) }
+        startEventsContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.left) }
+        completeEventsContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.left) }
 
         editorDetailsTable.add(Label("ID:", skin)).left(); editorDetailsTable.add(missionIdField).growX().row()
         editorDetailsTable.add(Label("Title:", skin)).left(); editorDetailsTable.add(missionTitleField).growX().row()
         editorDetailsTable.add(Label("Description:", skin)).left().top(); editorDetailsTable.add(ScrollPane(missionDescriptionArea, skin)).growX().height(60f).row()
         editorDetailsTable.add(Label("Prerequisites (IDs):", skin)).left(); editorDetailsTable.add(prerequisitesField).growX().row()
         editorDetailsTable.add(Label("Scope:", skin)).left(); editorDetailsTable.add(scopeSelectBox).left().row()
+
+        // View Mission Flow button
+        val showFlowButton = TextButton("View Mission Flow", skin)
+        editorDetailsTable.add(showFlowButton).colspan(2).center().padTop(10f).padBottom(15f).row()
 
         editorDetailsTable.add(Label("--- Modifiers ---", skin, "title")).colspan(2).padTop(15f).row()
         val modifiersTable = Table()
@@ -192,6 +183,12 @@ class MissionEditorUI(
             }
         })
 
+        showFlowButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                showMissionFlowDialog()
+            }
+        })
+
         missionSelectBox.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 uiManager.game.sceneManager.clearMissionPreviews() // Clear old previews when changing mission
@@ -240,7 +237,6 @@ class MissionEditorUI(
     private fun populateEditor(missionId: String) {
         val mission = missionSystem.getMissionDefinition(missionId) ?: return
         currentMissionDef = mission
-        populateMissionFlow(mission)
 
         tempObjectives = mission.objectives
         tempRewards = mission.rewards
@@ -285,6 +281,107 @@ class MissionEditorUI(
         mission.modifiers.disableTraffic = disableTrafficCheckbox.isChecked
 
         missionSystem.saveMission(mission)
+    }
+
+    private fun showMissionFlowDialog() {
+        val mission = currentMissionDef ?: return // Do nothing if no mission is selected
+
+        val dialog = Dialog("Mission Flow: ${mission.title}", skin, "dialog")
+        dialog.isMovable = true
+        dialog.isResizable = true // Allow user to resize for complex missions
+
+        // A Table is better than a VerticalGroup for this, as it handles alignment better.
+        val flowContentTable = Table(skin)
+        flowContentTable.align(Align.topLeft)
+        flowContentTable.pad(10f)
+
+        // Populate the table with the flow information
+        populateMissionFlow(mission, flowContentTable)
+
+        val scrollPane = ScrollPane(flowContentTable, skin)
+        scrollPane.setFadeScrollBars(false)
+
+        dialog.contentTable.add(scrollPane).grow().minSize(500f, 400f).maxSize(800f, 600f)
+        dialog.button("Close")
+        dialog.show(stage)
+    }
+
+    private fun populateMissionFlow(mission: MissionDefinition, container: Table) {
+        container.clearChildren() // Clear any old content
+        val indent = "   > "
+
+        // --- 1. Prerequisites ---
+        if (mission.prerequisites.isNotEmpty()) {
+            container.add(Label("[YELLOW]UNLOCKED BY:", skin)).left().row()
+            mission.prerequisites.forEach { prereqId ->
+                val prereqMission = missionSystem.getMissionDefinition(prereqId)
+                container.add(Label("$indent${prereqMission?.title ?: prereqId}", skin, "small")).left().row()
+            }
+        }
+
+        // --- 2. Start Trigger ---
+        container.add(Label("[LIME]START TRIGGER:", skin)).left().padTop(8f).row()
+        val trigger = mission.startTrigger
+        val triggerText = when (trigger.type) {
+            TriggerType.ON_ENTER_AREA -> "Enter area at (${trigger.areaCenter.x.toInt()}, ${trigger.areaCenter.z.toInt()})"
+            TriggerType.ON_TALK_TO_NPC -> "Talk to NPC with ID: ${trigger.targetNpcId}"
+            TriggerType.ON_COLLECT_ITEM -> "Collect ${trigger.itemCount}x ${trigger.itemType?.displayName}"
+            TriggerType.ON_ENTER_HOUSE -> "Enter House with ID: ${trigger.targetHouseId}"
+            TriggerType.ON_HURT_ENEMY -> "Hurt Enemy with ID: ${trigger.targetNpcId}"
+            TriggerType.ON_ENTER_CAR -> "Enter Car with ID: ${trigger.targetCarId}"
+        }
+        container.add(Label("$indent$triggerText", skin, "small")).left().row()
+
+        // --- 3. Events on Start ---
+        if (mission.eventsOnStart.isNotEmpty()) {
+            container.add(Label("[CYAN]EVENTS ON START:", skin)).left().padTop(8f).row()
+            mission.eventsOnStart.forEach { event ->
+                container.add(Label("$indent${getEventDescription(event)}", skin, "small")).left().row()
+            }
+        }
+
+        // --- 4. Objectives and Their Events ---
+        mission.objectives.forEachIndexed { index, objective ->
+            container.add(Label("[ORANGE]OBJECTIVE ${index + 1}: ${objective.description}", skin)).left().padTop(8f).row()
+            if (objective.eventsOnStart.isNotEmpty()) {
+                objective.eventsOnStart.forEach { event ->
+                    container.add(Label("$indent[CYAN]Event: ${getEventDescription(event)}", skin, "small")).left().row()
+                }
+            }
+        }
+
+        // --- 5. Events on Complete ---
+        if (mission.eventsOnComplete.isNotEmpty()) {
+            container.add(Label("[CYAN]EVENTS ON COMPLETE:", skin)).left().padTop(8f).row()
+            mission.eventsOnComplete.forEach { event ->
+                container.add(Label("$indent${getEventDescription(event)}", skin, "small")).left().row()
+            }
+        }
+
+        // --- 6. Rewards ---
+        if (mission.rewards.isNotEmpty()) {
+            container.add(Label("[GOLD]REWARDS:", skin)).left().padTop(8f).row()
+            mission.rewards.forEach { reward ->
+                val rewardText = when (reward.type) {
+                    RewardType.GIVE_MONEY -> "Give Money: $${reward.amount}"
+                    RewardType.SHOW_MESSAGE -> "Show Message: '${reward.message}'"
+                    RewardType.GIVE_AMMO -> "Give Ammo: ${reward.amount} for ${reward.weaponType?.displayName}"
+                    RewardType.GIVE_ITEM -> "Give Item: ${reward.amount}x ${reward.itemType?.displayName}"
+                    else -> reward.type.name
+                }
+                container.add(Label("$indent$rewardText", skin, "small")).left().row()
+            }
+        }
+
+        // --- 7. Unlocks ---
+        val unlocksMissions = missionSystem.getAllMissionDefinitions().values
+            .filter { it.prerequisites.contains(mission.id) }
+        if (unlocksMissions.isNotEmpty()) {
+            container.add(Label("[YELLOW]UNLOCKS:", skin)).left().padTop(8f).row()
+            unlocksMissions.forEach { unlockedMission ->
+                container.add(Label("$indent${unlockedMission.title}", skin, "small")).left().row()
+            }
+        }
     }
 
     private fun showEventDialog(existingEvent: GameEvent?, isStartEvent: Boolean, onSaveEvent: ((GameEvent) -> Unit)? = null) {
@@ -747,84 +844,6 @@ class MissionEditorUI(
             })
             table.add(editButton); table.add(removeButton)
             rewardsContainer.addActor(table)
-        }
-    }
-
-    private fun populateMissionFlow(mission: MissionDefinition) {
-        missionFlowContainer.clearChildren() // Clear the old flow
-        val indent = "   > " // For readability
-
-        // --- 1. Prerequisites (What unlocks this mission) ---
-        if (mission.prerequisites.isNotEmpty()) {
-            missionFlowContainer.addActor(Label("[YELLOW]UNLOCKED BY:", skin))
-            mission.prerequisites.forEach { prereqId ->
-                val prereqMission = missionSystem.getMissionDefinition(prereqId)
-                missionFlowContainer.addActor(Label("$indent${prereqMission?.title ?: prereqId}", skin, "small"))
-            }
-        }
-
-        // --- 2. Start Trigger ---
-        missionFlowContainer.addActor(Label("[LIME]START TRIGGER:", skin))
-        val trigger = mission.startTrigger
-        val triggerText = when (trigger.type) {
-            TriggerType.ON_ENTER_AREA -> "Enter area at (${trigger.areaCenter.x.toInt()}, ${trigger.areaCenter.z.toInt()})"
-            TriggerType.ON_TALK_TO_NPC -> "Talk to NPC with ID: ${trigger.targetNpcId}"
-            TriggerType.ON_COLLECT_ITEM -> "Collect ${trigger.itemCount}x ${trigger.itemType?.displayName}"
-            TriggerType.ON_ENTER_HOUSE -> "Enter House with ID: ${trigger.targetHouseId}"
-            TriggerType.ON_HURT_ENEMY -> "Hurt Enemy with ID: ${trigger.targetNpcId}" // Reuses targetNpcId
-            TriggerType.ON_ENTER_CAR -> "Enter Car with ID: ${trigger.targetCarId}"
-        }
-        missionFlowContainer.addActor(Label("$indent$triggerText", skin, "small"))
-
-        // --- 3. Events on Start ---
-        if (mission.eventsOnStart.isNotEmpty()) {
-            missionFlowContainer.addActor(Label("[CYAN]EVENTS ON START:", skin))
-            mission.eventsOnStart.forEach { event ->
-                missionFlowContainer.addActor(Label("$indent${getEventDescription(event)}", skin, "small"))
-            }
-        }
-
-        // --- 4. Objectives and Their Events ---
-        mission.objectives.forEachIndexed { index, objective ->
-            missionFlowContainer.addActor(Label("[ORANGE]OBJECTIVE ${index + 1}: ${objective.description}", skin))
-            if (objective.eventsOnStart.isNotEmpty()) {
-                objective.eventsOnStart.forEach { event ->
-                    missionFlowContainer.addActor(Label("$indent[CYAN]Event: ${getEventDescription(event)}", skin, "small"))
-                }
-            }
-        }
-
-        // --- 5. Events on Complete ---
-        if (mission.eventsOnComplete.isNotEmpty()) {
-            missionFlowContainer.addActor(Label("[CYAN]EVENTS ON COMPLETE:", skin))
-            mission.eventsOnComplete.forEach { event ->
-                missionFlowContainer.addActor(Label("$indent${getEventDescription(event)}", skin, "small"))
-            }
-        }
-
-        // --- 6. Rewards ---
-        if (mission.rewards.isNotEmpty()) {
-            missionFlowContainer.addActor(Label("[GOLD]REWARDS:", skin))
-            mission.rewards.forEach { reward ->
-                val rewardText = when (reward.type) {
-                    RewardType.GIVE_MONEY -> "Give Money: $${reward.amount}"
-                    RewardType.SHOW_MESSAGE -> "Show Message: '${reward.message}'"
-                    RewardType.GIVE_AMMO -> "Give Ammo: ${reward.amount} for ${reward.weaponType?.displayName}"
-                    RewardType.GIVE_ITEM -> "Give Item: ${reward.amount}x ${reward.itemType?.displayName}"
-                    else -> reward.type.name
-                }
-                missionFlowContainer.addActor(Label("$indent$rewardText", skin, "small"))
-            }
-        }
-
-        // --- 7. Unlocks (What this mission unlocks) ---
-        val unlocksMissions = missionSystem.getAllMissionDefinitions().values
-            .filter { it.prerequisites.contains(mission.id) }
-        if (unlocksMissions.isNotEmpty()) {
-            missionFlowContainer.addActor(Label("[YELLOW]UNLOCKS:", skin))
-            unlocksMissions.forEach { unlockedMission ->
-                missionFlowContainer.addActor(Label("$indent${unlockedMission.title}", skin, "small"))
-            }
         }
     }
 
