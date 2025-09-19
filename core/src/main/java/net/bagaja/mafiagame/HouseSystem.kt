@@ -136,9 +136,16 @@ class HouseSystem: IFinePositionable {
             val properY = findHighestSurfaceYAt(gridX, gridZ)
             val housePosition = Vector3(gridX, properY, gridZ)
 
+            val currentSceneId = if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+                sceneManager.getCurrentHouse()?.id ?: "WORLD"
+            } else {
+                "WORLD"
+            }
+
             val event = GameEvent(
                 type = GameEventType.SPAWN_HOUSE,
                 spawnPosition = housePosition,
+                sceneId = currentSceneId,
                 houseType = currentSelectedHouse,
                 houseIsLocked = isNextHouseLocked,
                 houseRotationY = currentRotation

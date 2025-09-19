@@ -203,10 +203,17 @@ class ItemSystem: IFinePositionable {
             val itemType = currentSelectedItem
             val eventType = if (itemType == ItemType.MONEY_STACK) GameEventType.SPAWN_MONEY_STACK else GameEventType.SPAWN_ITEM
 
+            val currentSceneId = if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+                sceneManager.getCurrentHouse()?.id ?: "WORLD"
+            } else {
+                "WORLD"
+            }
+
             // 1. Create the GameEvent
             val event = GameEvent(
                 type = eventType,
                 spawnPosition = itemPosition,
+                sceneId = currentSceneId,
                 itemType = itemType,
                 itemValue = itemType.value,
                 targetId = null // Ensure this is null for items

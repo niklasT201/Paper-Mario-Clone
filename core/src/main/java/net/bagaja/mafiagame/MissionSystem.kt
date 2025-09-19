@@ -431,7 +431,36 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
     }
 
     private fun executeEvent(event: GameEvent) {
-        println("Executing mission event: ${event.type}")
+        println("Executing mission event: ${event.type} for scene '${event.sceneId ?: "WORLD"}'")
+
+        val targetSceneId = event.sceneId ?: "WORLD"
+        val currentSceneId = if (game.sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+            game.sceneManager.getCurrentHouse()?.id
+        } else {
+            "WORLD"
+        }
+
+        fun <T> addEntityToScene(
+            entity: T,
+            activeList: com.badlogic.gdx.utils.Array<T>,
+            worldListProvider: () -> com.badlogic.gdx.utils.Array<T>?,
+            interiorListProvider: (String) -> com.badlogic.gdx.utils.Array<T>?
+        ) {
+            if (targetSceneId == currentSceneId) {
+                activeList.add(entity)
+            } else {
+                if (targetSceneId == "WORLD") {
+                    game.sceneManager.worldState?.let { worldListProvider()?.add(entity) }
+                    println("Event for WORLD scene: Added entity to world state while in an interior.")
+                } else {
+                    game.sceneManager.interiorStates[targetSceneId]?.let {
+                        interiorListProvider(targetSceneId)?.add(entity)
+                        println("Event for another scene: Added entity to state for house '$targetSceneId'.")
+                    } ?: println("ERROR: Could not find interior state for house '$targetSceneId' to spawn entity.")
+                }
+            }
+        }
+
         when (event.type) {
             GameEventType.SPAWN_ENEMY -> {
                 if (event.enemyType != null && event.enemyBehavior != null && event.spawnPosition != null) {
@@ -441,16 +470,20 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         position = event.spawnPosition,
                         id = event.targetId,
                         healthSetting = event.healthSetting ?: HealthSetting.FIXED_DEFAULT,
-                        customHealthValue = event.customHealthValue ?: 100f,
-                        minRandomHealth = event.minRandomHealth ?: 80f,
-                        maxRandomHealth = event.maxRandomHealth ?: 120f,
+                        customHealthValue = event.customHealthValue ?: event.enemyType.baseHealth,
+                        minRandomHealth = event.minRandomHealth ?: (event.enemyType.baseHealth * 0.8f),
+                        maxRandomHealth = event.maxRandomHealth ?: (event.enemyType.baseHealth * 1.2f),
                         initialWeapon = event.initialWeapon ?: WeaponType.UNARMED,
                         ammoSpawnMode = event.ammoSpawnMode ?: AmmoSpawnMode.FIXED,
                         setAmmoValue = event.setAmmoValue ?: 30,
                         weaponCollectionPolicy = event.weaponCollectionPolicy ?: WeaponCollectionPolicy.CANNOT_COLLECT,
                         canCollectItems = event.canCollectItems ?: true
                     )
-                    game.enemySystem.createEnemy(config)?.let { game.sceneManager.activeEnemies.add(it) }
+                    game.enemySystem.createEnemy(config)?.let { newEnemy ->
+                        addEntityToScene(newEnemy, game.sceneManager.activeEnemies, { game.sceneManager.worldState?.enemies }) {
+                            game.sceneManager.interiorStates[it]?.enemies
+                        }
+                    }
                 }
             }
             GameEventType.SPAWN_NPC -> {
@@ -461,98 +494,110 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         position = event.spawnPosition,
                         id = event.targetId
                     )
-                    // Pass the saved rotation to the create function
-                    game.npcSystem.createNPC(config, event.npcRotation ?: 0f)?.let {
-                        game.sceneManager.activeNPCs.add(it)
-                    }
-                }
-            }
-            GameEventType.SPAWN_CAR -> {
-                if (event.carType != null && event.spawnPosition != null) {
-                    val newCar = game.carSystem.spawnCar(event.spawnPosition, event.carType, event.carIsLocked)
-                    if (newCar != null) {
-                        event.targetId?.let { newCar.id = it }
-                        // --- NEW: Spawn a driver if specified in the event ---
-                        when (event.carDriverType) {
-                            "Enemy" -> {
-                                event.carEnemyDriverType?.let { enemyType ->
-                                    val enemyConfig = EnemySpawnConfig(enemyType, EnemyBehavior.AGGRESSIVE_RUSHER, newCar.position)
-                                    val driver = game.enemySystem.createEnemy(enemyConfig)
-                                    if (driver != null) {
-                                        driver.enterCar(newCar)
-                                        driver.currentState = AIState.PATROLLING_IN_CAR
-                                        game.sceneManager.activeEnemies.add(driver)
-                                    }
-                                }
-                            }
-                            "NPC" -> {
-                                event.carNpcDriverType?.let { npcType ->
-                                    val npcConfig = NPCSpawnConfig(npcType, NPCBehavior.WANDER, newCar.position)
-                                    val driver = game.npcSystem.createNPC(npcConfig)
-                                    if (driver != null) {
-                                        driver.enterCar(newCar)
-                                        driver.currentState = NPCState.PATROLLING_IN_CAR
-                                        game.sceneManager.activeNPCs.add(driver)
-                                    }
-                                }
+                    event.npcRotation?.let {
+                        game.npcSystem.createNPC(config, it)?.let { newNpc ->
+                            addEntityToScene(newNpc, game.sceneManager.activeNPCs, { game.sceneManager.worldState?.npcs }) {
+                                game.sceneManager.interiorStates[it]?.npcs
                             }
                         }
                     }
                 }
             }
-            GameEventType.SPAWN_ITEM -> {
-                if (event.itemType != null && event.spawnPosition != null) {
-                    game.itemSystem.createItem(event.spawnPosition, event.itemType)?.let {
-                        game.sceneManager.activeItems.add(it)
+            GameEventType.SPAWN_CAR -> {
+                if (event.carType != null && event.spawnPosition != null) {
+                    if (targetSceneId != "WORLD") {
+                        println("WARNING: Mission event tried to spawn a car in an interior ('$targetSceneId'). Aborting event.")
+                        return
                     }
-                }
-            }
-            GameEventType.SPAWN_MONEY_STACK -> {
-                if (event.spawnPosition != null) {
-                    game.itemSystem.createItem(event.spawnPosition, ItemType.MONEY_STACK)?.let {
-                        it.value = event.itemValue
-                        game.sceneManager.activeItems.add(it)
-                    }
-                }
-            }
-            GameEventType.DESPAWN_ENTITY -> {
-                event.targetId?.let { id ->
-                    game.sceneManager.activeEnemies.find { it.id == id }?.let { game.sceneManager.activeEnemies.removeValue(it, true) }
-                    game.sceneManager.activeNPCs.find { it.id == id }?.let { game.sceneManager.activeNPCs.removeValue(it, true) }
-                    game.sceneManager.activeCars.find { it.id == id }?.let { game.sceneManager.activeCars.removeValue(it, true) }
-                    println("Despawned entity with ID: $id")
-                }
-            }
-            GameEventType.START_DIALOG -> {
-                event.dialogId?.let { dialogId ->
-                    val dialogSequence = dialogueManager.getDialogue(dialogId)
 
-                    if (dialogSequence != null) {
-                        // The rest of the logic is the same
-                        val sequenceWithCallback = dialogSequence.copy(
-                            onComplete = {
-                                // When the dialog finishes, report it to the mission system
-                                reportDialogComplete(dialogId)
+                    val carInstance = game.carSystem.createCarInstance(event.carType) ?: return
+                    val newCar = GameCar(
+                        modelInstance = carInstance,
+                        carType = event.carType,
+                        position = event.spawnPosition,
+                        isLocked = event.carIsLocked,
+                        health = event.carType.baseHealth,
+                        initialVisualRotation = event.houseRotationY ?: 0f
+                    )
+                    event.targetId?.let { newCar.id = it }
+
+                    var driver: Any? = null
+
+                    when (event.carDriverType) {
+                        "Enemy" -> {
+                            event.carEnemyDriverType?.let { enemyType ->
+                                val enemyConfig = EnemySpawnConfig(enemyType, EnemyBehavior.AGGRESSIVE_RUSHER, newCar.position)
+                                val createdDriver = game.enemySystem.createEnemy(enemyConfig)
+                                if (createdDriver != null) {
+                                    driver = createdDriver
+                                    createdDriver.enterCar(newCar)
+                                    createdDriver.currentState = AIState.PATROLLING_IN_CAR
+                                }
                             }
-                        )
-                        game.uiManager.dialogSystem.startDialog(sequenceWithCallback)
-                    } else {
-                        println("ERROR: Mission tried to start dialog '$dialogId', but it was not found by the DialogueLoader.")
+                        }
+                        "NPC" -> {
+                            event.carNpcDriverType?.let { npcType ->
+                                val npcConfig = NPCSpawnConfig(npcType, NPCBehavior.WANDER, newCar.position)
+                                val createdDriver = game.npcSystem.createNPC(npcConfig)
+                                if (createdDriver != null) {
+                                    driver = createdDriver
+                                    createdDriver.enterCar(newCar)
+                                    createdDriver.currentState = NPCState.PATROLLING_IN_CAR
+                                }
+                            }
+                        }
                     }
+
+                    addEntityToScene(newCar, game.sceneManager.activeCars, { game.sceneManager.worldState?.cars }, { null })
+
+                    // Create a local, non-changing copy of the driver for the smart cast to work.
+                    when (val finalDriver = driver) {
+                        is GameEnemy -> addEntityToScene(finalDriver, game.sceneManager.activeEnemies, { game.sceneManager.worldState?.enemies }, { null })
+                        is GameNPC -> addEntityToScene(finalDriver, game.sceneManager.activeNPCs, { game.sceneManager.worldState?.npcs }, { null })
+                    }
+                }
+            }
+            GameEventType.SPAWN_ITEM, GameEventType.SPAWN_MONEY_STACK -> {
+                if (event.itemType != null && event.spawnPosition != null) {
+                    game.itemSystem.createItem(event.spawnPosition, event.itemType)?.let { newItem ->
+                        if (event.type == GameEventType.SPAWN_MONEY_STACK) newItem.value = event.itemValue
+                        addEntityToScene(newItem, game.sceneManager.activeItems, { game.sceneManager.worldState?.items }) {
+                            game.sceneManager.interiorStates[it]?.items
+                        }
+                    }
+                }
+            }
+            GameEventType.SPAWN_BLOCK -> {
+                if (event.blockType != null && event.spawnPosition != null) {
+                    val newBlock = game.blockSystem.createGameBlock(
+                        type = event.blockType,
+                        shape = event.blockShape ?: BlockShape.FULL_BLOCK,
+                        position = event.spawnPosition,
+                        geometryRotation = event.blockRotationY ?: 0f,
+                        textureRotation = event.blockTextureRotationY ?: 0f,
+                        topTextureRotation = event.blockTopTextureRotationY ?: 0f
+                    ).copy(cameraVisibility = event.blockCameraVisibility ?: CameraVisibility.ALWAYS_VISIBLE)
+
+                    val targetChunkManager = when (targetSceneId) {
+                        currentSceneId -> game.sceneManager.activeChunkManager
+                        "WORLD" -> game.sceneManager.worldChunkManager
+                        else -> game.sceneManager.interiorChunkManagers[targetSceneId]
+                    }
+
+                    targetChunkManager?.addBlock(newBlock) ?: println("ERROR: Could not find ChunkManager for scene '$targetSceneId' to spawn block.")
                 }
             }
             GameEventType.SPAWN_HOUSE -> {
                 if (event.houseType != null && event.spawnPosition != null) {
+                    if (targetSceneId != "WORLD") {
+                        println("WARNING: Mission event tried to spawn a house in an interior ('$targetSceneId'). Aborting.")
+                        return
+                    }
                     game.houseSystem.currentRotation = event.houseRotationY ?: 0f
-                    val newHouse = game.houseSystem.addHouse(
-                        event.spawnPosition.x,
-                        event.spawnPosition.y,
-                        event.spawnPosition.z,
-                        event.houseType,
-                        event.houseIsLocked ?: false
-                    )
+                    val newHouse = game.houseSystem.addHouse(event.spawnPosition.x, event.spawnPosition.y, event.spawnPosition.z, event.houseType, event.houseIsLocked ?: false)
                     if (newHouse != null) {
                         event.targetId?.let { newHouse.id = it }
+                        addEntityToScene(newHouse, game.sceneManager.activeHouses, { game.sceneManager.worldState?.houses }, { null })
                     }
                 }
             }
@@ -569,35 +614,21 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                             loopOnDuration = event.loopOnDuration ?: 0.1f,
                             loopOffDuration = event.loopOffDuration ?: 0.2f
                         )
-                        val instances = game.objectSystem.createLightSourceInstances(light)
-                        game.lightingManager.addLightSource(light, instances)
+                        if (targetSceneId == currentSceneId) {
+                            val instances = game.objectSystem.createLightSourceInstances(light)
+                            game.lightingManager.addLightSource(light, instances)
+                        } else {
+                            val targetLightsMap = if (targetSceneId == "WORLD") game.sceneManager.worldState?.lights else game.sceneManager.interiorStates[targetSceneId]?.lights
+                            targetLightsMap?.put(light.id, light)
+                        }
                     } else {
-                        // Handle regular objects
-                        game.objectSystem.createGameObjectWithLight(
-                            event.objectType,
-                            event.spawnPosition,
-                            game.lightingManager
-                        )?.let { gameObject ->
-                            event.targetId?.let { gameObject.id = it.hashCode() }
-
-                            game.sceneManager.activeObjects.add(gameObject)
+                        game.objectSystem.createGameObjectWithLight(event.objectType, event.spawnPosition, if (targetSceneId == currentSceneId) game.lightingManager else null)?.let { newObject ->
+                            event.targetId?.let { newObject.id = it.hashCode() }
+                            addEntityToScene(newObject, game.sceneManager.activeObjects, { game.sceneManager.worldState?.objects }) {
+                                game.sceneManager.interiorStates[it]?.objects
+                            }
                         }
                     }
-                }
-            }
-            GameEventType.SPAWN_BLOCK -> {
-                if (event.blockType != null && event.spawnPosition != null) {
-                    val block = game.blockSystem.createGameBlock(
-                        type = event.blockType,
-                        shape = event.blockShape ?: BlockShape.FULL_BLOCK,
-                        position = event.spawnPosition,
-                        geometryRotation = event.blockRotationY ?: 0f,
-                        textureRotation = event.blockTextureRotationY ?: 0f,
-                        topTextureRotation = event.blockTopTextureRotationY ?: 0f
-                    ).copy(
-                        cameraVisibility = event.blockCameraVisibility ?: CameraVisibility.ALWAYS_VISIBLE
-                    )
-                    game.sceneManager.addBlock(block)
                 }
             }
             GameEventType.SPAWN_SPAWNER -> {
@@ -636,7 +667,9 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         newSpawner.carNpcDriverType = event.spawnerCarNpcDriverType ?: newSpawner.carNpcDriverType
                         newSpawner.carSpawnDirection = event.spawnerCarSpawnDirection ?: newSpawner.carSpawnDirection
 
-                        game.sceneManager.activeSpawners.add(newSpawner)
+                        addEntityToScene(newSpawner, game.sceneManager.activeSpawners, { game.sceneManager.worldState?.spawners }) {
+                            game.sceneManager.interiorStates[it]?.spawners
+                        }
                     }
                 }
             }
@@ -652,12 +685,15 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                             linkedTeleporterId = event.linkedTeleporterId,
                             name = event.teleporterName ?: "Teleporter"
                         )
-                        game.teleporterSystem.activeTeleporters.add(newTeleporter)
+                        addEntityToScene(newTeleporter, game.teleporterSystem.activeTeleporters, { game.sceneManager.worldState?.teleporters }) {
+                            game.sceneManager.interiorStates[it]?.teleporters
+                        }
                     }
                 }
             }
             GameEventType.SPAWN_FIRE -> {
                 if (event.spawnPosition != null) {
+                    // Configure fire system
                     val fireSystem = game.fireSystem
                     fireSystem.nextFireIsLooping = event.isLooping ?: true
                     fireSystem.nextFireFadesOut = event.fadesOut ?: false
@@ -672,9 +708,30 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     // Create the fire using the dedicated system
                     val newFire = fireSystem.addFire(event.spawnPosition.cpy(), game.objectSystem, game.lightingManager)
                     if (newFire != null) {
-                        // Add its underlying game object to the active scene objects
-                        game.sceneManager.activeObjects.add(newFire.gameObject)
+                        addEntityToScene(newFire, game.fireSystem.activeFires, { game.sceneManager.worldState?.fires }) {
+                            game.sceneManager.interiorStates[it]?.fires
+                        }
+                        addEntityToScene(newFire.gameObject, game.sceneManager.activeObjects, { game.sceneManager.worldState?.objects }) {
+                            game.sceneManager.interiorStates[it]?.objects
+                        }
                     }
+                }
+            }
+            GameEventType.DESPAWN_ENTITY -> {
+                event.targetId?.let { id ->
+                    // Despawning only makes sense in the currently active scene.
+                    game.sceneManager.activeEnemies.removeAll { it.id == id }
+                    game.sceneManager.activeNPCs.removeAll { it.id == id }
+                    game.sceneManager.activeCars.removeAll { it.id == id }
+                    println("Despawned entity with ID: $id from active scene.")
+                }
+            }
+            GameEventType.START_DIALOG -> {
+                event.dialogId?.let { dialogId ->
+                    dialogueManager.getDialogue(dialogId)?.let { dialogSequence ->
+                        val sequenceWithCallback = dialogSequence.copy(onComplete = { reportDialogComplete(dialogId) })
+                        game.uiManager.dialogSystem.startDialog(sequenceWithCallback)
+                    } ?: println("ERROR: Mission tried to start dialog '$dialogId', but it was not found.")
                 }
             }
             else -> println("Event type ${event.type} not yet implemented.")

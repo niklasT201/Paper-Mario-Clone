@@ -150,6 +150,7 @@ data class GameEvent(
     val type: GameEventType = GameEventType.SPAWN_ENEMY,
     val spawnPosition: Vector3? = null,
     val targetId: String? = null,
+    val sceneId: String? = null,
 
     // Enemy-specific
     val enemyType: EnemyType? = null,

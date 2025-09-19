@@ -187,9 +187,16 @@ class ObjectSystem: IFinePositionable {
             // Get light settings from the UI if we are placing a light source
             val lightSettings = if (objectType == ObjectType.LIGHT_SOURCE) uiManager.getLightSourceSettings() else null
 
+            val currentSceneId = if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+                sceneManager.getCurrentHouse()?.id ?: "WORLD"
+            } else {
+                "WORLD"
+            }
+
             val event = GameEvent(
                 type = GameEventType.SPAWN_OBJECT,
                 spawnPosition = objectPosition,
+                sceneId = currentSceneId,
                 objectType = objectType,
                 lightColor = lightSettings?.color,
                 lightIntensity = lightSettings?.intensity,

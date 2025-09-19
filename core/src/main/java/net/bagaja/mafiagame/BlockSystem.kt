@@ -426,9 +426,17 @@ class BlockSystem {
                 println("ERROR: Tried to place a mission block but no mission is selected!")
                 return // Don't place the block
             }
+
+            val currentSceneId = if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+                sceneManager.getCurrentHouse()?.id ?: "WORLD"
+            } else {
+                "WORLD"
+            }
+
             val event = GameEvent(
                 type = GameEventType.SPAWN_BLOCK,
                 spawnPosition = gameBlock.position,
+                sceneId = currentSceneId,
                 blockType = blockType,
                 blockShape = this.currentSelectedShape,
                 blockRotationY = this.currentGeometryRotation,

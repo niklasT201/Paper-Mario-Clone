@@ -368,13 +368,21 @@ class NPCSystem : IFinePositionable {
             val config = sceneManager.game.uiManager.npcSelectionUI.getSpawnConfig(Vector3.Zero)
             val npcPosition = Vector3(tempVec3.x, surfaceY + config.npcType.height / 2f, tempVec3.z)
 
+            val currentSceneId = if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+                sceneManager.getCurrentHouse()?.id ?: "WORLD"
+            } else {
+                "WORLD"
+            }
+
             // 1. Create the GameEvent for the mission file
             val event = GameEvent(
                 type = GameEventType.SPAWN_NPC,
                 spawnPosition = npcPosition,
+                sceneId = currentSceneId,
                 targetId = "npc_${UUID.randomUUID()}",
                 npcType = config.npcType,
-                npcBehavior = config.behavior
+                npcBehavior = config.behavior,
+                npcRotation = currentRotation
             )
 
             // 2. Add the event and save the mission

@@ -109,7 +109,6 @@ class CarSystem: IFinePositionable {
             return
         }
 
-        // This is your original code for WORLD placement
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             // Snap to grid
             val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
@@ -173,10 +172,17 @@ class CarSystem: IFinePositionable {
             // Get the full configuration from the UI, including driver info
             val config = uiManager.getCarSpawnConfig()
 
+            val currentSceneId = if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+                sceneManager.getCurrentHouse()?.id ?: "WORLD"
+            } else {
+                "WORLD"
+            }
+
             // 1. Create the GameEvent for the mission file
             val event = GameEvent(
                 type = GameEventType.SPAWN_CAR,
                 spawnPosition = carPosition,
+                sceneId = currentSceneId,
                 targetId = "car_${UUID.randomUUID()}",
                 carType = config.carType,
                 carIsLocked = config.isLocked,

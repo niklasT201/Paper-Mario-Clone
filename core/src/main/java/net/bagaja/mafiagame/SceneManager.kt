@@ -45,8 +45,8 @@ class SceneManager(
     lateinit var raycastSystem: RaycastSystem
     lateinit var teleporterSystem: TeleporterSystem
     // --- ACTIVE SCENE DATA ---
-    private lateinit var worldChunkManager: ChunkManager
-    private val interiorChunkManagers = mutableMapOf<String, ChunkManager>()
+    lateinit var worldChunkManager: ChunkManager
+    val interiorChunkManagers = mutableMapOf<String, ChunkManager>()
     lateinit var activeChunkManager: ChunkManager
     val activeObjects = Array<GameObject>()
     val activeCars = Array<GameCar>()
@@ -73,8 +73,8 @@ class SceneManager(
     // State Management
     var currentScene: SceneType = SceneType.WORLD
         private set
-    private var worldState: WorldState? = null
-    private val interiorStates = mutableMapOf<String, InteriorState>()
+    var worldState: WorldState? = null
+    val interiorStates = mutableMapOf<String, InteriorState>()
     private var currentInteriorId: String? = null
     private var pendingHouse: GameHouse? = null
 
@@ -761,13 +761,14 @@ class SceneManager(
             spawners = Array(activeSpawners),
             playerPosition = playerSystem.getPosition(),
             cameraPosition = Vector3(),
-            lights = game.lightingManager.getLightSources(),
+            lights = game.lightingManager.getLightSources().toMutableMap(),
             bloodPools = Array(activeBloodPools),
             footprints = Array(activeFootprints),
             bones = Array(activeBones),
             fires = Array(fireSystem.activeFires),
             bullets = Array(activeBullets),
-            throwables = Array(activeThrowables)
+            throwables = Array(activeThrowables),
+            teleporters = Array(teleporterSystem.activeTeleporters)
         )
         println("World state saved. Player at ${worldState!!.playerPosition}")
     }
@@ -798,6 +799,7 @@ class SceneManager(
         fireSystem.activeFires.addAll(state.fires)
         activeBullets.addAll(state.bullets)
         activeThrowables.addAll(state.throwables)
+        teleporterSystem.activeTeleporters.addAll(state.teleporters)
 
         setSceneLights(state.lights)
     }
@@ -1707,13 +1709,14 @@ data class WorldState(
     val spawners: Array<GameSpawner>,
     val playerPosition: Vector3,
     val cameraPosition: Vector3,
-    val lights: Map<Int, LightSource>,
+    val lights: MutableMap<Int, LightSource>,
     val bloodPools: Array<BloodPool>,
     val footprints: Array<GameFootprint>,
     val bones: Array<GameBone>,
     val fires: Array<GameFire> = Array(),
     val bullets: Array<Bullet> = Array(),
-    val throwables: Array<ThrowableEntity> = Array()
+    val throwables: Array<ThrowableEntity> = Array(),
+    val teleporters: Array<GameTeleporter> = Array()
 )
 
 // The state for a single house interior.

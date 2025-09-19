@@ -322,10 +322,17 @@ class EnemySystem : IFinePositionable {
             // Now, get the final, complete config using the correct spawn position
             val finalConfig = sceneManager.game.uiManager.enemySelectionUI.getSpawnConfig(finalEnemyPosition)
 
+            val currentSceneId = if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+                sceneManager.getCurrentHouse()?.id ?: "WORLD"
+            } else {
+                "WORLD"
+            }
+
             // 1. Create the GameEvent for the mission file, now including ALL config details
             val event = GameEvent(
                 type = GameEventType.SPAWN_ENEMY,
                 spawnPosition = finalEnemyPosition,
+                sceneId = currentSceneId,
                 targetId = "enemy_${UUID.randomUUID()}",
                 enemyType = finalConfig.enemyType,
                 enemyBehavior = finalConfig.behavior,
