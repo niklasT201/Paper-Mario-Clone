@@ -76,13 +76,33 @@ public class Lwjgl3Launcher {
 // number before mission list
 // id under mission name
 // C button to copy mission id
-// npcs outside missios having dialogs, enemies too
+// npcs outside missions having dialogs, enemies too
 // choosing character images via images, not paths
+// visual screen for finished mission
+// death resets mission
+// timer turned to 0 before mission finished resets mission
 // nickelodeons having real short films
 // visual that a character whats to talk
+// y=0 standard bottom only in editor mode
+// weather events
 // more options for starting a mission
+
+// playerDamageMultiplier: Float (e.g., 2.0 for double damage, 0.5 for half damage).
+// incomingDamageMultiplier: Float (e.g., 0.5 for a "half damage" mission).
+// unlimitedAmmo: Boolean (You already have setUnlimitedAmmoFor, this would be for all weapons).
+// disablePlayerWeaponSwitching: Boolean (Force the player to use only one weapon for a mission).
+// playerSpeedMultiplier: Float (For a mission where you need to run fast).
+// forceTimeOfDay: Float (A value from 0.0 to 1.0 to lock the time to a specific point, e.g., always midnight for a stealth mission).
+// disablePoliceResponse: Boolean (Allow the player to cause chaos without getting a wanted level).
+// increasedEnemySpawns: Boolean (For a horde-mode style mission).
+// civiliansFleeOnSight: Boolean (Make all NPCs run away from the player for a "terrorize the city" mission).
+// carIsIndestructible: Boolean (For an escort mission where the target vehicle cannot be destroyed).
+// allCarsUnlocked: Boolean (Allow the player to steal any car during the mission).
+// carSpeedMultiplier: Float (For a street race mission).
+
 // npcs choosing dialog for finishing objects
 // Spawner, Fire, and Teleporter Systems (Placement Logic) for missions working
+// Automatic/Linear Mode or Open World Mode
 // loading in rooms, room will be placed in world
 // missions objects can be removed after a mission, and be mission only
 // light sources visible in user mode

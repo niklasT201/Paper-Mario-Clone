@@ -40,6 +40,9 @@ class MissionEditorUI(
     private val missionSelectionTable: Table
     private val missionSelectBox: SelectBox<String>
 
+    private val unlimitedHealthCheckbox: CheckBox
+    private val disableTrafficCheckbox: CheckBox
+
     // Temporary storage while editing
     private var tempObjectives = mutableListOf<MissionObjective>()
     private var tempRewards = mutableListOf<MissionReward>()
@@ -112,6 +115,14 @@ class MissionEditorUI(
         editorDetailsTable.add(Label("Description:", skin)).left().top(); editorDetailsTable.add(ScrollPane(missionDescriptionArea, skin)).growX().height(60f).row()
         editorDetailsTable.add(Label("Prerequisites (IDs):", skin)).left(); editorDetailsTable.add(prerequisitesField).growX().row()
         editorDetailsTable.add(Label("Scope:", skin)).left(); editorDetailsTable.add(scopeSelectBox).left().row()
+
+        editorDetailsTable.add(Label("--- Modifiers ---", skin, "title")).colspan(2).padTop(15f).row()
+        val modifiersTable = Table()
+        unlimitedHealthCheckbox = CheckBox(" Player Invincible", skin)
+        disableTrafficCheckbox = CheckBox(" Disable AI Traffic", skin) // Assuming you will have ambient AI traffic later
+        modifiersTable.add(unlimitedHealthCheckbox).left().row()
+        modifiersTable.add(disableTrafficCheckbox).left().row()
+        editorDetailsTable.add(modifiersTable).colspan(2).left().padBottom(10f).row()
 
         editorDetailsTable.add(Label("--- Events on Start ---", skin, "title")).colspan(2).padTop(15f).row()
         editorDetailsTable.add(ScrollPane(startEventsContainer, skin)).colspan(2).growX().height(100f).row()
@@ -242,6 +253,10 @@ class MissionEditorUI(
         prerequisitesField.text = mission.prerequisites.joinToString(", ")
         scopeSelectBox.selected = mission.scope.name
 
+        // Load the modifier states into the checkboxes
+        unlimitedHealthCheckbox.isChecked = mission.modifiers.setUnlimitedHealth
+        disableTrafficCheckbox.isChecked = mission.modifiers.disableTraffic
+
         refreshObjectiveWidgets()
         refreshRewardWidgets()
         refreshEventWidgets()
@@ -265,8 +280,10 @@ class MissionEditorUI(
         mission.prerequisites = prerequisitesField.text.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
         mission.scope = MissionScope.valueOf(scopeSelectBox.selected)
 
-        // The temporary lists have now been directly modifying the mission object,
-        // so we just need to save it.
+        // Save the checkbox states back to the mission definition
+        mission.modifiers.setUnlimitedHealth = unlimitedHealthCheckbox.isChecked
+        mission.modifiers.disableTraffic = disableTrafficCheckbox.isChecked
+
         missionSystem.saveMission(mission)
     }
 

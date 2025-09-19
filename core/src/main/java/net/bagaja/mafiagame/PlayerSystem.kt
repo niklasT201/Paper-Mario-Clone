@@ -65,6 +65,12 @@ class PlayerSystem {
     private lateinit var sceneManager: SceneManager
 
     fun takeDamage(amount: Float) {
+        // Check for the active mission modifier
+        if (sceneManager.game.missionSystem.activeModifiers?.setUnlimitedHealth == true) {
+            println("Player is invincible due to mission modifier. Damage blocked.")
+            return // Exit the function immediately, taking no damage.
+        }
+
         if (isDriving) return
         if (health > 0) {
             health -= amount

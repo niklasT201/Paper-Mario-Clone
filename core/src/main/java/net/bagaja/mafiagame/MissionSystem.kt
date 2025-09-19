@@ -11,6 +11,7 @@ import java.util.*
 class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueManager) {
     private val allMissions = mutableMapOf<String, MissionDefinition>()
     private var activeMission: MissionState? = null
+    var activeModifiers: MissionModifiers? = null
     private var gameState = GameState() // This will be loaded from a file later
 
     fun getSaveData(): MissionProgressData {
@@ -292,6 +293,10 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         println("--- MISSION STARTED: ${missionDef.title} ---")
         activeMission = MissionState(missionDef)
 
+        // Activate the modifiers for this mission
+        activeModifiers = missionDef.modifiers
+        println("Activating mission modifiers: Invincible=${activeModifiers?.setUnlimitedHealth}")
+
         missionDef.eventsOnStart.forEach { executeEvent(it) }
 
         updateUIForCurrentObjective()
@@ -335,6 +340,11 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             println("--- MISSION FAILED: ${mission.definition.title} ---")
             // TODO: Reset any changes made by the mission
         }
+
+        // Deactivate modifiers when the mission ends
+        println("Deactivating mission modifiers.")
+        activeModifiers = null
+
         activeMission = null
         game.uiManager.updateMissionObjective("")
     }

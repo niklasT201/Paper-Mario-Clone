@@ -38,7 +38,8 @@ data class MissionDefinition(
     val eventsOnComplete: MutableList<GameEvent> = mutableListOf(),
     val objectives: MutableList<MissionObjective> = mutableListOf(),
     val rewards: MutableList<MissionReward> = mutableListOf(),
-    val startTrigger: MissionTrigger = MissionTrigger()
+    val startTrigger: MissionTrigger = MissionTrigger(),
+    val modifiers: MissionModifiers = MissionModifiers()
 )
 
 // --- Mission State (Runtime Data) ---
@@ -122,9 +123,9 @@ data class MissionTrigger(
 // --- Mission Modifiers (Special Rules) ---
 
 data class MissionModifiers(
-    val disableTraffic: Boolean = false,
+    var disableTraffic: Boolean = false,
     val setUnlimitedAmmoFor: WeaponType? = null,
-    val setUnlimitedHealth: Boolean = false
+    var setUnlimitedHealth: Boolean = false
 )
 
 // --- Events ---
