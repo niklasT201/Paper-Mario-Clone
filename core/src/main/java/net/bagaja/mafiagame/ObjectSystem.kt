@@ -16,6 +16,7 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
+import java.util.*
 import kotlin.math.floor
 
 // Object system class to manage 3D cross-shaped objects and light sources
@@ -45,7 +46,7 @@ class ObjectSystem: IFinePositionable {
         }
 
     // Keep track of object-light associations
-    private val objectLightAssociations = mutableMapOf<Int, Int>()
+    private val objectLightAssociations = mutableMapOf<String, Int>()
     private var nextObjectId = 1
 
     lateinit var sceneManager: SceneManager
@@ -538,7 +539,7 @@ class ObjectSystem: IFinePositionable {
         val modelInstance = createObjectInstance(objectType) ?: return null
         val debugInstance = if (objectType.isInvisible) createDebugInstance(objectType) else null
 
-        val objectId = nextObjectId++
+        val objectId = UUID.randomUUID().toString()
         var associatedLightId: Int? = null
 
         // Create light source if the object type has one
@@ -676,7 +677,7 @@ class ObjectSystem: IFinePositionable {
 
 // Game object class to store object data
 data class GameObject(
-    var id: Int,
+    var id: String,
     val modelInstance: ModelInstance,
     val objectType: ObjectType,
     val position: Vector3,

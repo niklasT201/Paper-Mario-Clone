@@ -429,10 +429,10 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     objectSystem = game.objectSystem,
                     lightingManager = game.lightingManager,
                     generation = data.generation,
-                    canSpread = data.canSpread
+                    canSpread = data.canSpread,
+                    id = data.id
                 )
                 if (newFire != null) {
-                    newFire.gameObject.id = 0 // Resetting the GameObject ID part as it's not saved for fires
                     sm.activeObjects.add(newFire.gameObject)
                 }
             }

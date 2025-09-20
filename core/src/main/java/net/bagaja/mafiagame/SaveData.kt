@@ -153,7 +153,7 @@ data class ItemData(
 )
 
 data class ObjectData(
-    var id: Int = 0,
+    var id: String = "",
     var objectType: ObjectType = ObjectType.TREE,
     var position: Vector3 = Vector3(),
     var associatedLightId: Int? = null,

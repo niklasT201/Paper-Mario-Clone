@@ -602,6 +602,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 if (event.itemType != null && event.spawnPosition != null) {
                     game.itemSystem.createItem(event.spawnPosition, event.itemType)?.let { newItem ->
                         if (event.type == GameEventType.SPAWN_MONEY_STACK) newItem.value = event.itemValue
+                        event.targetId?.let { newItem.id = it }
                         addEntityToScene(newItem, game.sceneManager.activeItems, { game.sceneManager.worldState?.items }) {
                             game.sceneManager.interiorStates[it]?.items
                         }
@@ -664,7 +665,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         }
                     } else {
                         game.objectSystem.createGameObjectWithLight(event.objectType, event.spawnPosition, if (targetSceneId == currentSceneId) game.lightingManager else null)?.let { newObject ->
-                            event.targetId?.let { newObject.id = it.hashCode() }
+                            event.targetId?.let { newObject.id = it }
                             addEntityToScene(newObject, game.sceneManager.activeObjects, { game.sceneManager.worldState?.objects }) {
                                 game.sceneManager.interiorStates[it]?.objects
                             }

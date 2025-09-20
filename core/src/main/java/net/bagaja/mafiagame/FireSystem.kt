@@ -140,7 +140,8 @@ class FireSystem {
         lightIntensityOverride: Float? = null,
         lightRangeOverride: Float? = null,
         generation: Int = 0,
-        canSpread: Boolean = false
+        canSpread: Boolean = false,
+        id: String = UUID.randomUUID().toString()
     ): GameFire? {
         // If an override is provided
         val finalLightIntensity = lightIntensityOverride ?: ObjectType.FIRE_SPREAD.lightIntensity
@@ -172,6 +173,7 @@ class FireSystem {
         val effectiveDamageRadius = (fireObject.objectType.width / 2f) * 1.1f
 
         val newFire = GameFire(
+            id = id,
             gameObject = fireObject,
             isLooping = nextFireIsLooping,
             dealsDamage = nextFireDealsDamage,

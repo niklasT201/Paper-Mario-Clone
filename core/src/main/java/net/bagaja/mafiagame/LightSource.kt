@@ -24,7 +24,7 @@ enum class FlickerMode {
  * Represents a customizable light source in the game world
  */
 data class LightSource(
-    val id: Int,
+    var id: Int,
     val position: Vector3,
     var intensity: Float = DEFAULT_INTENSITY,
     var range: Float = DEFAULT_RANGE,

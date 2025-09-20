@@ -7,6 +7,7 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
+import java.util.*
 import kotlin.math.abs
 
 enum class SceneType {
@@ -907,10 +908,12 @@ class SceneManager(
                                 loopOnDuration = element.loopOnDuration ?: 0.1f,
                                 loopOffDuration = element.loopOffDuration ?: 0.2f
                             )
+                            element.targetId?.let { savedId -> light.id = savedId.toInt() }
                             newLights[light.id] = light
                         } else {
                             // This is for regular, non-light-source objects
                             objectSystem.createGameObjectWithLight(objectType, element.position.cpy(), game.lightingManager)?.let { gameObject ->
+                                element.targetId?.let { gameObject.id = it }
                                 newObjects.add(gameObject)
                             }
                         }
@@ -919,6 +922,7 @@ class SceneManager(
                 RoomElementType.ITEM -> {
                     element.itemType?.let { itemType ->
                         itemSystem.createItem(element.position.cpy(), itemType)?.let { gameItem ->
+                            element.targetId?.let { gameItem.id = it }
                             newItems.add(gameItem)
                         }
                     }
@@ -1020,6 +1024,7 @@ class SceneManager(
                     if (spawnerGameObject != null) {
                         spawnerGameObject.debugInstance?.transform?.setTranslation(element.position)
                         val newSpawner = GameSpawner(
+                            id = element.targetId ?: UUID.randomUUID().toString(),
                             position = element.position.cpy(),
                             gameObject = spawnerGameObject
                         )
@@ -1119,7 +1124,12 @@ class SceneManager(
                     fireSystem.nextFireMaxScale = element.scale.x
 
                     // Create the fire
-                    val newFire = fireSystem.addFire(element.position.cpy(), objectSystem, game.lightingManager)
+                    val newFire = fireSystem.addFire(
+                        position = element.position.cpy(),
+                        objectSystem = objectSystem,
+                        lightingManager = game.lightingManager,
+                        id = element.targetId ?: UUID.randomUUID().toString()
+                    )
                     if (newFire != null) {
                         // Add its underlying game object to the list of objects for this new room state
                         newObjects.add(newFire.gameObject)
@@ -1262,6 +1272,7 @@ class SceneManager(
                     position = obj.position.cpy(),
                     elementType = RoomElementType.OBJECT,
                     objectType = obj.objectType,
+                    targetId = obj.id,
                     rotation = 0f // Assuming objects don't rotate for now
                 ))
             }
@@ -1272,7 +1283,8 @@ class SceneManager(
             elements.add(RoomElement(
                 position = item.position.cpy(),
                 elementType = RoomElementType.ITEM,
-                itemType = item.itemType
+                itemType = item.itemType,
+                targetId = item.id
             ))
         }
 
@@ -1335,6 +1347,7 @@ class SceneManager(
             elements.add(RoomElement(
                 position = spawner.position.cpy(),
                 elementType = RoomElementType.PARTICLE_SPAWNER,
+                targetId = spawner.id,
 
                 // General Spawner Settings
                 spawnerType = spawner.spawnerType,
@@ -1396,6 +1409,7 @@ class SceneManager(
                     position = light.position.cpy(),
                     elementType = RoomElementType.OBJECT,
                     objectType = ObjectType.LIGHT_SOURCE,
+                    targetId = light.id.toString(),
                     lightColor = light.color.cpy(),
                     lightIntensity = light.baseIntensity,
                     lightRange = light.range,
@@ -1420,6 +1434,7 @@ class SceneManager(
             elements.add(RoomElement(
                 position = fire.gameObject.position.cpy(),
                 elementType = RoomElementType.FIRE,
+                targetId = fire.id,
                 isLooping = fire.isLooping,
                 fadesOut = fire.fadesOut,
                 lifetime = fire.lifetime,
