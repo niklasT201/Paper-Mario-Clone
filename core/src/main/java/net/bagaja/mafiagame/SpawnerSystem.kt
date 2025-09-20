@@ -102,7 +102,17 @@ class SpawnerSystem(
     fun update(deltaTime: Float, spawners: Array<GameSpawner>, playerPosition: Vector3) {
         if (spawners.isEmpty) return
 
-        for (spawner in spawners) {
+        // Get the active mission modifiers
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
+
+        val activeSpawners = if (modifiers?.disableCarSpawners == true) {
+            // Filter out any spawner that is of type CAR.
+            spawners.filter { it.spawnerType != SpawnerType.CAR }
+        } else {
+            spawners
+        }
+
+        for (spawner in activeSpawners) {
             // Skip one-shot spawners that have already fired
             if (spawner.isDepleted) continue
 

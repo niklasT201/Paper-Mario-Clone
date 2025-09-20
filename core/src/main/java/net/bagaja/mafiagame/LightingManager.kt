@@ -15,6 +15,7 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
 
 class LightingManager {
+    lateinit var game: MafiaGame
     private lateinit var environment: Environment
     private lateinit var dayNightCycle: DayNightCycle
     private val directionalLight: DirectionalLight = DirectionalLight()
@@ -93,8 +94,13 @@ class LightingManager {
     }
 
     fun update(deltaTime: Float, cameraPosition: Vector3, timeMultiplier: Float = 1.0f) {
-        // Update day/night cycle with the multiplier
-        dayNightCycle.update(deltaTime, timeMultiplier)
+        val frozenTime = game.missionSystem.activeModifiers?.freezeTimeAt
+        if (frozenTime != null) {
+            dayNightCycle.setDayProgress(frozenTime)
+        } else {
+            // Update day/night cycle with the multiplier
+            dayNightCycle.update(deltaTime, timeMultiplier)
+        }
         skySystem.update(dayNightCycle, cameraPosition)
 
         // NEW: Update flickering lights logic

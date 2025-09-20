@@ -203,6 +203,7 @@ class CarSystem: IFinePositionable {
                     modelInstance = carInstance,
                     carType = config.carType,
                     position = carPosition,
+                    sceneManager = this.sceneManager,
                     isLocked = config.isLocked,
                     health = config.carType.baseHealth
                 )
@@ -255,6 +256,7 @@ class CarSystem: IFinePositionable {
                 modelInstance = carInstance,
                 carType = carType,
                 position = position,
+                sceneManager = this.sceneManager,
                 direction = 0f,
                 isLocked = isLocked,
                 health = carType.baseHealth,
@@ -458,7 +460,8 @@ data class GameCar(
     val modelInstance: ModelInstance,
     val carType: CarType,
     val position: Vector3,
-    var id: String = java.util.UUID.randomUUID().toString(),
+    val sceneManager: SceneManager,
+    var id: String = UUID.randomUUID().toString(),
     var direction: Float = 0f,
     val isLocked: Boolean = false,
     var health: Float = carType.baseHealth,
@@ -665,6 +668,15 @@ data class GameCar(
     }
 
     fun takeDamage(damage: Float, type: DamageType) {
+        // Check for mission modifier
+        val playerSystem = sceneManager.playerSystem
+        val isPlayerDrivingThisCar = playerSystem.isDriving && playerSystem.getControlledEntityPosition() == this.position
+
+        if (isPlayerDrivingThisCar && sceneManager.game.missionSystem.activeModifiers?.makePlayerVehicleInvincible == true) {
+            println("${this.carType.displayName} is invincible due to mission modifier. Damage blocked.")
+            return
+        }
+
         if (state == CarState.DRIVABLE && health > 0) {
             health -= damage
             this.lastDamageType = type // Remember the last damage source

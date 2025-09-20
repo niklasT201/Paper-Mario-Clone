@@ -57,6 +57,7 @@ class PlayerSystem {
     private var health: Float = 100f
         private set
     private val maxHealth: Float = 100f
+    val basePlayerSpeed = 8f
     private var isOnFire: Boolean = false
     private var onFireTimer: Float = 0f
     private var initialOnFireDuration: Float = 0f
@@ -66,14 +67,26 @@ class PlayerSystem {
 
     fun takeDamage(amount: Float) {
         // Check for the active mission modifier
-        if (sceneManager.game.missionSystem.activeModifiers?.setUnlimitedHealth == true) {
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
+
+        // Check for invincibility first
+        if (modifiers?.setUnlimitedHealth == true) {
             println("Player is invincible due to mission modifier. Damage blocked.")
-            return // Exit the function immediately, taking no damage.
+            return
+        }
+
+        var finalDamage = amount
+        // Apply incoming damage multiplier
+        if (modifiers != null) {
+            finalDamage *= modifiers.incomingDamageMultiplier
+            if (modifiers.incomingDamageMultiplier != 1.0f) {
+                println("Incoming damage modified by ${modifiers.incomingDamageMultiplier}x. New damage: $finalDamage")
+            }
         }
 
         if (isDriving) return
         if (health > 0) {
-            health -= amount
+            health -= finalDamage // Use the final calculated damage
             println("Player took damage! Health is now: ${health.toInt()}")
             if (health <= 0) {
                 health = 0f
@@ -96,7 +109,7 @@ class PlayerSystem {
     }
 
     private lateinit var characterPhysicsSystem: CharacterPhysicsSystem
-    private lateinit var physicsComponent: PhysicsComponent
+    lateinit var physicsComponent: PhysicsComponent
 
     // Player position and movement
     val playerSize = Vector3(3f, 4f, 3f) //z = thickness
@@ -684,12 +697,17 @@ class PlayerSystem {
     }
 
     private fun spawnBullet() {
-        if (equippedWeapon.requiresReload) {
-            currentMagazineCount--
-        } else {
-            // For weapons like shotguns, decrement from the main reserve
-            val currentReserve = ammoReserves.getOrDefault(equippedWeapon, 0)
-            ammoReserves[equippedWeapon] = maxOf(0, currentReserve - 1)
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
+
+        // If we don't have infinite ammo for this specific weapon OR for all weapons, consume ammo.
+        if (equippedWeapon != modifiers?.infiniteAmmoForWeapon && modifiers?.infiniteAmmo != true) {
+            if (equippedWeapon.requiresReload) {
+                currentMagazineCount--
+            } else {
+                // For weapons like shotguns, decrement from the main reserve
+                val currentReserve = ammoReserves.getOrDefault(equippedWeapon, 0)
+                ammoReserves[equippedWeapon] = maxOf(0, currentReserve - 1)
+            }
         }
 
         val bulletModel = bulletModels[equippedWeapon.bulletTexturePath] ?: return
@@ -709,8 +727,14 @@ class PlayerSystem {
             modelInstance = ModelInstance(bulletModel),
             lifetime = equippedWeapon.bulletLifetime,
             rotationY = bulletRotation,
-            owner = this
+            owner = this,
+            damage = equippedWeapon.damage
         )
+
+        // Apply player damage multiplier from mission modifier
+        val damageMultiplier = modifiers?.playerDamageMultiplier ?: 1.0f
+        bullet.damage *= damageMultiplier
+
         sceneManager.activeBullets.add(bullet)
 
         // Trigger camera shake for heavy weapons
@@ -732,11 +756,7 @@ class PlayerSystem {
         }
 
         // Calculate the final position
-        val muzzleFlashPosition = bulletSpawnPos.cpy().add(
-            finalHorizontalOffset,
-            muzzleFlashVerticalOffset,
-            0f
-        )
+        val muzzleFlashPosition = bulletSpawnPos.cpy().add(finalHorizontalOffset, muzzleFlashVerticalOffset, 0f)
 
         // Spawn particle effect
         val chargeProgress = (chargeTime / chargeDurationForMaxScale).coerceIn(0f, 1f)
@@ -757,7 +777,7 @@ class PlayerSystem {
 
                 // 2. Set its properties for the flash
                 light.intensity = 18f // A good, noticeable but not overwhelming brightness
-                light.range = 8f      // A small radius
+                light.range = 8f // A small radius
                 light.color.set(1f, 0.75f, 0.4f, 1f) // orange/dark yellow
 
                 // 3. Update the light in the rendering environment
@@ -767,7 +787,13 @@ class PlayerSystem {
                 muzzleFlashTimer = 0.06f // The flash will last for a very short time
             }
         }
-        checkAndRemoveWeaponIfOutOfAmmo()
+
+        // Check if we need to remove the weapon (only if we don't have infinite ammo)
+        if (modifiers != null) {
+            if (!modifiers.infiniteAmmo && equippedWeapon != modifiers.infiniteAmmoForWeapon) {
+                checkAndRemoveWeaponIfOutOfAmmo()
+            }
+        }
     }
 
     fun equipWeapon(weaponType: WeaponType, ammoToGive: Int? = null) {
@@ -1137,6 +1163,10 @@ class PlayerSystem {
     private fun handlePlayerOnFootMovement(deltaTime: Float, sceneManager: SceneManager, particleSystem: ParticleSystem): Boolean {
         // Disable on-foot movement and collision while driving
         if (isDriving) return false
+
+        // Apply speed multiplier from mission modifier
+        val speedMultiplier = sceneManager.game.missionSystem.activeModifiers?.playerSpeedMultiplier ?: 1.0f
+        physicsComponent.speed = basePlayerSpeed * speedMultiplier
 
         // 1. Calculate desired horizontal movement
         val desiredMovement = Vector3()

@@ -37,9 +37,6 @@ class MissionEditorUI(
     private val missionSelectionTable: Table
     private val missionSelectBox: SelectBox<String>
 
-    private val unlimitedHealthCheckbox: CheckBox
-    private val disableTrafficCheckbox: CheckBox
-
     // Temporary storage while editing
     private var tempObjectives = mutableListOf<MissionObjective>()
     private var tempRewards = mutableListOf<MissionReward>()
@@ -101,19 +98,12 @@ class MissionEditorUI(
         editorDetailsTable.add(Label("Title:", skin)).left(); editorDetailsTable.add(missionTitleField).growX().row()
         editorDetailsTable.add(Label("Description:", skin)).left().top(); editorDetailsTable.add(ScrollPane(missionDescriptionArea, skin)).growX().height(60f).row()
         editorDetailsTable.add(Label("Prerequisites (IDs):", skin)).left(); editorDetailsTable.add(prerequisitesField).growX().row()
-        editorDetailsTable.add(Label("Scope:", skin)).left(); editorDetailsTable.add(scopeSelectBox).left().row()
-
-        // View Mission Flow button
+        val buttonsTable = Table()
         val showFlowButton = TextButton("View Mission Flow", skin)
-        editorDetailsTable.add(showFlowButton).colspan(2).center().padTop(10f).padBottom(15f).row()
-
-        editorDetailsTable.add(Label("--- Modifiers ---", skin, "title")).colspan(2).padTop(15f).row()
-        val modifiersTable = Table()
-        unlimitedHealthCheckbox = CheckBox(" Player Invincible", skin)
-        disableTrafficCheckbox = CheckBox(" Disable AI Traffic", skin) // Assuming you will have ambient AI traffic later
-        modifiersTable.add(unlimitedHealthCheckbox).left().row()
-        modifiersTable.add(disableTrafficCheckbox).left().row()
-        editorDetailsTable.add(modifiersTable).colspan(2).left().padBottom(10f).row()
+        val editModifiersButton = TextButton("Edit Modifiers", skin)
+        buttonsTable.add(showFlowButton).pad(5f)
+        buttonsTable.add(editModifiersButton).pad(5f)
+        editorDetailsTable.add(buttonsTable).colspan(2).center().padTop(10f).padBottom(15f).row()
 
         editorDetailsTable.add(Label("--- Events on Start ---", skin, "title")).colspan(2).padTop(15f).row()
         editorDetailsTable.add(ScrollPane(startEventsContainer, skin)).colspan(2).growX().height(100f).row()
@@ -230,6 +220,12 @@ class MissionEditorUI(
                 currentMissionDef?.id?.let { missionSystem.deleteMission(it); refreshMissionList(); clearEditor(); missionSystem.game.triggerSystem.refreshTriggers() }
             }
         })
+        editModifiersButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                showModifiersDialog()
+            }
+        })
+
         saveButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { applyChanges(); missionSystem.game.triggerSystem.refreshTriggers(); hide() } })
         closeButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { hide() } })
     }
@@ -248,10 +244,6 @@ class MissionEditorUI(
         missionDescriptionArea.text = mission.description
         prerequisitesField.text = mission.prerequisites.joinToString(", ")
         scopeSelectBox.selected = mission.scope.name
-
-        // Load the modifier states into the checkboxes
-        unlimitedHealthCheckbox.isChecked = mission.modifiers.setUnlimitedHealth
-        disableTrafficCheckbox.isChecked = mission.modifiers.disableTraffic
 
         refreshObjectiveWidgets()
         refreshRewardWidgets()
@@ -276,11 +268,95 @@ class MissionEditorUI(
         mission.prerequisites = prerequisitesField.text.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
         mission.scope = MissionScope.valueOf(scopeSelectBox.selected)
 
-        // Save the checkbox states back to the mission definition
-        mission.modifiers.setUnlimitedHealth = unlimitedHealthCheckbox.isChecked
-        mission.modifiers.disableTraffic = disableTrafficCheckbox.isChecked
-
         missionSystem.saveMission(mission)
+    }
+
+    private fun showModifiersDialog() {
+        val mission = currentMissionDef ?: return
+        val dialog = Dialog("Edit Mission Modifiers", skin, "dialog")
+        dialog.isMovable = true
+        dialog.isResizable = true
+
+        val content = VerticalGroup().apply {
+            space(8f)
+            pad(15f)
+            align(Align.left)
+            fill()
+        }
+
+        // --- Player Modifiers ---
+        content.addActor(Label("[YELLOW]--- Player Modifiers ---", skin))
+        val unlimitedHealth = CheckBox(" Unlimited Health", skin).apply { isChecked = mission.modifiers.setUnlimitedHealth }
+        val incomingDmg = TextField(mission.modifiers.incomingDamageMultiplier.toString(), skin)
+        val outgoingDmg = TextField(mission.modifiers.playerDamageMultiplier.toString(), skin)
+        val speedMulti = TextField(mission.modifiers.playerSpeedMultiplier.toString(), skin)
+        val infiniteAmmoAll = CheckBox(" Infinite Ammo (All Weapons)", skin).apply { isChecked = mission.modifiers.infiniteAmmo }
+        val disableSwitch = CheckBox(" Disable Weapon Switching", skin).apply { isChecked = mission.modifiers.disableWeaponSwitching }
+
+        content.addActor(unlimitedHealth)
+
+        content.addActor(Table(skin).apply { add("Incoming Damage Multiplier:"); add(incomingDmg).width(80f).left() })
+        content.addActor(Table(skin).apply { add("Player Damage Multiplier:"); add(outgoingDmg).width(80f).left() })
+        content.addActor(Table(skin).apply { add("Player Speed Multiplier:"); add(speedMulti).width(80f).left() })
+
+        content.addActor(infiniteAmmoAll)
+        content.addActor(disableSwitch)
+
+        // --- Vehicle Modifiers ---
+        content.addActor(Label("[LIME]--- Vehicle Modifiers ---", skin))
+        val invincibleVehicle = CheckBox(" Player's Vehicle is Invincible", skin).apply { isChecked = mission.modifiers.makePlayerVehicleInvincible }
+        val allCarsUnlocked = CheckBox(" All Cars are Unlocked", skin).apply { isChecked = mission.modifiers.allCarsUnlocked }
+        val carSpeedMulti = TextField(mission.modifiers.carSpeedMultiplier.toString(), skin)
+
+        content.addActor(invincibleVehicle)
+        content.addActor(allCarsUnlocked)
+        content.addActor(Table(skin).apply { add("Player Car Speed Multiplier:"); add(carSpeedMulti).width(80f).left() })
+
+        // --- World & AI Modifiers ---
+        content.addActor(Label("[CYAN]--- World & AI Modifiers ---", skin))
+        val disableSpawners = CheckBox(" Disable Car Spawners (No Traffic)", skin).apply { isChecked = mission.modifiers.disableCarSpawners }
+
+        val freezeTimeCheckbox = CheckBox(" Freeze Time of Day", skin).apply { isChecked = mission.modifiers.freezeTimeAt != null }
+        val timeSlider = Slider(0f, 1f, 0.01f, false, skin).apply { value = mission.modifiers.freezeTimeAt ?: 0.5f }
+        val timeSliderTable = Table(skin).apply{ add("Time:"); add(timeSlider).growX() }
+        timeSliderTable.isVisible = freezeTimeCheckbox.isChecked
+        freezeTimeCheckbox.addListener(object: ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                timeSliderTable.isVisible = freezeTimeCheckbox.isChecked
+            }
+        })
+
+        content.addActor(disableSpawners)
+        content.addActor(freezeTimeCheckbox)
+        content.addActor(timeSliderTable)
+
+        val scrollPane = ScrollPane(content, skin)
+        scrollPane.setFadeScrollBars(false)
+        dialog.contentTable.add(scrollPane).grow().minWidth(450f).minHeight(400f)
+
+        // --- Buttons ---
+        val applyButton = TextButton("Apply", skin)
+        applyButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                mission.modifiers.setUnlimitedHealth = unlimitedHealth.isChecked
+                mission.modifiers.incomingDamageMultiplier = incomingDmg.text.toFloatOrNull() ?: 1.0f
+                mission.modifiers.playerDamageMultiplier = outgoingDmg.text.toFloatOrNull() ?: 1.0f
+                mission.modifiers.playerSpeedMultiplier = speedMulti.text.toFloatOrNull() ?: 1.0f
+                mission.modifiers.infiniteAmmo = infiniteAmmoAll.isChecked
+                mission.modifiers.disableWeaponSwitching = disableSwitch.isChecked
+                mission.modifiers.makePlayerVehicleInvincible = invincibleVehicle.isChecked
+                mission.modifiers.allCarsUnlocked = allCarsUnlocked.isChecked
+                mission.modifiers.carSpeedMultiplier = carSpeedMulti.text.toFloatOrNull() ?: 1.0f
+                mission.modifiers.disableCarSpawners = disableSpawners.isChecked
+                mission.modifiers.freezeTimeAt = if (freezeTimeCheckbox.isChecked) timeSlider.value else null
+                uiManager.showTemporaryMessage("Modifiers updated for '${mission.title}'")
+                dialog.hide()
+            }
+        })
+
+        dialog.button(applyButton)
+        dialog.button("Close")
+        dialog.show(stage)
     }
 
     private fun showMissionFlowDialog() {

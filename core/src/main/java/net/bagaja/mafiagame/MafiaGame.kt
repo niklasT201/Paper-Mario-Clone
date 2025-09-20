@@ -231,6 +231,7 @@ class MafiaGame : ApplicationAdapter() {
 
         // Initialize lighting manager
         lightingManager = LightingManager()
+        lightingManager.game = this
         lightingManager.initialize()
     }
 

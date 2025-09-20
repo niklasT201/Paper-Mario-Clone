@@ -123,9 +123,24 @@ data class MissionTrigger(
 // --- Mission Modifiers (Special Rules) ---
 
 data class MissionModifiers(
-    var disableTraffic: Boolean = false,
-    val setUnlimitedAmmoFor: WeaponType? = null,
-    var setUnlimitedHealth: Boolean = false
+    // Player Modifiers
+    var setUnlimitedHealth: Boolean = false,
+    var incomingDamageMultiplier: Float = 1.0f, // 1.0 = normal, 0.5 = half damage, 2.0 = double damage
+    var playerDamageMultiplier: Float = 1.0f,   // 1.0 = normal, 2.0 = double damage dealt
+    var playerSpeedMultiplier: Float = 1.0f,    // 1.0 = normal, 1.5 = 50% faster
+    var infiniteAmmo: Boolean = false,          // For ALL weapons
+    var infiniteAmmoForWeapon: WeaponType? = null,
+    var disableWeaponSwitching: Boolean = false,
+
+    // Vehicle Modifiers
+    var makePlayerVehicleInvincible: Boolean = false,
+    var allCarsUnlocked: Boolean = false,
+    var carSpeedMultiplier: Float = 1.0f,       // Affects player-driven cars
+
+    // World & AI Modifiers
+    var disableCarSpawners: Boolean = false,
+    var freezeTimeAt: Float? = null,           // A value from 0.0 to 1.0
+    var disablePoliceResponse: Boolean = false // For a future police system
 )
 
 // --- Events ---

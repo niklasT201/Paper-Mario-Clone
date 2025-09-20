@@ -332,13 +332,18 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             println("--- MISSION COMPLETE: ${mission.definition.title} ---")
             gameState.completedMissionIds.add(mission.definition.id)
 
-            // ADDED: Execute mission-complete events and grant rewards
+            // Execute mission-complete events and grant rewards
             mission.definition.eventsOnComplete.forEach { executeEvent(it) }
             mission.definition.rewards.forEach { grantReward(it) }
 
         } else {
             println("--- MISSION FAILED: ${mission.definition.title} ---")
             // TODO: Reset any changes made by the mission
+        }
+
+        activeModifiers?.let {
+            // Reset player speed back to its default value if it was changed.
+            game.playerSystem.physicsComponent.speed = game.playerSystem.basePlayerSpeed
         }
 
         // Deactivate modifiers when the mission ends
@@ -515,6 +520,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         modelInstance = carInstance,
                         carType = event.carType,
                         position = event.spawnPosition,
+                        sceneManager = game.sceneManager,
                         isLocked = event.carIsLocked,
                         health = event.carType.baseHealth,
                         initialVisualRotation = event.houseRotationY ?: 0f
