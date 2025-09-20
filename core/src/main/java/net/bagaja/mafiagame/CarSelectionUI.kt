@@ -90,6 +90,13 @@ class CarSelectionUI(
 
         // Is Locked Checkbox
         isLockedCheckbox = CheckBox(" Start Locked", skin)
+        isLockedCheckbox.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                if (carSystem.isNextCarLocked != isLockedCheckbox.isChecked) {
+                    carSystem.toggleLockState()
+                }
+            }
+        })
         configTable.add(isLockedCheckbox).colspan(2).left().padBottom(10f).row()
 
         // Driver Type Dropdown
@@ -279,6 +286,10 @@ class CarSelectionUI(
         } else {
             lockStatusLabel.setText("State: [OPEN]")
             lockStatusLabel.color = Color.FOREST
+        }
+
+        if (isLockedCheckbox.isChecked != carSystem.isNextCarLocked) {
+            isLockedCheckbox.isChecked = carSystem.isNextCarLocked
         }
 
         val currentIndex = carSystem.currentSelectedCarIndex
