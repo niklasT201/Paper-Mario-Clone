@@ -104,12 +104,14 @@ class TeleporterSystem(
         return newTeleporter
     }
 
-    fun removeTeleporter(teleporterToRemove: GameTeleporter) {
-        // Find and remove its linked partner first
-        teleporterToRemove.linkedTeleporterId?.let { linkedId ->
-            val partner = activeTeleporters.find { it.id == linkedId }
-            partner?.linkedTeleporterId = null
-            println("Unlinked partner teleporter: ${partner?.name} (${partner?.id})")
+    fun removeTeleporter(teleporterToRemove: GameTeleporter, breakPartnerLink: Boolean = true) {
+        // Find and optionally remove its linked partner first
+        if (breakPartnerLink) {
+            teleporterToRemove.linkedTeleporterId?.let { linkedId ->
+                val partner = activeTeleporters.find { it.id == linkedId }
+                partner?.linkedTeleporterId = null
+                println("Unlinked partner teleporter: ${partner?.name} (${partner?.id})")
+            }
         }
         // Then remove the one that was clicked
         activeTeleporters.removeValue(teleporterToRemove, true)

@@ -683,6 +683,45 @@ class UIManager(
             })
             buttonTable.add(copyIdButton).pad(5f)
 
+            val convertToEventButton = TextButton("To Mission Event", skin)
+            convertToEventButton.isVisible = (currentEditorMode == EditorMode.MISSION)
+            convertToEventButton.addListener(object : ClickListener() {
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                    val mission = selectedMissionForEditing
+                    if (mission == null) {
+                        showTemporaryMessage("Error: No mission selected for editing!")
+                        return
+                    }
+
+                    val currentSceneId = if (game.sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+                        game.sceneManager.getCurrentHouse()?.id ?: "WORLD"
+                    } else {
+                        "WORLD"
+                    }
+
+                    // Create the event from the teleporter's data
+                    val gameEvent = GameEvent(
+                        type = GameEventType.SPAWN_TELEPORTER,
+                        spawnPosition = teleporter.gameObject.position.cpy(),
+                        sceneId = currentSceneId,
+                        teleporterId = teleporter.id,
+                        linkedTeleporterId = teleporter.linkedTeleporterId,
+                        teleporterName = nameField.text.trim().ifBlank { "Teleporter" } // Use current name from field
+                    )
+
+                    mission.eventsOnStart.add(gameEvent)
+                    game.missionSystem.saveMission(mission)
+
+                    // Remove the original from the world
+                    game.teleporterSystem.removeTeleporter(teleporter, breakPartnerLink = false)
+
+                    dialog.hide()
+                    showTemporaryMessage("Teleporter converted to event for '${mission.title}'")
+                    missionEditorUI.refreshEventWidgets()
+                }
+            })
+            buttonTable.add(convertToEventButton).pad(5f)
+
             val removeButton = TextButton("Remove", skin).apply { color.set(1f, 0.6f, 0.6f, 1f) }
             removeButton.addListener(object : ClickListener() {
                 override fun clicked(event: InputEvent?, x: Float, y: Float) {
