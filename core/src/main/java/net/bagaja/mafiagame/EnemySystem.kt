@@ -1208,28 +1208,29 @@ class EnemySystem : IFinePositionable {
     private fun spawnEnemyBullet(enemy: GameEnemy, playerPos: Vector3, sceneManager: SceneManager) {
         val bulletModel = sceneManager.game.playerSystem.bulletModels[enemy.equippedWeapon.bulletTexturePath] ?: return
 
-        // 1. Define the spawn position of the bullet, slightly up from the enemy's center.
-        val verticalOffset = enemy.enemyType.height * 0.25f
-        val spawnPos = enemy.position.cpy().add(0f, verticalOffset, 0f)
+        // 1. Determine direction ONLY on the X-axis (left or right)
+        val directionX = if (enemy.physics.facingRotationY == 0f) 1f else -1f
+        val direction = Vector3(directionX, 0f, 0f) // Force a purely horizontal direction
 
-        // 2. Calculate the direction vector from the bullet's spawn point to the player's position.
-        val direction = playerPos.cpy().sub(spawnPos).nor()
-
-        // 3. Calculate the final velocity based on this new, accurate direction.
+        // 2. Calculate velocity based on this new horizontal direction
         val velocity = direction.cpy().scl(enemy.equippedWeapon.bulletSpeed)
 
-        // Push the bullet slightly forward from the spawn point so it doesn't collide with the enemy who fired it.
-        spawnPos.mulAdd(direction, 1.5f)
-
-        // 4. Determine visual rotation (left/right) based on the horizontal component of the aim.
-        val bulletRotation = if (direction.x < 0) 180f else 0f
+        // 3. Calculate the spawn position based on the horizontal direction
+        val verticalOffset = -0.3f
+        val horizontalOffset = directionX * (enemy.enemyType.width / 2f)
+        val spawnPos = Vector3(
+            enemy.position.x + horizontalOffset,
+            enemy.position.y + verticalOffset,
+            enemy.position.z
+        )
+        spawnPos.mulAdd(direction, 1.0f) // Push it slightly forward from the enemy
 
         val bullet = Bullet(
             position = spawnPos,
             velocity = velocity,
             modelInstance = ModelInstance(bulletModel),
             lifetime = enemy.equippedWeapon.bulletLifetime,
-            rotationY = bulletRotation,
+            rotationY = if (direction.x < 0) 180f else 0f,
             owner = enemy,
             damage = enemy.equippedWeapon.damage
         )
