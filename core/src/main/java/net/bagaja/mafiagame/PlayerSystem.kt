@@ -15,6 +15,7 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
+import com.badlogic.gdx.utils.ObjectMap
 import kotlin.math.floor
 import kotlin.random.Random
 
@@ -796,8 +797,48 @@ class PlayerSystem {
         }
     }
 
+    fun createStateDataSnapshot(): PlayerStateData {
+        // Make sure the current magazine count is saved before snapshotting
+        currentMagazineCounts[equippedWeapon] = currentMagazineCount
+
+        return PlayerStateData(
+            position = getPosition(), // Position isn't used for restore, but good to have
+            money = getMoney(),
+            weapons = ObjectMap<WeaponType, Int>().apply {
+                getWeaponReserves().forEach { (weapon, ammo) -> put(weapon, ammo) }
+            },
+            equippedWeapon = equippedWeapon,
+            currentMagazineCounts = ObjectMap<WeaponType, Int>().apply {
+                getMagazineCounts().forEach { (weapon, count) -> put(weapon, count) }
+            }
+        )
+    }
+
+    fun addWeaponToInventory(weaponType: WeaponType, ammo: Int) {
+        if (!weapons.contains(weaponType)) {
+            weapons.add(weaponType)
+        }
+        addAmmo(weaponType, ammo)
+    }
+
+    fun hasWeapon(weaponType: WeaponType): Boolean {
+        return weapons.contains(weaponType)
+    }
+
+    fun clearInventory() {
+        weapons.clear()
+        ammoReserves.clear()
+        currentMagazineCounts.clear()
+        // Always give the player their fists back.
+        equipWeapon(WeaponType.UNARMED)
+    }
+
+
     fun equipWeapon(weaponType: WeaponType, ammoToGive: Int? = null) {
         if (weaponType == WeaponType.UNARMED) {
+            if (!weapons.contains(WeaponType.UNARMED)) {
+                weapons.add(0, WeaponType.UNARMED) // Ensure fists are always at the start
+            }
             currentWeaponIndex = weapons.indexOf(WeaponType.UNARMED)
         } else {
             if (!weapons.contains(weaponType)) {
@@ -1977,6 +2018,12 @@ class PlayerSystem {
             if (Intersector.intersectRayBounds(bulletRay, bounds, intersectionPoint)) {
                 val distSq = bulletRay.origin.dst2(intersectionPoint)
                 if (distSq <= travelDistanceSq && distSq < closestDistSq) {
+
+                    // If the bullet's owner is an enemy, and it hits that SAME enemy, ignore the collision.
+                    if (bullet.owner is GameEnemy && obj is GameEnemy && bullet.owner.id == obj.id) {
+                        continue // Skip this collision, it's the enemy shooting itself.
+                    }
+
                     val normal = bullet.velocity.cpy().nor().scl(-1f)
                     closestResult = CollisionResult(type, obj, intersectionPoint.cpy(), normal)
                     closestDistSq = distSq

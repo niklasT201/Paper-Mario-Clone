@@ -294,16 +294,15 @@ class MissionEditorUI(
         val disableSwitch = CheckBox(" Disable Weapon Switching", skin).apply { isChecked = mission.modifiers.disableWeaponSwitching }
 
         content.addActor(unlimitedHealth)
-
         content.addActor(Table(skin).apply { add("Incoming Damage Multiplier:"); add(incomingDmg).width(80f).left() })
         content.addActor(Table(skin).apply { add("Player Damage Multiplier:"); add(outgoingDmg).width(80f).left() })
         content.addActor(Table(skin).apply { add("Player Speed Multiplier:"); add(speedMulti).width(80f).left() })
-
         content.addActor(infiniteAmmoAll)
         content.addActor(disableSwitch)
 
         // --- Vehicle Modifiers ---
         content.addActor(Label("[LIME]--- Vehicle Modifiers ---", skin))
+        content.space(18f)
         val invincibleVehicle = CheckBox(" Player's Vehicle is Invincible", skin).apply { isChecked = mission.modifiers.makePlayerVehicleInvincible }
         val allCarsUnlocked = CheckBox(" All Cars are Unlocked", skin).apply { isChecked = mission.modifiers.allCarsUnlocked }
         val carSpeedMulti = TextField(mission.modifiers.carSpeedMultiplier.toString(), skin)
@@ -314,6 +313,7 @@ class MissionEditorUI(
 
         // --- World & AI Modifiers ---
         content.addActor(Label("[CYAN]--- World & AI Modifiers ---", skin))
+        content.space(18f)
         val disableSpawners = CheckBox(" Disable Car Spawners (No Traffic)", skin).apply { isChecked = mission.modifiers.disableCarSpawners }
 
         val freezeTimeCheckbox = CheckBox(" Freeze Time of Day", skin).apply { isChecked = mission.modifiers.freezeTimeAt != null }
@@ -331,24 +331,30 @@ class MissionEditorUI(
         content.addActor(timeSliderTable)
 
         val scrollPane = ScrollPane(content, skin)
-        scrollPane.setFadeScrollBars(false)
+        scrollPane.fadeScrollBars = false
         dialog.contentTable.add(scrollPane).grow().minWidth(450f).minHeight(400f)
 
         // --- Buttons ---
         val applyButton = TextButton("Apply", skin)
         applyButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
+                // Player Modifiers
                 mission.modifiers.setUnlimitedHealth = unlimitedHealth.isChecked
                 mission.modifiers.incomingDamageMultiplier = incomingDmg.text.toFloatOrNull() ?: 1.0f
                 mission.modifiers.playerDamageMultiplier = outgoingDmg.text.toFloatOrNull() ?: 1.0f
                 mission.modifiers.playerSpeedMultiplier = speedMulti.text.toFloatOrNull() ?: 1.0f
                 mission.modifiers.infiniteAmmo = infiniteAmmoAll.isChecked
                 mission.modifiers.disableWeaponSwitching = disableSwitch.isChecked
+
+                // Vehicle Modifiers
                 mission.modifiers.makePlayerVehicleInvincible = invincibleVehicle.isChecked
                 mission.modifiers.allCarsUnlocked = allCarsUnlocked.isChecked
                 mission.modifiers.carSpeedMultiplier = carSpeedMulti.text.toFloatOrNull() ?: 1.0f
+
+                // World Modifiers
                 mission.modifiers.disableCarSpawners = disableSpawners.isChecked
                 mission.modifiers.freezeTimeAt = if (freezeTimeCheckbox.isChecked) timeSlider.value else null
+
                 uiManager.showTemporaryMessage("Modifiers updated for '${mission.title}'")
                 dialog.hide()
             }
@@ -483,26 +489,28 @@ class MissionEditorUI(
 
         val typeSelect = SelectBox<String>(skin).apply {
             items = GdxArray(GameEventType.entries.map { it.name }.toTypedArray())
-            if (existingEvent != null) {
-                selected = existingEvent.type.name
-            }
+            if (existingEvent != null) selected = existingEvent.type.name
         }
 
-        // --- Common Fields ---
+        // --- Common & Spawn Fields ---
         val targetIdField = TextField(existingEvent?.targetId ?: "", skin)
         val posXField = TextField(existingEvent?.spawnPosition?.x?.toString() ?: "0", skin)
         val posYField = TextField(existingEvent?.spawnPosition?.y?.toString() ?: "0", skin)
         val posZField = TextField(existingEvent?.spawnPosition?.z?.toString() ?: "0", skin)
 
         // --- Event-Specific Fields ---
-        val enemyTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(EnemyType.entries.map { it.displayName }.toTypedArray()); if (existingEvent?.enemyType != null) selected = existingEvent.enemyType.displayName }
-        val npcTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(NPCType.entries.map { it.displayName }.toTypedArray()); if (existingEvent?.npcType != null) selected = existingEvent.npcType.displayName }
-        val carTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(CarType.entries.map { it.displayName }.toTypedArray()); if (existingEvent?.carType != null) selected = existingEvent.carType.displayName }
-        val itemTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(ItemType.entries.map { it.displayName }.toTypedArray()); if (existingEvent?.itemType != null) selected = existingEvent.itemType.displayName }
+        val enemyTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(EnemyType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.enemyType?.displayName }
+        val npcTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(NPCType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.npcType?.displayName }
+        val carTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(CarType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.carType?.displayName }
+        val itemTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(ItemType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.itemType?.displayName }
         val moneyValueField = TextField(existingEvent?.itemValue?.toString() ?: "100", skin)
-        val houseTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(HouseType.entries.map { it.displayName }.toTypedArray()); if (existingEvent?.houseType != null) selected = existingEvent.houseType.displayName }
-        val objectTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(ObjectType.entries.map { it.displayName }.toTypedArray()); if (existingEvent?.objectType != null) selected = existingEvent.objectType.displayName }
-        val blockTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(BlockType.entries.map { it.displayName }.toTypedArray()); if (existingEvent?.blockType != null) selected = existingEvent.blockType.displayName }
+        val houseTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(HouseType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.houseType?.displayName }
+        val objectTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(ObjectType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.objectType?.displayName }
+        val blockTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(BlockType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.blockType?.displayName }
+
+        // --- Fields for Inventory Events ---
+        val weaponTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(WeaponType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.weaponType?.displayName }
+        val ammoAmountField = TextField(existingEvent?.ammoAmount?.toString() ?: "0", skin).apply { messageText = "Default" }
 
         // --- Layout Tables for each Event Type ---
         val targetIdTable = Table(skin).apply { add("Target/Spawn ID:"); add(targetIdField).growX() }
@@ -517,16 +525,18 @@ class MissionEditorUI(
         val objectTable = Table(skin).apply { add("Object Type:"); add(objectTypeSelect).growX() }
         val blockTable = Table(skin).apply { add("Block Type:"); add(blockTypeSelect).growX() }
 
+        // Layout Tables for Inventory Events
+        val giveWeaponTable = Table(skin).apply {
+            add("Weapon:"); add(weaponTypeSelect).growX().row()
+            add("Ammo Amount:").padTop(5f); add(ammoAmountField).width(80f).left()
+        }
+        val forceEquipTable = Table(skin).apply {
+            add("Weapon:"); add(weaponTypeSelect).growX().row()
+            add("Ammo (if not owned):").padTop(5f); add(ammoAmountField).width(80f).left()
+        }
+
         // Stack to hold all the specific settings panels
-        val settingsStack = Stack()
-        settingsStack.add(enemyTable)
-        settingsStack.add(npcTable)
-        settingsStack.add(carTable)
-        settingsStack.add(itemTable)
-        settingsStack.add(moneyTable)
-        settingsStack.add(houseTable)
-        settingsStack.add(objectTable)
-        settingsStack.add(blockTable)
+        val settingsStack = Stack(enemyTable, npcTable, carTable, itemTable, moneyTable, houseTable, objectTable, blockTable, giveWeaponTable, forceEquipTable)
 
         content.add("Event Type:"); content.add(typeSelect).row()
         content.add(targetIdTable).colspan(2).growX().row()
@@ -550,6 +560,10 @@ class MissionEditorUI(
             objectTable.isVisible = type == GameEventType.SPAWN_OBJECT
             blockTable.isVisible = type == GameEventType.SPAWN_BLOCK
 
+            // Update visibility for inventory panels
+            giveWeaponTable.isVisible = type == GameEventType.GIVE_WEAPON
+            forceEquipTable.isVisible = type == GameEventType.FORCE_EQUIP_WEAPON
+
             dialog.pack()
         }
 
@@ -570,14 +584,16 @@ class MissionEditorUI(
                     itemValue = moneyValueField.text.toIntOrNull() ?: 100,
                     houseType = HouseType.entries.find { it.displayName == houseTypeSelect.selected },
                     objectType = ObjectType.entries.find { it.displayName == objectTypeSelect.selected },
-                    blockType = BlockType.entries.find { it.displayName == blockTypeSelect.selected }
+                    blockType = BlockType.entries.find { it.displayName == blockTypeSelect.selected },
+                    weaponType = WeaponType.entries.find { it.displayName == weaponTypeSelect.selected },
+                    ammoAmount = ammoAmountField.text.toIntOrNull()
                 )
                 onSave(newEvent)
             }
         })
         dialog.button("Cancel")
 
-        updateVisibleFields() // Set initial state
+        updateVisibleFields()
         dialog.show(stage)
     }
 
@@ -595,6 +611,7 @@ class MissionEditorUI(
     private fun createEventWidget(event: GameEvent, isStartEvent: Boolean): Actor {
         val eventCopy = event
         val table = Table()
+
         val text = when(event.type) {
             GameEventType.SPAWN_ENEMY -> "SPAWN ${event.enemyType?.displayName} with ID '${event.targetId}'"
             GameEventType.SPAWN_NPC -> "SPAWN ${event.npcType?.displayName} with ID '${event.targetId}'"
@@ -609,12 +626,15 @@ class MissionEditorUI(
             GameEventType.SPAWN_SPAWNER -> "SPAWN Spawner (${event.spawnerType?.name})"
             GameEventType.SPAWN_TELEPORTER -> "SPAWN Teleporter: '${event.teleporterName}'"
             GameEventType.SPAWN_FIRE -> "SPAWN Fire"
+            GameEventType.GIVE_WEAPON -> "GIVE WEAPON: ${event.weaponType?.displayName} (Ammo: ${event.ammoAmount ?: "N/A"})"
+            GameEventType.FORCE_EQUIP_WEAPON -> "FORCE EQUIP: ${event.weaponType?.displayName}"
+            GameEventType.CLEAR_INVENTORY -> "CLEAR PLAYER INVENTORY"
         }
+
         table.add(Label(text, skin)).growX()
         val editButton = TextButton("Edit", skin)
         editButton.addListener(object: ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
-                // Use the local copy
                 showEventDialog(eventCopy, isStartEvent)
             }
         })

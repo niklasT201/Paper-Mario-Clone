@@ -158,7 +158,10 @@ enum class GameEventType {
     SPAWN_BLOCK,
     SPAWN_SPAWNER,
     SPAWN_TELEPORTER,
-    SPAWN_FIRE
+    SPAWN_FIRE,
+    GIVE_WEAPON,
+    FORCE_EQUIP_WEAPON,
+    CLEAR_INVENTORY
 }
 
 data class GameEvent(
@@ -268,7 +271,9 @@ data class GameEvent(
     val dealsDamage: Boolean? = null,
     val damagePerSecond: Float? = null,
     val damageRadius: Float? = null,
-    val fireScale: Float? = null // Using a single value for scale
+    val fireScale: Float? = null,
+    val weaponType: WeaponType? = null,
+    val ammoAmount: Int? = null
 )
 
 // --- Game State (For Saving/Loading Progress) ---

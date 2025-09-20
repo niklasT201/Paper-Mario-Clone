@@ -13,6 +13,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
     private var activeMission: MissionState? = null
     var activeModifiers: MissionModifiers? = null
     private var gameState = GameState() // This will be loaded from a file later
+    private var playerInventorySnapshot: PlayerStateData? = null
 
     fun getSaveData(): MissionProgressData {
         val variablesToSave = ObjectMap<String, Any>()
@@ -290,6 +291,17 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         }
 
         val missionDef = allMissions[id] ?: return
+
+        // Take an inventory snapshot if this mission modifies it
+        val modifiesInventory = missionDef.eventsOnStart.any {
+            it.type in listOf(GameEventType.CLEAR_INVENTORY, GameEventType.GIVE_WEAPON, GameEventType.FORCE_EQUIP_WEAPON)
+        } || missionDef.modifiers.disableWeaponSwitching
+
+        if (modifiesInventory) {
+            println("This mission modifies the player's inventory. Taking a snapshot.")
+            playerInventorySnapshot = game.playerSystem.createStateDataSnapshot()
+        }
+
         println("--- MISSION STARTED: ${missionDef.title} ---")
         activeMission = MissionState(missionDef)
 
@@ -339,6 +351,12 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         } else {
             println("--- MISSION FAILED: ${mission.definition.title} ---")
             // TODO: Reset any changes made by the mission
+        }
+
+        playerInventorySnapshot?.let { snapshot ->
+            println("Mission ended. Restoring player inventory from snapshot.")
+            game.playerSystem.loadState(snapshot)
+            playerInventorySnapshot = null // Clear the snapshot
         }
 
         activeModifiers?.let {
@@ -739,6 +757,29 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         game.uiManager.dialogSystem.startDialog(sequenceWithCallback)
                     } ?: println("ERROR: Mission tried to start dialog '$dialogId', but it was not found.")
                 }
+            }
+            GameEventType.GIVE_WEAPON -> {
+                event.weaponType?.let { weapon ->
+                    val ammo = event.ammoAmount ?: weapon.magazineSize // Give one magazine by default
+                    game.playerSystem.addWeaponToInventory(weapon, ammo)
+                    println("Gave player weapon: ${weapon.displayName} with $ammo ammo.")
+                }
+            }
+            GameEventType.FORCE_EQUIP_WEAPON -> {
+                event.weaponType?.let { weapon ->
+                    // First, check if the player has the weapon. If not, give it to them.
+                    if (!game.playerSystem.hasWeapon(weapon)) {
+                        val ammo = event.ammoAmount ?: weapon.magazineSize
+                        game.playerSystem.addWeaponToInventory(weapon, ammo)
+                    }
+                    // Now, force the equip.
+                    game.playerSystem.equipWeapon(weapon)
+                    println("Forced player to equip: ${weapon.displayName}")
+                }
+            }
+            GameEventType.CLEAR_INVENTORY -> {
+                game.playerSystem.clearInventory()
+                println("Player inventory temporarily cleared for mission.")
             }
             else -> println("Event type ${event.type} not yet implemented.")
         }
