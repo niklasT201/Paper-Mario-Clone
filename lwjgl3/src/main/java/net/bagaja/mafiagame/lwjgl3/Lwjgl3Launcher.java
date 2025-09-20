@@ -71,7 +71,6 @@ public class Lwjgl3Launcher {
 // save shaders and visual settings
 // save particles for current session
 // save room changes for current session
-// locked houses dont allow to place door entry
 // collected item checks value and not just item, maybe changing to id
 // number before mission list
 // id under mission name

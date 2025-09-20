@@ -237,6 +237,14 @@ class HouseSystem: IFinePositionable {
     }
 
     private fun removeHouse(houseToRemove: GameHouse) {
+        // Check if the UI is currently in entry point placement mode for THIS specific house.
+        if (sceneManager.game.uiManager.isPlacingEntryPointMode &&
+            sceneManager.game.uiManager.houseRequiringEntryPoint?.id == houseToRemove.id) {
+            // If so, tell the UI to cancel and exit that mode immediately.
+            println("House being removed is the one requiring an entry point. Cancelling placement mode.")
+            sceneManager.game.uiManager.exitEntryPointPlacementMode()
+        }
+
         // Check for and remove the associated entry point
         houseToRemove.entryPointId?.let { entryId ->
             val entryPointToRemove = sceneManager.activeEntryPoints.find { it.id == entryId }
@@ -250,7 +258,6 @@ class HouseSystem: IFinePositionable {
         println("${houseToRemove.houseType.displayName} removed at: ${houseToRemove.position}")
     }
 
-    // --- NEW: Helper Function Copied from MafiaGame.kt ---
     private fun findHighestSurfaceYAt(x: Float, z: Float): Float {
         val blocksInColumn = sceneManager.activeChunkManager.getBlocksInColumn(x, z)
         var highestY = 0f // Default to ground level
