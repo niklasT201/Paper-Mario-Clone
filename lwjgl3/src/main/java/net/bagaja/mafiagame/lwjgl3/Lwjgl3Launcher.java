@@ -85,11 +85,10 @@ public class Lwjgl3Launcher {
 // visual that a character whats to talk
 // y=0 standard bottom only in editor mode
 // weather events
-// mission specific player inventory
 // after specific missions, enemies change weapons
-// no switch to fist for special missions
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // more options for starting a mission
+// add event button automatically adds new event without saving button press
 // when disabled weapon switching, no new weapon item collecting
 
 // disablePoliceResponse: Boolean (Allow the player to cause chaos without getting a wanted level).
@@ -112,7 +111,6 @@ public class Lwjgl3Launcher {
 // remove dialog placeholders
 // adding multiple city areas, district 2d polygons
 // INTERACT_WITH_OBJECT Logic: Similar to the above, you don't have a generic "interaction" system for objects yet
-// COLLECT_ITEM Logic: As we discussed, this requires a proper player inventory system to be fully functional.
 // Advanced Rewards: The logic for GIVE_AMMO and GIVE_ITEM is in place, but things like UNLOCK_CAR_SPAWN would require a "garage" or "player property" system.
 
 // maybe, not intended for now:

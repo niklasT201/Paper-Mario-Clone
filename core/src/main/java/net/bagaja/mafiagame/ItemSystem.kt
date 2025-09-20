@@ -383,6 +383,10 @@ class ItemSystem: IFinePositionable {
                         playerSystem.equipWeapon(weaponToEquip, item.ammo)
                     }
                 }
+
+                // Report the specific item ID to the mission system upon collection
+                sceneManager.game.missionSystem.reportItemCollected(item.id)
+
                 item.collect()
                 itemsToRemove.add(item)
             }

@@ -241,7 +241,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         saveMissionToFile(missionDef)
     }
 
-    fun reportDialogComplete(dialogId: String) {
+    private fun reportDialogComplete(dialogId: String) {
         val objective = activeMission?.getCurrentObjective() ?: return
 
         // Check if the current objective was to complete this specific dialog
@@ -250,6 +250,18 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             // In a more complex system, you'd check targetId here too
             activeMission?.missionVariables?.set("dialog_complete_${objective.completionCondition.targetId}", true)
             println("Reported dialog completion for objective.")
+        }
+    }
+
+    fun reportItemCollected(itemId: String) {
+        val objective = activeMission?.getCurrentObjective() ?: return
+        val condition = objective.completionCondition
+
+        // Check if the current objective is to collect a specific item and if the ID matches.
+        if (condition.type == ConditionType.COLLECT_SPECIFIC_ITEM && condition.itemId == itemId) {
+            // It matches! Set a flag in our mission variables to mark it as complete.
+            activeMission?.missionVariables?.set("collected_${itemId}", true)
+            println("Player collected mission-critical item: $itemId")
         }
     }
 
@@ -281,6 +293,11 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 val requiredCount = condition.itemCount
                 val currentCount = game.playerSystem.countItemInInventory(requiredItem)
                 return currentCount >= requiredCount
+            }
+            ConditionType.COLLECT_SPECIFIC_ITEM -> {
+                val requiredId = condition.itemId ?: return false
+                // Check the flag we set in reportItemCollected()
+                return state.missionVariables["collected_${requiredId}"] == true
             }
         }
     }

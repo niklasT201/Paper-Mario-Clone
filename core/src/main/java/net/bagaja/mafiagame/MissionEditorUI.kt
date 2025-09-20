@@ -677,6 +677,8 @@ class MissionEditorUI(
             selected = existingObjective?.completionCondition?.itemType?.name ?: ItemType.MONEY_STACK.name
         }
         val itemCountField = TextField(existingObjective?.completionCondition?.itemCount?.toString() ?: "1", skin)
+        val itemIdField = TextField(existingObjective?.completionCondition?.itemId ?: "", skin)
+        itemIdField.messageText = "Unique Item ID (e.g., 'key_to_vault')"
 
         // --- DYNAMIC UI TABLES ---
         val targetIdTable = Table(skin).apply { add("Target ID:"); add(targetIdField).width(250f) }
@@ -685,6 +687,9 @@ class MissionEditorUI(
         val itemTable = Table(skin).apply {
             add("Item Type:"); add(itemTypeSelect).row()
             add("Count:"); add(itemCountField).width(80f).row()
+        }
+        val specificItemTable = Table(skin).apply {
+            add("Specific Item ID:"); add(itemIdField).width(250f)
         }
 
         // --- UI FOR OBJECTIVE-SPECIFIC EVENTS ---
@@ -721,6 +726,7 @@ class MissionEditorUI(
         content.add(areaTable).colspan(2).row()
         content.add(timerTable).colspan(2).row()
         content.add(itemTable).colspan(2).row()
+        content.add(specificItemTable).colspan(2).row()
 
         content.add(Label("--- Events on Objective Start ---", skin, "title")).colspan(2).padTop(15f).row()
         content.add(objectiveEventsScrollPane).colspan(2).growX().height(80f).row()
@@ -756,6 +762,7 @@ class MissionEditorUI(
             areaTable.isVisible = selectedType == ConditionType.ENTER_AREA
             timerTable.isVisible = selectedType == ConditionType.TIMER_EXPIRES
             itemTable.isVisible = selectedType == ConditionType.COLLECT_ITEM
+            specificItemTable.isVisible = selectedType == ConditionType.COLLECT_SPECIFIC_ITEM
             dialog.pack()
         }
         typeSelect.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { updateVisibleFields() } })
@@ -775,7 +782,8 @@ class MissionEditorUI(
                     areaRadius = areaRadiusField.text.toFloatOrNull() ?: 10.0f,
                     timerDuration = timerDurationField.text.toFloatOrNull() ?: 60.0f,
                     itemType = itemType,
-                    itemCount = itemCountField.text.toIntOrNull() ?: 1
+                    itemCount = itemCountField.text.toIntOrNull() ?: 1,
+                    itemId = itemIdField.text.ifBlank { null }
                 )
 
                 // If we are editing, copy the existing event list. Otherwise, create a new one.

@@ -81,8 +81,9 @@ enum class ConditionType {
     ELIMINATE_TARGET,
     TIMER_EXPIRES,
     TALK_TO_NPC,
-    INTERACT_WITH_OBJECT, // NEW
-    COLLECT_ITEM          // NEW
+    INTERACT_WITH_OBJECT,
+    COLLECT_ITEM,
+    COLLECT_SPECIFIC_ITEM
 }
 
 data class CompletionCondition(
@@ -92,7 +93,8 @@ data class CompletionCondition(
     val targetId: String? = null,
     val timerDuration: Float? = null,
     val itemType: ItemType? = null,
-    val itemCount: Int = 1
+    val itemCount: Int = 1,
+    val itemId: String? = null
 )
 
 // --- Mission Triggers (How missions start) ---
