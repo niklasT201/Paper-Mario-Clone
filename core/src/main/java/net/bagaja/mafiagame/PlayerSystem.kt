@@ -871,6 +871,11 @@ class PlayerSystem {
     }
 
     fun switchToNextWeapon() {
+        if (sceneManager.game.missionSystem.activeModifiers?.disableWeaponSwitching == true) {
+            println("Weapon switching is disabled for this mission.")
+            return // Exit the function immediately, preventing the switch.
+        }
+
         if (weapons.size <= 1) return // Can't switch if you only have fists
 
         // SAVE the current weapon's magazine state BEFORE switching
@@ -933,11 +938,14 @@ class PlayerSystem {
     fun enterCar(car: GameCar) {
         if (isDriving) return // Already driving, can't enter another car
 
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
+        val canBypassLock = modifiers?.allCarsUnlocked == true
+
         // Check if the car is locked before entering
-        if (car.isLocked) {
+        if (car.isLocked && !canBypassLock) {
             println("This car is locked.")
-            // You could add a UI message or sound effect here
-            return
+            // TODO: Play a "locked door" sound or show a UI message
+            return // Stop the function here, player cannot enter.
         }
 
         val seat = car.addOccupant(this)
