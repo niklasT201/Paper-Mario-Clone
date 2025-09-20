@@ -86,6 +86,7 @@ class SpawnerUI(
     private val removeButton: TextButton
     private val closeButton: TextButton
     private val copyIdButton: TextButton
+    private val convertToEventButton: TextButton
 
     // Cache for preview textures
     private val previewTextures = mutableMapOf<String, Texture>()
@@ -277,12 +278,14 @@ class SpawnerUI(
         removeButton = TextButton("Remove", skin)
         closeButton = TextButton("Close", skin)
         copyIdButton = TextButton("Copy ID", skin)
+        convertToEventButton = TextButton("To Mission Event", skin)
         removeButton.color.set(1f, 0.6f, 0.6f, 1f)
 
         val buttonTable = Table()
         buttonTable.add(applyButton).pad(10f)
         buttonTable.add(removeButton).pad(10f)
         buttonTable.add(copyIdButton).pad(10f)
+        buttonTable.add(convertToEventButton).pad(10f)
         buttonTable.add(closeButton).pad(10f)
         window.add(buttonTable).colspan(2).expandY().bottom().padBottom(10f)
 
@@ -296,6 +299,12 @@ class SpawnerUI(
         applyButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { applyChanges(); hide() } })
         removeButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { currentSpawner?.let { onRemove(it) }; hide() } })
         closeButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { hide() } })
+
+        convertToEventButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                handleConvertToMissionEvent()
+            }
+        })
 
         val tabListener = object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
@@ -354,8 +363,72 @@ class SpawnerUI(
         window.pack()
     }
 
+    private fun handleConvertToMissionEvent() {
+        val spawner = currentSpawner ?: return
+        val mission = uiManager.selectedMissionForEditing
+        if (mission == null) {
+            uiManager.showTemporaryMessage("Error: No mission selected for editing!")
+            return
+        }
+
+        // First, apply any pending changes from the UI to the spawner object
+        applyChanges()
+
+        val currentSceneId = if (uiManager.game.sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+            uiManager.game.sceneManager.getCurrentHouse()?.id ?: "WORLD"
+        } else {
+            "WORLD"
+        }
+
+        // Create the GameEvent based on the fully configured spawner
+        val event = GameEvent(
+            type = GameEventType.SPAWN_SPAWNER,
+            spawnPosition = spawner.position.cpy(),
+            sceneId = currentSceneId,
+            targetId = spawner.id, // Use the spawner's existing ID
+            spawnerType = spawner.spawnerType,
+            spawnerMode = spawner.spawnerMode,
+            spawnInterval = spawner.spawnInterval,
+            minSpawnRange = spawner.minSpawnRange,
+            maxSpawnRange = spawner.maxSpawnRange,
+            spawnOnlyWhenPreviousIsGone = spawner.spawnOnlyWhenPreviousIsGone,
+            particleEffectType = spawner.particleEffectType,
+            spawnerMinParticles = spawner.minParticles,
+            spawnerMaxParticles = spawner.maxParticles,
+            spawnerItemType = spawner.itemType,
+            spawnerMinItems = spawner.minItems,
+            spawnerMaxItems = spawner.maxItems,
+            spawnerWeaponItemType = spawner.weaponItemType,
+            ammoSpawnMode = spawner.ammoSpawnMode,
+            setAmmoValue = spawner.setAmmoValue,
+            randomMinAmmo = spawner.randomMinAmmo,
+            randomMaxAmmo = spawner.randomMaxAmmo,
+            spawnerEnemyType = spawner.enemyType,
+            spawnerCarType = spawner.carType,
+            spawnerCarIsLocked = spawner.carIsLocked,
+            spawnerCarDriverType = spawner.carDriverType,
+            spawnerCarEnemyDriverType = spawner.carEnemyDriverType,
+            spawnerCarNpcDriverType = spawner.carNpcDriverType,
+            spawnerCarSpawnDirection = spawner.carSpawnDirection
+        )
+
+        // Add the event to the mission and save it
+        mission.eventsOnStart.add(event)
+        uiManager.game.missionSystem.saveMission(mission)
+
+        // IMPORTANT: Remove the original spawner from the world
+        onRemove(spawner)
+
+        // Hide the UI and give feedback
+        hide()
+        uiManager.showTemporaryMessage("Spawner converted to event for '${mission.title}'")
+        uiManager.missionEditorUI.refreshEventWidgets()
+    }
+
     fun show(spawner: GameSpawner) {
         currentSpawner = spawner
+        convertToEventButton.isVisible = (uiManager.currentEditorMode == EditorMode.MISSION)
+
         // General
         spawnerModeSelectBox.selected = spawner.spawnerMode.name
         intervalField.text = spawner.spawnInterval.toString()

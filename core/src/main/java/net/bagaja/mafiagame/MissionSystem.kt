@@ -294,6 +294,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 val currentCount = game.playerSystem.countItemInInventory(requiredItem)
                 return currentCount >= requiredCount
             }
+            // MODIFIED: Added the missing case
             ConditionType.COLLECT_SPECIFIC_ITEM -> {
                 val requiredId = condition.itemId ?: return false
                 // Check the flag we set in reportItemCollected()
@@ -694,7 +695,11 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
                         // Type-specific settings
                         newSpawner.particleEffectType = event.particleEffectType ?: newSpawner.particleEffectType
+                        newSpawner.minParticles = event.spawnerMinParticles ?: newSpawner.minParticles
+                        newSpawner.maxParticles = event.spawnerMaxParticles ?: newSpawner.maxParticles
                         newSpawner.itemType = event.spawnerItemType ?: newSpawner.itemType
+                        newSpawner.minItems = event.spawnerMinItems ?: newSpawner.minItems
+                        newSpawner.maxItems = event.spawnerMaxItems ?: newSpawner.maxItems
                         newSpawner.weaponItemType = event.spawnerWeaponItemType ?: newSpawner.weaponItemType
                         newSpawner.ammoSpawnMode = event.ammoSpawnMode ?: newSpawner.ammoSpawnMode
                         newSpawner.setAmmoValue = event.setAmmoValue ?: newSpawner.setAmmoValue

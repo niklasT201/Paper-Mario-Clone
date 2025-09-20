@@ -238,12 +238,12 @@ data class GameEvent(
     val spawnOnlyWhenPreviousIsGone: Boolean? = null,
     // Particle Spawner
     val particleEffectType: ParticleEffectType? = null,
-    val minParticles: Int? = null,
-    val maxParticles: Int? = null,
+    val spawnerMinParticles: Int? = null,
+    val spawnerMaxParticles: Int? = null,
     // Item Spawner
     val spawnerItemType: ItemType? = null,
-    val minItems: Int? = null,
-    val maxItems: Int? = null,
+    val spawnerMinItems: Int? = null,
+    val spawnerMaxItems: Int? = null,
     // Weapon Spawner
     val spawnerWeaponItemType: ItemType? = null,
     val randomMinAmmo: Int? = null,

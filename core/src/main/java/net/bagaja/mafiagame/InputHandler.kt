@@ -308,6 +308,15 @@ class InputHandler(
                             }
                             // No object removed, handle as camera drag
                         }
+                        val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+                        val spawnerToInspect = game.raycastSystem.getSpawnerAtRay(ray, sceneManager.activeSpawners)
+
+                        // Open Spawner UI if not in debug mode
+                        if (spawnerToInspect != null && !objectSystem.debugMode) {
+                            uiManager.showSpawnerUI(spawnerToInspect)
+                            return true // Consume the click
+                        }
+
                         isRightMousePressed = true
                         lastMouseX = screenX.toFloat()
                         lastMouseY = screenY.toFloat()
