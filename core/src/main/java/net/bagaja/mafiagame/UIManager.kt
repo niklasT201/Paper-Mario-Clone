@@ -145,7 +145,6 @@ class UIManager(
     var isPlacingObjectiveArea = false
         private set
     var objectiveBeingPlaced: MissionObjective? = null
-        private set
 
     enum class Tool {
         BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE, TRIGGER
@@ -1064,11 +1063,12 @@ class UIManager(
         game.highlightSystem.hideHighlight() // Explicitly hide the highlight
     }
 
-    fun updateObjectiveAreaFromVisuals(center: Vector3, radius: Float) {
-        objectiveBeingPlaced?.let {
-            it.completionCondition.areaCenter?.set(center)
-            missionEditorUI.updateAreaFields(center, radius)
-        }
+    fun updateObjectiveAreaFromVisuals(updatedObjective: MissionObjective) {
+        objectiveBeingPlaced = updatedObjective
+        missionEditorUI.updateAreaFields(
+            updatedObjective.completionCondition.areaCenter ?: Vector3(),
+            updatedObjective.completionCondition.areaRadius ?: 10f
+        )
     }
 
     fun showEnemyDebugInfo(enemy: GameEnemy) {

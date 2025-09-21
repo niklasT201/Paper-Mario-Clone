@@ -855,7 +855,7 @@ class MissionEditorUI(
                 val conditionType = try { ConditionType.valueOf(typeSelect.selected) } catch (e: Exception) { ConditionType.ENTER_AREA }
                 val itemType = try { ItemType.valueOf(itemTypeSelect.selected) } catch (e: Exception) { null }
 
-                // MODIFIED: Read from the new fields for the area condition
+                // MODIFIED: Read the final values from the text fields for the area condition
                 val areaCenterVec = Vector3(
                     areaXField.text.toFloatOrNull() ?: 0f,
                     areaYField.text.toFloatOrNull() ?: 0f,
