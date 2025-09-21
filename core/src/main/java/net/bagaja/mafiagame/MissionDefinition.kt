@@ -88,8 +88,8 @@ enum class ConditionType {
 
 data class CompletionCondition(
     val type: ConditionType = ConditionType.ENTER_AREA,
-    val areaCenter: Vector3? = null,
-    val areaRadius: Float? = null,
+    val areaCenter: Vector3? = if (type == ConditionType.ENTER_AREA) Vector3() else null,
+    val areaRadius: Float? = if (type == ConditionType.ENTER_AREA) 10f else null,
     val targetId: String? = null,
     val timerDuration: Float? = null,
     val itemType: ItemType? = null,

@@ -767,10 +767,33 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             GameEventType.DESPAWN_ENTITY -> {
                 event.targetId?.let { id ->
                     // Despawning only makes sense in the currently active scene.
-                    game.sceneManager.activeEnemies.removeAll { it.id == id }
-                    game.sceneManager.activeNPCs.removeAll { it.id == id }
-                    game.sceneManager.activeCars.removeAll { it.id == id }
-                    println("Despawned entity with ID: $id from active scene.")
+                    var wasRemoved = false
+                    if (game.sceneManager.activeEnemies.removeAll { it.id == id }) wasRemoved = true
+                    if (game.sceneManager.activeNPCs.removeAll { it.id == id }) wasRemoved = true
+                    if (game.sceneManager.activeCars.removeAll { it.id == id }) wasRemoved = true
+                    if (game.sceneManager.activeItems.removeAll { it.id == id }) wasRemoved = true
+                    if (game.sceneManager.activeObjects.removeAll { it.id == id }) wasRemoved = true
+                    if (game.sceneManager.activeSpawners.removeAll { it.id == id }) wasRemoved = true
+
+                    if (game.sceneManager.activeHouses.removeAll { it.id == id }) wasRemoved = true
+
+                    val fireToRemove = game.fireSystem.activeFires.find { it.id == id }
+                    if (fireToRemove != null) {
+                        game.fireSystem.removeFire(fireToRemove, game.objectSystem, game.lightingManager)
+                        wasRemoved = true
+                    }
+
+                    val teleporterToRemove = game.teleporterSystem.activeTeleporters.find { it.id == id }
+                    if (teleporterToRemove != null) {
+                        game.teleporterSystem.removeTeleporter(teleporterToRemove)
+                        wasRemoved = true
+                    }
+
+                    if (wasRemoved) {
+                        println("Despawned entity with ID: $id from active scene.")
+                    } else {
+                        println("Warning: Despawn event for ID '$id' did not find a matching entity in the active scene.")
+                    }
                 }
             }
             GameEventType.START_DIALOG -> {

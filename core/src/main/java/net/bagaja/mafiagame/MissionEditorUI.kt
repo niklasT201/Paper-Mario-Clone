@@ -43,12 +43,24 @@ class MissionEditorUI(
     private var tempStartEvents = mutableListOf<GameEvent>()
     private var tempCompleteEvents = mutableListOf<GameEvent>()
 
+    private val radiusField: TextField
+    private val areaXField: TextField
+    private val areaYField: TextField
+    private val areaZField: TextField
+
     init {
         window.isMovable = true
         window.isModal = false
         window.setSize(Gdx.graphics.width * 1.9f, Gdx.graphics.height * 1.8f)
         window.setPosition(stage.width / 2f, stage.height / 2f, Align.center)
         window.padTop(40f)
+
+        // MODIFIED: Initialize the fields in the init block
+        radiusField = TextField("", skin)
+        areaXField = TextField("", skin)
+        areaYField = TextField("", skin)
+        areaZField = TextField("", skin)
+        // END MODIFIED
 
         val mainContentTable = Table()
 
@@ -127,7 +139,6 @@ class MissionEditorUI(
 
 
         // --- Assembly using SplitPane ---
-        // The right panel is put in its own ScrollPane so IT can scroll independently
         val editorScrollPane = ScrollPane(editorDetailsTable, skin)
         editorScrollPane.setFadeScrollBars(false)
 
@@ -682,6 +693,13 @@ class MissionEditorUI(
         return table
     }
 
+    fun updateAreaFields(center: Vector3, radius: Float) {
+        areaXField.text = "%.2f".format(center.x)
+        areaYField.text = "%.2f".format(center.y)
+        areaZField.text = "%.2f".format(center.z)
+        radiusField.text = "%.2f".format(radius)
+    }
+
     private fun showObjectiveDialog(existingObjective: MissionObjective?) {
         val dialog = Dialog(if (existingObjective == null) "Add Objective" else "Edit Objective", skin, "dialog")
         dialog.isModal = true
@@ -697,7 +715,6 @@ class MissionEditorUI(
 
         // Condition-specific fields
         val targetIdField = TextField(existingObjective?.completionCondition?.targetId ?: "", skin)
-        val areaRadiusField = TextField(existingObjective?.completionCondition?.areaRadius?.toString() ?: "10.0", skin)
         val timerDurationField = TextField(existingObjective?.completionCondition?.timerDuration?.toString() ?: "60.0", skin)
         val itemTypeSelect = SelectBox<String>(skin).apply {
             items = GdxArray(ItemType.entries.map { it.name }.toTypedArray())
@@ -709,7 +726,7 @@ class MissionEditorUI(
 
         // --- DYNAMIC UI TABLES ---
         val targetIdTable = Table(skin).apply { add("Target ID:"); add(targetIdField).width(250f) }
-        val areaTable = Table(skin).apply { add("Area Radius:"); add(areaRadiusField).width(80f) }
+        val areaTable = Table(skin) // This one will have other tables added, so it also needs a skin.
         val timerTable = Table(skin).apply { add("Duration (sec):"); add(timerDurationField).width(80f) }
         val itemTable = Table(skin).apply {
             add("Item Type:"); add(itemTypeSelect).row()
@@ -718,6 +735,25 @@ class MissionEditorUI(
         val specificItemTable = Table(skin).apply {
             add("Specific Item ID:"); add(itemIdField).width(250f)
         }
+
+        // --- Build the areaTable using the class properties ---
+        radiusField.text = existingObjective?.completionCondition?.areaRadius?.toString() ?: "10.0"
+        areaXField.text = existingObjective?.completionCondition?.areaCenter?.x?.toString() ?: "0.0"
+        areaYField.text = existingObjective?.completionCondition?.areaCenter?.y?.toString() ?: "0.0"
+        areaZField.text = existingObjective?.completionCondition?.areaCenter?.z?.toString() ?: "0.0"
+
+        val posTable = Table(skin) // MODIFIED: Pass the skin here as well
+        posTable.add("X:").padRight(5f); posTable.add(areaXField).width(60f).padRight(10f)
+        posTable.add("Y:").padRight(5f); posTable.add(areaYField).width(60f).padRight(10f)
+        posTable.add("Z:").padRight(5f); posTable.add(areaZField).width(60f)
+
+        areaTable.add(Label("Area Center:", skin)).left().row()
+        areaTable.add(posTable).left().padBottom(5f).row()
+        areaTable.add(Label("Radius:", skin)).left().padRight(10f)
+        areaTable.add(radiusField).width(80f).left()
+
+        val placeButton = TextButton("Place Area", skin)
+        areaTable.add(placeButton).padLeft(15f)
 
         // --- UI FOR OBJECTIVE-SPECIFIC EVENTS ---
         val objectiveEventsContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.left) }
@@ -774,11 +810,28 @@ class MissionEditorUI(
                     return
                 }
                 // Show the event editor dialog. When it saves, it will add the event
-                // to our 'existingObjective' and then call our refresh function.
                 showEventDialog(null, isStartEvent = false) { newEvent ->
                     existingObjective.eventsOnStart.add(newEvent)
                     refreshObjectiveEventWidgets()
                 }
+            }
+        })
+
+        placeButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                val objectiveToPlace = existingObjective ?: MissionObjective(
+                    completionCondition = CompletionCondition(
+                        type = ConditionType.ENTER_AREA,
+                        areaCenter = Vector3(
+                            areaXField.text.toFloatOrNull() ?: 0f,
+                            areaYField.text.toFloatOrNull() ?: 0f,
+                            areaZField.text.toFloatOrNull() ?: 0f
+                        ),
+                        areaRadius = radiusField.text.toFloatOrNull() ?: 10f
+                    )
+                )
+                dialog.hide()
+                uiManager.enterObjectiveAreaPlacementMode(objectiveToPlace)
             }
         })
 
@@ -799,14 +852,22 @@ class MissionEditorUI(
         val saveButton = TextButton("Save", skin)
         saveButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
-                // Safely create the new condition and objective
                 val conditionType = try { ConditionType.valueOf(typeSelect.selected) } catch (e: Exception) { ConditionType.ENTER_AREA }
                 val itemType = try { ItemType.valueOf(itemTypeSelect.selected) } catch (e: Exception) { null }
+
+                // MODIFIED: Read from the new fields for the area condition
+                val areaCenterVec = Vector3(
+                    areaXField.text.toFloatOrNull() ?: 0f,
+                    areaYField.text.toFloatOrNull() ?: 0f,
+                    areaZField.text.toFloatOrNull() ?: 0f
+                )
+                val areaRadiusValue = radiusField.text.toFloatOrNull()
 
                 val newCondition = CompletionCondition(
                     type = conditionType,
                     targetId = targetIdField.text.ifBlank { null },
-                    areaRadius = areaRadiusField.text.toFloatOrNull() ?: 10.0f,
+                    areaCenter = if(conditionType == ConditionType.ENTER_AREA) areaCenterVec else null,
+                    areaRadius = if(conditionType == ConditionType.ENTER_AREA) areaRadiusValue else null,
                     timerDuration = timerDurationField.text.toFloatOrNull() ?: 60.0f,
                     itemType = itemType,
                     itemCount = itemCountField.text.toIntOrNull() ?: 1,

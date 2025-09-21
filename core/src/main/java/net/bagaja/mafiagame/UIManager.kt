@@ -5,6 +5,7 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.math.Interpolation
+import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.Stage
@@ -140,6 +141,10 @@ class UIManager(
     var isPlacingEntryPointMode = false
         private set
     var houseRequiringEntryPoint: GameHouse? = null
+        private set
+    var isPlacingObjectiveArea = false
+        private set
+    var objectiveBeingPlaced: MissionObjective? = null
         private set
 
     enum class Tool {
@@ -1040,6 +1045,30 @@ class UIManager(
         if (lightSourceUI.isVisible()) lightSourceUI.toggle()
         if (skyCustomizationUI.isVisible()) skyCustomizationUI.toggle()
         if (shaderEffectUI.isVisible()) shaderEffectUI.toggle()
+    }
+
+    fun enterObjectiveAreaPlacementMode(objective: MissionObjective) {
+        if (objective.completionCondition.type != ConditionType.ENTER_AREA) return
+
+        isPlacingObjectiveArea = true
+        objectiveBeingPlaced = objective
+        missionEditorUI.hide() // Hide the main editor window
+        setPersistentMessage("LEFT-CLICK to set area center | SCROLL to change radius | ENTER to confirm")
+    }
+
+    fun exitObjectiveAreaPlacementMode() {
+        isPlacingObjectiveArea = false
+        objectiveBeingPlaced = null
+        missionEditorUI.show() // Bring back the main editor
+        clearPersistentMessage()
+        game.highlightSystem.hideHighlight() // Explicitly hide the highlight
+    }
+
+    fun updateObjectiveAreaFromVisuals(center: Vector3, radius: Float) {
+        objectiveBeingPlaced?.let {
+            it.completionCondition.areaCenter?.set(center)
+            missionEditorUI.updateAreaFields(center, radius)
+        }
     }
 
     fun showEnemyDebugInfo(enemy: GameEnemy) {

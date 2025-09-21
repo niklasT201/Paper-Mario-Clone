@@ -110,6 +110,25 @@ class InputHandler(
                 }
                  */
 
+                if (uiManager.isPlacingObjectiveArea) {
+                    if (button == Input.Buttons.LEFT) {
+                        val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+                        val intersection = Vector3()
+                        if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+                            // Update the objective's center position
+                            val objective = uiManager.objectiveBeingPlaced
+                            objective?.completionCondition?.areaCenter?.set(intersection)
+
+                            // Update the UI text fields
+                            uiManager.updateObjectiveAreaFromVisuals(
+                                intersection,
+                                objective?.completionCondition?.areaRadius ?: 10f
+                            )
+                        }
+                    }
+                    return true // Consume the click
+                }
+
                 if (uiManager.isPauseMenuVisible()) {
                     return true
                 }
@@ -382,6 +401,20 @@ class InputHandler(
             }
 
             override fun scrolled(amountX: Float, amountY: Float): Boolean {
+                if (uiManager.isPlacingObjectiveArea) {
+                    val objective = uiManager.objectiveBeingPlaced ?: return true
+                    var currentRadius = objective.completionCondition.areaRadius ?: 10f
+                    val step = if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)) 5.0f else 1.0f
+                    val change = -amountY * step
+                    currentRadius = (currentRadius + change).coerceAtLeast(1.0f)
+
+                    uiManager.updateObjectiveAreaFromVisuals(
+                        objective.completionCondition.areaCenter ?: Vector3(),
+                        currentRadius
+                    )
+                    return true
+                }
+
                 if (uiManager.selectedTool == Tool.TRIGGER && game.lastPlacedInstance is MissionTrigger) {
                     val trigger = game.lastPlacedInstance as MissionTrigger
                     val step = if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)) 5.0f else 1.0f // Hold shift for bigger steps
@@ -487,6 +520,13 @@ class InputHandler(
                     }
                     // Don't process other keys if dialog is active
                     return true
+                }
+
+                if (uiManager.isPlacingObjectiveArea) {
+                    if (keycode == Input.Keys.ENTER || keycode == Input.Keys.ESCAPE) {
+                        uiManager.exitObjectiveAreaPlacementMode()
+                        return true
+                    }
                 }
 
                 // Camera Flip Hotkey

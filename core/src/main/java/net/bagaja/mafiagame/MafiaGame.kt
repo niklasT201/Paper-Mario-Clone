@@ -45,7 +45,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var houseSystem: HouseSystem
 
     // Highlight System
-    private lateinit var highlightSystem: HighlightSystem
+    lateinit var highlightSystem: HighlightSystem
     lateinit var targetingIndicatorSystem: TargetingIndicatorSystem
     private lateinit var lockIndicatorSystem: LockIndicatorSystem
     lateinit var meleeRangeIndicatorSystem: MeleeRangeIndicatorSystem
@@ -114,7 +114,7 @@ class MafiaGame : ApplicationAdapter() {
         playerSystem = PlayerSystem()
         shaderEffectManager = ShaderEffectManager()
         spawnerSystem = SpawnerSystem(particleSystem, itemSystem)
-        highlightSystem = HighlightSystem(blockSize)
+        highlightSystem = HighlightSystem(this, blockSize)
         targetingIndicatorSystem = TargetingIndicatorSystem()
         meleeRangeIndicatorSystem = MeleeRangeIndicatorSystem()
         trajectorySystem = TrajectorySystem()

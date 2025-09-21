@@ -6,6 +6,7 @@ import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.GL20
 import com.badlogic.gdx.graphics.VertexAttributes
 import com.badlogic.gdx.graphics.g3d.*
+import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
@@ -18,7 +19,7 @@ import com.badlogic.gdx.utils.Array
 import kotlin.math.max
 import kotlin.math.min
 
-class HighlightSystem(private val blockSize: Float) {
+class HighlightSystem(private val game: MafiaGame, private val blockSize: Float) {
     private var highlightModel: Model? = null
     private var highlightInstance: ModelInstance? = null
     private var highlightMaterial: Material? = null
@@ -30,6 +31,8 @@ class HighlightSystem(private val blockSize: Float) {
     private val groundPlane = Plane(Vector3.Y, 0f)
     private val areaFillStartColor = Color(0f, 1f, 1f, 0.35f) // Cyan for first corner
     private val areaFillEndColor = Color(0.2f, 0.6f, 1f, 0.35f) // Blue for second corner
+    private var areaHighlightModel: Model? = null
+    private var areaHighlightInstance: ModelInstance? = null
 
     // Colors for different states
     private val placeColor = Color(0f, 1f, 0f, 0.3f) // Green for placement
@@ -65,6 +68,15 @@ class HighlightSystem(private val blockSize: Float) {
 
         // Create initial highlight model
         createHighlightModel(Vector3(blockSize, blockSize, blockSize))
+
+        // Create a separate model for the area highlight
+        val areaMaterial = Material(
+            ColorAttribute.createDiffuse(0.2f, 0.8f, 1f, 0.35f), // A nice blue color
+            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+        )
+        areaHighlightModel = modelBuilder.createCylinder(2f, 0.5f, 2f, 32, areaMaterial,
+            (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong())
+        areaHighlightInstance = ModelInstance(areaHighlightModel!!)
     }
 
     private fun createHighlightModel(size: Vector3) {
@@ -109,6 +121,11 @@ class HighlightSystem(private val blockSize: Float) {
         gameNPCs: Array<GameNPC>,
         particleSystem: ParticleSystem,
     ) {
+        if (uiManager.isPlacingObjectiveArea) {
+            updateObjectiveAreaHighlight(uiManager, Gdx.input.x.toFloat(), Gdx.input.y.toFloat(), cameraManager.camera)
+            return // IMPORTANT: Stop any other highlight logic from running
+        }
+
         val mouseX = Gdx.input.x.toFloat()
         val mouseY = Gdx.input.y.toFloat()
         val newRay = cameraManager.camera.getPickRay(mouseX, mouseY)
@@ -648,7 +665,7 @@ class HighlightSystem(private val blockSize: Float) {
         updateHighlightTransform()
     }
 
-    private fun hideHighlight() {
+    fun hideHighlight() {
         isHighlightVisible = false
     }
 
@@ -662,7 +679,33 @@ class HighlightSystem(private val blockSize: Float) {
         highlightInstance?.transform?.setTranslation(highlightPosition)
     }
 
+    private fun updateObjectiveAreaHighlight(uiManager: UIManager, screenX: Float, screenY: Float, camera: Camera) {
+        val objective = uiManager.objectiveBeingPlaced ?: return
+        val condition = objective.completionCondition
+        val center = condition.areaCenter ?: Vector3()
+        val radius = condition.areaRadius ?: 10f
+
+        // Update the visual model's scale to match the objective's radius
+        areaHighlightInstance?.transform?.setToTranslation(center)
+        areaHighlightInstance?.transform?.scale(radius, 1f, radius)
+
+        isHighlightVisible = false // Hide the standard green/red box
+    }
+
     fun render(modelBatch: ModelBatch, camera: com.badlogic.gdx.graphics.Camera, environment: com.badlogic.gdx.graphics.g3d.Environment) {
+        if (game.uiManager.isPlacingObjectiveArea && areaHighlightInstance != null) {
+            Gdx.gl.glEnable(GL20.GL_BLEND)
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+            Gdx.gl.glDepthMask(false)
+
+            modelBatch.begin(camera)
+            modelBatch.render(areaHighlightInstance!!, environment)
+            modelBatch.end()
+
+            Gdx.gl.glDepthMask(true)
+            Gdx.gl.glDisable(GL20.GL_BLEND)
+        }
+
         if (isHighlightVisible && highlightInstance != null) {
             // Enable blending for transparency
             Gdx.gl.glEnable(GL20.GL_BLEND)
@@ -683,5 +726,6 @@ class HighlightSystem(private val blockSize: Float) {
 
     fun dispose() {
         highlightModel?.dispose()
+        areaHighlightModel?.dispose()
     }
 }
