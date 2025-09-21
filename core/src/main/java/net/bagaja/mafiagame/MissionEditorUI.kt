@@ -8,6 +8,9 @@ import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.Array as GdxArray
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.scenes.scene2d.ui.List
+import com.badlogic.gdx.scenes.scene2d.ui.Stack
+import java.util.*
 
 class MissionEditorUI(
     private val skin: Skin,
@@ -237,8 +240,18 @@ class MissionEditorUI(
             }
         })
 
-        saveButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { applyChanges(); missionSystem.game.triggerSystem.refreshTriggers(); hide() } })
-        closeButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { hide() } })
+        saveButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                applyChanges()
+                missionSystem.game.triggerSystem.refreshTriggers()
+                hide() // This calls the hide() method below
+            }
+        })
+        closeButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                hide() // This also calls the hide() method
+            }
+        })
     }
 
     private fun initializeMode() {
@@ -694,10 +707,10 @@ class MissionEditorUI(
     }
 
     fun updateAreaFields(center: Vector3, radius: Float) {
-        areaXField.text = "%.2f".format(center.x)
-        areaYField.text = "%.2f".format(center.y)
-        areaZField.text = "%.2f".format(center.z)
-        radiusField.text = "%.2f".format(radius)
+        areaXField.text = String.format(Locale.US, "%.2f", center.x)
+        areaYField.text = String.format(Locale.US, "%.2f", center.y)
+        areaZField.text = String.format(Locale.US, "%.2f", center.z)
+        radiusField.text = String.format(Locale.US, "%.2f", radius)
     }
 
     private fun showObjectiveDialog(existingObjective: MissionObjective?) {
@@ -737,10 +750,10 @@ class MissionEditorUI(
         }
 
         // --- Build the areaTable using the class properties ---
-        radiusField.text = existingObjective?.completionCondition?.areaRadius?.toString() ?: "10.0"
-        areaXField.text = existingObjective?.completionCondition?.areaCenter?.x?.toString() ?: "0.0"
-        areaYField.text = existingObjective?.completionCondition?.areaCenter?.y?.toString() ?: "0.0"
-        areaZField.text = existingObjective?.completionCondition?.areaCenter?.z?.toString() ?: "0.0"
+        radiusField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaRadius ?: 10.0f)
+        areaXField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaCenter?.x ?: 0.0f)
+        areaYField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaCenter?.y ?: 0.0f)
+        areaZField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaCenter?.z ?: 0.0f)
 
         val posTable = Table(skin) // MODIFIED: Pass the skin here as well
         posTable.add("X:").padRight(5f); posTable.add(areaXField).width(60f).padRight(10f)
@@ -830,8 +843,9 @@ class MissionEditorUI(
                         areaRadius = radiusField.text.toFloatOrNull() ?: 10f
                     )
                 )
-                dialog.hide()
-                uiManager.enterObjectiveAreaPlacementMode(objectiveToPlace)
+
+                // MODIFIED: Pass the 'dialog' instance to the UIManager
+                uiManager.enterObjectiveAreaPlacementMode(objectiveToPlace, dialog)
             }
         })
 
@@ -894,6 +908,7 @@ class MissionEditorUI(
                 }
                 refreshObjectiveWidgets()
                 dialog.hide()
+                stage.unfocusAll()
             }
         })
 

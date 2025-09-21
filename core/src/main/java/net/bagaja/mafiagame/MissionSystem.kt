@@ -269,9 +269,13 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         val condition = objective.completionCondition
         when (condition.type) {
             ConditionType.ENTER_AREA -> {
+                // Safe handling of nullable properties
+                val center = condition.areaCenter ?: return false // If center is null, can't complete
+                val radius = condition.areaRadius ?: return false // If radius is null, can't complete
+
                 val playerPos = game.playerSystem.getPosition()
-                val distance = playerPos.dst(condition.areaCenter!!)
-                return distance < condition.areaRadius!!
+                val distance = playerPos.dst(center)
+                return distance < radius // Now this is safe
             }
             ConditionType.ELIMINATE_TARGET -> {
                 // Check if an enemy with the target ID still exists in the scene

@@ -142,9 +142,11 @@ class UIManager(
         private set
     var houseRequiringEntryPoint: GameHouse? = null
         private set
+    private var activeObjectiveDialog: Dialog? = null
     var isPlacingObjectiveArea = false
         private set
     var objectiveBeingPlaced: MissionObjective? = null
+        private set
 
     enum class Tool {
         BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE, TRIGGER
@@ -1046,21 +1048,31 @@ class UIManager(
         if (shaderEffectUI.isVisible()) shaderEffectUI.toggle()
     }
 
-    fun enterObjectiveAreaPlacementMode(objective: MissionObjective) {
+    fun enterObjectiveAreaPlacementMode(objective: MissionObjective, dialog: Dialog) {
         if (objective.completionCondition.type != ConditionType.ENTER_AREA) return
 
         isPlacingObjectiveArea = true
         objectiveBeingPlaced = objective
-        missionEditorUI.hide() // Hide the main editor window
-        setPersistentMessage("LEFT-CLICK to set area center | SCROLL to change radius | ENTER to confirm")
+        activeObjectiveDialog = dialog
+
+        dialog.isVisible = false
+        missionEditorUI.hide() // Hide the main editor window as well
+
+        setPersistentMessage("LEFT-CLICK to set area center | SCROLL to change radius | ENTER/ESC to confirm")
     }
 
     fun exitObjectiveAreaPlacementMode() {
         isPlacingObjectiveArea = false
         objectiveBeingPlaced = null
-        missionEditorUI.show() // Bring back the main editor
+
+        missionEditorUI.show() // Re-show the main editor window first
+        activeObjectiveDialog?.isVisible = true // Then make the objective dialog visible on top
+        activeObjectiveDialog?.toFront() // Ensure it has focus
+
+        activeObjectiveDialog = null
+
         clearPersistentMessage()
-        game.highlightSystem.hideHighlight() // Explicitly hide the highlight
+        game.highlightSystem.hideHighlight()
     }
 
     fun updateObjectiveAreaFromVisuals(updatedObjective: MissionObjective) {

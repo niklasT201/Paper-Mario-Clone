@@ -89,7 +89,6 @@ public class Lwjgl3Launcher {
 // add event button automatically adds new event without saving button press
 // new objects: Kill All Enemies
 // new events: DESTROY_OBJECT, LOCK_HOUSE, PLAY_SOUND, ENABLE_SPAWNER, DISABLE_SPAWNER
-// add placing for enter area
 // make timer_expires visual
 
 // disable item pick up

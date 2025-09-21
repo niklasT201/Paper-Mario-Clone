@@ -3,6 +3,7 @@ package net.bagaja.mafiagame
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
+import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Json
 import com.badlogic.gdx.utils.JsonValue
 import com.badlogic.gdx.utils.JsonWriter
@@ -14,6 +15,23 @@ class SaveLoadSystem(private val game: MafiaGame) {
     private val json = Json().apply {
         setOutputType(JsonWriter.OutputType.json)
         setUsePrototypes(false)
+
+        setSerializer(Vector3::class.java, object : Json.Serializer<Vector3> {
+            override fun write(json: Json, vec: Vector3, knownType: Class<*>?) {
+                json.writeObjectStart()
+                json.writeValue("x", vec.x)
+                json.writeValue("y", vec.y)
+                json.writeValue("z", vec.z)
+                json.writeObjectEnd()
+            }
+
+            override fun read(json: Json, jsonData: JsonValue, type: Class<*>?): Vector3 {
+                val x = jsonData.getFloat("x", 0f)
+                val y = jsonData.getFloat("y", 0f)
+                val z = jsonData.getFloat("z", 0f)
+                return Vector3(x, y, z)
+            }
+        })
 
         setSerializer(ObjectMap::class.java, object : Json.Serializer<ObjectMap<*, *>> {
             override fun write(json: Json, map: ObjectMap<*, *>, knownType: Class<*>?) {
