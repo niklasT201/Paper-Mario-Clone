@@ -96,7 +96,6 @@ public class Lwjgl3Launcher {
 // cars lock state not being saved correct
 
 // npcs choosing dialog for finishing objects
-// Spawner, Fire, and Teleporter Systems (Placement Logic) for missions working
 // Automatic/Linear Mode or Open World Mode
 // missions objects can be removed after a mission, and be mission only
 // light sources visible in user mode
@@ -107,7 +106,6 @@ public class Lwjgl3Launcher {
 // dialog preview image for characters
 // option to check if damage is done by player
 // trigger point changes design when switching mission trigger
-// remove dialog placeholders
 // adding multiple city areas, district 2d polygons
 // INTERACT_WITH_OBJECT Logic: Similar to the above, you don't have a generic "interaction" system for objects yet
 // Advanced Rewards: The logic for GIVE_AMMO and GIVE_ITEM is in place, but things like UNLOCK_CAR_SPAWN would require a "garage" or "player property" system.

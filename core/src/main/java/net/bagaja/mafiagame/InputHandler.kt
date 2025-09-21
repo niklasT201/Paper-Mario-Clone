@@ -843,45 +843,6 @@ class InputHandler(
                         handleBackgroundPreviewUpdate(Gdx.input.x, Gdx.input.y)
                     }
                 }
-                if (keycode == Input.Keys.P) {
-                    // Create a sample conversation and start it
-                    val testSequence = DialogSequence(
-                        lines = listOf(
-                            DialogLine(
-                                speaker = "Vito",
-                                text = "Hey, you. Yeah, you, the one with the pixels.",
-                                speakerTexturePath = "textures/characters/george_meles.png" // Path to Vito's image
-                            ),
-                            DialogLine(
-                                speaker = "Player",
-                                text = "(He's talking to me?)",
-                                speakerTexturePath = "textures/player/pig_character.png" // Path to Player's image
-                            ),
-                            DialogLine(
-                                speaker = "Vito",
-                                text = "I got a job for you. It's simple, see? Just... take care of this little problem for me. It's a long story, full of twists and turns and lots of text.",
-                                speakerTexturePath = "textures/characters/george_meles.png" // Vito again
-                            ),
-                            DialogLine(
-                                speaker = "Narrator",
-                                text = "The air grew thick with unspoken promises and the smell of cheap cigars.",
-                                speakerTexturePath = null // No portrait for the narrator
-                            ),
-                            DialogLine(
-                                speaker = "Vito",
-                                text = "You get it done, and there's a nice stack of cash in it for you. Capisci?",
-                                speakerTexturePath = "textures/characters/george_meles.png"
-                            )
-                        ),
-                        onComplete = {
-                            // This code runs AFTER the player clicks through the last line
-                            game.playerSystem.addMoney(500)
-                            println("Dialog finished! Player was given $500.")
-                        }
-                    )
-                    uiManager.dialogSystem.startDialog(testSequence)
-                    return true
-                }
                 return false
             }
 
