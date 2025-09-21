@@ -66,9 +66,9 @@ class MissionEditorUI(
 
         // --- Left Panel ---
         val leftPanel = Table()
-        missionList = com.badlogic.gdx.scenes.scene2d.ui.List(skin)
+        missionList = List(skin)
         val listScrollPane = ScrollPane(missionList, skin)
-        listScrollPane.setFadeScrollBars(false) // Keep scrollbars visible
+        listScrollPane.fadeScrollBars = false // Keep scrollbars visible
         val newMissionButton = TextButton("New Mission", skin)
         val deleteMissionButton = TextButton("Delete Selected", skin)
         val listButtonTable = Table()
@@ -228,6 +228,30 @@ class MissionEditorUI(
 
         saveButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { applyChanges(); missionSystem.game.triggerSystem.refreshTriggers(); hide() } })
         closeButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { hide() } })
+    }
+
+    private fun initializeMode() {
+        val isMissionMode = uiManager.currentEditorMode == EditorMode.MISSION
+
+        modeSwitchButton.setText(if (isMissionMode) "Mode: Mission Editing" else "Mode: World Editing")
+        missionSelectionTable.isVisible = isMissionMode
+
+        if (isMissionMode) {
+            if (missionSelectBox.items.size > 0) {
+                if (missionSelectBox.selectedIndex == -1) {
+                    missionSelectBox.selectedIndex = 0
+                }
+                val missionId = missionSelectBox.selected.split(":")[0].trim()
+                uiManager.selectedMissionForEditing = missionSystem.getMissionDefinition(missionId)
+                uiManager.setPersistentMessage("MISSION EDITING: ${uiManager.selectedMissionForEditing?.title}")
+            } else {
+                uiManager.selectedMissionForEditing = null
+                uiManager.setPersistentMessage("MISSION EDITING: No missions available!")
+            }
+        } else {
+            uiManager.selectedMissionForEditing = null
+            uiManager.clearPersistentMessage()
+        }
     }
 
     private fun populateEditor(missionId: String) {
@@ -976,6 +1000,7 @@ class MissionEditorUI(
 
     fun show() {
         refreshMissionList()
+        initializeMode()
         window.isVisible = true
         window.toFront()
     }

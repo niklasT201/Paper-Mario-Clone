@@ -63,14 +63,12 @@ public class Lwjgl3Launcher {
 // step up stair
 // maybe improving billboard shader
 // south park like animation
-// map saving
 // Making Missions Dynamic & Fun
 // Persistence & Consequences
 // Save and Load Player Progress
 // Expanding & Polishing
 // save shaders and visual settings
 // save particles for current session
-// save room changes for current session
 // collected item checks value and not just item, maybe changing to id
 // number before mission list
 // id under mission name
@@ -81,19 +79,20 @@ public class Lwjgl3Launcher {
 // death resets mission
 // timer turned to 0 before mission finished resets mission
 // nickelodeons having real short films
-// visual that a character whats to talk
+// visual that a character wants to talk
 // y=0 standard bottom only in editor mode
 // weather events
 // after specific missions, enemies change weapons
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // more options for starting a mission
+// pulling out characters from vehicles
 // add event button automatically adds new event without saving button press
-// when disabled weapon switching, no new weapon item collecting
 
+// disable item pick up
+// disable character spawn
 // disablePoliceResponse: Boolean (Allow the player to cause chaos without getting a wanted level).
 // increasedEnemySpawns: Boolean (For a horde-mode style mission).
 // civiliansFleeOnSight: Boolean (Make all NPCs run away from the player for a "terrorize the city" mission).
-// cars lock state not being saved correct
 
 // npcs choosing dialog for finishing objects
 // Automatic/Linear Mode or Open World Mode
