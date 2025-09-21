@@ -50,7 +50,7 @@ class ObjectSystem: IFinePositionable {
     private var nextObjectId = 1
 
     lateinit var sceneManager: SceneManager
-    private lateinit var raycastSystem: RaycastSystem
+    lateinit var raycastSystem: RaycastSystem
     private lateinit var lightingManager: LightingManager
     private lateinit var fireSystem: FireSystem
     private lateinit var teleporterSystem: TeleporterSystem

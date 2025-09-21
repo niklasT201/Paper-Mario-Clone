@@ -247,7 +247,7 @@ class InputHandler(
                             val hitTeleporterObject = game.raycastSystem.getObjectAtRay(ray, teleporterGameObjects)
 
                             if (hitTeleporterObject != null) {
-                                val teleporterToEdit = teleporterSystem.activeTeleporters.find { it.gameObject.id == hitTeleporterObject.id }
+                                val teleporterToEdit = teleporterSystem.activeTeleporters.find { it.gameObject.id == hitTeleporterObject.id.toString() } // MODIFIED: ID is a String
                                 if (teleporterToEdit != null) {
                                     // Open the naming/editing dialog in "edit mode"
                                     uiManager.showTeleporterNameDialog(
@@ -261,25 +261,57 @@ class InputHandler(
                                 }
                             }
 
+                            // Check for Spawner
+                            val spawner = game.raycastSystem.getSpawnerAtRay(ray, sceneManager.activeSpawners)
+                            if (spawner != null) {
+                                Gdx.app.clipboard.contents = spawner.id
+                                uiManager.showTemporaryMessage("Copied Spawner ID: ${spawner.id}")
+                                return true
+                            }
+
                             val enemy = enemySystem.raycastSystem.getEnemyAtRay(ray, sceneManager.activeEnemies)
-                            if (enemy != null && uiManager.selectedTool != UIManager.Tool.ENEMY) {
+                            if (enemy != null && uiManager.selectedTool != Tool.ENEMY) {
                                 Gdx.app.clipboard.contents = enemy.id
                                 uiManager.showTemporaryMessage("Copied Enemy ID: ${enemy.id}")
                                 return true // Inspection successful, consume the click and stop everything else.
                             }
 
                             val npc = npcSystem.raycastSystem.getNPCAtRay(ray, sceneManager.activeNPCs)
-                            if (npc != null && uiManager.selectedTool != UIManager.Tool.NPC) {
+                            if (npc != null && uiManager.selectedTool != Tool.NPC) {
                                 Gdx.app.clipboard.contents = npc.id
                                 uiManager.showTemporaryMessage("Copied NPC ID: ${npc.id}")
                                 return true // Inspection successful
                             }
 
                             val car = carSystem.raycastSystem.getCarAtRay(ray, sceneManager.activeCars)
-                            if (car != null && uiManager.selectedTool != UIManager.Tool.CAR) {
+                            if (car != null && uiManager.selectedTool != Tool.CAR) {
                                 Gdx.app.clipboard.contents = car.id
                                 uiManager.showTemporaryMessage("Copied Car ID: ${car.id}")
-                                return true // Inspection successful
+                                return true
+                            }
+
+                            // Check for House
+                            val house = houseSystem.raycastSystem.getHouseAtRay(ray, sceneManager.activeHouses)
+                            if (house != null && uiManager.selectedTool != Tool.HOUSE) {
+                                Gdx.app.clipboard.contents = house.id
+                                uiManager.showTemporaryMessage("Copied House ID: ${house.id}")
+                                return true
+                            }
+
+                            // Check for Item
+                            val item = itemSystem.raycastSystem.getItemAtRay(ray, sceneManager.activeItems)
+                            if (item != null && uiManager.selectedTool != Tool.ITEM) {
+                                Gdx.app.clipboard.contents = item.id
+                                uiManager.showTemporaryMessage("Copied Item ID: ${item.id}")
+                                return true
+                            }
+
+                            // Check for Object
+                            val obj = objectSystem.raycastSystem.getObjectAtRay(ray, sceneManager.activeObjects)
+                            if (obj != null && uiManager.selectedTool != Tool.OBJECT) {
+                                Gdx.app.clipboard.contents = obj.id
+                                uiManager.showTemporaryMessage("Copied Object ID: ${obj.id}")
+                                return true
                             }
 
                             var removed = false
@@ -350,7 +382,7 @@ class InputHandler(
             }
 
             override fun scrolled(amountX: Float, amountY: Float): Boolean {
-                if (uiManager.selectedTool == UIManager.Tool.TRIGGER && game.lastPlacedInstance is MissionTrigger) {
+                if (uiManager.selectedTool == Tool.TRIGGER && game.lastPlacedInstance is MissionTrigger) {
                     val trigger = game.lastPlacedInstance as MissionTrigger
                     val step = if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)) 5.0f else 1.0f // Hold shift for bigger steps
                     val change = -amountY * step // Invert scroll direction
