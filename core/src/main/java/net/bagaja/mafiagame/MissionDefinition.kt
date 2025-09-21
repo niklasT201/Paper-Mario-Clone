@@ -133,6 +133,7 @@ data class MissionModifiers(
     var infiniteAmmo: Boolean = false,          // For ALL weapons
     var infiniteAmmoForWeapon: WeaponType? = null,
     var disableWeaponSwitching: Boolean = false,
+    var disableWeaponPickups: Boolean = false,
 
     // Vehicle Modifiers
     var makePlayerVehicleInvincible: Boolean = false,

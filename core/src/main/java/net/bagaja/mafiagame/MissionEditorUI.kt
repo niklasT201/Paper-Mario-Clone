@@ -292,6 +292,7 @@ class MissionEditorUI(
         val speedMulti = TextField(mission.modifiers.playerSpeedMultiplier.toString(), skin)
         val infiniteAmmoAll = CheckBox(" Infinite Ammo (All Weapons)", skin).apply { isChecked = mission.modifiers.infiniteAmmo }
         val disableSwitch = CheckBox(" Disable Weapon Switching", skin).apply { isChecked = mission.modifiers.disableWeaponSwitching }
+        val disablePickups = CheckBox(" Disable Weapon Pickups", skin).apply { isChecked = mission.modifiers.disableWeaponPickups }
 
         content.addActor(unlimitedHealth)
         content.addActor(Table(skin).apply { add("Incoming Damage Multiplier:"); add(incomingDmg).width(80f).left() })
@@ -299,6 +300,7 @@ class MissionEditorUI(
         content.addActor(Table(skin).apply { add("Player Speed Multiplier:"); add(speedMulti).width(80f).left() })
         content.addActor(infiniteAmmoAll)
         content.addActor(disableSwitch)
+        content.addActor(disablePickups)
 
         // --- Vehicle Modifiers ---
         content.addActor(Label("[LIME]--- Vehicle Modifiers ---", skin))
@@ -345,6 +347,7 @@ class MissionEditorUI(
                 mission.modifiers.playerSpeedMultiplier = speedMulti.text.toFloatOrNull() ?: 1.0f
                 mission.modifiers.infiniteAmmo = infiniteAmmoAll.isChecked
                 mission.modifiers.disableWeaponSwitching = disableSwitch.isChecked
+                mission.modifiers.disableWeaponPickups = disablePickups.isChecked
 
                 // Vehicle Modifiers
                 mission.modifiers.makePlayerVehicleInvincible = invincibleVehicle.isChecked

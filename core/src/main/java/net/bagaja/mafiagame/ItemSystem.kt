@@ -373,6 +373,15 @@ class ItemSystem: IFinePositionable {
 
             // Only check for collision if the pickup delay has expired.
             if (item.pickupDelay <= 0f && item.checkCollision(playerSystem.getPosition(), 2f)) {
+                val modifiers = sceneManager.game.missionSystem.activeModifiers
+                val isWeapon = item.itemType.correspondingWeapon != null
+
+                // If this item is a weapon AND the mission modifier is active, skip the pickup.
+                if (isWeapon && modifiers?.disableWeaponPickups == true) {
+                    println("Mission prevents weapon pickup. Ignoring ${item.itemType.displayName}.")
+                    continue // Skip to the next item in the loop
+                }
+
                 if (item.itemType == ItemType.MONEY_STACK) {
                     playerSystem.addMoney(item.value)
                     // The item will be marked for removal below, but don't equip anything
