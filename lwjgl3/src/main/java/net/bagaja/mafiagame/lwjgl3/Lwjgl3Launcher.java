@@ -91,6 +91,9 @@ public class Lwjgl3Launcher {
 // make timer_expires visual
 // label to show how many enemies left for kill all enemies
 // right click block gives its position like for copying id
+// Objective Markers, Objective-Specific Events, Refine the TriggerEditorUI
+// destroy car, kill enemy, burn down house
+// Cutscene System
 
 // disable item pick up
 // disable character spawn

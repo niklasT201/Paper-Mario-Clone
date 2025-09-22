@@ -124,6 +124,11 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             for ((missionId, missionDef) in allMissions) {
                 if (gameState.completedMissionIds.contains(missionId)) continue
 
+                val prerequisitesMet = missionDef.prerequisites.all { prerequisiteId ->
+                    gameState.completedMissionIds.contains(prerequisiteId)
+                }
+                if (!prerequisitesMet) continue // If not, skip to the next mission.
+
                 val trigger = missionDef.startTrigger
                 var shouldStartMission = false
 
@@ -273,6 +278,9 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
     private fun onObjectiveStarted(objective: MissionObjective) {
         // If the new objective is to eliminate all enemies
+        objective.eventsOnStart.forEach { executeEvent(it) }
+
+        // The logic to track enemies for ELIMINATE_ALL_ENEMIES now lives here.
         if (objective.completionCondition.type == ConditionType.ELIMINATE_ALL_ENEMIES) {
 
             val enemyIdsForThisObjective = objective.eventsOnStart
@@ -286,8 +294,12 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             }
         }
 
-        // Also run the events
-        objective.eventsOnStart.forEach { executeEvent(it) }
+        // Handle starting a timer objective.
+        if (objective.completionCondition.type == ConditionType.TIMER_EXPIRES) {
+            val duration = objective.completionCondition.timerDuration ?: 60f
+            activeMission?.missionVariables?.set("timer", duration)
+            println("Mission timer started for $duration seconds.")
+        }
     }
 
     private fun isObjectiveComplete(objective: MissionObjective, state: MissionState): Boolean {
@@ -309,20 +321,36 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             }
 
             ConditionType.ELIMINATE_ALL_ENEMIES -> {
-                // 1. Get the list of enemy IDs we are supposed to be tracking for this objective.
-                val enemiesToTrack = state.missionVariables["enemies_to_eliminate"] as? List<String>
+               // 1. Get the list of enemy IDs we are supposed to be tracking for this objective.
+                val variable = state.missionVariables["enemies_to_eliminate"]
 
-                if (enemiesToTrack.isNullOrEmpty()) {
+                if (variable is List<*>) {
+                    // 3. Create a new, clean list of Strings.
+                    val enemiesToTrack = mutableListOf<String>()
+
+                    // Iterate through the list and safely cast each element
+                    for (item in variable) {
+                        if (item is String) {
+                            enemiesToTrack.add(item)
+                        }
+                    }
+
+                    // If the list was empty or contained non-strings
+                    if (enemiesToTrack.isEmpty()) {
+                        return game.sceneManager.activeEnemies.isEmpty
+                    }
+
+                    // 2. Check if ANY of the tracked enemies are still present in the active scene.
+                    val anyTrackedEnemyAlive = game.sceneManager.activeEnemies.any { enemy ->
+                        enemy.id in enemiesToTrack
+                    }
+
+                    // 3. The objective is complete if NONE of the tracked enemies are alive anymore.
+                    return !anyTrackedEnemyAlive
+
+                } else {
                     return game.sceneManager.activeEnemies.isEmpty
                 }
-
-                // 2. Check if ANY of the tracked enemies are still present in the active scene.
-                val anyTrackedEnemyAlive = game.sceneManager.activeEnemies.any { enemy ->
-                    enemy.id in enemiesToTrack
-                }
-
-                // 3. The objective is complete if NONE of the tracked enemies are alive anymore.
-                return !anyTrackedEnemyAlive
             }
             ConditionType.TIMER_EXPIRES -> {
                 val timer = state.missionVariables["timer"] as? Float ?: 0f
@@ -392,17 +420,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             endMission(true) // Mission is complete
         } else {
             println("Objective complete! New objective: ${nextObjective.description}")
-
-            // If the new objective is a timer, set its starting value now.
-            onObjectiveStarted(nextObjective)
-
-            // The timer logic is fine here
-            if (nextObjective.completionCondition.type == ConditionType.TIMER_EXPIRES) {
-                val duration = nextObjective.completionCondition.timerDuration ?: 60f
-                missionState.missionVariables["timer"] = duration
-                println("Mission timer started for $duration seconds.")
-            }
-
+            onObjectiveStarted(nextObjective) // Call our new helper function
             updateUIForCurrentObjective()
         }
     }
