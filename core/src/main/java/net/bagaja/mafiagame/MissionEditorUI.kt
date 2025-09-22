@@ -364,6 +364,13 @@ class MissionEditorUI(
         // --- World & AI Modifiers ---
         content.addActor(Label("[CYAN]--- World & AI Modifiers ---", skin))
         content.space(18f)
+
+        val allHousesLocked = CheckBox(" All Houses are Locked", skin).apply { isChecked = mission.modifiers.allHousesLocked }
+        val allHousesUnlocked = CheckBox(" All Houses are Unlocked", skin).apply { isChecked = mission.modifiers.allHousesUnlocked }
+        val disableItemSpawners = CheckBox(" Disable Item/Weapon Spawners", skin).apply { isChecked = mission.modifiers.disableItemSpawners }
+        val disableParticleSpawners = CheckBox(" Disable Particle Spawners", skin).apply { isChecked = mission.modifiers.disableParticleSpawners }
+        val disableEnemySpawners = CheckBox(" Disable Enemy Spawners", skin).apply { isChecked = mission.modifiers.disableEnemySpawners }
+        val disableNpcSpawners = CheckBox(" Disable NPC Spawners", skin).apply { isChecked = mission.modifiers.disableNpcSpawners }
         val disableSpawners = CheckBox(" Disable Car Spawners (No Traffic)", skin).apply { isChecked = mission.modifiers.disableCarSpawners }
 
         val freezeTimeCheckbox = CheckBox(" Freeze Time of Day", skin).apply { isChecked = mission.modifiers.freezeTimeAt != null }
@@ -376,7 +383,13 @@ class MissionEditorUI(
             }
         })
 
-        content.addActor(disableSpawners)
+        content.addActor(allHousesLocked)
+        content.addActor(allHousesUnlocked)
+        content.addActor(disableSpawners) // Car Spawners
+        content.addActor(disableItemSpawners)
+        content.addActor(disableParticleSpawners)
+        content.addActor(disableEnemySpawners)
+        content.addActor(disableNpcSpawners)
         content.addActor(freezeTimeCheckbox)
         content.addActor(timeSliderTable)
 
@@ -403,7 +416,13 @@ class MissionEditorUI(
                 mission.modifiers.carSpeedMultiplier = carSpeedMulti.text.toFloatOrNull() ?: 1.0f
 
                 // World Modifiers
+                mission.modifiers.allHousesLocked = allHousesLocked.isChecked
+                mission.modifiers.allHousesUnlocked = allHousesUnlocked.isChecked
                 mission.modifiers.disableCarSpawners = disableSpawners.isChecked
+                mission.modifiers.disableItemSpawners = disableItemSpawners.isChecked
+                mission.modifiers.disableParticleSpawners = disableParticleSpawners.isChecked
+                mission.modifiers.disableEnemySpawners = disableEnemySpawners.isChecked
+                mission.modifiers.disableNpcSpawners = disableNpcSpawners.isChecked
                 mission.modifiers.freezeTimeAt = if (freezeTimeCheckbox.isChecked) timeSlider.value else null
 
                 uiManager.showTemporaryMessage("Modifiers updated for '${mission.title}'")
@@ -601,7 +620,14 @@ class MissionEditorUI(
 
             posTable.isVisible = isSpawn || type == GameEventType.DESPAWN_BLOCK_AT_POS
 
-            targetIdTable.isVisible = type == GameEventType.SPAWN_ENEMY || type == GameEventType.SPAWN_NPC || type == GameEventType.DESPAWN_ENTITY
+            // MODIFIED: Update visibility for targetIdField
+            targetIdTable.isVisible = type == GameEventType.SPAWN_ENEMY ||
+                type == GameEventType.SPAWN_NPC ||
+                type == GameEventType.DESPAWN_ENTITY ||
+                type == GameEventType.ENABLE_SPAWNER ||
+                type == GameEventType.DISABLE_SPAWNER ||
+                type == GameEventType.LOCK_HOUSE ||
+                type == GameEventType.UNLOCK_HOUSE
 
             // Control visibility of each panel in the stack
             enemyTable.isVisible = type == GameEventType.SPAWN_ENEMY
@@ -665,6 +691,7 @@ class MissionEditorUI(
         val eventCopy = event
         val table = Table()
 
+        // MODIFIED: Added the new event types to the 'when' expression
         val text = when(event.type) {
             GameEventType.SPAWN_ENEMY -> "SPAWN ${event.enemyType?.displayName} with ID '${event.targetId}'"
             GameEventType.SPAWN_NPC -> "SPAWN ${event.npcType?.displayName} with ID '${event.targetId}'"
@@ -676,10 +703,14 @@ class MissionEditorUI(
             GameEventType.SPAWN_HOUSE -> "SPAWN House: ${event.houseType?.displayName}"
             GameEventType.SPAWN_OBJECT -> "SPAWN Object: ${event.objectType?.displayName}"
             GameEventType.SPAWN_BLOCK -> "SPAWN Block: ${event.blockType?.displayName}"
-            GameEventType.DESPAWN_BLOCK_AT_POS -> "Remove Block: ${event.blockType?.displayName}"
+            GameEventType.DESPAWN_BLOCK_AT_POS -> "DESPAWN Block at (${event.spawnPosition?.x?.toInt()}, ${event.spawnPosition?.y?.toInt()}, ${event.spawnPosition?.z?.toInt()})" // Corrected description
             GameEventType.SPAWN_SPAWNER -> "SPAWN Spawner (${event.spawnerType?.name})"
             GameEventType.SPAWN_TELEPORTER -> "SPAWN Teleporter: '${event.teleporterName}'"
             GameEventType.SPAWN_FIRE -> "SPAWN Fire"
+            GameEventType.ENABLE_SPAWNER -> "ENABLE Spawner with ID '${event.targetId}'"
+            GameEventType.DISABLE_SPAWNER -> "DISABLE Spawner with ID '${event.targetId}'"
+            GameEventType.LOCK_HOUSE -> "LOCK House with ID '${event.targetId}'"
+            GameEventType.UNLOCK_HOUSE -> "UNLOCK House with ID '${event.targetId}'"
             GameEventType.GIVE_WEAPON -> "GIVE WEAPON: ${event.weaponType?.displayName} (Ammo: ${event.ammoAmount ?: "N/A"})"
             GameEventType.FORCE_EQUIP_WEAPON -> "FORCE EQUIP: ${event.weaponType?.displayName}"
             GameEventType.CLEAR_INVENTORY -> "CLEAR PLAYER INVENTORY"
@@ -1066,6 +1097,10 @@ class MissionEditorUI(
             GameEventType.SPAWN_MONEY_STACK -> "Spawn Money ($${event.itemValue})"
             GameEventType.DESPAWN_ENTITY -> "Despawn Entity: ${event.targetId}"
             GameEventType.DESPAWN_BLOCK_AT_POS -> "Despawn Block at (${event.spawnPosition?.x?.toInt()}, ${event.spawnPosition?.y?.toInt()}, ${event.spawnPosition?.z?.toInt()})"
+            GameEventType.ENABLE_SPAWNER -> "Enable Spawner: ${event.targetId}"
+            GameEventType.DISABLE_SPAWNER -> "Disable Spawner: ${event.targetId}"
+            GameEventType.LOCK_HOUSE -> "Lock House: ${event.targetId}"
+            GameEventType.UNLOCK_HOUSE -> "Unlock House: ${event.targetId}"
             GameEventType.START_DIALOG -> "Start Dialog: ${event.dialogId}"
             else -> event.type.name // Fallback for other types
         }

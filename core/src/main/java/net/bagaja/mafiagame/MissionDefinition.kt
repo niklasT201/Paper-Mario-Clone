@@ -143,8 +143,14 @@ data class MissionModifiers(
     var carSpeedMultiplier: Float = 1.0f,       // Affects player-driven cars
 
     // World & AI Modifiers
+    var allHousesLocked: Boolean = false,
+    var allHousesUnlocked: Boolean = false,
     var disableCarSpawners: Boolean = false,
-    var freezeTimeAt: Float? = null,           // A value from 0.0 to 1.0
+    var disableItemSpawners: Boolean = false,
+    var disableParticleSpawners: Boolean = false,
+    var disableEnemySpawners: Boolean = false,
+    var disableNpcSpawners: Boolean = false,
+    var freezeTimeAt: Float? = null, // A value from 0.0 to 1.0
     var disablePoliceResponse: Boolean = false // For a future police system
 )
 
@@ -165,6 +171,10 @@ enum class GameEventType {
     SPAWN_SPAWNER,
     SPAWN_TELEPORTER,
     SPAWN_FIRE,
+    ENABLE_SPAWNER,
+    DISABLE_SPAWNER,
+    LOCK_HOUSE,
+    UNLOCK_HOUSE,
     GIVE_WEAPON,
     FORCE_EQUIP_WEAPON,
     CLEAR_INVENTORY

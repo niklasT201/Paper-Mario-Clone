@@ -357,8 +357,20 @@ class MafiaGame : ApplicationAdapter() {
                             return
                         }
 
-                        // Check if the house is locked before proceeding
-                        if (closestHouse.isLocked) {
+                        // --- MODIFIED: New logic for checking lock state ---
+                        val missionModifiers = missionSystem.activeModifiers
+                        var isEffectivelyLocked = closestHouse.isLocked
+
+                        // Mission modifiers can override the house's individual lock state
+                        if (missionModifiers != null) {
+                            if (missionModifiers.allHousesLocked) {
+                                isEffectivelyLocked = true // Mission forces all houses to be locked
+                            } else if (missionModifiers.allHousesUnlocked) {
+                                isEffectivelyLocked = false // Mission forces all houses to be open
+                            }
+                        }
+
+                        if (isEffectivelyLocked) {
                             println("This house is locked.")
                             // Here you could play a "locked door" sound or show a UI message
                             return // Stop the interaction

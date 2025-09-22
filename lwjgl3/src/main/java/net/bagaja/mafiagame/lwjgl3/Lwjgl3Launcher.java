@@ -87,7 +87,7 @@ public class Lwjgl3Launcher {
 // more options for starting a mission
 // pulling out characters from vehicles
 // add event button automatically adds new event without saving button press
-// new events: LOCK_HOUSE, PLAY_SOUND, ENABLE_SPAWNER, DISABLE_SPAWNER
+// new events: PLAY_SOUND
 // make timer_expires visual
 // label to show how many enemies left for kill all enemies
 // right click block gives its position like for copying id

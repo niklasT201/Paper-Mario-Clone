@@ -102,14 +102,18 @@ class SpawnerSystem(
     fun update(deltaTime: Float, spawners: Array<GameSpawner>, playerPosition: Vector3) {
         if (spawners.isEmpty) return
 
-        // Get the active mission modifiers
         val modifiers = sceneManager.game.missionSystem.activeModifiers
 
-        val activeSpawners = if (modifiers?.disableCarSpawners == true) {
-            // Filter out any spawner that is of type CAR.
-            spawners.filter { it.spawnerType != SpawnerType.CAR }
-        } else {
-            spawners
+        // MODIFIED: Expanded filtering logic
+        val activeSpawners = spawners.filter { spawner ->
+            when (spawner.spawnerType) {
+                SpawnerType.CAR -> modifiers?.disableCarSpawners != true
+                SpawnerType.ITEM -> modifiers?.disableItemSpawners != true
+                SpawnerType.WEAPON -> modifiers?.disableItemSpawners != true // Also treated as an item spawner
+                SpawnerType.PARTICLE -> modifiers?.disableParticleSpawners != true
+                SpawnerType.ENEMY -> modifiers?.disableEnemySpawners != true
+                SpawnerType.NPC -> modifiers?.disableNpcSpawners != true
+            }
         }
 
         for (spawner in activeSpawners) {

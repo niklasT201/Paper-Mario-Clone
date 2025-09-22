@@ -709,6 +709,50 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     }
                 }
             }
+            GameEventType.LOCK_HOUSE -> {
+                event.targetId?.let { houseId ->
+                    // Find the house in the active scene OR in the saved world state
+                    val house = game.sceneManager.activeHouses.find { it.id == houseId }
+                        ?: game.sceneManager.worldState?.houses?.find { it.id == houseId }
+
+                    if (house != null) {
+                        // To change the 'isLocked' property, we need to replace the data class instance
+                        val updatedHouse = house.copy(isLocked = true)
+
+                        // Find and replace it in the correct list
+                        if (game.sceneManager.activeHouses.removeValue(house, true)) {
+                            game.sceneManager.activeHouses.add(updatedHouse)
+                        } else {
+                            game.sceneManager.worldState?.houses?.let {
+                                if (it.removeValue(house, true)) it.add(updatedHouse)
+                            }
+                        }
+                        println("Mission event locked house: $houseId")
+                    } else {
+                        println("Warning: LOCK_HOUSE event failed. No house found with ID: $houseId")
+                    }
+                }
+            }
+            GameEventType.UNLOCK_HOUSE -> {
+                event.targetId?.let { houseId ->
+                    val house = game.sceneManager.activeHouses.find { it.id == houseId }
+                        ?: game.sceneManager.worldState?.houses?.find { it.id == houseId }
+
+                    if (house != null) {
+                        val updatedHouse = house.copy(isLocked = false)
+                        if (game.sceneManager.activeHouses.removeValue(house, true)) {
+                            game.sceneManager.activeHouses.add(updatedHouse)
+                        } else {
+                            game.sceneManager.worldState?.houses?.let {
+                                if (it.removeValue(house, true)) it.add(updatedHouse)
+                            }
+                        }
+                        println("Mission event unlocked house: $houseId")
+                    } else {
+                        println("Warning: UNLOCK_HOUSE event failed. No house found with ID: $houseId")
+                    }
+                }
+            }
             GameEventType.SPAWN_OBJECT -> {
                 if (event.objectType != null && event.spawnPosition != null) {
                     // Handle light sources separately
@@ -782,6 +826,29 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         addEntityToScene(newSpawner, game.sceneManager.activeSpawners, { game.sceneManager.worldState?.spawners }) {
                             game.sceneManager.interiorStates[it]?.spawners
                         }
+                    }
+                }
+            }
+            GameEventType.ENABLE_SPAWNER -> {
+                event.targetId?.let { spawnerId ->
+                    val spawner = game.sceneManager.activeSpawners.find { it.id == spawnerId }
+                    if (spawner != null) {
+                        spawner.isDepleted = false // Re-enable it
+                        spawner.timer = spawner.spawnInterval // Reset its timer
+                        println("Mission event enabled spawner: $spawnerId")
+                    } else {
+                        println("Warning: ENABLE_SPAWNER event failed. No spawner found with ID: $spawnerId")
+                    }
+                }
+            }
+            GameEventType.DISABLE_SPAWNER -> {
+                event.targetId?.let { spawnerId ->
+                    val spawner = game.sceneManager.activeSpawners.find { it.id == spawnerId }
+                    if (spawner != null) {
+                        spawner.isDepleted = true // This effectively disables it
+                        println("Mission event disabled spawner: $spawnerId")
+                    } else {
+                        println("Warning: DISABLE_SPAWNER event failed. No spawner found with ID: $spawnerId")
                     }
                 }
             }
