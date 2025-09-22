@@ -79,6 +79,7 @@ data class MissionReward(
 enum class ConditionType {
     ENTER_AREA,
     ELIMINATE_TARGET,
+    ELIMINATE_ALL_ENEMIES,
     TIMER_EXPIRES,
     TALK_TO_NPC,
     INTERACT_WITH_OBJECT,
@@ -105,7 +106,8 @@ enum class TriggerType {
     ON_COLLECT_ITEM,
     ON_ENTER_HOUSE,
     ON_HURT_ENEMY,
-    ON_ENTER_CAR
+    ON_ENTER_CAR,
+    ON_ALL_ENEMIES_ELIMINATED
 }
 
 data class MissionTrigger(
@@ -172,6 +174,7 @@ data class GameEvent(
     val spawnPosition: Vector3? = null,
     val targetId: String? = null,
     val sceneId: String? = null,
+    val objectiveTag: String? = null,
 
     // Enemy-specific
     val enemyType: EnemyType? = null,

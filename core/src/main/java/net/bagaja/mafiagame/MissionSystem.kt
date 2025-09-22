@@ -119,10 +119,9 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
     }
 
     fun update(deltaTime: Float) {
-        // It only runs if there is no currently active mission.
+        // --- MISSION START TRIGGER CHECK ---
         if (activeMission == null) {
             for ((missionId, missionDef) in allMissions) {
-                // Skip missions that are already completed
                 if (gameState.completedMissionIds.contains(missionId)) continue
 
                 val trigger = missionDef.startTrigger
@@ -137,6 +136,13 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                             shouldStartMission = true
                         }
                     }
+                    // NEW: Check for the "all enemies eliminated" start trigger
+                    TriggerType.ON_ALL_ENEMIES_ELIMINATED -> {
+                        // This trigger should only fire if there are absolutely no enemies in the active scene.
+                        if (game.sceneManager.activeEnemies.isEmpty) {
+                            shouldStartMission = true
+                        }
+                    }
                     // Add other non-standard trigger checks here in the future
                     else -> {
                         // Nothing here
@@ -145,7 +151,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
                 if (shouldStartMission) {
                     startMission(missionId)
-                    break // Important: Start only one mission per frame to avoid conflicts
+                    break
                 }
             }
         }
@@ -265,6 +271,25 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         }
     }
 
+    private fun onObjectiveStarted(objective: MissionObjective) {
+        // If the new objective is to eliminate all enemies
+        if (objective.completionCondition.type == ConditionType.ELIMINATE_ALL_ENEMIES) {
+
+            val enemyIdsForThisObjective = objective.eventsOnStart
+                .filter { it.type == GameEventType.SPAWN_ENEMY && it.targetId != null }
+                .map { it.targetId!! } // Get a list of the IDs of the enemies we just spawned for this task
+
+            if (enemyIdsForThisObjective.isNotEmpty()) {
+                // Store this list of IDs in the active mission's state
+                activeMission?.missionVariables?.set("enemies_to_eliminate", enemyIdsForThisObjective)
+                println("Objective started: Tracking ${enemyIdsForThisObjective.size} enemies to eliminate.")
+            }
+        }
+
+        // Also run the events
+        objective.eventsOnStart.forEach { executeEvent(it) }
+    }
+
     private fun isObjectiveComplete(objective: MissionObjective, state: MissionState): Boolean {
         val condition = objective.completionCondition
         when (condition.type) {
@@ -281,6 +306,23 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 // Check if an enemy with the target ID still exists in the scene
                 val targetExists = game.sceneManager.activeEnemies.any { it.id == condition.targetId }
                 return !targetExists
+            }
+
+            ConditionType.ELIMINATE_ALL_ENEMIES -> {
+                // 1. Get the list of enemy IDs we are supposed to be tracking for this objective.
+                val enemiesToTrack = state.missionVariables["enemies_to_eliminate"] as? List<String>
+
+                if (enemiesToTrack.isNullOrEmpty()) {
+                    return game.sceneManager.activeEnemies.isEmpty
+                }
+
+                // 2. Check if ANY of the tracked enemies are still present in the active scene.
+                val anyTrackedEnemyAlive = game.sceneManager.activeEnemies.any { enemy ->
+                    enemy.id in enemiesToTrack
+                }
+
+                // 3. The objective is complete if NONE of the tracked enemies are alive anymore.
+                return !anyTrackedEnemyAlive
             }
             ConditionType.TIMER_EXPIRES -> {
                 val timer = state.missionVariables["timer"] as? Float ?: 0f
@@ -333,6 +375,11 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
         missionDef.eventsOnStart.forEach { executeEvent(it) }
 
+        // After starting the mission
+        missionDef.objectives.firstOrNull()?.let { firstObjective ->
+            onObjectiveStarted(firstObjective)
+        }
+
         updateUIForCurrentObjective()
     }
 
@@ -347,9 +394,9 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             println("Objective complete! New objective: ${nextObjective.description}")
 
             // If the new objective is a timer, set its starting value now.
-            nextObjective.eventsOnStart.forEach { executeEvent(it) }
+            onObjectiveStarted(nextObjective)
 
-            // The existing timer and UI update logic remains unchanged
+            // The timer logic is fine here
             if (nextObjective.completionCondition.type == ConditionType.TIMER_EXPIRES) {
                 val duration = nextObjective.completionCondition.timerDuration ?: 60f
                 missionState.missionVariables["timer"] = duration

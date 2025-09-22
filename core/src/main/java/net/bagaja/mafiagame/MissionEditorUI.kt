@@ -462,6 +462,7 @@ class MissionEditorUI(
             TriggerType.ON_ENTER_HOUSE -> "Enter House with ID: ${trigger.targetHouseId}"
             TriggerType.ON_HURT_ENEMY -> "Hurt Enemy with ID: ${trigger.targetNpcId}"
             TriggerType.ON_ENTER_CAR -> "Enter Car with ID: ${trigger.targetCarId}"
+            TriggerType.ON_ALL_ENEMIES_ELIMINATED -> "All enemies in the scene are eliminated"
         }
         container.add(Label("$indent$triggerText", skin, "small")).left().row()
 
