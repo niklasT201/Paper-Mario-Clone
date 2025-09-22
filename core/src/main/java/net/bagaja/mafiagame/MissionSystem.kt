@@ -681,6 +681,20 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     targetChunkManager?.addBlock(newBlock) ?: println("ERROR: Could not find ChunkManager for scene '$targetSceneId' to spawn block.")
                 }
             }
+            GameEventType.DESPAWN_BLOCK_AT_POS -> {
+                if (event.spawnPosition != null) {
+                    // We reuse the 'spawnPosition' field to specify the location of the block to remove.
+                    val blockToRemove = game.sceneManager.activeChunkManager.getBlockAtWorld(event.spawnPosition)
+                    if (blockToRemove != null) {
+                        game.sceneManager.removeBlock(blockToRemove)
+                        // IMPORTANT: We must tell the chunk to rebuild its visual mesh after removing a block.
+                        game.sceneManager.activeChunkManager.processDirtyChunks()
+                        println("Mission event despawned block at ${event.spawnPosition}")
+                    } else {
+                        println("Warning: DESPAWN_BLOCK_AT_POS event failed. No block found at ${event.spawnPosition}")
+                    }
+                }
+            }
             GameEventType.SPAWN_HOUSE -> {
                 if (event.houseType != null && event.spawnPosition != null) {
                     if (targetSceneId != "WORLD") {

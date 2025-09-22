@@ -599,7 +599,8 @@ class MissionEditorUI(
             val type = GameEventType.valueOf(typeSelect.selected)
             val isSpawn = type.name.startsWith("SPAWN")
 
-            posTable.isVisible = isSpawn
+            posTable.isVisible = isSpawn || type == GameEventType.DESPAWN_BLOCK_AT_POS
+
             targetIdTable.isVisible = type == GameEventType.SPAWN_ENEMY || type == GameEventType.SPAWN_NPC || type == GameEventType.DESPAWN_ENTITY
 
             // Control visibility of each panel in the stack
@@ -675,6 +676,7 @@ class MissionEditorUI(
             GameEventType.SPAWN_HOUSE -> "SPAWN House: ${event.houseType?.displayName}"
             GameEventType.SPAWN_OBJECT -> "SPAWN Object: ${event.objectType?.displayName}"
             GameEventType.SPAWN_BLOCK -> "SPAWN Block: ${event.blockType?.displayName}"
+            GameEventType.DESPAWN_BLOCK_AT_POS -> "Remove Block: ${event.blockType?.displayName}"
             GameEventType.SPAWN_SPAWNER -> "SPAWN Spawner (${event.spawnerType?.name})"
             GameEventType.SPAWN_TELEPORTER -> "SPAWN Teleporter: '${event.teleporterName}'"
             GameEventType.SPAWN_FIRE -> "SPAWN Fire"
@@ -1063,6 +1065,7 @@ class MissionEditorUI(
             GameEventType.SPAWN_ITEM -> "Spawn ${event.itemType?.displayName ?: "Item"}"
             GameEventType.SPAWN_MONEY_STACK -> "Spawn Money ($${event.itemValue})"
             GameEventType.DESPAWN_ENTITY -> "Despawn Entity: ${event.targetId}"
+            GameEventType.DESPAWN_BLOCK_AT_POS -> "Despawn Block at (${event.spawnPosition?.x?.toInt()}, ${event.spawnPosition?.y?.toInt()}, ${event.spawnPosition?.z?.toInt()})"
             GameEventType.START_DIALOG -> "Start Dialog: ${event.dialogId}"
             else -> event.type.name // Fallback for other types
         }
