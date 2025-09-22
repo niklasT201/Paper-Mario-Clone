@@ -7,7 +7,6 @@ import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.Array as GdxArray
 import com.badlogic.gdx.math.Vector3
-import com.badlogic.gdx.utils.Array
 
 class TriggerEditorUI(
     private val skin: Skin,
@@ -17,8 +16,7 @@ class TriggerEditorUI(
     private val sceneManager: SceneManager,
     private val uiManager: UIManager
 ) {
-    // The main window for the editor
-    private val window: Window = Window("Trigger Editor", skin, "dialog") // Using "dialog" style for the nice border
+    private val window: Window = Window("Trigger Editor", skin, "dialog")
     private var currentMissionDef: MissionDefinition? = null
 
     // UI Elements
@@ -27,7 +25,6 @@ class TriggerEditorUI(
     private val radiusField: TextField
     private val targetNpcIdField: TextField
     private val dialogIdSelectBox: SelectBox<String>
-
     private val itemTypeSelectBox: SelectBox<String>
     private val itemCountField: TextField
     private val targetHouseIdField: TextField
@@ -40,16 +37,14 @@ class TriggerEditorUI(
     private val houseSettingsTable: Table
     private val enemySettingsTable: Table
     private val carSettingsTable: Table
-
     private val instructions: Label
 
     init {
-        window.setSize(550f, 350f)
-        window.setPosition(stage.width / 2f, stage.height - 200f, Align.center)
+        window.setSize(550f, 450f)
+        window.setPosition(stage.width / 2f, stage.height - 250f, Align.center)
         window.isMovable = true
-        window.padTop(40f) // Keep padding for the title bar
+        window.padTop(40f)
 
-        // --- FIX: Create our own content table ---
         val contentTable = Table()
         contentTable.pad(10f).defaults().pad(5f).align(Align.left)
 
@@ -72,14 +67,13 @@ class TriggerEditorUI(
 
         npcSettingsTable = Table()
         targetNpcIdField = TextField("", skin)
-        targetNpcIdField.messageText = "Paste NPC ID here"
+        targetNpcIdField.messageText = "Paste NPC or Enemy ID here"
         dialogIdSelectBox = SelectBox(skin)
         npcSettingsTable.add(Label("Target NPC ID:", skin)).left().row()
         npcSettingsTable.add(targetNpcIdField).growX().row()
-        npcSettingsTable.add(Label("Dialog ID:", skin)).left().padTop(5f).row()
+        npcSettingsTable.add(Label("Dialog ID (Optional):", skin)).left().padTop(5f).row()
         npcSettingsTable.add(dialogIdSelectBox).growX().row()
 
-        // Panel for ON_COLLECT_ITEM settings
         itemSettingsTable = Table()
         itemTypeSelectBox = SelectBox(skin)
         itemTypeSelectBox.items = GdxArray(ItemType.entries.map { it.displayName }.toTypedArray())
@@ -89,69 +83,47 @@ class TriggerEditorUI(
         itemSettingsTable.add(Label("Item Count:", skin)).left().padTop(5f)
         itemSettingsTable.add(itemCountField).width(80f).row()
 
-        // Panel for ON_ENTER_HOUSE settings
         houseSettingsTable = Table()
         targetHouseIdField = TextField("", skin)
         targetHouseIdField.messageText = "Paste House ID here"
         houseSettingsTable.add(Label("Target House ID:", skin)).left().row()
         houseSettingsTable.add(targetHouseIdField).growX().row()
 
-        // Panel for ON_HURT_ENEMY settings
         enemySettingsTable = Table()
         enemySettingsTable.add(Label("Target Enemy ID:", skin)).left().row()
         enemySettingsTable.add(targetNpcIdField).growX().row() // Reusing the field is efficient
 
-        // Panel for ON_ENTER_CAR settings
         carSettingsTable = Table()
-        targetCarIdField = TextField("", skin) // Create the new field
+        targetCarIdField = TextField("", skin)
         targetCarIdField.messageText = "Paste Car ID here"
         carSettingsTable.add(Label("Target Car ID:", skin)).left().row()
         carSettingsTable.add(targetCarIdField).growX().row()
 
-        // Use a Stack to easily show/hide the correct panel
-        val settingsStack = Stack()
-        settingsStack.add(areaSettingsTable)
-        settingsStack.add(npcSettingsTable)
-        settingsStack.add(itemSettingsTable)
-        settingsStack.add(houseSettingsTable)
-        settingsStack.add(enemySettingsTable)
-        settingsStack.add(carSettingsTable)
+        val settingsStack = Stack(areaSettingsTable, npcSettingsTable, itemSettingsTable, houseSettingsTable, enemySettingsTable, carSettingsTable)
         contentTable.add(settingsStack).colspan(2).growX().padTop(10f).row()
 
-        // --- Instructions ---
-        instructions = Label("Use L-Click with Trigger Tool to set position in the world.", skin, "small")
+        instructions = Label("L-Click to set position, Scroll to resize.", skin, "small")
         contentTable.add(instructions).colspan(2).center().padTop(15f).row()
 
-        // --- Add the content table to the window ---
         window.add(contentTable).expand().fill().row()
 
-        // --- FIX: Create our own button table ---
         val buttonTable = Table()
         val applyButton = TextButton("Apply & Close", skin)
         val resetButton = TextButton("Reset Trigger", skin)
         val closeButton = TextButton("Close", skin)
-
         buttonTable.padTop(15f)
         buttonTable.add(applyButton).pad(5f)
         buttonTable.add(resetButton).pad(5f)
         buttonTable.add(closeButton).pad(5f)
-
-        // --- Add the button table to the window ---
         window.add(buttonTable).padBottom(10f).row()
 
         window.isVisible = false
         stage.addActor(window)
 
-        // --- LISTENERS (Unchanged) ---
-        missionSelectBox.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) = loadSelectedMissionTrigger()
-        })
-        triggerTypeSelectBox.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields()
-        })
-        applyButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) = applyChanges()
-        })
+        // --- LISTENERS ---
+        missionSelectBox.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = loadSelectedMissionTrigger() })
+        triggerTypeSelectBox.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields() })
+        applyButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = applyChanges() })
         resetButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 currentMissionDef?.let {
@@ -164,6 +136,9 @@ class TriggerEditorUI(
         })
         closeButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
+                // MODIFIED: Move the logic from hide() to here
+                hide() // First, hide the window.
+                // Then, change the tool. This will call updateToolDisplay, but it's safe now.
                 uiManager.selectedTool = UIManager.Tool.BLOCK
                 uiManager.updateToolDisplay()
             }
@@ -199,8 +174,6 @@ class TriggerEditorUI(
         mission.startTrigger.areaRadius = radiusField.text.toFloatOrNull() ?: TriggerSystem.VISUAL_RADIUS
         mission.startTrigger.targetNpcId = targetNpcIdField.text.ifBlank { null }
         mission.startTrigger.dialogId = dialogIdSelectBox.selected
-
-        // --- ADD SAVING LOGIC FOR NEW FIELDS ---
         mission.startTrigger.itemType = ItemType.entries.find { it.displayName == itemTypeSelectBox.selected }
         mission.startTrigger.itemCount = itemCountField.text.toIntOrNull() ?: 1
         mission.startTrigger.targetHouseId = targetHouseIdField.text.ifBlank { null }
@@ -221,11 +194,15 @@ class TriggerEditorUI(
         enemySettingsTable.isVisible = (selectedType == TriggerType.ON_HURT_ENEMY)
         carSettingsTable.isVisible = (selectedType == TriggerType.ON_ENTER_CAR)
 
-        // Relabel the NPC ID field when in "Hurt Enemy" mode for clarity
-        val npcLabel = npcSettingsTable.children.first() as Label
-        val enemyLabel = enemySettingsTable.children.first() as Label
-        npcLabel.setText("Target NPC ID:")
-        enemyLabel.setText("Target Enemy ID:")
+        // Hide all tables if it's the "all enemies eliminated" trigger
+        if (selectedType == TriggerType.ON_ALL_ENEMIES_ELIMINATED) {
+            areaSettingsTable.isVisible = false
+            npcSettingsTable.isVisible = false
+            itemSettingsTable.isVisible = false
+            houseSettingsTable.isVisible = false
+            enemySettingsTable.isVisible = false
+            carSettingsTable.isVisible = false
+        }
 
         instructions.isVisible = (selectedType == TriggerType.ON_ENTER_AREA)
 

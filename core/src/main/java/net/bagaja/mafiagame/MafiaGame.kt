@@ -345,7 +345,6 @@ class MafiaGame : ApplicationAdapter() {
                                 println("Player is near NPC '${closestNpc.npcType.displayName}', but they have nothing to say right now.")
                             }
                         }
-                        // --- END OF NEW LOGIC ---
                     }
 
                     // Try to enter a house
@@ -357,7 +356,6 @@ class MafiaGame : ApplicationAdapter() {
                             return
                         }
 
-                        // --- MODIFIED: New logic for checking lock state ---
                         val missionModifiers = missionSystem.activeModifiers
                         var isEffectivelyLocked = closestHouse.isLocked
 
