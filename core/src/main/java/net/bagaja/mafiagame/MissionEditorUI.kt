@@ -886,7 +886,13 @@ class MissionEditorUI(
         // --- LOGIC TO SHOW/HIDE DYNAMIC FIELDS ---
         fun updateVisibleFields() {
             val selectedType = try { ConditionType.valueOf(typeSelect.selected) } catch (e: Exception) { ConditionType.ENTER_AREA }
-            targetIdTable.isVisible = selectedType in listOf(ConditionType.ELIMINATE_TARGET, ConditionType.TALK_TO_NPC, ConditionType.INTERACT_WITH_OBJECT)
+            targetIdTable.isVisible = selectedType in listOf(
+                ConditionType.ELIMINATE_TARGET,
+                ConditionType.TALK_TO_NPC,
+                ConditionType.INTERACT_WITH_OBJECT,
+                ConditionType.DESTROY_CAR,
+                ConditionType.BURN_DOWN_HOUSE
+            )
             areaTable.isVisible = selectedType == ConditionType.ENTER_AREA
             timerTable.isVisible = selectedType == ConditionType.TIMER_EXPIRES
             itemTable.isVisible = selectedType == ConditionType.COLLECT_ITEM

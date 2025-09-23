@@ -85,15 +85,19 @@ public class Lwjgl3Launcher {
 // after specific missions, enemies change weapons
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // more options for starting a mission
+// lock item disappearing when burned down car or house
+// weapon focusing on cars too
+// no character ui when no gun
 // pulling out characters from vehicles
 // add event button automatically adds new event without saving button press
 // new events: PLAY_SOUND
 // make timer_expires visual
 // label to show how many enemies left for kill all enemies
 // right click block gives its position like for copying id
-// Objective Markers, Objective-Specific Events, Refine the TriggerEditorUI
-// destroy car, kill enemy, burn down house
+// Objective Markers, Objective-Specific Events
+// STAY_IN_AREA, DRIVE_TO_LOCATION, SEQUENCE, LOSE_THE_COPS, DESTROY_OBJECT, MAINTAIN_DISTANCE, INFLUENCE_NPC, CAPTURE_TERRITORY
 // Cutscene System
+// interact with interiors/objectives, cars, characters = give item, lose item, new event will happen
 
 // disable item pick up
 // disable character spawn

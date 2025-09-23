@@ -302,6 +302,17 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         }
     }
 
+    fun reportCarDestroyed(carId: String) {
+        val objective = activeMission?.getCurrentObjective() ?: return
+        val condition = objective.completionCondition
+
+        if (condition.type == ConditionType.DESTROY_CAR && condition.targetId == carId) {
+            // The objective was to destroy this specific car. Mark it as done.
+            activeMission?.missionVariables?.set("destroyed_${carId}", true)
+            println("Player destroyed mission-critical car: $carId")
+        }
+    }
+
     private fun isObjectiveComplete(objective: MissionObjective, state: MissionState): Boolean {
         val condition = objective.completionCondition
         when (condition.type) {
@@ -351,6 +362,25 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 } else {
                     return game.sceneManager.activeEnemies.isEmpty
                 }
+            }
+            ConditionType.DESTROY_CAR -> {
+                val carId = condition.targetId ?: return false
+                // Check the flag that reportCarDestroyed() sets.
+                return state.missionVariables["destroyed_${carId}"] == true
+            }
+            ConditionType.BURN_DOWN_HOUSE -> {
+                val houseId = condition.targetId ?: return false
+
+                // Find the target house in the scene.
+                val targetHouse = game.sceneManager.activeHouses.find { it.id == houseId } ?: return false
+
+                // Now, check if any active fire is close enough to the house's position.
+                val burnRadius = 15f // How close the fire needs to be
+                val isBurning = game.fireSystem.activeFires.any { fire ->
+                    fire.gameObject.position.dst(targetHouse.position) < burnRadius
+                }
+
+                return isBurning
             }
             ConditionType.TIMER_EXPIRES -> {
                 val timer = state.missionVariables["timer"] as? Float ?: 0f

@@ -364,6 +364,7 @@ class CarSystem: IFinePositionable {
                 if (sceneManager.playerSystem.isDriving && sceneManager.playerSystem.getControlledEntityPosition() == car.position) {
                     sceneManager.playerSystem.exitCar(sceneManager)
                 }
+                sceneManager.game.missionSystem.reportCarDestroyed(car.id)
                 val shouldSpawnFire = car.lastDamageType != DamageType.FIRE
 
                 // Trigger the destruction sequence
