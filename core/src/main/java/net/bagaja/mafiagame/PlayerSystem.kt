@@ -144,7 +144,7 @@ class PlayerSystem {
 
     var isDriving = false
         private set
-    private var drivingCar: GameCar? = null
+    var drivingCar: GameCar? = null
     private val carSpeed = 20f // Speed is still relevant
 
     private var state = PlayerState.IDLE
@@ -1526,13 +1526,24 @@ class PlayerSystem {
                         // Spawn dust/sparks for static objects
                         particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_MEDIUM, particleSpawnPos)
                     }
+                    HitObjectType.OBJECT -> {
+                        val gameObject = collisionResult.hitObject as GameObject
+                        if (gameObject.takeDamage(bullet.damage)) {
+                            // Object was destroyed, remove it from the scene
+                            sceneManager.activeObjects.removeValue(gameObject, true)
+                            // Spawn a bigger effect for destroyed objects
+                            particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_HEAVY, gameObject.position)
+                        } else {
+                            // Object was hit but not destroyed, spawn a smaller effect
+                            particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_MEDIUM, particleSpawnPos)
+                        }
+                    }
                     HitObjectType.CAR -> {
                         val car = collisionResult.hitObject as GameCar
                         car.takeDamage(equippedWeapon.damage, DamageType.GENERIC)
                         particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_MEDIUM, particleSpawnPos)
                     }
 
-                    HitObjectType.OBJECT,
                     HitObjectType.HOUSE -> {
                         // Intentionally do nothing
                     }
@@ -1581,7 +1592,7 @@ class PlayerSystem {
                     HitObjectType.PLAYER -> {
                         val enemyOwner = bullet.owner as GameEnemy
                         takeDamage(enemyOwner.equippedWeapon.damage)
-                        // You can also add a blood effect for the player here if you wish
+                        // You could add a blood effect for the player here if you wish
                     }
                     HitObjectType.NONE -> {}
                 }
@@ -1851,6 +1862,20 @@ class PlayerSystem {
                             applyKnockback(knockbackVector)
 
                             println("Player knocked back with velocity: $knockbackVector")
+                        }
+                    }
+                }
+
+                sceneManager.activeObjects.forEach { obj ->
+                    if (obj.objectType.isDestructible) {
+                        val distanceToObj = obj.position.dst(validGroundPosition)
+                        if (distanceToObj < explosionRadius) {
+                            val actualDamage = calculateFalloffDamage(explosionDamage, distanceToObj, explosionRadius)
+                            if (obj.takeDamage(actualDamage)) {
+                                // Object was destroyed, remove it from the list
+                                sceneManager.activeObjects.removeValue(obj, true)
+                                particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_HEAVY, obj.position)
+                            }
                         }
                     }
                 }

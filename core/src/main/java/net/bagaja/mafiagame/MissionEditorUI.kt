@@ -762,6 +762,7 @@ class MissionEditorUI(
 
         // Condition-specific fields
         val targetIdField = TextField(existingObjective?.completionCondition?.targetId ?: "", skin)
+        val altitudeField = TextField(existingObjective?.completionCondition?.targetAltitude?.toString() ?: "100.0", skin)
         val timerDurationField = TextField(existingObjective?.completionCondition?.timerDuration?.toString() ?: "60.0", skin)
         val itemTypeSelect = SelectBox<String>(skin).apply {
             items = GdxArray(ItemType.entries.map { it.name }.toTypedArray())
@@ -773,6 +774,7 @@ class MissionEditorUI(
 
         // --- DYNAMIC UI TABLES ---
         val targetIdTable = Table(skin).apply { add("Target ID:"); add(targetIdField).width(250f) }
+        val altitudeTable = Table(skin).apply { add("Target Altitude (Y):"); add(altitudeField).width(80f) }
         val areaTable = Table(skin) // This one will have other tables added, so it also needs a skin.
         val timerTable = Table(skin).apply { add("Duration (sec):"); add(timerDurationField).width(80f) }
         val itemTable = Table(skin).apply {
@@ -834,6 +836,7 @@ class MissionEditorUI(
         content.add("Condition Type:"); content.add(typeSelect).row()
         content.add(targetIdTable).colspan(2).row()
         content.add(areaTable).colspan(2).row()
+        content.add(altitudeTable).colspan(2).row()
         content.add(timerTable).colspan(2).row()
         content.add(itemTable).colspan(2).row()
         content.add(specificItemTable).colspan(2).row()
@@ -891,12 +894,27 @@ class MissionEditorUI(
                 ConditionType.TALK_TO_NPC,
                 ConditionType.INTERACT_WITH_OBJECT,
                 ConditionType.DESTROY_CAR,
-                ConditionType.BURN_DOWN_HOUSE
+                ConditionType.BURN_DOWN_HOUSE,
+                ConditionType.DESTROY_OBJECT,
+                ConditionType.DRIVE_TO_LOCATION
             )
-            areaTable.isVisible = selectedType == ConditionType.ENTER_AREA
+            areaTable.isVisible = selectedType == ConditionType.ENTER_AREA ||
+                selectedType == ConditionType.DRIVE_TO_LOCATION // Added here
+
+            altitudeTable.isVisible = selectedType == ConditionType.REACH_ALTITUDE
             timerTable.isVisible = selectedType == ConditionType.TIMER_EXPIRES
             itemTable.isVisible = selectedType == ConditionType.COLLECT_ITEM
             specificItemTable.isVisible = selectedType == ConditionType.COLLECT_SPECIFIC_ITEM
+
+            val targetIdLabel = targetIdTable.children.first() as Label
+            if (selectedType == ConditionType.DRIVE_TO_LOCATION) {
+                targetIdLabel.setText("Required Car ID (Optional):")
+                targetIdField.messageText = "Leave blank for any car"
+            } else {
+                targetIdLabel.setText("Target ID:")
+                targetIdField.messageText = "Paste ID here"
+            }
+
             dialog.pack()
         }
         typeSelect.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { updateVisibleFields() } })
@@ -920,6 +938,7 @@ class MissionEditorUI(
                 val newCondition = CompletionCondition(
                     type = conditionType,
                     targetId = targetIdField.text.ifBlank { null },
+                    targetAltitude = altitudeField.text.toFloatOrNull(),
                     areaCenter = if(conditionType == ConditionType.ENTER_AREA) areaCenterVec else null,
                     areaRadius = if(conditionType == ConditionType.ENTER_AREA) areaRadiusValue else null,
                     timerDuration = timerDurationField.text.toFloatOrNull() ?: 60.0f,

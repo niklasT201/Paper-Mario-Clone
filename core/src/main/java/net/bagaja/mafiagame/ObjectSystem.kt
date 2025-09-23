@@ -683,7 +683,8 @@ data class GameObject(
     val position: Vector3,
     var debugInstance: ModelInstance? = null, // For debug visualization of invisible objects
     var associatedLightId: Int? = null, // Link to light source if this object has one
-    var isBroken: Boolean = false // For future lantern breaking functionality
+    var isBroken: Boolean = false, // For future lantern breaking functionality
+    var health: Float = objectType.maxHealth
 ) {
     init {
         // Apply initial transform to the model instance(s)
@@ -739,6 +740,13 @@ data class GameObject(
             println("Lantern at $position is now broken! Light disabled.")
         }
     }
+
+    fun takeDamage(amount: Float): Boolean {
+        if (health <= 0 || !objectType.isDestructible) return false // Can't damage what's already broken or indestructible
+        health -= amount
+        println("${objectType.displayName} took $amount damage. HP remaining: ${health.coerceAtLeast(0f)}")
+        return health <= 0
+    }
 }
 
 data class GameTeleporter(
@@ -763,7 +771,9 @@ enum class ObjectType(
     val lightColorG: Float = 1f,
     val lightColorB: Float = 1f,
     val lightOffsetY: Float = 0f, // Vertical offset from object center
-    val isSinglePlane: Boolean = false
+    val isSinglePlane: Boolean = false,
+    val isDestructible: Boolean = false, // NEW: Flag to mark if an object can be destroyed
+    val maxHealth: Float = 100f // NEW: Default max health
 ) {
     TREE("Tree", "textures/objects/models/tree.png", 14.5f, 15.6f),
     BUSH("Bush", "textures/objects/models/bush.png", 3f, 3f),
@@ -797,7 +807,9 @@ enum class ObjectType(
         lightColorR = 1f,    // Orange color
         lightColorG = 0.6f,
         lightColorB = 0.2f,
-        lightOffsetY = 7.5f  // Place light at middle of lantern
+        lightOffsetY = 7.5f,  // Place light at middle of lantern
+        isDestructible = true,
+        maxHealth = 200f
     ),
 
     LIGHT_SOURCE("Light Source", "", 2f, 2f, true, true),
@@ -812,7 +824,7 @@ enum class ObjectType(
     ),
 
     TURNEDOFF_LANTERN("Turned Off Lantern", "textures/objects/models/turnedoff_lantern.png", 3f, 11f,
-        hasLightSource = false // Turned off lanterns don't emit light
+        hasLightSource = false, isDestructible = true, maxHealth = 200f
     );
 
     // Helper function to get light color as Color object

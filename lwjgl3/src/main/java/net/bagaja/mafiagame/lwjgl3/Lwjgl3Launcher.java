@@ -93,9 +93,11 @@ public class Lwjgl3Launcher {
 // new events: PLAY_SOUND
 // make timer_expires visual
 // label to show how many enemies left for kill all enemies
+// broken lantern switches image to broken lantern
 // right click block gives its position like for copying id
-// Objective Markers, Objective-Specific Events
-// STAY_IN_AREA, DRIVE_TO_LOCATION, SEQUENCE, LOSE_THE_COPS, DESTROY_OBJECT, MAINTAIN_DISTANCE, INFLUENCE_NPC, CAPTURE_TERRITORY
+// Objective Markers
+// STAY_IN_AREA, DRIVE_TO_LOCATION, SEQUENCE, LOSE_THE_COPS, MAINTAIN_DISTANCE, INFLUENCE_NPC, CAPTURE_TERRITORY
+// Enemy/NPC AI Override, One-Hit Kills, One-Hit Kills, Specific Weapon Infinite Ammo
 // Cutscene System
 // interact with interiors/objectives, cars, characters = give item, lose item, new event will happen
 

@@ -382,6 +382,40 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
                 return isBurning
             }
+            ConditionType.DESTROY_OBJECT -> {
+                val objectId = condition.targetId ?: return false
+                val targetExists = game.sceneManager.activeObjects.any { it.id == objectId }
+                return !targetExists
+            }
+            ConditionType.REACH_ALTITUDE -> {
+                val targetY = condition.targetAltitude ?: return false
+                val playerY = game.playerSystem.getPosition().y
+                return playerY >= targetY
+            }
+            ConditionType.DRIVE_TO_LOCATION -> {
+                // 1. Check if the player is actually driving a car. If not, the objective cannot be completed.
+                if (!game.playerSystem.isDriving) {
+                    return false
+                }
+
+                // 2. Get the car the player is currently driving.
+                val playerCar = game.playerSystem.drivingCar ?: return false
+
+                // 3. (Optional) Check if a *specific* car is required for this objective.
+                val requiredCarId = condition.targetId
+                if (requiredCarId != null && playerCar.id != requiredCarId) {
+                    // The player is driving, but it's the wrong car.
+                    return false
+                }
+
+                // 4. Get the destination area from the condition.
+                val destinationCenter = condition.areaCenter ?: return false
+                val destinationRadius = condition.areaRadius ?: return false
+
+                // 5. Check if the car's position is within the destination radius.
+                val distance = playerCar.position.dst(destinationCenter)
+                return distance < destinationRadius
+            }
             ConditionType.TIMER_EXPIRES -> {
                 val timer = state.missionVariables["timer"] as? Float ?: 0f
                 return timer <= 0f
