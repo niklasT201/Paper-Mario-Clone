@@ -86,8 +86,6 @@ public class Lwjgl3Launcher {
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // more options for starting a mission
 // lock item disappearing when burned down car or house
-// weapon focusing on cars too
-// no character ui when no gun
 // pulling out characters from vehicles
 // add event button automatically adds new event without saving button press
 // new events: PLAY_SOUND

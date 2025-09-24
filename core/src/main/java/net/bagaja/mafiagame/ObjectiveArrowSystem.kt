@@ -30,7 +30,7 @@ class ObjectiveArrowSystem(private val game: MafiaGame) : Disposable {
     private val BOBBING_HEIGHT = 0.5f
 
     companion object {
-        private val ARROW_COLOR = Color(0.2f, 0.9f, 1f, 0.85f)
+        private val ARROW_COLOR = Color(1.0f, 0.8f, 0.2f, 0.85f)
         private const val ARROW_SIZE = 2.5f
         private const val ARROW_HEIGHT_OFFSET = 3f
     }

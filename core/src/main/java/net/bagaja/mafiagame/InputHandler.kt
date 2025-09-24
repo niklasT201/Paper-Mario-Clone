@@ -222,18 +222,25 @@ class InputHandler(
                                 }
                             }
 
-                            // Check for enemy first
-                            val enemyToInspect = enemySystem.raycastSystem.getEnemyAtRay(ray, sceneManager.activeEnemies)
-                            if (enemyToInspect != null) {
-                                uiManager.showEnemyInventory(enemyToInspect)
-                                return true // Consume the click so it doesn't trigger camera drag
-                            }
+                            // Check if the player has a valid weapon equipped before trying to open the UI.
+                            val weapon = game.playerSystem.equippedWeapon
+                            val canInspect = weapon.actionType == WeaponActionType.SHOOTING ||
+                                (weapon.actionType == WeaponActionType.MELEE && weapon != WeaponType.UNARMED)
 
-                            // If no enemy, check for NPC
-                            val npcToInspect = npcSystem.raycastSystem.getNPCAtRay(ray, sceneManager.activeNPCs)
-                            if (npcToInspect != null) {
-                                uiManager.showNpcInventory(npcToInspect)
-                                return true // Consume the click
+                            if (canInspect) {
+                                // Check for enemy first
+                                val enemyToInspect = enemySystem.raycastSystem.getEnemyAtRay(ray, sceneManager.activeEnemies)
+                                if (enemyToInspect != null) {
+                                    uiManager.showEnemyInventory(enemyToInspect)
+                                    return true // Consume the click so it doesn't trigger camera drag
+                                }
+
+                                // If no enemy, check for NPC
+                                val npcToInspect = npcSystem.raycastSystem.getNPCAtRay(ray, sceneManager.activeNPCs)
+                                if (npcToInspect != null) {
+                                    uiManager.showNpcInventory(npcToInspect)
+                                    return true // Consume the click
+                                }
                             }
                         }
 

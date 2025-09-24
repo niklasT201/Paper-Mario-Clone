@@ -134,7 +134,7 @@ class TargetingIndicatorSystem {
         val mouseY = Gdx.input.y.toFloat()
         val ray = cameraManager.camera.getPickRay(mouseX, mouseY)
 
-        // 1. Raycast against enemies first, as they are a priority target.
+        // 1. Raycast against enemies (Priority 1)
         val hitEnemy = raycastSystem.getEnemyAtRay(ray, sceneManager.activeEnemies)
         if (hitEnemy != null) {
             // "Stick" to the enemy by snapping to their base position.
@@ -145,7 +145,7 @@ class TargetingIndicatorSystem {
             return // Stop here since we found a target
         }
 
-        // 2. If no enemy was hit, raycast against NPCs.
+        // 2. Raycast against NPCs (Priority 2)
         val hitNPC = raycastSystem.getNPCAtRay(ray, sceneManager.activeNPCs)
         if (hitNPC != null) {
             // "Stick" to the NPC.
@@ -156,7 +156,18 @@ class TargetingIndicatorSystem {
             return // Stop here
         }
 
-        // 3. If nothing was hit, place the indicator on the ground.
+        // Raycast against Cars (Priority 3)
+        val hitCar = raycastSystem.getCarAtRay(ray, sceneManager.activeCars)
+        if (hitCar != null && !hitCar.isDestroyed) {
+            // Snap the indicator to the ground directly below the car's center
+            val groundY = sceneManager.findHighestSupportY(hitCar.position.x, hitCar.position.z, hitCar.position.y, 0.1f, sceneManager.game.blockSize)
+            indicatorPosition.set(hitCar.position.x, groundY + GROUND_OFFSET, hitCar.position.z)
+            isVisible = true
+            updateTransform()
+            return // Stop here since we found a target
+        }
+
+        // 4. If nothing was hit, place the indicator on the ground (Fallback)
         if (Intersector.intersectRayPlane(ray, groundPlane, intersectionPoint)) {
             val groundY = sceneManager.findHighestSupportY(intersectionPoint.x, intersectionPoint.z, intersectionPoint.y, 0.1f, sceneManager.game.blockSize)
             indicatorPosition.set(intersectionPoint.x, groundY + GROUND_OFFSET, intersectionPoint.z)
