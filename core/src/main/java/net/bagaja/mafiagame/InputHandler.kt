@@ -283,8 +283,8 @@ class InputHandler(
                             // Check for Spawner
                             val spawner = game.raycastSystem.getSpawnerAtRay(ray, sceneManager.activeSpawners)
                             if (spawner != null) {
-                                Gdx.app.clipboard.contents = spawner.id
-                                uiManager.showTemporaryMessage("Copied Spawner ID: ${spawner.id}")
+                                // Right-clicking a spawner now only opens its UI.
+                                uiManager.showSpawnerUI(spawner)
                                 return true
                             }
 
@@ -331,6 +331,16 @@ class InputHandler(
                                 Gdx.app.clipboard.contents = obj.id
                                 uiManager.showTemporaryMessage("Copied Object ID: ${obj.id}")
                                 return true
+                            }
+
+                            val block = game.raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
+                            if (block != null && uiManager.selectedTool != Tool.BLOCK) {
+                                val pos = block.position
+                                // Format to 2 decimal places for cleanliness and consistency
+                                val posString = String.format(java.util.Locale.US, "%.2f, %.2f, %.2f", pos.x, pos.y, pos.z)
+                                Gdx.app.clipboard.contents = posString
+                                uiManager.showTemporaryMessage("Copied Block Position: $posString")
+                                return true // Consume the click
                             }
 
                             var removed = false

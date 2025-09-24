@@ -94,9 +94,7 @@ public class Lwjgl3Launcher {
 // make timer_expires visual
 // label to show how many enemies left for kill all enemies
 // broken lantern switches image to broken lantern
-// right click block gives its position like for copying id
 // Objective Markers
-// right clicking spawner, removes it, not copying its id, same for teleporter
 // drive to location, visual arrow that shows direction, smaller timer
 // STAY_IN_AREA, SEQUENCE, LOSE_THE_COPS, MAINTAIN_DISTANCE, INFLUENCE_NPC, CAPTURE_TERRITORY
 // Enemy/NPC AI Override, One-Hit Kills, One-Hit Kills, Specific Weapon Infinite Ammo
