@@ -90,6 +90,9 @@ public class Lwjgl3Launcher {
 // new events: PLAY_SOUND
 // label to show how many enemies left for kill all enemies
 // broken lantern switches image to broken lantern
+// objective timer under both huds
+// not spawning at right top corner
+// timer to survive
 // muscle flash for enemies shooting
 // characters in cars start headlights
 // key for player to turn headlights off

@@ -126,6 +126,7 @@ class UIManager(
     private lateinit var missionObjectiveLabel: Label
     private lateinit var leaveCarTimerLabel: Label
     private lateinit var missionTimerLabel: Label
+    private var isTimerInDelayPhase = false
 
     private var currentViolenceLevel = ViolenceLevel.FULL_VIOLENCE
     var currentEditorMode = EditorMode.WORLD
@@ -1026,15 +1027,34 @@ class UIManager(
         }
     }
 
-    fun updateMissionTimer(timeRemaining: Float) {
+    fun updateMissionTimer(timeRemaining: Float, isDelay: Boolean = false) {
+        // Stop any previous animations
+        missionTimerLabel.clearActions()
+        isTimerInDelayPhase = isDelay
+
         if (timeRemaining > 0f) {
             missionTimerLabel.isVisible = true
-            // Format to show minutes and seconds for longer timers
+
+            if (isDelay) {
+                missionTimerLabel.color = Color.LIGHT_GRAY // "Get Ready" color
+            } else {
+                missionTimerLabel.color = Color.ORANGE     // "Countdown" color
+            }
+
             val minutes = (timeRemaining / 60).toInt()
             val seconds = (timeRemaining % 60).toInt()
             missionTimerLabel.setText(String.format("%02d:%02d", minutes, seconds))
+
+            // Ensure it's fully visible if it was faded out before
+            missionTimerLabel.color.a = 1f
         } else {
-            missionTimerLabel.isVisible = false
+            // fade it out smoothly
+            if (missionTimerLabel.isVisible) {
+                missionTimerLabel.addAction(Actions.sequence(
+                    Actions.fadeOut(0.3f, Interpolation.fade),
+                    Actions.run { missionTimerLabel.isVisible = false }
+                ))
+            }
         }
     }
 
