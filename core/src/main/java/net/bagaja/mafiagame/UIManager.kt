@@ -124,6 +124,7 @@ class UIManager(
     private lateinit var fpsLabel: Label
     private lateinit var fpsTable: Table
     private lateinit var missionObjectiveLabel: Label
+    private lateinit var leaveCarTimerLabel: Label
 
     private var currentViolenceLevel = ViolenceLevel.FULL_VIOLENCE
     var currentEditorMode = EditorMode.WORLD
@@ -200,6 +201,18 @@ class UIManager(
         objectiveTable.top().right().pad(20f)
         objectiveTable.add(missionObjectiveLabel)
         stage.addActor(objectiveTable)
+
+        // NEW: Setup for the "Leave Car" timer
+        leaveCarTimerLabel = Label("", skin, "title")
+        leaveCarTimerLabel.setFontScale(1.5f) // Make it bigger for importance
+        leaveCarTimerLabel.color = Color.RED
+        leaveCarTimerLabel.setAlignment(Align.center)
+        leaveCarTimerLabel.isVisible = false
+        val timerTable = Table()
+        timerTable.setFillParent(true)
+        timerTable.bottom().padBottom(50f) // Position at the bottom center of the screen
+        timerTable.add(leaveCarTimerLabel)
+        stage.addActor(timerTable)
 
         // Initialize all your selection UIs (unchanged)
         blockSelectionUI = BlockSelectionUI(blockSystem, skin, stage)
@@ -989,6 +1002,16 @@ class UIManager(
         isPlacingEntryPointMode = false
         houseRequiringEntryPoint = null
         clearPersistentMessage()
+    }
+
+    fun updateLeaveCarTimer(timeRemaining: Float) {
+        if (timeRemaining > 0f) {
+            leaveCarTimerLabel.isVisible = true
+            // Format the string to one decimal place for a nice countdown effect
+            leaveCarTimerLabel.setText(String.format("Return to your vehicle: %.1fs", timeRemaining))
+        } else {
+            leaveCarTimerLabel.isVisible = false
+        }
     }
 
     // Menu and settings methods stay the same

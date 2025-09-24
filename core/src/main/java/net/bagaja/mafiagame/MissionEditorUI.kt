@@ -871,7 +871,7 @@ class MissionEditorUI(
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 val objectiveToPlace = existingObjective ?: MissionObjective(
                     completionCondition = CompletionCondition(
-                        type = ConditionType.ENTER_AREA,
+                        type = ConditionType.ENTER_AREA, // This is a default, it will be updated by the save button
                         areaCenter = Vector3(
                             areaXField.text.toFloatOrNull() ?: 0f,
                             areaYField.text.toFloatOrNull() ?: 0f,
@@ -898,8 +898,9 @@ class MissionEditorUI(
                 ConditionType.DESTROY_OBJECT,
                 ConditionType.DRIVE_TO_LOCATION
             )
+
             areaTable.isVisible = selectedType == ConditionType.ENTER_AREA ||
-                selectedType == ConditionType.DRIVE_TO_LOCATION // Added here
+                selectedType == ConditionType.DRIVE_TO_LOCATION
 
             altitudeTable.isVisible = selectedType == ConditionType.REACH_ALTITUDE
             timerTable.isVisible = selectedType == ConditionType.TIMER_EXPIRES
@@ -927,20 +928,21 @@ class MissionEditorUI(
                 val conditionType = try { ConditionType.valueOf(typeSelect.selected) } catch (e: Exception) { ConditionType.ENTER_AREA }
                 val itemType = try { ItemType.valueOf(itemTypeSelect.selected) } catch (e: Exception) { null }
 
-                // MODIFIED: Read the final values from the text fields for the area condition
                 val areaCenterVec = Vector3(
                     areaXField.text.toFloatOrNull() ?: 0f,
                     areaYField.text.toFloatOrNull() ?: 0f,
                     areaZField.text.toFloatOrNull() ?: 0f
                 )
-                val areaRadiusValue = radiusField.text.toFloatOrNull()
+                val areaRadiusValue = radiusField.text.toFloatOrNull() ?: 10f
+
+                val needsArea = conditionType == ConditionType.ENTER_AREA || conditionType == ConditionType.DRIVE_TO_LOCATION
 
                 val newCondition = CompletionCondition(
                     type = conditionType,
                     targetId = targetIdField.text.ifBlank { null },
                     targetAltitude = altitudeField.text.toFloatOrNull(),
-                    areaCenter = if(conditionType == ConditionType.ENTER_AREA) areaCenterVec else null,
-                    areaRadius = if(conditionType == ConditionType.ENTER_AREA) areaRadiusValue else null,
+                    areaCenter = if (needsArea) areaCenterVec else null,
+                    areaRadius = if (needsArea) areaRadiusValue else null,
                     timerDuration = timerDurationField.text.toFloatOrNull() ?: 60.0f,
                     itemType = itemType,
                     itemCount = itemCountField.text.toIntOrNull() ?: 1,

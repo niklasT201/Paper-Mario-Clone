@@ -909,7 +909,7 @@ enum class CarType(
     val width: Float,
     val height: Float,
     val baseHealth: Float,
-    val speed: Float = 5f
+    val speed: Float = 10f
 ) {
     DEFAULT("Default", "textures/objects/cars/car_driving.png", 10f, 7f, 250f),
     BOSS_CAR("Boss Car", "textures/objects/cars/boss_car.png", 10f, 7f, 500f),

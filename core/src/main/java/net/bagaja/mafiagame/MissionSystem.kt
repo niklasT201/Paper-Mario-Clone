@@ -14,6 +14,8 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
     var activeModifiers: MissionModifiers? = null
     private var gameState = GameState() // This will be loaded from a file later
     private var playerInventorySnapshot: PlayerStateData? = null
+    private var leaveCarTimer = -1f // -1 indicates timer is not active
+    private var requiredCarIdForTimer: String? = null
 
     fun getSaveData(): MissionProgressData {
         val variablesToSave = ObjectMap<String, Any>()
@@ -119,6 +121,17 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
     }
 
     fun update(deltaTime: Float) {
+        // NEW: Handle the leave-car timer at the start of every update
+        if (leaveCarTimer > 0f) {
+            leaveCarTimer -= deltaTime
+            game.uiManager.updateLeaveCarTimer(leaveCarTimer) // Tell UI to show the timer
+
+            if (leaveCarTimer <= 0f) {
+                println("Mission Failed: Player did not return to the required car in time.")
+                failMission() // Fails the mission if time runs out
+            }
+        }
+
         // --- MISSION START TRIGGER CHECK ---
         if (activeMission == null) {
             for ((missionId, missionDef) in allMissions) {
@@ -521,6 +534,40 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
         activeMission = null
         game.uiManager.updateMissionObjective("")
+
+        // Reset timer state on any mission end
+        leaveCarTimer = -1f
+        requiredCarIdForTimer = null
+        game.uiManager.updateLeaveCarTimer(leaveCarTimer)
+    }
+
+    private fun failMission() {
+        game.uiManager.showTemporaryMessage("Mission Failed!")
+        // Use the existing endMission logic to handle cleanup
+        endMission(completed = false)
+    }
+
+    fun playerExitedCar(carId: String) {
+        val objective = activeMission?.getCurrentObjective() ?: return
+
+        // Check if the current objective is DRIVE_TO_LOCATION and requires this specific car.
+        if (objective.completionCondition.type == ConditionType.DRIVE_TO_LOCATION &&
+            objective.completionCondition.targetId == carId) {
+
+            println("Player exited a required mission car ($carId). Starting 10-second timer.")
+            leaveCarTimer = 10f
+            requiredCarIdForTimer = carId
+        }
+    }
+
+    fun playerEnteredCar(carId: String) {
+        // If the player enters the specific car the timer is running for, cancel the timer.
+        if (leaveCarTimer > 0f && carId == requiredCarIdForTimer) {
+            println("Player re-entered the required car. Timer cancelled.")
+            leaveCarTimer = -1f
+            requiredCarIdForTimer = null
+            game.uiManager.updateLeaveCarTimer(leaveCarTimer) // Tell UI to hide the timer
+        }
     }
 
     fun reportInteraction(objectId: String) {

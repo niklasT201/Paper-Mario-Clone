@@ -955,6 +955,7 @@ class PlayerSystem {
             currentSeat = seat
             car.modelInstance.userData = "car"
 
+            sceneManager.game.missionSystem.playerEnteredCar(car.id)
             // If entering a wrecked car
             sceneManager.game.missionSystem.onPlayerEnteredCar(car.id)
 
@@ -968,6 +969,8 @@ class PlayerSystem {
         if (!isDriving || drivingCar == null) return
 
         val car = drivingCar!!
+
+        sceneManager.game.missionSystem.playerExitedCar(car.id)
 
         // Remove player from the car's occupant list
         car.removeOccupant(this)
