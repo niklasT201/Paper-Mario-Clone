@@ -204,7 +204,7 @@ class UIManager(
 
         // NEW: Setup for the "Leave Car" timer
         leaveCarTimerLabel = Label("", skin, "title")
-        leaveCarTimerLabel.setFontScale(1.5f) // Make it bigger for importance
+        leaveCarTimerLabel.setFontScale(1.0f) // Make it bigger for importance
         leaveCarTimerLabel.color = Color.RED
         leaveCarTimerLabel.setAlignment(Align.center)
         leaveCarTimerLabel.isVisible = false

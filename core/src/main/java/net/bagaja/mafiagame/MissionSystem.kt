@@ -293,7 +293,17 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         // If the new objective is to eliminate all enemies
         objective.eventsOnStart.forEach { executeEvent(it) }
 
-        // The logic to track enemies for ELIMINATE_ALL_ENEMIES now lives here.
+        // Hide any old markers and show new ones if needed.
+        game.objectiveArrowSystem.hide() // Always hide the arrow first
+
+        // Check if the objective is the one that needs the arrow
+        if (objective.completionCondition.type == ConditionType.DRIVE_TO_LOCATION) {
+            val destination = objective.completionCondition.areaCenter
+            if (destination != null) {
+                game.objectiveArrowSystem.show(destination)
+            }
+        }
+
         if (objective.completionCondition.type == ConditionType.ELIMINATE_ALL_ENEMIES) {
 
             val enemyIdsForThisObjective = objective.eventsOnStart
@@ -535,7 +545,10 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         activeMission = null
         game.uiManager.updateMissionObjective("")
 
-        // Reset timer state on any mission end
+        // Always hide the objective arrow when a mission ends.
+        game.objectiveArrowSystem.hide()
+
+        // Reset timer state on any mission end to prevent it from carrying over.
         leaveCarTimer = -1f
         requiredCarIdForTimer = null
         game.uiManager.updateLeaveCarTimer(leaveCarTimer)

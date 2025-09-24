@@ -87,6 +87,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var trajectorySystem: TrajectorySystem
     private lateinit var blockDebugRenderer: BlockDebugRenderer
     lateinit var carPathSystem: CarPathSystem
+    lateinit var objectiveArrowSystem: ObjectiveArrowSystem
 
     override fun create() {
         dialogueManager = DialogueManager()
@@ -94,6 +95,7 @@ class MafiaGame : ApplicationAdapter() {
         raycastSystem = RaycastSystem(blockSize)
         carPathSystem = CarPathSystem()
         particleSystem = ParticleSystem()
+        objectiveArrowSystem = ObjectiveArrowSystem(this)
         blockSystem = BlockSystem()
         objectSystem = ObjectSystem()
         fireSystem = FireSystem()
@@ -178,6 +180,7 @@ class MafiaGame : ApplicationAdapter() {
         trajectorySystem.initialize()
         blockDebugRenderer.initialize()
 
+        objectiveArrowSystem.initialize()
         missionSystem.initialize()
         triggerSystem.initialize(missionSystem.getAllMissionDefinitions())
 
@@ -676,6 +679,8 @@ class MafiaGame : ApplicationAdapter() {
 
             sceneManager.update(deltaTime)
             missionSystem.update(deltaTime)
+            objectiveArrowSystem.update()
+
             triggerSystem.update()
             transitionSystem.update(deltaTime)
 
@@ -786,6 +791,8 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render parallax backgrounds
         parallaxBackgroundSystem.render(modelBatch, cameraManager.camera, environment)
+
+        objectiveArrowSystem.render(cameraManager.camera, environment)
 
         // Render all blocks
         sceneManager.activeChunkManager.render(modelBatch, environment, cameraManager.camera)
@@ -978,6 +985,7 @@ class MafiaGame : ApplicationAdapter() {
         bloodPoolSystem.dispose()
         footprintSystem.dispose()
         boneSystem.dispose()
+        objectiveArrowSystem.dispose()
         triggerSystem.dispose()
         carPathSystem.dispose()
 

@@ -94,8 +94,11 @@ public class Lwjgl3Launcher {
 // make timer_expires visual
 // label to show how many enemies left for kill all enemies
 // broken lantern switches image to broken lantern
+// muscle flash for enemies shooting
+// characters in cars start headlights
+// key for player to turn headlights off
 // Objective Markers
-// drive to location, visual arrow that shows direction, smaller timer
+// drive to location, visual arrow that shows direction
 // STAY_IN_AREA, SEQUENCE, LOSE_THE_COPS, MAINTAIN_DISTANCE, INFLUENCE_NPC, CAPTURE_TERRITORY
 // Enemy/NPC AI Override, One-Hit Kills, One-Hit Kills, Specific Weapon Infinite Ammo
 // Cutscene System
