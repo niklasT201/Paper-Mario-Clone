@@ -85,11 +85,12 @@ public class Lwjgl3Launcher {
 // after specific missions, enemies change weapons
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // more options for starting a mission
-// lock item disappearing when burned down car or house
 // pulling out characters from vehicles
+// pressing e to talk will no longer switch weapon
 // add event button automatically adds new event without saving button press
 // new events: PLAY_SOUND
 // make timer_expires visual
+// car explosion dealing damage
 // label to show how many enemies left for kill all enemies
 // broken lantern switches image to broken lantern
 // muscle flash for enemies shooting

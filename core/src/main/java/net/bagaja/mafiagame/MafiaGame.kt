@@ -727,7 +727,7 @@ class MafiaGame : ApplicationAdapter() {
             carSystem.update(deltaTime, sceneManager)
 
             // Update the lock indicator based on player, car, and house positions
-            lockIndicatorSystem.update(playerSystem.getPosition(), sceneManager.activeCars, sceneManager.activeHouses)
+            lockIndicatorSystem.update(playerSystem.getPosition(), playerSystem.isDriving, sceneManager.activeCars, sceneManager.activeHouses)
 
             // Update item system (animations, collisions, etc.)
             itemSystem.update(deltaTime, cameraManager.camera, playerSystem, sceneManager)

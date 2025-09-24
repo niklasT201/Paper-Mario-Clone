@@ -87,8 +87,18 @@ class LockIndicatorSystem {
     /**
      * The main update loop. It now checks both cars and houses.
      */
-    fun update(playerPos: Vector3, cars: Array<GameCar>, houses: Array<GameHouse>) {
+    fun update(playerPos: Vector3, isPlayerDriving: Boolean, cars: Array<GameCar>, houses: Array<GameHouse>) {
         // --- Handle Car Lock ---
+        if (isPlayerDriving) {
+            // If the player is driving, hide BOTH car and house locks.
+            carLockIcon?.isVisible = false
+            for (icon in lockIcons) {
+                icon.isVisible = false
+            }
+            // Exit early since there's nothing else to do.
+            return
+        }
+
         updateCarLock(playerPos, cars)
 
         // Handle House Locks
@@ -101,20 +111,14 @@ class LockIndicatorSystem {
             carLockIcon = createLockIcon()
         }
 
-        val closestLockedCar = cars.filter { it.isLocked }
+        val closestLockedCar = cars.filter { it.isLocked && it.state == CarState.DRIVABLE }
             .minByOrNull { it.position.dst2(playerPos) }
 
         // Check if a car was found and if it's within our activation range
         if (closestLockedCar != null && closestLockedCar.position.dst(playerPos) < activationDistance) {
             val car = closestLockedCar
             val carLockPos = Vector3()
-
-            // Positioning Logic
-            // Get the horizontal vector from the car to the player
-            val direction = Vector3(playerPos).sub(car.position)
-            direction.y = 0f
-            direction.nor()
-
+            val direction = Vector3(playerPos).sub(car.position).apply { y = 0f }.nor()
             val distanceFromCarCenter = (car.carType.width / 2f) + carHorizontalOffset
             carLockPos.set(car.position)
                 .add(direction.scl(distanceFromCarCenter))

@@ -715,6 +715,47 @@ data class GameCar(
             sceneManager.cameraManager.startShake(duration, intensity.coerceAtLeast(0.1f))
         }
 
+        val explosionRadius = 15f  // The range of the explosion
+        val baseDamage = 120f      // The damage at the very center of the explosion
+
+        fun calculateFalloffDamage(distance: Float): Float {
+            if (distance >= explosionRadius) return 0f
+            // Damage decreases linearly from 100% to 0% based on distance
+            val multiplier = 1.0f - (distance / explosionRadius)
+            return baseDamage * multiplier
+        }
+
+        // Damage Player
+        val damageToPlayer = calculateFalloffDamage(distanceToPlayer)
+        if (damageToPlayer > 0) {
+            println("Car explosion hits player for $damageToPlayer damage.")
+            playerSystem.takeDamage(damageToPlayer)
+        }
+
+        // Damage Enemies
+        sceneManager.activeEnemies.forEach { enemy ->
+            val distanceToEnemy = this.position.dst(enemy.position)
+            if (distanceToEnemy < explosionRadius) {
+                val damageToEnemy = calculateFalloffDamage(distanceToEnemy)
+                println("Car explosion hits ${enemy.enemyType.displayName} for $damageToEnemy damage.")
+                if (enemy.takeDamage(damageToEnemy, DamageType.EXPLOSIVE, sceneManager) && enemy.currentState != AIState.DYING) {
+                    sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
+                }
+            }
+        }
+
+        // Damage NPCs
+        sceneManager.activeNPCs.forEach { npc ->
+            val distanceToNPC = this.position.dst(npc.position)
+            if (distanceToNPC < explosionRadius) {
+                val damageToNPC = calculateFalloffDamage(distanceToNPC)
+                println("Car explosion hits ${npc.npcType.displayName} for $damageToNPC damage.")
+                if (npc.takeDamage(damageToNPC, DamageType.EXPLOSIVE, sceneManager) && npc.currentState != NPCState.DYING) {
+                    sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
+                }
+            }
+        }
+
         for (seat in this.seats) {
             when (val occupant = seat.occupant) {
                 is GameEnemy -> {
