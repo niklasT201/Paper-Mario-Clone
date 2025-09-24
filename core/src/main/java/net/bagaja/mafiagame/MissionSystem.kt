@@ -329,6 +329,12 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         val objective = activeMission?.getCurrentObjective() ?: return
         val condition = objective.completionCondition
 
+        if (condition.type == ConditionType.DRIVE_TO_LOCATION && condition.targetId == carId) {
+            println("Mission Failed: Required vehicle (ID: $carId) was destroyed.")
+            failMission()
+            return // Stop further processing for this objective
+        }
+
         if (condition.type == ConditionType.DESTROY_CAR && condition.targetId == carId) {
             // The objective was to destroy this specific car. Mark it as done.
             activeMission?.missionVariables?.set("destroyed_${carId}", true)

@@ -756,6 +756,18 @@ data class GameCar(
             }
         }
 
+        val otherCars = com.badlogic.gdx.utils.Array(sceneManager.activeCars)
+        for (otherCar in otherCars) {
+            // Make sure a car doesn't damage itself in the explosion
+            if (otherCar.id == this.id) continue
+
+            val distanceToCar = this.position.dst(otherCar.position)
+            if (distanceToCar < explosionRadius) {
+                val damageToCar = calculateFalloffDamage(distanceToCar)
+                otherCar.takeDamage(damageToCar, DamageType.EXPLOSIVE)
+            }
+        }
+
         for (seat in this.seats) {
             when (val occupant = seat.occupant) {
                 is GameEnemy -> {
