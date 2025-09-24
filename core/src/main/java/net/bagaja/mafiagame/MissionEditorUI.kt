@@ -760,10 +760,26 @@ class MissionEditorUI(
             selected = existingObjective?.completionCondition?.type?.name ?: ConditionType.ENTER_AREA.name
         }
 
+        // --- NEW: Timer UI elements ---
+        val hasTimerCheckbox = CheckBox(" Enable Timer", skin).apply {
+            isChecked = existingObjective?.hasTimer ?: false
+        }
+        val timerDurationField = TextField(existingObjective?.timerDuration?.toString() ?: "60.0", skin)
+        val timerTable = Table(skin)
+        timerTable.add(Label("Duration (sec):", skin)).padRight(10f)
+        timerTable.add(timerDurationField).width(80f)
+        timerTable.isVisible = hasTimerCheckbox.isChecked // Set initial visibility
+
+        hasTimerCheckbox.addListener(object: ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                timerTable.isVisible = hasTimerCheckbox.isChecked
+                dialog.pack()
+            }
+        })
+
         // Condition-specific fields
         val targetIdField = TextField(existingObjective?.completionCondition?.targetId ?: "", skin)
         val altitudeField = TextField(existingObjective?.completionCondition?.targetAltitude?.toString() ?: "100.0", skin)
-        val timerDurationField = TextField(existingObjective?.completionCondition?.timerDuration?.toString() ?: "60.0", skin)
         val itemTypeSelect = SelectBox<String>(skin).apply {
             items = GdxArray(ItemType.entries.map { it.name }.toTypedArray())
             selected = existingObjective?.completionCondition?.itemType?.name ?: ItemType.MONEY_STACK.name
@@ -775,8 +791,7 @@ class MissionEditorUI(
         // --- DYNAMIC UI TABLES ---
         val targetIdTable = Table(skin).apply { add("Target ID:"); add(targetIdField).width(250f) }
         val altitudeTable = Table(skin).apply { add("Target Altitude (Y):"); add(altitudeField).width(80f) }
-        val areaTable = Table(skin) // This one will have other tables added, so it also needs a skin.
-        val timerTable = Table(skin).apply { add("Duration (sec):"); add(timerDurationField).width(80f) }
+        val areaTable = Table(skin)
         val itemTable = Table(skin).apply {
             add("Item Type:"); add(itemTypeSelect).row()
             add("Count:"); add(itemCountField).width(80f).row()
@@ -791,7 +806,7 @@ class MissionEditorUI(
         areaYField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaCenter?.y ?: 0.0f)
         areaZField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaCenter?.z ?: 0.0f)
 
-        val posTable = Table(skin) // MODIFIED: Pass the skin here as well
+        val posTable = Table(skin)
         posTable.add("X:").padRight(5f); posTable.add(areaXField).width(60f).padRight(10f)
         posTable.add("Y:").padRight(5f); posTable.add(areaYField).width(60f).padRight(10f)
         posTable.add("Z:").padRight(5f); posTable.add(areaZField).width(60f)
@@ -811,7 +826,6 @@ class MissionEditorUI(
             setScrollingDisabled(true, false)
         }
 
-        // This is a local function that refreshes the event list inside THIS dialog
         fun refreshObjectiveEventWidgets() {
             objectiveEventsContainer.clearChildren()
             // Use a safe copy of the list to avoid issues while editing
@@ -834,10 +848,11 @@ class MissionEditorUI(
         // --- DIALOG LAYOUT ---
         content.add("Description:"); content.add(descField).width(300f).row()
         content.add("Condition Type:"); content.add(typeSelect).row()
+        content.add(hasTimerCheckbox).colspan(2).left().padTop(10f).row()
+        content.add(timerTable).colspan(2).left().row()
         content.add(targetIdTable).colspan(2).row()
         content.add(areaTable).colspan(2).row()
         content.add(altitudeTable).colspan(2).row()
-        content.add(timerTable).colspan(2).row()
         content.add(itemTable).colspan(2).row()
         content.add(specificItemTable).colspan(2).row()
 
@@ -880,8 +895,6 @@ class MissionEditorUI(
                         areaRadius = radiusField.text.toFloatOrNull() ?: 10f
                     )
                 )
-
-                // MODIFIED: Pass the 'dialog' instance to the UIManager
                 uiManager.enterObjectiveAreaPlacementMode(objectiveToPlace, dialog)
             }
         })
@@ -890,20 +903,13 @@ class MissionEditorUI(
         fun updateVisibleFields() {
             val selectedType = try { ConditionType.valueOf(typeSelect.selected) } catch (e: Exception) { ConditionType.ENTER_AREA }
             targetIdTable.isVisible = selectedType in listOf(
-                ConditionType.ELIMINATE_TARGET,
-                ConditionType.TALK_TO_NPC,
-                ConditionType.INTERACT_WITH_OBJECT,
-                ConditionType.DESTROY_CAR,
-                ConditionType.BURN_DOWN_HOUSE,
-                ConditionType.DESTROY_OBJECT,
+                ConditionType.ELIMINATE_TARGET, ConditionType.TALK_TO_NPC,
+                ConditionType.INTERACT_WITH_OBJECT, ConditionType.DESTROY_CAR,
+                ConditionType.BURN_DOWN_HOUSE, ConditionType.DESTROY_OBJECT,
                 ConditionType.DRIVE_TO_LOCATION
             )
-
-            areaTable.isVisible = selectedType == ConditionType.ENTER_AREA ||
-                selectedType == ConditionType.DRIVE_TO_LOCATION
-
+            areaTable.isVisible = selectedType == ConditionType.ENTER_AREA || selectedType == ConditionType.DRIVE_TO_LOCATION
             altitudeTable.isVisible = selectedType == ConditionType.REACH_ALTITUDE
-            timerTable.isVisible = selectedType == ConditionType.TIMER_EXPIRES
             itemTable.isVisible = selectedType == ConditionType.COLLECT_ITEM
             specificItemTable.isVisible = selectedType == ConditionType.COLLECT_SPECIFIC_ITEM
 
@@ -927,12 +933,7 @@ class MissionEditorUI(
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 val conditionType = try { ConditionType.valueOf(typeSelect.selected) } catch (e: Exception) { ConditionType.ENTER_AREA }
                 val itemType = try { ItemType.valueOf(itemTypeSelect.selected) } catch (e: Exception) { null }
-
-                val areaCenterVec = Vector3(
-                    areaXField.text.toFloatOrNull() ?: 0f,
-                    areaYField.text.toFloatOrNull() ?: 0f,
-                    areaZField.text.toFloatOrNull() ?: 0f
-                )
+                val areaCenterVec = Vector3(areaXField.text.toFloatOrNull() ?: 0f, areaYField.text.toFloatOrNull() ?: 0f, areaZField.text.toFloatOrNull() ?: 0f)
                 val areaRadiusValue = radiusField.text.toFloatOrNull() ?: 10f
 
                 val needsArea = conditionType == ConditionType.ENTER_AREA || conditionType == ConditionType.DRIVE_TO_LOCATION
@@ -943,7 +944,6 @@ class MissionEditorUI(
                     targetAltitude = altitudeField.text.toFloatOrNull(),
                     areaCenter = if (needsArea) areaCenterVec else null,
                     areaRadius = if (needsArea) areaRadiusValue else null,
-                    timerDuration = timerDurationField.text.toFloatOrNull() ?: 60.0f,
                     itemType = itemType,
                     itemCount = itemCountField.text.toIntOrNull() ?: 1,
                     itemId = itemIdField.text.ifBlank { null }
@@ -954,11 +954,15 @@ class MissionEditorUI(
 
                 val newObjective = existingObjective?.copy(
                     description = descField.text.ifBlank { "New Objective" },
-                    completionCondition = newCondition
+                    completionCondition = newCondition,
+                    hasTimer = hasTimerCheckbox.isChecked,
+                    timerDuration = timerDurationField.text.toFloatOrNull() ?: 60f
                 ) ?: MissionObjective(
                     description = descField.text.ifBlank { "New Objective" },
                     completionCondition = newCondition,
-                    eventsOnStart = eventsOnStart
+                    eventsOnStart = eventsOnStart,
+                    hasTimer = hasTimerCheckbox.isChecked,
+                    timerDuration = timerDurationField.text.toFloatOrNull() ?: 60f
                 )
 
                 if (existingObjective == null) {

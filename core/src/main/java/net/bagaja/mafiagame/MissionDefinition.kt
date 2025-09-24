@@ -64,7 +64,9 @@ data class MissionObjective(
     val markerPosition: Vector3? = null,
     val markerRadius: Float = 10f,
     val completionCondition: CompletionCondition = CompletionCondition(),
-    val eventsOnStart: MutableList<GameEvent> = mutableListOf()
+    val eventsOnStart: MutableList<GameEvent> = mutableListOf(),
+    val hasTimer: Boolean = false,
+    val timerDuration: Float = 60f
 )
 
 data class MissionReward(
@@ -85,7 +87,6 @@ enum class ConditionType {
     DESTROY_OBJECT,
     REACH_ALTITUDE,
     DRIVE_TO_LOCATION,
-    TIMER_EXPIRES,
     TALK_TO_NPC,
     INTERACT_WITH_OBJECT,
     COLLECT_ITEM,

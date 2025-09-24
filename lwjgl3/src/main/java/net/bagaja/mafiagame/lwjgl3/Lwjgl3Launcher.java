@@ -77,7 +77,6 @@ public class Lwjgl3Launcher {
 // choosing character images via images, not paths
 // visual screen for finished mission
 // death resets mission
-// timer turned to 0 before mission finished resets mission
 // nickelodeons having real short films
 // visual that a character wants to talk
 // y=0 standard bottom only in editor mode
@@ -89,7 +88,6 @@ public class Lwjgl3Launcher {
 // pressing e to talk will no longer switch weapon
 // add event button automatically adds new event without saving button press
 // new events: PLAY_SOUND
-// make timer_expires visual
 // label to show how many enemies left for kill all enemies
 // broken lantern switches image to broken lantern
 // muscle flash for enemies shooting

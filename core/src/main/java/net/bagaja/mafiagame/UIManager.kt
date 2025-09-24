@@ -125,6 +125,7 @@ class UIManager(
     private lateinit var fpsTable: Table
     private lateinit var missionObjectiveLabel: Label
     private lateinit var leaveCarTimerLabel: Label
+    private lateinit var missionTimerLabel: Label
 
     private var currentViolenceLevel = ViolenceLevel.FULL_VIOLENCE
     var currentEditorMode = EditorMode.WORLD
@@ -213,6 +214,17 @@ class UIManager(
         timerTable.bottom().padBottom(50f) // Position at the bottom center of the screen
         timerTable.add(leaveCarTimerLabel)
         stage.addActor(timerTable)
+
+        missionTimerLabel = Label("", skin, "title")
+        missionTimerLabel.setFontScale(1.8f) // Make it large and important
+        missionTimerLabel.color = Color.ORANGE
+        missionTimerLabel.setAlignment(Align.center)
+        missionTimerLabel.isVisible = false
+        val missionTimerTable = Table()
+        missionTimerTable.setFillParent(true)
+        missionTimerTable.top().padTop(80f) // Position below the main objective text
+        missionTimerTable.add(missionTimerLabel)
+        stage.addActor(missionTimerTable)
 
         // Initialize all your selection UIs (unchanged)
         blockSelectionUI = BlockSelectionUI(blockSystem, skin, stage)
@@ -1011,6 +1023,18 @@ class UIManager(
             leaveCarTimerLabel.setText(String.format("Return to your vehicle: %.1fs", timeRemaining))
         } else {
             leaveCarTimerLabel.isVisible = false
+        }
+    }
+
+    fun updateMissionTimer(timeRemaining: Float) {
+        if (timeRemaining > 0f) {
+            missionTimerLabel.isVisible = true
+            // Format to show minutes and seconds for longer timers
+            val minutes = (timeRemaining / 60).toInt()
+            val seconds = (timeRemaining % 60).toInt()
+            missionTimerLabel.setText(String.format("%02d:%02d", minutes, seconds))
+        } else {
+            missionTimerLabel.isVisible = false
         }
     }
 

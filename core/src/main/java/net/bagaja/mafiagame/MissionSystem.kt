@@ -177,19 +177,26 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         val currentMission = activeMission ?: return
         val objective = currentMission.getCurrentObjective() ?: return
 
-        // Scope check at the beginning of the update loop
+        // Check if a timer is currently active for this objective.
+        val objectiveTimer = currentMission.missionVariables["objective_timer"] as? Float
+        if (objectiveTimer != null && objectiveTimer > 0f) {
+            val newTime = objectiveTimer - deltaTime
+            currentMission.missionVariables["objective_timer"] = newTime
+            game.uiManager.updateMissionTimer(newTime) // Update the visible timer
+
+            if (newTime <= 0f) {
+                println("Mission Failed: Objective timer expired.")
+                failMission()
+                return // Stop processing this frame as the mission is over
+            }
+        }
+
         if (!isScopeValid(objective, currentMission)) {
             return
         }
 
         if (isObjectiveComplete(objective, currentMission)) {
             advanceObjective()
-        }
-
-        // Update any time-based objectives
-        if (objective.completionCondition.type == ConditionType.TIMER_EXPIRES) {
-            val timer = currentMission.missionVariables["timer"] as? Float ?: objective.completionCondition.timerDuration ?: 0f
-            currentMission.missionVariables["timer"] = timer - deltaTime
         }
     }
 
@@ -293,6 +300,16 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         // If the new objective is to eliminate all enemies
         objective.eventsOnStart.forEach { executeEvent(it) }
 
+        // Check if this new objective has a timer and start it.
+        if (objective.hasTimer) {
+            activeMission?.missionVariables?.set("objective_timer", objective.timerDuration)
+            println("Objective timer started for ${objective.timerDuration} seconds.")
+        } else {
+            // If the new objective does NOT have a timer, ensure any old timer is cleared.
+            activeMission?.missionVariables?.remove("objective_timer")
+            game.uiManager.updateMissionTimer(-1f) // Tell UI to hide the timer
+        }
+
         // Hide any old markers and show new ones if needed.
         game.objectiveArrowSystem.hide() // Always hide the arrow first
 
@@ -315,13 +332,6 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 activeMission?.missionVariables?.set("enemies_to_eliminate", enemyIdsForThisObjective)
                 println("Objective started: Tracking ${enemyIdsForThisObjective.size} enemies to eliminate.")
             }
-        }
-
-        // Handle starting a timer objective.
-        if (objective.completionCondition.type == ConditionType.TIMER_EXPIRES) {
-            val duration = objective.completionCondition.timerDuration ?: 60f
-            activeMission?.missionVariables?.set("timer", duration)
-            println("Mission timer started for $duration seconds.")
         }
     }
 
@@ -445,10 +455,6 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 val distance = playerCar.position.dst(destinationCenter)
                 return distance < destinationRadius
             }
-            ConditionType.TIMER_EXPIRES -> {
-                val timer = state.missionVariables["timer"] as? Float ?: 0f
-                return timer <= 0f
-            }
             ConditionType.TALK_TO_NPC -> {
                 return state.missionVariables["dialog_complete_${condition.targetId}"] == true
             }
@@ -506,6 +512,11 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
     private fun advanceObjective() {
         val missionState = activeMission ?: return
+
+        // When an objective is completed, clear its timer from the state.
+        missionState.missionVariables.remove("objective_timer")
+        game.uiManager.updateMissionTimer(-1f) // Hide the UI timer
+
         missionState.currentObjectiveIndex++
 
         val nextObjective = missionState.getCurrentObjective()
@@ -513,7 +524,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             endMission(true) // Mission is complete
         } else {
             println("Objective complete! New objective: ${nextObjective.description}")
-            onObjectiveStarted(nextObjective) // Call our new helper function
+            onObjectiveStarted(nextObjective)
             updateUIForCurrentObjective()
         }
     }
@@ -548,16 +559,19 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         println("Deactivating mission modifiers.")
         activeModifiers = null
 
-        activeMission = null
+        // Clear UI elements
         game.uiManager.updateMissionObjective("")
+        game.uiManager.updateMissionTimer(-1f)
+        game.uiManager.updateLeaveCarTimer(-1f) // Also reset the leave car timer UI
 
         // Always hide the objective arrow when a mission ends.
         game.objectiveArrowSystem.hide()
 
-        // Reset timer state on any mission end to prevent it from carrying over.
+        // Reset internal timer states
         leaveCarTimer = -1f
         requiredCarIdForTimer = null
-        game.uiManager.updateLeaveCarTimer(leaveCarTimer)
+
+        activeMission = null
     }
 
     private fun failMission() {
