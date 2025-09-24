@@ -14,6 +14,7 @@ import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
+import com.badlogic.gdx.utils.Array
 import java.util.*
 import kotlin.math.floor
 import kotlin.random.Random
@@ -351,6 +352,7 @@ class CarSystem: IFinePositionable {
     }
 
     fun update(deltaTime: Float, sceneManager: SceneManager) {
+        val carsToDestroy = Array<GameCar>()
         val carIterator = sceneManager.activeCars.iterator()
         while (carIterator.hasNext()) {
             val car = carIterator.next()
@@ -358,9 +360,26 @@ class CarSystem: IFinePositionable {
             // Let the car update its internal timers and animations
             car.update(deltaTime)
 
-            // 1. Check if a drivable car should be destroyed
+            // 1. Check if a drivable car's health has dropped to zero.
             if (car.state == CarState.DRIVABLE && car.health <= 0) {
-                // If the player is driving this car, kick them out
+                // Instead of destroying it immediately, we add it to our list for later processing.
+                carsToDestroy.add(car)
+            }
+
+            // 2. Check if a faded-out car should be removed. This part is safe because
+            if (car.isReadyForRemoval) {
+                if (sceneManager.playerSystem.isDriving && sceneManager.playerSystem.getControlledEntityPosition() == car.position) {
+                    sceneManager.playerSystem.exitCar(sceneManager)
+                }
+                carIterator.remove()
+                println("Removed wrecked car from scene: ${car.carType.displayName}")
+            }
+        }
+
+        // --- STAGE 2: DEFERRED PROCESSING ---
+        if (carsToDestroy.notEmpty()) {
+            for (car in carsToDestroy) {
+                // If the player is driving this car, kick them out first.
                 if (sceneManager.playerSystem.isDriving && sceneManager.playerSystem.getControlledEntityPosition() == car.position) {
                     sceneManager.playerSystem.exitCar(sceneManager)
                 }
@@ -370,22 +389,13 @@ class CarSystem: IFinePositionable {
                 // Trigger the destruction sequence
                 val newFireObjects = car.destroy(
                     sceneManager.game.particleSystem,
-                    this, // Pass this CarSystem instance
+                    this,
                     shouldSpawnFire,
                     sceneManager.fireSystem,
-                    sceneManager.game.objectSystem, // Get systems from SceneManager's game reference
+                    sceneManager.game.objectSystem,
                     sceneManager.game.lightingManager
                 )
                 sceneManager.activeObjects.addAll(newFireObjects)
-            }
-
-            // 2. Check if a faded-out car should be removed
-            if (car.isReadyForRemoval) {
-                if (sceneManager.playerSystem.isDriving && sceneManager.playerSystem.getControlledEntityPosition() == car.position) {
-                    sceneManager.playerSystem.exitCar(sceneManager)
-                }
-                carIterator.remove()
-                println("Removed wrecked car from scene: ${car.carType.displayName}")
             }
         }
     }
@@ -712,7 +722,8 @@ data class GameCar(
             val intensity = baseIntensity * (1f - (distanceToPlayer / maxShakeDistance))
             val duration = baseDuration * (1f - (distanceToPlayer / maxShakeDistance))
 
-            sceneManager.cameraManager.startShake(duration, intensity.coerceAtLeast(0.1f))
+            // Start the shake, ensuring it has at least a little intensity if player is at max range
+            sceneManager.cameraManager.startShake(duration, intensity.coerceAtLeast(0.5f))
         }
 
         val explosionRadius = 15f  // The range of the explosion

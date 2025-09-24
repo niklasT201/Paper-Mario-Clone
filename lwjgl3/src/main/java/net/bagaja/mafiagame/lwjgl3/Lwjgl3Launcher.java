@@ -90,7 +90,6 @@ public class Lwjgl3Launcher {
 // add event button automatically adds new event without saving button press
 // new events: PLAY_SOUND
 // make timer_expires visual
-// car explosion dealing damage
 // label to show how many enemies left for kill all enemies
 // broken lantern switches image to broken lantern
 // muscle flash for enemies shooting
