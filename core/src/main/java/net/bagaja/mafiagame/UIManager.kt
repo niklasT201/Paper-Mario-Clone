@@ -102,6 +102,7 @@ class UIManager(
     // HUD Tables
     private lateinit var wantedPosterHudTable: Table
     private lateinit var minimalistHudTable: Table
+    private lateinit var missionTimerLabel: Label
     private lateinit var healthLabelMinimalist: Label
 
     // Minimalist HUD elements
@@ -125,7 +126,6 @@ class UIManager(
     private lateinit var fpsTable: Table
     private lateinit var missionObjectiveLabel: Label
     private lateinit var leaveCarTimerLabel: Label
-    private lateinit var missionTimerLabel: Label
     private var isTimerInDelayPhase = false
 
     private var currentViolenceLevel = ViolenceLevel.FULL_VIOLENCE
@@ -163,7 +163,7 @@ class UIManager(
         characterInventoryUI = CharacterInventoryUI(skin, stage, itemSystem)
         layoutBuilder = UILayoutBuilder(skin) // Create the builder
 
-        dialogSystem = DialogSystem() // ADD THIS LINE
+        dialogSystem = DialogSystem()
         dialogSystem.initialize(stage, skin)
 
         // Setup FPS display
@@ -197,16 +197,31 @@ class UIManager(
         persistentMessageTable.add(persistentMessageLabel)
         stage.addActor(persistentMessageTable)
 
+        // 1. Create the labels for the objective and timer
         missionObjectiveLabel = Label("", skin, "title")
+
+        missionTimerLabel = Label("", skin, "title")
+        missionTimerLabel.setFontScale(1.0f) // MODIFIED: Reduced font size to standard
+        missionTimerLabel.color = Color.WHITE
+        missionTimerLabel.isVisible = false
+
+        // 2. Create ONE table in the top-right corner for both labels
         val objectiveTable = Table()
         objectiveTable.setFillParent(true)
         objectiveTable.top().right().pad(20f)
-        objectiveTable.add(missionObjectiveLabel)
+
+        // 3. Add the objective text to the first row, aligned right
+        objectiveTable.add(missionObjectiveLabel).right()
+        objectiveTable.row() // Move to the next row
+
+        // 4. Add the timer to the second row, aligned right
+        objectiveTable.add(missionTimerLabel).right().padTop(5f)
+
         stage.addActor(objectiveTable)
 
-        // NEW: Setup for the "Leave Car" timer
+        // Leave Car Timer is separate and stays at the bottom center (Unchanged)
         leaveCarTimerLabel = Label("", skin, "title")
-        leaveCarTimerLabel.setFontScale(1.0f) // Make it bigger for importance
+        leaveCarTimerLabel.setFontScale(1.0f)
         leaveCarTimerLabel.color = Color.RED
         leaveCarTimerLabel.setAlignment(Align.center)
         leaveCarTimerLabel.isVisible = false
@@ -216,18 +231,7 @@ class UIManager(
         timerTable.add(leaveCarTimerLabel)
         stage.addActor(timerTable)
 
-        missionTimerLabel = Label("", skin, "title")
-        missionTimerLabel.setFontScale(1.8f) // Make it large and important
-        missionTimerLabel.color = Color.ORANGE
-        missionTimerLabel.setAlignment(Align.center)
-        missionTimerLabel.isVisible = false
-        val missionTimerTable = Table()
-        missionTimerTable.setFillParent(true)
-        missionTimerTable.top().padTop(80f) // Position below the main objective text
-        missionTimerTable.add(missionTimerLabel)
-        stage.addActor(missionTimerTable)
-
-        // Initialize all your selection UIs (unchanged)
+        // Initialize all your selection UIs
         blockSelectionUI = BlockSelectionUI(blockSystem, skin, stage)
         blockSelectionUI.initialize()
 
@@ -1036,9 +1040,9 @@ class UIManager(
             missionTimerLabel.isVisible = true
 
             if (isDelay) {
-                missionTimerLabel.color = Color.LIGHT_GRAY // "Get Ready" color
+                missionTimerLabel.color = Color.LIGHT_GRAY
             } else {
-                missionTimerLabel.color = Color.ORANGE     // "Countdown" color
+                missionTimerLabel.color = Color.WHITE
             }
 
             val minutes = (timeRemaining / 60).toInt()

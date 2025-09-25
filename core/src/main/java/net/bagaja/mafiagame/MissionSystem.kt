@@ -199,9 +199,9 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             if (objectiveTimer != null && objectiveTimer > 0f) {
                 val newTime = objectiveTimer - deltaTime
                 currentMission.missionVariables["objective_timer"] = newTime
-                game.uiManager.updateMissionTimer(newTime) // Update the visible timer
+                game.uiManager.updateMissionTimer(newTime)
 
-                if (newTime <= 0f) {
+                if (newTime <= 0f && objective.completionCondition.type != ConditionType.SURVIVE_FOR_TIME) {
                     println("Mission Failed: Objective timer expired.")
                     failMission()
                     return // Stop processing this frame as the mission is over
@@ -209,9 +209,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             }
         }
 
-        if (!isScopeValid(objective, currentMission)) {
-            return
-        }
+        if (!isScopeValid(objective, currentMission)) { return }
 
         if (isObjectiveComplete(objective, currentMission)) {
             advanceObjective()
@@ -471,6 +469,11 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 // 5. Check if the car's position is within the destination radius.
                 val distance = playerCar.position.dst(destinationCenter)
                 return distance < destinationRadius
+            }
+            ConditionType.SURVIVE_FOR_TIME -> {
+                val timer = state.missionVariables["objective_timer"] as? Float ?: return false
+                // The objective is complete if the timer has run out (or gone below zero).
+                return timer <= 0f
             }
             ConditionType.TALK_TO_NPC -> {
                 return state.missionVariables["dialog_complete_${condition.targetId}"] == true

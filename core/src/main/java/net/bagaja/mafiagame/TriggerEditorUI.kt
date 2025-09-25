@@ -156,9 +156,11 @@ class TriggerEditorUI(
 
         triggerTypeSelectBox.selected = mission.startTrigger.type.name
         radiusField.text = mission.startTrigger.areaRadius.toString()
+
         dialogIdSelectBox.items = GdxArray(missionSystem.getAllDialogueIds().toTypedArray())
         targetNpcIdField.text = mission.startTrigger.targetNpcId ?: ""
         dialogIdSelectBox.selected = mission.startTrigger.dialogId
+
         itemTypeSelectBox.selected = mission.startTrigger.itemType?.displayName ?: ItemType.MONEY_STACK.displayName
         itemCountField.text = mission.startTrigger.itemCount.toString()
         targetHouseIdField.text = mission.startTrigger.targetHouseId ?: ""
@@ -174,6 +176,7 @@ class TriggerEditorUI(
         mission.startTrigger.areaRadius = radiusField.text.toFloatOrNull() ?: TriggerSystem.VISUAL_RADIUS
         mission.startTrigger.targetNpcId = targetNpcIdField.text.ifBlank { null }
         mission.startTrigger.dialogId = dialogIdSelectBox.selected
+
         mission.startTrigger.itemType = ItemType.entries.find { it.displayName == itemTypeSelectBox.selected }
         mission.startTrigger.itemCount = itemCountField.text.toIntOrNull() ?: 1
         mission.startTrigger.targetHouseId = targetHouseIdField.text.ifBlank { null }
