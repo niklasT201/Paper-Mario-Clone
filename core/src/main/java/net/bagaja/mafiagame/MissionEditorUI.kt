@@ -30,6 +30,8 @@ class MissionEditorUI(
     private val missionDescriptionArea: TextArea
     private val prerequisitesField: TextField
     private val scopeSelectBox: SelectBox<String>
+    private lateinit var objectiveDialogIdSelectBox: SelectBox<String>
+    private lateinit var dialogSettingsTable: Table
 
     private val objectivesContainer: VerticalGroup
     private val rewardsContainer: VerticalGroup
@@ -788,6 +790,13 @@ class MissionEditorUI(
         val itemIdField = TextField(existingObjective?.completionCondition?.itemId ?: "", skin)
         itemIdField.messageText = "Unique Item ID (e.g., 'key_to_vault')"
 
+        dialogSettingsTable = Table(skin)
+        objectiveDialogIdSelectBox = SelectBox(skin)
+        objectiveDialogIdSelectBox.items = GdxArray(missionSystem.getAllDialogueIds().toTypedArray())
+        objectiveDialogIdSelectBox.selected = existingObjective?.completionCondition?.dialogId
+        dialogSettingsTable.add(Label("Dialogue to Play:", skin)).left().row()
+        dialogSettingsTable.add(objectiveDialogIdSelectBox).growX().row()
+
         // --- DYNAMIC UI TABLES ---
         val targetIdTable = Table(skin).apply { add("Target ID:"); add(targetIdField).width(250f) }
         val altitudeTable = Table(skin).apply { add("Target Altitude (Y):"); add(altitudeField).width(80f) }
@@ -851,6 +860,8 @@ class MissionEditorUI(
         content.add(hasTimerCheckbox).colspan(2).left().padTop(10f).row()
         content.add(timerTable).colspan(2).left().row()
         content.add(targetIdTable).colspan(2).row()
+        content.add(dialogSettingsTable).colspan(2).row()
+        content.add(areaTable).colspan(2).row()
         content.add(areaTable).colspan(2).row()
         content.add(altitudeTable).colspan(2).row()
         content.add(itemTable).colspan(2).row()
@@ -902,6 +913,18 @@ class MissionEditorUI(
         // --- LOGIC TO SHOW/HIDE DYNAMIC FIELDS ---
         fun updateVisibleFields() {
             val selectedType = try { ConditionType.valueOf(typeSelect.selected) } catch (e: Exception) { ConditionType.ENTER_AREA }
+            val isSurviveObjective = selectedType == ConditionType.SURVIVE_FOR_TIME
+
+            if (isSurviveObjective) {
+                hasTimerCheckbox.isChecked = true
+                hasTimerCheckbox.isDisabled = true
+                timerTable.isVisible = true
+            } else {
+                hasTimerCheckbox.isDisabled = false // Unlock the checkbox
+                timerTable.isVisible = hasTimerCheckbox.isChecked
+            }
+
+            dialogSettingsTable.isVisible = selectedType == ConditionType.TALK_TO_NPC
             targetIdTable.isVisible = selectedType in listOf(
                 ConditionType.ELIMINATE_TARGET, ConditionType.TALK_TO_NPC,
                 ConditionType.INTERACT_WITH_OBJECT, ConditionType.DESTROY_CAR,
@@ -941,6 +964,7 @@ class MissionEditorUI(
                 val newCondition = CompletionCondition(
                     type = conditionType,
                     targetId = targetIdField.text.ifBlank { null },
+                    dialogId = if (conditionType == ConditionType.TALK_TO_NPC) objectiveDialogIdSelectBox.selected.ifBlank { null } else null,
                     targetAltitude = altitudeField.text.toFloatOrNull(),
                     areaCenter = if (needsArea) areaCenterVec else null,
                     areaRadius = if (needsArea) areaRadiusValue else null,

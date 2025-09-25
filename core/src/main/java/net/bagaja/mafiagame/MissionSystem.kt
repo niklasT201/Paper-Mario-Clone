@@ -662,12 +662,37 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         if (condition.type == ConditionType.TALK_TO_NPC && condition.targetId == npcId) {
             // The objective matches!
 
-            // Access the missionVariables map through the 'currentMission' object
-            currentMission.missionVariables["dialog_complete_${condition.targetId}"] = true
+            // Check if a specific dialogue is linked to this objective.
+            if (!condition.dialogId.isNullOrBlank()) {
+                val dialogSequence = dialogueManager.getDialogue(condition.dialogId)
+                if (dialogSequence != null) {
+                    // We found a dialogue! Create a new sequence with an onComplete callback.
+                    val sequenceWithCallback = dialogSequence.copy(
+                        onComplete = {
+                            println("Objective dialogue finished. Completing objective.")
+                            // Mark the objective as complete and advance the mission state.
+                            currentMission.missionVariables["dialog_complete_${condition.targetId}"] = true
+                            if (isObjectiveComplete(objective, currentMission)) {
+                                advanceObjective()
+                            }
+                        }
+                    )
+                    game.uiManager.dialogSystem.startDialog(sequenceWithCallback)
+                } else {
+                    println("ERROR: Objective tried to start dialog '${condition.dialogId}', but it was not found.")
+                    // Fallback: complete the objective anyway so the mission doesn't get stuck.
+                    currentMission.missionVariables["dialog_complete_${condition.targetId}"] = true
+                    if (isObjectiveComplete(objective, currentMission)) {
+                        advanceObjective()
+                    }
+                }
+            } else {
+                // Access the missionVariables map through the 'currentMission' object
+                currentMission.missionVariables["dialog_complete_${condition.targetId}"] = true
 
-            // The rest of the function is correct and can stay the same
-            if (isObjectiveComplete(objective, currentMission)) {
-                advanceObjective()
+                if (isObjectiveComplete(objective, currentMission)) {
+                    advanceObjective()
+                }
             }
 
             return true
