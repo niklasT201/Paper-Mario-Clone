@@ -18,6 +18,9 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
     private var requiredCarIdForTimer: String? = null
     private var objectiveTimerStartDelay = -1f
 
+    private var stayInAreaGraceTimer = -1f // -1 means timer is not active
+    private val GRACE_PERIOD_DURATION = 5.0f
+
     fun getSaveData(): MissionProgressData {
         val variablesToSave = ObjectMap<String, Any>()
 
@@ -121,6 +124,53 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         }
     }
 
+    private fun handleStayInAreaObjective(objective: MissionObjective, state: MissionState) {
+        val condition = objective.completionCondition
+        val center = condition.areaCenter ?: return
+        val radius = condition.areaRadius ?: return
+        val mode = condition.stayInAreaMode ?: StayInAreaMode.PLAYER_ONLY
+
+        var isInside = false
+        val playerPos = game.playerSystem.getPosition()
+        val isDriving = game.playerSystem.isDriving
+        val car = game.playerSystem.drivingCar
+
+        // Determine if the player/car is currently satisfying the condition
+        when (mode) {
+            StayInAreaMode.PLAYER_ONLY -> {
+                if (!isDriving && playerPos.dst(center) < radius) {
+                    isInside = true
+                }
+            }
+            StayInAreaMode.CAR_ONLY -> {
+                if (isDriving && car != null && car.position.dst(center) < radius) {
+                    isInside = true
+                }
+            }
+            StayInAreaMode.PLAYER_OR_CAR -> {
+                val checkPos = if (isDriving && car != null) car.position else playerPos
+                if (checkPos.dst(center) < radius) {
+                    isInside = true
+                }
+            }
+        }
+
+        if (isInside) {
+            // Player is safe inside the area.
+            if (stayInAreaGraceTimer > 0f) {
+                println("Player re-entered the area. Grace timer cancelled.")
+                stayInAreaGraceTimer = -1f
+                game.uiManager.updateReturnToAreaTimer(-1f) // Hide the timer
+            }
+        } else {
+            // Player is outside the area.
+            if (stayInAreaGraceTimer < 0f) { // Check < 0 to start the timer only once
+                println("Player left the required area! Starting grace period timer.")
+                stayInAreaGraceTimer = GRACE_PERIOD_DURATION
+            }
+        }
+    }
+
     fun update(deltaTime: Float) {
         if (game.uiManager.isPauseMenuVisible()) {
             return // Stop all mission processing if the game is paused.
@@ -133,6 +183,16 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
             if (leaveCarTimer <= 0f) {
                 println("Mission Failed: Player did not return to the required car in time.")
+                failMission() // Fails the mission if time runs out
+            }
+        }
+
+        if (stayInAreaGraceTimer > 0f) {
+            stayInAreaGraceTimer -= deltaTime
+            game.uiManager.updateReturnToAreaTimer(stayInAreaGraceTimer) // Tell UI to show the timer
+
+            if (stayInAreaGraceTimer <= 0f) {
+                println("Mission Failed: Player did not return to the required area in time.")
                 failMission() // Fails the mission if time runs out
             }
         }
@@ -197,16 +257,28 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             // 2. If not in a delay, run the normal timer logic.
             val objectiveTimer = currentMission.missionVariables["objective_timer"] as? Float
             if (objectiveTimer != null && objectiveTimer > 0f) {
-                val newTime = objectiveTimer - deltaTime
+                // Determine if the main objective timer should be paused
+                val effectiveDeltaTime = if (objective.completionCondition.type == ConditionType.STAY_IN_AREA && stayInAreaGraceTimer > 0f) {
+                    0f
+                } else {
+                    deltaTime // Run the timer normally
+                }
+
+                val newTime = objectiveTimer - effectiveDeltaTime
                 currentMission.missionVariables["objective_timer"] = newTime
                 game.uiManager.updateMissionTimer(newTime)
 
-                if (newTime <= 0f && objective.completionCondition.type != ConditionType.SURVIVE_FOR_TIME) {
+                if (newTime <= 0f && objective.completionCondition.type != ConditionType.SURVIVE_FOR_TIME
+                    && objective.completionCondition.type != ConditionType.STAY_IN_AREA) {
                     println("Mission Failed: Objective timer expired.")
                     failMission()
                     return // Stop processing this frame as the mission is over
                 }
             }
+        }
+
+        if (objective.completionCondition.type == ConditionType.STAY_IN_AREA) {
+            handleStayInAreaObjective(objective, currentMission)
         }
 
         if (!isScopeValid(objective, currentMission)) { return }
@@ -379,6 +451,10 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 val distance = playerPos.dst(center)
                 return distance < radius // Now this is safe
             }
+            ConditionType.STAY_IN_AREA -> {
+                val objectiveTimer = state.missionVariables["objective_timer"] as? Float
+                return objectiveTimer != null && objectiveTimer <= 0f
+            }
             ConditionType.ELIMINATE_TARGET -> {
                 // Check if an enemy with the target ID still exists in the scene
                 val targetExists = game.sceneManager.activeEnemies.any { it.id == condition.targetId }
@@ -531,6 +607,11 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
     }
 
     private fun advanceObjective() {
+        if (stayInAreaGraceTimer > 0f) {
+            stayInAreaGraceTimer = -1f
+            game.uiManager.updateReturnToAreaTimer(-1f) // Hide the timer
+        }
+
         val missionState = activeMission ?: return
 
         // When an objective is completed, clear its timer from the state.
@@ -590,6 +671,9 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         leaveCarTimer = -1f
         requiredCarIdForTimer = null
         objectiveTimerStartDelay = -1f
+
+        stayInAreaGraceTimer = -1f
+        game.uiManager.updateReturnToAreaTimer(-1f)
 
         activeMission = null
     }

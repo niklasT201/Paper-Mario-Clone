@@ -814,6 +814,15 @@ class MissionEditorUI(
             add("Specific Item ID:"); add(itemIdField).width(250f)
         }
 
+        val stayInAreaModeSelectBox = SelectBox<String>(skin).apply {
+            items = GdxArray(StayInAreaMode.entries.map { it.displayName }.toTypedArray())
+            selected = existingObjective?.completionCondition?.stayInAreaMode?.displayName ?: StayInAreaMode.PLAYER_ONLY.displayName
+        }
+        val stayInAreaTable = Table(skin)
+        stayInAreaTable.add(Label("Must stay in area as:", skin)).padRight(10f)
+        stayInAreaTable.add(stayInAreaModeSelectBox).growX()
+
+
         radiusField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaRadius ?: 10.0f)
         areaXField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaCenter?.x ?: 0.0f)
         areaYField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaCenter?.y ?: 0.0f)
@@ -865,6 +874,7 @@ class MissionEditorUI(
         contentContainer.add(targetIdTable).colspan(2).row()
         contentContainer.add(dialogSettingsTable).colspan(2).row()
         contentContainer.add(areaTable).colspan(2).row()
+        contentContainer.add(stayInAreaTable).colspan(2).row() // NEW: Add the new table to the layout
         contentContainer.add(altitudeTable).colspan(2).row()
         contentContainer.add(itemTable).colspan(2).row()
         contentContainer.add(specificItemTable).colspan(2).row()
@@ -938,10 +948,12 @@ class MissionEditorUI(
                 ConditionType.BURN_DOWN_HOUSE, ConditionType.DESTROY_OBJECT,
                 ConditionType.DRIVE_TO_LOCATION
             )
-            areaTable.isVisible = selectedType == ConditionType.ENTER_AREA || selectedType == ConditionType.DRIVE_TO_LOCATION
+            areaTable.isVisible = selectedType == ConditionType.ENTER_AREA || selectedType == ConditionType.DRIVE_TO_LOCATION || selectedType == ConditionType.STAY_IN_AREA
             altitudeTable.isVisible = selectedType == ConditionType.REACH_ALTITUDE
             itemTable.isVisible = selectedType == ConditionType.COLLECT_ITEM
             specificItemTable.isVisible = selectedType == ConditionType.COLLECT_SPECIFIC_ITEM
+            stayInAreaTable.isVisible = selectedType == ConditionType.STAY_IN_AREA
+
 
             val targetIdLabel = targetIdTable.children.first() as Label
             if (selectedType == ConditionType.DRIVE_TO_LOCATION) {
@@ -970,8 +982,9 @@ class MissionEditorUI(
                 val itemType = ItemType.entries.find { it.displayName == itemTypeSelect.selected }
                 val areaCenterVec = Vector3(areaXField.text.toFloatOrNull() ?: 0f, areaYField.text.toFloatOrNull() ?: 0f, areaZField.text.toFloatOrNull() ?: 0f)
                 val areaRadiusValue = radiusField.text.toFloatOrNull() ?: 10f
+                val stayInAreaModeSelection = StayInAreaMode.entries.find { it.displayName == stayInAreaModeSelectBox.selected }
 
-                val needsArea = conditionType == ConditionType.ENTER_AREA || conditionType == ConditionType.DRIVE_TO_LOCATION
+                val needsArea = conditionType == ConditionType.ENTER_AREA || conditionType == ConditionType.DRIVE_TO_LOCATION || conditionType == ConditionType.STAY_IN_AREA
 
                 val newCondition = CompletionCondition(
                     type = conditionType,
@@ -980,6 +993,7 @@ class MissionEditorUI(
                     targetAltitude = altitudeField.text.toFloatOrNull(),
                     areaCenter = if (needsArea) areaCenterVec else null,
                     areaRadius = if (needsArea) areaRadiusValue else null,
+                    stayInAreaMode = if (conditionType == ConditionType.STAY_IN_AREA) stayInAreaModeSelection else null,
                     itemType = itemType,
                     itemCount = itemCountField.text.toIntOrNull() ?: 1,
                     itemId = itemIdField.text.ifBlank { null }

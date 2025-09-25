@@ -126,6 +126,7 @@ class UIManager(
     private lateinit var fpsTable: Table
     private lateinit var missionObjectiveLabel: Label
     private lateinit var leaveCarTimerLabel: Label
+    private lateinit var returnToAreaTimerLabel: Label
     private var isTimerInDelayPhase = false
 
     private var currentViolenceLevel = ViolenceLevel.FULL_VIOLENCE
@@ -230,6 +231,17 @@ class UIManager(
         timerTable.bottom().padBottom(50f) // Position at the bottom center of the screen
         timerTable.add(leaveCarTimerLabel)
         stage.addActor(timerTable)
+
+        returnToAreaTimerLabel = Label("", skin, "title")
+        returnToAreaTimerLabel.setFontScale(1.0f)
+        returnToAreaTimerLabel.color = Color.ORANGE // Use a different color to distinguish
+        returnToAreaTimerLabel.setAlignment(Align.center)
+        returnToAreaTimerLabel.isVisible = false
+        val returnAreaTimerTable = Table()
+        returnAreaTimerTable.setFillParent(true)
+        returnAreaTimerTable.bottom().padBottom(90f) // Position it just above the car timer
+        returnAreaTimerTable.add(returnToAreaTimerLabel)
+        stage.addActor(returnAreaTimerTable)
 
         // Initialize all your selection UIs
         blockSelectionUI = BlockSelectionUI(blockSystem, skin, stage)
@@ -1321,6 +1333,15 @@ class UIManager(
         triggerEditorUI.setRadiusText(newRadius.toString())
     }
 
+    fun updateReturnToAreaTimer(timeRemaining: Float) {
+        if (timeRemaining > 0f) {
+            returnToAreaTimerLabel.isVisible = true
+            returnToAreaTimerLabel.setText(String.format("Return to the area: %.1fs", timeRemaining))
+        } else {
+            returnToAreaTimerLabel.isVisible = false
+        }
+    }
+
     fun render() {
         dialogSystem.update(Gdx.graphics.deltaTime)
 
@@ -1429,6 +1450,9 @@ class UIManager(
     fun dispose() {
         if (::wantedPosterTexture.isInitialized) {
             wantedPosterTexture.dispose()
+        }
+        if(::moneyStackTexture.isInitialized) {
+            moneyStackTexture.dispose()
         }
         blockSelectionUI.dispose()
         objectSelectionUI.dispose()

@@ -91,13 +91,21 @@ enum class ConditionType {
     TALK_TO_NPC,
     INTERACT_WITH_OBJECT,
     COLLECT_ITEM,
-    COLLECT_SPECIFIC_ITEM
+    COLLECT_SPECIFIC_ITEM,
+    STAY_IN_AREA
+}
+
+enum class StayInAreaMode(val displayName: String) {
+    PLAYER_ONLY("Player Only"),
+    CAR_ONLY("Car Only"),
+    PLAYER_OR_CAR("Player or Car")
 }
 
 data class CompletionCondition(
     val type: ConditionType = ConditionType.ENTER_AREA,
     val areaCenter: Vector3? = if (type == ConditionType.ENTER_AREA) Vector3() else null,
     val areaRadius: Float? = if (type == ConditionType.ENTER_AREA) 10f else null,
+    val stayInAreaMode: StayInAreaMode? = null,
     val targetId: String? = null,
     val dialogId: String? = null,
     val targetAltitude: Float? = null,
