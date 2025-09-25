@@ -752,8 +752,12 @@ class MissionEditorUI(
     private fun showObjectiveDialog(existingObjective: MissionObjective?) {
         val dialog = Dialog(if (existingObjective == null) "Add Objective" else "Edit Objective", skin, "dialog")
         dialog.isModal = true
-        val content = dialog.contentTable
-        content.pad(10f).defaults().pad(5f).align(Align.left)
+
+        val rootTable = Table()
+        dialog.contentTable.add(rootTable).grow()
+
+        val contentContainer = Table()
+        contentContainer.pad(10f).defaults().pad(5f).align(Align.left)
 
         // --- OBJECTIVE PROPERTY UI ---
         val descField = TextField(existingObjective?.description ?: "", skin)
@@ -762,15 +766,26 @@ class MissionEditorUI(
             selected = existingObjective?.completionCondition?.type?.name ?: ConditionType.ENTER_AREA.name
         }
 
-        // --- NEW: Timer UI elements ---
+        // --- Timer UI elements ---
         val hasTimerCheckbox = CheckBox(" Enable Timer", skin).apply {
             isChecked = existingObjective?.hasTimer ?: false
         }
         val timerDurationField = TextField(existingObjective?.timerDuration?.toString() ?: "60.0", skin)
+        val targetIdField = TextField(existingObjective?.completionCondition?.targetId ?: "", skin)
+        val altitudeField = TextField(existingObjective?.completionCondition?.targetAltitude?.toString() ?: "100.0", skin)
+        val itemTypeSelect = SelectBox<String>(skin).apply {
+            items = GdxArray(ItemType.entries.map { it.displayName }.toTypedArray())
+            selected = existingObjective?.completionCondition?.itemType?.displayName ?: ItemType.MONEY_STACK.displayName
+        }
+        val itemCountField = TextField(existingObjective?.completionCondition?.itemCount?.toString() ?: "1", skin)
+        val itemIdField = TextField(existingObjective?.completionCondition?.itemId ?: "", skin)
+        itemIdField.messageText = "Unique Item ID (e.g., 'key_to_vault')"
+
+        // --- DYNAMIC UI TABLES (Setup) ---
         val timerTable = Table(skin)
         timerTable.add(Label("Duration (sec):", skin)).padRight(10f)
         timerTable.add(timerDurationField).width(80f)
-        timerTable.isVisible = hasTimerCheckbox.isChecked // Set initial visibility
+        timerTable.isVisible = hasTimerCheckbox.isChecked
 
         hasTimerCheckbox.addListener(object: ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
@@ -780,18 +795,8 @@ class MissionEditorUI(
         })
 
         // Condition-specific fields
-        val targetIdField = TextField(existingObjective?.completionCondition?.targetId ?: "", skin)
-        val altitudeField = TextField(existingObjective?.completionCondition?.targetAltitude?.toString() ?: "100.0", skin)
-        val itemTypeSelect = SelectBox<String>(skin).apply {
-            items = GdxArray(ItemType.entries.map { it.name }.toTypedArray())
-            selected = existingObjective?.completionCondition?.itemType?.name ?: ItemType.MONEY_STACK.name
-        }
-        val itemCountField = TextField(existingObjective?.completionCondition?.itemCount?.toString() ?: "1", skin)
-        val itemIdField = TextField(existingObjective?.completionCondition?.itemId ?: "", skin)
-        itemIdField.messageText = "Unique Item ID (e.g., 'key_to_vault')"
-
-        dialogSettingsTable = Table(skin)
-        objectiveDialogIdSelectBox = SelectBox(skin)
+        val dialogSettingsTable = Table(skin)
+        val objectiveDialogIdSelectBox = SelectBox<String>(skin)
         objectiveDialogIdSelectBox.items = GdxArray(missionSystem.getAllDialogueIds().toTypedArray())
         objectiveDialogIdSelectBox.selected = existingObjective?.completionCondition?.dialogId
         dialogSettingsTable.add(Label("Dialogue to Play:", skin)).left().row()
@@ -809,7 +814,6 @@ class MissionEditorUI(
             add("Specific Item ID:"); add(itemIdField).width(250f)
         }
 
-        // --- Build the areaTable using the class properties ---
         radiusField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaRadius ?: 10.0f)
         areaXField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaCenter?.x ?: 0.0f)
         areaYField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaCenter?.y ?: 0.0f)
@@ -831,7 +835,7 @@ class MissionEditorUI(
         // --- UI FOR OBJECTIVE-SPECIFIC EVENTS ---
         val objectiveEventsContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.left) }
         val objectiveEventsScrollPane = ScrollPane(objectiveEventsContainer, skin).apply {
-            setFadeScrollBars(false)
+            fadeScrollBars = false
             setScrollingDisabled(true, false)
         }
 
@@ -842,8 +846,7 @@ class MissionEditorUI(
             events.forEach { event ->
                 val eventWidget = createEventWidget(event, isStartEvent = false)
                 val removeButton = (eventWidget as Table).children.find { it is TextButton && it.text.toString() == "X" } as? TextButton
-
-                removeButton?.clearListeners() // Important: remove the old listener
+                removeButton?.clearListeners()
                 removeButton?.addListener(object : ChangeListener() {
                     override fun changed(eventChanged: ChangeEvent?, actor: Actor?) {
                         existingObjective?.eventsOnStart?.remove(event)
@@ -855,25 +858,29 @@ class MissionEditorUI(
         }
 
         // --- DIALOG LAYOUT ---
-        content.add("Description:"); content.add(descField).width(300f).row()
-        content.add("Condition Type:"); content.add(typeSelect).row()
-        content.add(hasTimerCheckbox).colspan(2).left().padTop(10f).row()
-        content.add(timerTable).colspan(2).left().row()
-        content.add(targetIdTable).colspan(2).row()
-        content.add(dialogSettingsTable).colspan(2).row()
-        content.add(areaTable).colspan(2).row()
-        content.add(areaTable).colspan(2).row()
-        content.add(altitudeTable).colspan(2).row()
-        content.add(itemTable).colspan(2).row()
-        content.add(specificItemTable).colspan(2).row()
+        contentContainer.add(Label("Description:", skin)); contentContainer.add(descField).width(300f).row()
+        contentContainer.add(Label("Condition Type:", skin)); contentContainer.add(typeSelect).row()
+        contentContainer.add(hasTimerCheckbox).colspan(2).left().padTop(10f).row()
+        contentContainer.add(timerTable).colspan(2).left().row()
+        contentContainer.add(targetIdTable).colspan(2).row()
+        contentContainer.add(dialogSettingsTable).colspan(2).row()
+        contentContainer.add(areaTable).colspan(2).row()
+        contentContainer.add(altitudeTable).colspan(2).row()
+        contentContainer.add(itemTable).colspan(2).row()
+        contentContainer.add(specificItemTable).colspan(2).row()
 
-        content.add(Label("--- Events on Objective Start ---", skin, "title")).colspan(2).padTop(15f).row()
-        content.add(objectiveEventsScrollPane).colspan(2).growX().height(80f).row()
-
+        contentContainer.add(Label("--- Events on Objective Start ---", skin, "title")).colspan(2).padTop(15f).row()
+        contentContainer.add(objectiveEventsScrollPane).colspan(2).growX().height(80f).row()
         val addEventToObjectiveButton = TextButton("Add Event", skin)
-        content.add(addEventToObjectiveButton).colspan(2).left().padTop(5f).row()
+        contentContainer.add(addEventToObjectiveButton).colspan(2).left().padTop(5f).row()
 
+        // --- SCROLLPANE SETUP ---
         // If we are editing an existing objective, load its events
+        val mainScrollPane = ScrollPane(contentContainer, skin)
+        mainScrollPane.setFadeScrollBars(false)
+        mainScrollPane.setScrollingDisabled(true, false)
+        rootTable.add(mainScrollPane).grow()
+
         if (existingObjective != null) {
             refreshObjectiveEventWidgets()
         }
@@ -946,16 +953,21 @@ class MissionEditorUI(
             }
 
             dialog.pack()
+            val maxWidth = stage.width * 0.9f
+            val maxHeight = stage.height * 0.85f
+            if (dialog.width > maxWidth) dialog.width = maxWidth
+            if (dialog.height > maxHeight) dialog.height = maxHeight
+            dialog.setPosition(stage.width / 2f, stage.height / 2f, Align.center)
         }
+
         typeSelect.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { updateVisibleFields() } })
-        updateVisibleFields()
 
         // --- MAIN "SAVE" BUTTON FOR THE OBJECTIVE ---
         val saveButton = TextButton("Save", skin)
         saveButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 val conditionType = try { ConditionType.valueOf(typeSelect.selected) } catch (e: Exception) { ConditionType.ENTER_AREA }
-                val itemType = try { ItemType.valueOf(itemTypeSelect.selected) } catch (e: Exception) { null }
+                val itemType = ItemType.entries.find { it.displayName == itemTypeSelect.selected }
                 val areaCenterVec = Vector3(areaXField.text.toFloatOrNull() ?: 0f, areaYField.text.toFloatOrNull() ?: 0f, areaZField.text.toFloatOrNull() ?: 0f)
                 val areaRadiusValue = radiusField.text.toFloatOrNull() ?: 10f
 
@@ -1003,6 +1015,8 @@ class MissionEditorUI(
 
         dialog.button(saveButton)
         dialog.button("Cancel")
+
+        updateVisibleFields()
         dialog.show(stage)
         stage.keyboardFocus = descField
     }
