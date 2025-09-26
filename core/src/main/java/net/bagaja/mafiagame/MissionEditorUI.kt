@@ -806,12 +806,20 @@ class MissionEditorUI(
         stayInAreaTable.add(Label("Must stay in area as:", skin)).padRight(10f)
         stayInAreaTable.add(stayInAreaModeSelectBox).growX()
 
+        val completionActionSelectBox = SelectBox<String>(skin).apply {
+            items = GdxArray(MaintainDistanceCompletionAction.entries.map { it.displayName }.toTypedArray())
+            selected = existingObjective?.completionCondition?.maintainDistanceCompletionAction?.displayName
+                ?: MaintainDistanceCompletionAction.STOP_AND_EXIT_CAR.displayName // A sensible default
+        }
+
         val maintainDistanceTable = Table(skin)
         val requiredDistanceTable = Table(skin) // Sub-table for distance
         requiredDistanceTable.add(Label("Required Distance:", skin)).padRight(10f)
         requiredDistanceTable.add(requiredDistanceField).width(80f)
         maintainDistanceTable.add(requiredDistanceTable).left().row()
         maintainDistanceTable.add(requirePlayerCheckbox).left().padTop(5f).row()
+        maintainDistanceTable.add(Label("On Completion:", skin)).left().padTop(5f)
+        maintainDistanceTable.add(completionActionSelectBox).growX().left().padTop(5f).row()
 
         radiusField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaRadius ?: 10.0f)
         areaXField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaCenter?.x ?: 0.0f)
@@ -996,12 +1004,14 @@ class MissionEditorUI(
                 val stayInAreaModeSelection = StayInAreaMode.entries.find { it.displayName == stayInAreaModeSelectBox.selected }
 
                 val needsArea = conditionType in listOf(ConditionType.ENTER_AREA, ConditionType.DRIVE_TO_LOCATION, ConditionType.STAY_IN_AREA, ConditionType.MAINTAIN_DISTANCE)
+                val completionAction = MaintainDistanceCompletionAction.entries.find { it.displayName == completionActionSelectBox.selected }
 
                 val newCondition = CompletionCondition(
                     type = conditionType,
                     targetId = targetIdField.text.ifBlank { null },
                     checkTargetInsteadOfPlayer = (conditionType == ConditionType.ENTER_AREA && checkTargetInsteadCheckbox.isChecked),
                     requirePlayerAtDestination = if (conditionType == ConditionType.MAINTAIN_DISTANCE) requirePlayerCheckbox.isChecked else true,
+                    maintainDistanceCompletionAction = if (conditionType == ConditionType.MAINTAIN_DISTANCE) completionAction else null, // NEW
                     requiredDistance = if (conditionType == ConditionType.MAINTAIN_DISTANCE) requiredDistanceField.text.toFloatOrNull() else null,
                     dialogId = if (conditionType == ConditionType.TALK_TO_NPC) objectiveDialogIdSelectBox.selected.ifBlank { null } else null,
                     targetAltitude = altitudeField.text.toFloatOrNull(),

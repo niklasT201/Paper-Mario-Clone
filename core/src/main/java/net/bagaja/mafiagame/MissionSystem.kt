@@ -694,12 +694,18 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
     }
 
     private fun advanceObjective() {
+        val missionState = activeMission ?: return
+
+        // Check for and execute the completion action
+        val completedObjective = missionState.getCurrentObjective()
+        if (completedObjective?.completionCondition?.type == ConditionType.MAINTAIN_DISTANCE) {
+            executeMaintainDistanceCompletionAction(completedObjective.completionCondition)
+        }
+
         if (stayInAreaGraceTimer > 0f) {
             stayInAreaGraceTimer = -1f
             game.uiManager.updateReturnToAreaTimer(-1f) // Hide the timer
         }
-
-        val missionState = activeMission ?: return
 
         // When an objective is completed, clear its timer from the state.
         missionState.missionVariables.remove("objective_timer")
@@ -715,6 +721,46 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             println("Objective complete! New objective: ${nextObjective.description}")
             onObjectiveStarted(nextObjective)
             updateUIForCurrentObjective()
+        }
+    }
+
+    private fun executeMaintainDistanceCompletionAction(condition: CompletionCondition) {
+        val action = condition.maintainDistanceCompletionAction ?: return // Do nothing if no action is set
+        val targetId = condition.targetId ?: return
+
+        // Find the target car
+        val targetCar = game.sceneManager.activeCars.find { it.id == targetId } ?: return
+
+        // Find the driver inside the car
+        val driver = targetCar.seats.firstNotNullOfOrNull { it.occupant }
+        val enemyDriver = driver as? GameEnemy
+        val npcDriver = driver as? GameNPC
+
+        println("Executing completion action '${action.name}' for car '$targetId'")
+
+        when (action) {
+            MaintainDistanceCompletionAction.STOP_AND_STAY_IN_CAR -> {
+                enemyDriver?.currentState = AIState.IDLE
+                npcDriver?.currentState = NPCState.IDLE
+            }
+            MaintainDistanceCompletionAction.STOP_AND_EXIT_CAR -> {
+                if (enemyDriver != null) {
+                    game.enemySystem.handleCarExit(enemyDriver, game.sceneManager)
+                    enemyDriver.currentState = AIState.IDLE // Set to idle after exiting
+                }
+                if (npcDriver != null) {
+                    game.npcSystem.handleCarExit(npcDriver, game.sceneManager)
+                    npcDriver.currentState = NPCState.IDLE // Set to idle after exiting
+                }
+            }
+            MaintainDistanceCompletionAction.CONTINUE_PATROLLING -> {
+                if (enemyDriver != null) {
+                    enemyDriver.currentState = AIState.PATROLLING_IN_CAR
+                }
+                if (npcDriver != null) {
+                    npcDriver.currentState = NPCState.PATROLLING_IN_CAR
+                }
+            }
         }
     }
 

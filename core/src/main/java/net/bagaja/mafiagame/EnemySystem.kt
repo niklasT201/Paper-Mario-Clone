@@ -839,7 +839,7 @@ class EnemySystem : IFinePositionable {
         enemy.weapons.clear()
     }
 
-    private fun handleCarExit(enemy: GameEnemy, sceneManager: SceneManager) {
+    fun handleCarExit(enemy: GameEnemy, sceneManager: SceneManager) {
         val car = enemy.drivingCar ?: return
 
         // Calculate a safe exit position next to the car's CURRENT location

@@ -102,6 +102,12 @@ enum class StayInAreaMode(val displayName: String) {
     PLAYER_OR_CAR("Player or Car")
 }
 
+enum class MaintainDistanceCompletionAction(val displayName: String) {
+    STOP_AND_STAY_IN_CAR("Stop and Stay in Car"),
+    STOP_AND_EXIT_CAR("Stop and Exit Car"),
+    CONTINUE_PATROLLING("Continue Patrolling Path")
+}
+
 data class CompletionCondition(
     val type: ConditionType = ConditionType.ENTER_AREA,
     val areaCenter: Vector3? = if (type == ConditionType.ENTER_AREA) Vector3() else null,
@@ -110,6 +116,7 @@ data class CompletionCondition(
     val targetId: String? = null,
     val checkTargetInsteadOfPlayer: Boolean = false,
     val requirePlayerAtDestination: Boolean = true,
+    val maintainDistanceCompletionAction: MaintainDistanceCompletionAction? = null,
     val requiredDistance: Float? = null,
     val dialogId: String? = null,
     val targetAltitude: Float? = null,

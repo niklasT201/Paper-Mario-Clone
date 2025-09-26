@@ -662,7 +662,7 @@ class NPCSystem : IFinePositionable {
         currentRotation = if (currentRotation == 0f) 180f else 0f
     }
 
-    private fun handleCarExit(npc: GameNPC, sceneManager: SceneManager) {
+    fun handleCarExit(npc: GameNPC, sceneManager: SceneManager) {
         val car = npc.drivingCar ?: return
 
         // Calculate a safe exit position next to the car's CURRENT location
