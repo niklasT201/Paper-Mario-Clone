@@ -781,6 +781,17 @@ class MissionEditorUI(
         val itemIdField = TextField(existingObjective?.completionCondition?.itemId ?: "", skin)
         itemIdField.messageText = "Unique Item ID (e.g., 'key_to_vault')"
 
+        val requiredDistanceField = TextField(existingObjective?.completionCondition?.requiredDistance?.toString() ?: "50.0", skin)
+
+        val checkTargetInsteadCheckbox = CheckBox(" Track Target ID Instead of Player", skin).apply {
+            isChecked = existingObjective?.completionCondition?.checkTargetInsteadOfPlayer ?: false
+        }
+
+        val requirePlayerCheckbox = CheckBox(" Player Must Also Be At Destination", skin).apply {
+            isChecked = existingObjective?.completionCondition?.requirePlayerAtDestination ?: true // Default to true
+        }
+
+
         // --- DYNAMIC UI TABLES (Setup) ---
         val timerTable = Table(skin)
         timerTable.add(Label("Duration (sec):", skin)).padRight(10f)
@@ -822,6 +833,12 @@ class MissionEditorUI(
         stayInAreaTable.add(Label("Must stay in area as:", skin)).padRight(10f)
         stayInAreaTable.add(stayInAreaModeSelectBox).growX()
 
+        val maintainDistanceTable = Table(skin)
+        val requiredDistanceTable = Table(skin) // Sub-table for distance
+        requiredDistanceTable.add(Label("Required Distance:", skin)).padRight(10f)
+        requiredDistanceTable.add(requiredDistanceField).width(80f)
+        maintainDistanceTable.add(requiredDistanceTable).left().row()
+        maintainDistanceTable.add(requirePlayerCheckbox).left().padTop(5f).row()
 
         radiusField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaRadius ?: 10.0f)
         areaXField.text = String.format(Locale.US, "%.2f", existingObjective?.completionCondition?.areaCenter?.x ?: 0.0f)
@@ -839,7 +856,8 @@ class MissionEditorUI(
         areaTable.add(radiusField).width(80f).left()
 
         val placeButton = TextButton("Place Area", skin)
-        areaTable.add(placeButton).padLeft(15f)
+        areaTable.add(placeButton).padLeft(15f).row()
+        areaTable.add(checkTargetInsteadCheckbox).colspan(3).left().padTop(5f)
 
         // --- UI FOR OBJECTIVE-SPECIFIC EVENTS ---
         val objectiveEventsContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.left) }
@@ -874,7 +892,8 @@ class MissionEditorUI(
         contentContainer.add(targetIdTable).colspan(2).row()
         contentContainer.add(dialogSettingsTable).colspan(2).row()
         contentContainer.add(areaTable).colspan(2).row()
-        contentContainer.add(stayInAreaTable).colspan(2).row() // NEW: Add the new table to the layout
+        contentContainer.add(stayInAreaTable).colspan(2).row()
+        contentContainer.add(maintainDistanceTable).colspan(2).row()
         contentContainer.add(altitudeTable).colspan(2).row()
         contentContainer.add(itemTable).colspan(2).row()
         contentContainer.add(specificItemTable).colspan(2).row()
@@ -885,7 +904,6 @@ class MissionEditorUI(
         contentContainer.add(addEventToObjectiveButton).colspan(2).left().padTop(5f).row()
 
         // --- SCROLLPANE SETUP ---
-        // If we are editing an existing objective, load its events
         val mainScrollPane = ScrollPane(contentContainer, skin)
         mainScrollPane.setFadeScrollBars(false)
         mainScrollPane.setScrollingDisabled(true, false)
@@ -942,18 +960,27 @@ class MissionEditorUI(
             }
 
             dialogSettingsTable.isVisible = selectedType == ConditionType.TALK_TO_NPC
+            checkTargetInsteadCheckbox.isVisible = (selectedType == ConditionType.ENTER_AREA)
+
             targetIdTable.isVisible = selectedType in listOf(
                 ConditionType.ELIMINATE_TARGET, ConditionType.TALK_TO_NPC,
                 ConditionType.INTERACT_WITH_OBJECT, ConditionType.DESTROY_CAR,
                 ConditionType.BURN_DOWN_HOUSE, ConditionType.DESTROY_OBJECT,
-                ConditionType.DRIVE_TO_LOCATION
+                ConditionType.DRIVE_TO_LOCATION, ConditionType.MAINTAIN_DISTANCE
+            ) || (selectedType == ConditionType.ENTER_AREA && checkTargetInsteadCheckbox.isChecked)
+
+            areaTable.isVisible = selectedType in listOf(
+                ConditionType.ENTER_AREA,
+                ConditionType.DRIVE_TO_LOCATION,
+                ConditionType.STAY_IN_AREA,
+                ConditionType.MAINTAIN_DISTANCE
             )
-            areaTable.isVisible = selectedType == ConditionType.ENTER_AREA || selectedType == ConditionType.DRIVE_TO_LOCATION || selectedType == ConditionType.STAY_IN_AREA
+
             altitudeTable.isVisible = selectedType == ConditionType.REACH_ALTITUDE
             itemTable.isVisible = selectedType == ConditionType.COLLECT_ITEM
             specificItemTable.isVisible = selectedType == ConditionType.COLLECT_SPECIFIC_ITEM
             stayInAreaTable.isVisible = selectedType == ConditionType.STAY_IN_AREA
-
+            maintainDistanceTable.isVisible = selectedType == ConditionType.MAINTAIN_DISTANCE
 
             val targetIdLabel = targetIdTable.children.first() as Label
             if (selectedType == ConditionType.DRIVE_TO_LOCATION) {
@@ -972,6 +999,12 @@ class MissionEditorUI(
             dialog.setPosition(stage.width / 2f, stage.height / 2f, Align.center)
         }
 
+        checkTargetInsteadCheckbox.addListener(object: ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                updateVisibleFields()
+            }
+        })
+
         typeSelect.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { updateVisibleFields() } })
 
         // --- MAIN "SAVE" BUTTON FOR THE OBJECTIVE ---
@@ -984,11 +1017,14 @@ class MissionEditorUI(
                 val areaRadiusValue = radiusField.text.toFloatOrNull() ?: 10f
                 val stayInAreaModeSelection = StayInAreaMode.entries.find { it.displayName == stayInAreaModeSelectBox.selected }
 
-                val needsArea = conditionType == ConditionType.ENTER_AREA || conditionType == ConditionType.DRIVE_TO_LOCATION || conditionType == ConditionType.STAY_IN_AREA
+                val needsArea = conditionType in listOf(ConditionType.ENTER_AREA, ConditionType.DRIVE_TO_LOCATION, ConditionType.STAY_IN_AREA, ConditionType.MAINTAIN_DISTANCE)
 
                 val newCondition = CompletionCondition(
                     type = conditionType,
                     targetId = targetIdField.text.ifBlank { null },
+                    checkTargetInsteadOfPlayer = (conditionType == ConditionType.ENTER_AREA && checkTargetInsteadCheckbox.isChecked),
+                    requirePlayerAtDestination = if (conditionType == ConditionType.MAINTAIN_DISTANCE) requirePlayerCheckbox.isChecked else true,
+                    requiredDistance = if (conditionType == ConditionType.MAINTAIN_DISTANCE) requiredDistanceField.text.toFloatOrNull() else null,
                     dialogId = if (conditionType == ConditionType.TALK_TO_NPC) objectiveDialogIdSelectBox.selected.ifBlank { null } else null,
                     targetAltitude = altitudeField.text.toFloatOrNull(),
                     areaCenter = if (needsArea) areaCenterVec else null,

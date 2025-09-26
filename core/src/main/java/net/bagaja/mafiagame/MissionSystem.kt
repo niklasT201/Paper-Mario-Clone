@@ -171,6 +171,36 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         }
     }
 
+    private fun handleMaintainDistanceObjective(objective: MissionObjective, state: MissionState) {
+        val condition = objective.completionCondition
+        val targetId = condition.targetId ?: return
+        val requiredDistance = condition.requiredDistance ?: return
+
+        val playerPos = game.playerSystem.getControlledEntityPosition()
+
+        val targetEntity = game.sceneManager.activeEnemies.find { it.id == targetId } as Any?
+            ?: game.sceneManager.activeNPCs.find { it.id == targetId } as Any?
+            ?: game.sceneManager.activeCars.find { it.id == targetId } as Any?
+
+        val targetPos = when (targetEntity) {
+            is GameEnemy -> targetEntity.position
+            is GameNPC -> targetEntity.position
+            is GameCar -> targetEntity.position
+            else -> {
+                println("Mission Failed: Target to maintain distance from (ID: $targetId) is no longer in the scene.")
+                failMission()
+                return
+            }
+        }
+
+        val currentDistance = playerPos.dst(targetPos)
+
+        if (currentDistance < requiredDistance) {
+            println("Mission Failed: Player got too close to the target! (Distance: $currentDistance < Required: $requiredDistance)")
+            failMission()
+        }
+    }
+
     fun update(deltaTime: Float) {
         if (game.uiManager.isPauseMenuVisible()) {
             return // Stop all mission processing if the game is paused.
@@ -279,6 +309,10 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
         if (objective.completionCondition.type == ConditionType.STAY_IN_AREA) {
             handleStayInAreaObjective(objective, currentMission)
+        }
+
+        if (objective.completionCondition.type == ConditionType.MAINTAIN_DISTANCE) {
+            handleMaintainDistanceObjective(objective, currentMission)
         }
 
         if (!isScopeValid(objective, currentMission)) { return }
@@ -447,9 +481,25 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 val center = condition.areaCenter ?: return false // If center is null, can't complete
                 val radius = condition.areaRadius ?: return false // If radius is null, can't complete
 
-                val playerPos = game.playerSystem.getPosition()
-                val distance = playerPos.dst(center)
-                return distance < radius // Now this is safe
+                val positionToCheck: Vector3? = if (condition.checkTargetInsteadOfPlayer) {
+                    val targetId = condition.targetId ?: return false
+
+                    val targetEntity = game.sceneManager.activeCars.find { it.id == targetId } as Any?
+                        ?: game.sceneManager.activeEnemies.find { it.id == targetId }
+                        ?: game.sceneManager.activeNPCs.find { it.id == targetId }
+
+                    when (targetEntity) {
+                        is GameCar -> targetEntity.position
+                        is GameEnemy -> targetEntity.position
+                        is GameNPC -> targetEntity.position
+                        else -> null
+                    }
+                } else {
+                    game.playerSystem.getControlledEntityPosition()
+                }
+
+                if (positionToCheck == null) return false
+                return positionToCheck.dst(center) < radius
             }
             ConditionType.STAY_IN_AREA -> {
                 val objectiveTimer = state.missionVariables["objective_timer"] as? Float
@@ -563,11 +613,48 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 val currentCount = game.playerSystem.countItemInInventory(requiredItem)
                 return currentCount >= requiredCount
             }
-            // MODIFIED: Added the missing case
             ConditionType.COLLECT_SPECIFIC_ITEM -> {
                 val requiredId = condition.itemId ?: return false
                 // Check the flag we set in reportItemCollected()
                 return state.missionVariables["collected_${requiredId}"] == true
+            }
+            ConditionType.MAINTAIN_DISTANCE -> {
+                // This objective is complete ONLY when the conditions at the destination are met.
+                val targetId = condition.targetId ?: return false
+                val center = condition.areaCenter ?: return false
+                val radius = condition.areaRadius ?: return false
+
+                // --- 1. Find the target entity and its position ---
+                val targetEntity = game.sceneManager.activeCars.find { it.id == targetId } as Any?
+                    ?: game.sceneManager.activeEnemies.find { it.id == targetId }
+                    ?: game.sceneManager.activeNPCs.find { it.id == targetId }
+
+                if (targetEntity == null) return false // Target must exist to complete the objective
+
+                val targetPos = when (targetEntity) {
+                    is GameCar -> targetEntity.position
+                    is GameEnemy -> targetEntity.position
+                    is GameNPC -> targetEntity.position
+                    else -> return false
+                }
+
+                // --- 2. Check if the TARGET is in the destination area ---
+                val isTargetAtDestination = targetPos.dst(center) < radius
+                if (!isTargetAtDestination) {
+                    return false // If the target isn't there yet, the objective can't be complete.
+                }
+
+                // --- 3. Check if the PLAYER also needs to be at the destination ---
+                if (condition.requirePlayerAtDestination) {
+                    val playerPos = game.playerSystem.getControlledEntityPosition()
+                    val isPlayerAtDestination = playerPos.dst(center) < radius
+
+                    // If the player is required, BOTH must be at the destination.
+                    return isTargetAtDestination && isPlayerAtDestination
+                } else {
+                    // If the player is NOT required, only the target needs to be at the destination.
+                    return isTargetAtDestination
+                }
             }
         }
     }

@@ -90,13 +90,13 @@ public class Lwjgl3Launcher {
 // new events: PLAY_SOUND
 // label to show how many enemies left for kill all enemies
 // broken lantern switches image to broken lantern
-// timer to survive being visible, and can be changed in mission editor
 // muscle flash for enemies shooting
 // characters in cars start headlights
 // key for player to turn headlights off
 // Objective Markers
+// when entering a car, character cars stop moving
 // drive to location, visual arrow that shows direction
-// STAY_IN_AREA, SEQUENCE, LOSE_THE_COPS, MAINTAIN_DISTANCE, INFLUENCE_NPC, CAPTURE_TERRITORY
+// SEQUENCE, LOSE_THE_COPS, INFLUENCE_NPC, CAPTURE_TERRITORY
 // Enemy/NPC AI Override, One-Hit Kills, One-Hit Kills, Specific Weapon Infinite Ammo
 // Cutscene System
 // interact with interiors/objectives, cars, characters = give item, lose item, new event will happen

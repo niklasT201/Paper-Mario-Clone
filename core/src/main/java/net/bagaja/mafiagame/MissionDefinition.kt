@@ -92,7 +92,8 @@ enum class ConditionType {
     INTERACT_WITH_OBJECT,
     COLLECT_ITEM,
     COLLECT_SPECIFIC_ITEM,
-    STAY_IN_AREA
+    STAY_IN_AREA,
+    MAINTAIN_DISTANCE
 }
 
 enum class StayInAreaMode(val displayName: String) {
@@ -107,6 +108,9 @@ data class CompletionCondition(
     val areaRadius: Float? = if (type == ConditionType.ENTER_AREA) 10f else null,
     val stayInAreaMode: StayInAreaMode? = null,
     val targetId: String? = null,
+    val checkTargetInsteadOfPlayer: Boolean = false,
+    val requirePlayerAtDestination: Boolean = true,
+    val requiredDistance: Float? = null,
     val dialogId: String? = null,
     val targetAltitude: Float? = null,
     val timerDuration: Float? = null,
