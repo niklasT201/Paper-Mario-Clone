@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
@@ -60,7 +61,8 @@ enum class NPCBehavior(val displayName: String) {
     WATCHER("Watcher"),          // Stands still, looks at player
     WANDER("Wanderer"),         // Wanders in a radius
     FOLLOW("Follower"),           // Follows the player
-    GUARD("Guard")              // Hostile on sight (for story villains)
+    GUARD("Guard"),              // Hostile on sight (for story villains)
+    PATH_FOLLOWER("Path Follower")
 }
 
 // AI State for the NPC's state machine
@@ -86,7 +88,8 @@ data class GameNPC(
     val isHonest: Boolean = true,
     val canCollectItems: Boolean = true,
     val inventory: MutableList<GameItem> = mutableListOf(),
-    var equippedMeleeWeapon: WeaponType = WeaponType.UNARMED
+    var equippedMeleeWeapon: WeaponType = WeaponType.UNARMED,
+    var assignedPathId: String? = null
 ) {
     var isOnFire: Boolean = false
     var onFireTimer: Float = 0f
@@ -94,6 +97,7 @@ data class GameNPC(
     var onFireDamagePerSecond: Float = 0f
     @Transient lateinit var physics: PhysicsComponent
     @Transient var currentTargetPathNodeId: String? = null
+    @Transient var currentPathNode: CharacterPathNode? = null
     var bleedTimer: Float = 0f
     var bloodDripSpawnTimer: Float = 0f
 
@@ -250,14 +254,16 @@ data class GameNPC(
 // --- NPC MANAGEMENT SYSTEM ---
 
 class NPCSystem : IFinePositionable {
+    private val tempVec2_1 = com.badlogic.gdx.math.Vector2()
+    private val tempVec2_2 = com.badlogic.gdx.math.Vector2()
+    private val tempVec2_3 = com.badlogic.gdx.math.Vector2()
+    private val tempVec2_Result = com.badlogic.gdx.math.Vector2()
     private lateinit var characterPhysicsSystem: CharacterPhysicsSystem
     private val npcModels = mutableMapOf<NPCType, Model>()
     private val npcTextures = mutableMapOf<NPCType, Texture>()
     private lateinit var billboardModelBatch: ModelBatch
     private lateinit var billboardShaderProvider: BillboardShaderProvider
     private val renderableInstances = Array<ModelInstance>()
-    private val WOBBLE_AMPLITUDE_DEGREES = 5f // How far it tilts left/right. 10 degrees is a good start.
-    private val WOBBLE_FREQUENCY = 6f
     private val fleeDuration = 5.0f
 
     var currentSelectedNPCType = NPCType.FRED_THE_HERMIT
@@ -683,6 +689,93 @@ class NPCSystem : IFinePositionable {
         println("${npc.npcType.displayName} exited a car at ${npc.position}")
     }
 
+    private fun updatePathFollowerAI(npc: GameNPC, deltaTime: Float) {
+        val charPathSystem = sceneManager.game.characterPathSystem
+        val desiredMovement = Vector3()
+
+        if (npc.currentPathNode == null) {
+            val startNode = npc.assignedPathId?.let { charPathSystem.nodes[it] }
+                ?: charPathSystem.nodes.values.minByOrNull { it.position.dst2(npc.position) }
+
+            if (startNode == null) {
+                characterPhysicsSystem.update(npc.physics, desiredMovement, deltaTime) // Pass the empty vector
+                return // No paths exist
+            }
+            npc.currentPathNode = startNode
+        }
+
+        val currentNode = npc.currentPathNode ?: return
+
+        // Check if the path is for a mission that isn't active.
+        if (currentNode.isMissionOnly) {
+            val mission = sceneManager.game.missionSystem.getMissionDefinition(currentNode.missionId ?: "")
+            if (mission == null || !sceneManager.game.missionSystem.isMissionActive(mission.id)) {
+                characterPhysicsSystem.update(npc.physics, Vector3.Zero, deltaTime) // Stop moving
+                return
+            }
+        }
+
+        var nextNode = currentNode.nextNodeId?.let { charPathSystem.nodes[it] }
+
+        if (nextNode == null) {
+            val prevNode = currentNode.previousNodeId?.let { charPathSystem.nodes[it] }
+            if (prevNode != null && !prevNode.isOneWay) {
+                nextNode = prevNode // Set the previous node as the new target to go back.
+            }
+        }
+
+        if (nextNode != null) {
+            val segmentStart = currentNode.position
+            val segmentEnd = nextNode.position
+
+            // Convert 3D positions to 2D for the calculation on the X/Z plane
+            val segmentStart2D = tempVec2_1.set(segmentStart.x, segmentStart.z)
+            val segmentEnd2D = tempVec2_2.set(segmentEnd.x, segmentEnd.z)
+            val npcPos2D = tempVec2_3.set(npc.position.x, npc.position.z)
+
+            // Perform the 2D calculation
+            Intersector.nearestSegmentPoint(segmentStart2D, segmentEnd2D, npcPos2D, tempVec2_Result)
+
+            // Convert the 2D result back to a 3D point
+            val closestPointOnSegment = Vector3(tempVec2_Result.x, npc.position.y, tempVec2_Result.y)
+
+            // Aim for a point slightly ahead on the path for smoother movement
+            val direction = segmentEnd.cpy().sub(segmentStart).nor()
+            val lookAheadDistance = 2.0f
+            val targetPoint = closestPointOnSegment.cpy().mulAdd(direction, lookAheadDistance)
+
+            val perpendicular = Vector3(-direction.z, 0f, direction.x)
+            val randomOffset = (Random.nextFloat() - 0.5f) * 2.0f
+            targetPoint.mulAdd(perpendicular, randomOffset)
+
+            // Calculate final movement vector
+            val directionToTarget = targetPoint.sub(npc.position)
+            val chillSpeed = npc.npcType.speed * 0.4f
+
+            if (directionToTarget.len2() < (chillSpeed * deltaTime) * (chillSpeed * deltaTime)) {
+                desiredMovement.set(directionToTarget)
+            } else {
+                desiredMovement.set(directionToTarget.nor())
+            }
+
+            npc.physics.speed = chillSpeed
+
+            // If we are close to the next node, switch our target to it
+            if (npc.position.dst2(nextNode.position) < 16f) {
+                npc.currentPathNode = nextNode
+            }
+        } else {
+            npc.physics.speed = npc.npcType.speed
+        }
+
+        if (!desiredMovement.isZero) {
+            npc.physics.facingRotationY = if (desiredMovement.x > 0) 0f else 180f
+        }
+        characterPhysicsSystem.update(npc.physics, desiredMovement, deltaTime)
+
+        npc.physics.speed = npc.npcType.speed
+    }
+
     private fun updateAI(npc: GameNPC, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {
         if (npc.currentState == NPCState.DYING) {
             return // A dead NPC should not think.
@@ -859,6 +952,10 @@ class NPCSystem : IFinePositionable {
                     if (npc.physics.position.dst(playerPos) > stopProvokedChaseDistance) {
                         desiredMovement = playerPos.cpy().sub(npc.physics.position).nor()
                     }
+                }
+                NPCBehavior.PATH_FOLLOWER -> {
+                    updatePathFollowerAI(npc, deltaTime)
+                    return
                 }
             }
         }

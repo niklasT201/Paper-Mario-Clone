@@ -30,7 +30,8 @@ class InputHandler(
     private val sceneManager: SceneManager,
     private val roomTemplateManager: RoomTemplateManager,
     private val shaderEffectManager: ShaderEffectManager,
-    private val carPathSystem: CarPathSystem
+    private val carPathSystem: CarPathSystem,
+    private val characterPathSystem: CharacterPathSystem
 ) {
     private var isRightMousePressed = false
     private var isLeftMousePressed = false
@@ -49,6 +50,7 @@ class InputHandler(
     private var isParticleSelectionMode = false
     private var isTimeSpeedUpPressed = false
     private var isPlacingCarPath = false
+    private var isPlacingCharacterPath = false
 
     // Variables for continuous block placement/removal
     private var continuousActionTimer = 0f
@@ -148,7 +150,13 @@ class InputHandler(
                             val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
                             when (uiManager.selectedTool) {
                                 Tool.BLOCK -> blockSystem.handlePlaceAction(ray)
-                                Tool.PLAYER -> game.playerSystem.placePlayer(ray, sceneManager)
+                                Tool.PLAYER -> {
+                                    if (isPlacingCharacterPath) {
+                                        characterPathSystem.handlePlaceAction(ray)
+                                    } else {
+                                        game.playerSystem.placePlayer(ray, sceneManager)
+                                    }
+                                }
                                 Tool.OBJECT -> { objectSystem.handlePlaceAction(ray, objectSystem.currentSelectedObject) }
                                 Tool.ITEM -> itemSystem.handlePlaceAction(ray)
                                 Tool.CAR -> {
@@ -257,6 +265,12 @@ class InputHandler(
                             // Try to remove a block. If successful, consume the event.
                             val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
 
+                            if (uiManager.selectedTool == Tool.PLAYER && isPlacingCharacterPath) {
+                                characterPathSystem.cancelPlacement()
+                                uiManager.updatePlacementInfo("Character Path placement cancelled.")
+                                return true
+                            }
+
                             // --- Special Action Canceling (Highest Priority) ---
                             if (uiManager.selectedTool == Tool.CAR && isPlacingCarPath) {
                                 carPathSystem.cancelPlacement()
@@ -356,6 +370,11 @@ class InputHandler(
                                 Tool.OBJECT -> removed = objectSystem.handleRemoveAction(ray)
                                 Tool.ITEM -> removed = itemSystem.handleRemoveAction(ray)
                                 Tool.CAR -> removed = carSystem.handleRemoveAction(ray)
+                                Tool.PLAYER -> {
+                                    if (isPlacingCharacterPath) {
+                                        removed = characterPathSystem.handleRemoveAction(ray)
+                                    }
+                                }
                                 Tool.HOUSE -> removed = houseSystem.handleRemoveAction(ray)
                                 Tool.BACKGROUND -> removed = backgroundSystem.handleRemoveAction(ray)
                                 Tool.PARALLAX -> removed = parallaxSystem.handleRemoveAction(ray)
@@ -363,7 +382,7 @@ class InputHandler(
                                 Tool.ENEMY -> removed = enemySystem.handleRemoveAction(ray)
                                 Tool.NPC -> removed = npcSystem.handleRemoveAction(ray)
                                 Tool.TRIGGER -> removed = game.triggerSystem.removeTriggerForSelectedMission()
-                                Tool.PLAYER, Tool.PARTICLE -> { /* No removal action */ }
+                                Tool.PARTICLE -> { /* No removal action */ }
                             }
 
                             if (removed) {
@@ -570,8 +589,13 @@ class InputHandler(
                         blockSystem.cancelAreaFill()
                         return true
                     }
+                    if (uiManager.selectedTool == Tool.PLAYER && isPlacingCharacterPath) {
+                        characterPathSystem.cancelPlacement()
+                        uiManager.updatePlacementInfo("Character Path placement cancelled.")
+                        return true
+                    }
 
-                    if (uiManager.selectedTool == Tool.CAR && carPathSystem.isInPlacementMode) {
+                    if (uiManager.selectedTool == Tool.CAR && isPlacingCarPath) {
                         carPathSystem.cancelPlacement()
                         // Give user feedback that the action was cancelled
                         uiManager.updatePlacementInfo("Line placement cancelled.")
@@ -648,25 +672,28 @@ class InputHandler(
                             // Save Template Hotkey
                             uiManager.showSaveRoomDialog(sceneManager)
                             return true // Consume the input
-                        }
-                        else if (keycode == Input.Keys.L) {
-                            // This is our new, smarter Ctrl+L handler
-                            if (uiManager.selectedTool == Tool.CAR) {
+                        } else if (keycode == Input.Keys.L) {
+                            // Context 1: Player tool is active and we are in character path mode
+                            if (uiManager.selectedTool == Tool.PLAYER && isPlacingCharacterPath) {
+                                characterPathSystem.isPlacingMissionOnly = !characterPathSystem.isPlacingMissionOnly
+                                val status = if (characterPathSystem.isPlacingMissionOnly) "Mission Only" else "World Path"
+                                uiManager.updatePlacementInfo("Character Path Scope: $status")
+                            }
+                            // Context 2: Car tool is active
+                            else if (uiManager.selectedTool == Tool.CAR) {
                                 // CONTEXT 1: Car tool is active, so we toggle path placement.
                                 isPlacingCarPath = !isPlacingCarPath
-                                val mode = if (isPlacingCarPath) "Path Line" else "Car"
+                                val mode = if (isPlacingCarPath) "Car Path" else "Car Placement"
                                 uiManager.updatePlacementInfo("Car Tool Mode: $mode")
-                                if (!isPlacingCarPath) {
-                                    carPathSystem.cancelPlacement()
-                                }
-                            } else {
-                                // CONTEXT 2: Any other tool is active, so we load a template.
+                                if (!isPlacingCarPath) carPathSystem.cancelPlacement()
+                            }
+                            // Context 3: Default action (load room template)
+                            else {
                                 val firstTemplate = roomTemplateManager.getAllTemplates().firstOrNull()
                                 if (firstTemplate != null) {
                                     sceneManager.loadTemplateIntoCurrentInterior(firstTemplate.id)
                                     uiManager.updatePlacementInfo("Loaded template: ${firstTemplate.name}")
                                 } else {
-                                    println("No saved templates to load!")
                                     uiManager.updatePlacementInfo("No saved templates to load!")
                                 }
                             }
@@ -744,6 +771,12 @@ class InputHandler(
                                     uiManager.updatePlacementInfo("Car Path Visibility: $status")
                                     return true
                                 }
+                                if (uiManager.selectedTool == Tool.PLAYER) {
+                                    characterPathSystem.isVisible = !characterPathSystem.isVisible
+                                    val status = if (characterPathSystem.isVisible) "ON" else "OFF"
+                                    uiManager.updatePlacementInfo("Character Path Visibility: $status")
+                                    return true
+                                }
 
                                 val shiftPressed = Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT)
                                 if (shiftPressed) {
@@ -797,6 +830,12 @@ class InputHandler(
                         }
                         Input.Keys.R -> {
                             // Also has multiple contexts now
+                            if (uiManager.selectedTool == Tool.PLAYER && isPlacingCharacterPath) {
+                                characterPathSystem.isPlacingOneWay = !characterPathSystem.isPlacingOneWay
+                                val status = if (characterPathSystem.isPlacingOneWay) "One-Way" else "Bi-Directional"
+                                uiManager.updatePlacementInfo("Character Path Type: $status")
+                                return true
+                            }
                             if (uiManager.selectedTool == Tool.CAR && carPathSystem.isInPlacementMode) {
                                 val status = carPathSystem.toggleDirectionFlip()
                                 uiManager.updatePlacementInfo(status)
@@ -838,7 +877,23 @@ class InputHandler(
                         Input.Keys.I -> { if (!isItemSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) { isItemSelectionMode = true; uiManager.showItemSelection(); }; return true }
                         Input.Keys.M -> { if (!isCarSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) { isCarSelectionMode = true; uiManager.showCarSelection(); }; return true }
                         Input.Keys.H -> { if (!isHouseSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isBackgroundSelectionMode) { isHouseSelectionMode = true; uiManager.showHouseSelection(); }; return true }
-                        Input.Keys.N -> { if (!isBackgroundSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode) { isBackgroundSelectionMode = true; uiManager.showBackgroundSelection(); }; return true }
+                        Input.Keys.N -> {
+                            when {
+                                uiManager.selectedTool == Tool.PLAYER && isPlacingCharacterPath -> {
+                                    characterPathSystem.startNewPath()
+                                    uiManager.updatePlacementInfo("Started new character path segment.")
+                                }
+                                uiManager.selectedTool == Tool.CAR && isPlacingCarPath -> {
+                                    carPathSystem.startNewPath()
+                                    uiManager.updatePlacementInfo("Started new car path segment.")
+                                }
+                                !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode -> {
+                                    isBackgroundSelectionMode = true
+                                    uiManager.showBackgroundSelection()
+                                }
+                            }
+                            return true
+                        }
                         Input.Keys.J -> { if (!isInteriorSelectionMode && !isItemSelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode) { isInteriorSelectionMode = true; uiManager.showInteriorSelection(); }; return true }
                         Input.Keys.Y -> { if (!isEnemySelectionMode && !isBlockSelectionMode && !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode && !isInteriorSelectionMode && !isNPCSelectionMode) { isEnemySelectionMode = true; uiManager.showEnemySelection(); }; return true }
                         Input.Keys.U -> { if (!isNPCSelectionMode && !isEnemySelectionMode && !isBlockSelectionMode&& !isObjectSelectionMode && !isItemSelectionMode && !isCarSelectionMode && !isHouseSelectionMode && !isBackgroundSelectionMode && !isInteriorSelectionMode) { isNPCSelectionMode = true; uiManager.showNPCSelection(); }; return true }
@@ -846,6 +901,14 @@ class InputHandler(
 
                         // Other special keys
                         Input.Keys.L -> {
+                            if (uiManager.selectedTool == Tool.PLAYER) {
+                                isPlacingCharacterPath = !isPlacingCharacterPath
+                                isPlacingCarPath = false
+                                val mode = if (isPlacingCharacterPath) "Path Placement" else "Player Spawn"
+                                uiManager.updatePlacementInfo("Player Tool Mode: $mode")
+                                if (!isPlacingCharacterPath) characterPathSystem.cancelPlacement()
+                                return true
+                            }
                             if (uiManager.selectedTool == Tool.CAR && carPathSystem.isInPlacementMode) {
                                 val status = carPathSystem.cycleDirectionality()
                                 uiManager.updatePlacementInfo(status)
@@ -898,6 +961,11 @@ class InputHandler(
                         if (uiManager.selectedTool != Tool.CAR && isPlacingCarPath) {
                             isPlacingCarPath = false
                             carPathSystem.cancelPlacement() // Cancel any pending line
+                        }
+                        // ALSO cancel character path placement when switching away from Player tool
+                        if (uiManager.selectedTool != Tool.PLAYER && isPlacingCharacterPath) {
+                            isPlacingCharacterPath = false
+                            characterPathSystem.cancelPlacement()
                         }
                         uiManager.updateToolDisplay()
                         // Update preview in case we switched to/from the background tool

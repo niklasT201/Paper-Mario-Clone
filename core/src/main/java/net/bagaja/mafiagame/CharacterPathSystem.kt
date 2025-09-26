@@ -1,0 +1,269 @@
+package net.bagaja.mafiagame
+
+import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.graphics.Camera
+import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.GL20
+import com.badlogic.gdx.graphics.VertexAttributes
+import com.badlogic.gdx.graphics.g3d.*
+import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
+import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.math.Intersector
+import com.badlogic.gdx.math.Plane
+import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.collision.BoundingBox
+import com.badlogic.gdx.math.collision.Ray
+import com.badlogic.gdx.utils.Disposable
+import java.util.UUID
+
+/**
+ * Data class for a single node in a character's path.
+ */
+data class CharacterPathNode(
+    val id: String = UUID.randomUUID().toString(),
+    val position: Vector3,
+    var nextNodeId: String? = null,
+    var previousNodeId: String? = null,
+    val debugInstance: ModelInstance,
+    var isOneWay: Boolean = false,        // If true, characters must follow the direction from prev -> next
+    var isMissionOnly: Boolean = false, // If true, only used when a mission is active
+    var missionId: String? = null       // The ID of the mission this path belongs to
+)
+
+/**
+ * The state of the editor for placing lines for characters.
+ */
+enum class CharLinePlacementState {
+    IDLE,
+    PLACING_LINE
+}
+
+/**
+ * Manages the creation, rendering, and logic for character pathfinding lines.
+ */
+class CharacterPathSystem : Disposable {
+    val nodes = mutableMapOf<String, CharacterPathNode>()
+    private var lastPlacedNode: CharacterPathNode? = null
+    var isVisible = false
+
+    // Dependencies
+    lateinit var game: MafiaGame
+    lateinit var raycastSystem: RaycastSystem
+
+    // Rendering and models
+    private val modelBuilder = ModelBuilder()
+    private val modelBatch = ModelBatch()
+    val nodeModel: Model
+    private val lineModel: Model
+    private var arrowModel: Model? = null
+    private lateinit var lineInstance: ModelInstance
+    private lateinit var arrowInstance: ModelInstance
+    private lateinit var previewLineInstance: ModelInstance
+
+    // Editor state
+    private var placementState = CharLinePlacementState.IDLE
+    private var firstNode: CharacterPathNode? = null
+    private var isPreviewVisible = false
+    var isPlacingOneWay = false
+    var isPlacingMissionOnly = false
+
+    // Helpers
+    private val groundPlane = Plane(Vector3.Y, 0f)
+    private val tempVec3 = Vector3()
+    private val NODE_VISUAL_RADIUS = 0.4f
+
+    init {
+        val nodeMaterial = Material(ColorAttribute.createDiffuse(Color.GREEN)) // Green for characters
+        nodeModel = modelBuilder.createSphere(NODE_VISUAL_RADIUS * 2, NODE_VISUAL_RADIUS * 2, NODE_VISUAL_RADIUS * 2, 8, 8, nodeMaterial, (VertexAttributes.Usage.Position).toLong())
+
+        modelBuilder.begin()
+        val lineMaterial = Material(ColorAttribute.createDiffuse(Color.GREEN))
+        val partBuilder = modelBuilder.part("line", GL20.GL_LINES, VertexAttributes.Usage.Position.toLong(), lineMaterial)
+        partBuilder.line(Vector3.Zero, Vector3(0f, 0f, 1f))
+        lineModel = modelBuilder.end()
+
+        val arrowMaterial = Material(ColorAttribute.createDiffuse(Color.YELLOW))
+        arrowModel = modelBuilder.createCone(1.2f, 2.4f, 1.2f, 8, arrowMaterial, (VertexAttributes.Usage.Position).toLong())
+        arrowInstance = ModelInstance(arrowModel!!)
+
+        lineInstance = ModelInstance(lineModel)
+        previewLineInstance = ModelInstance(lineModel)
+    }
+
+    /**
+     * Editor Function: Handles placing a new node.
+     */
+    fun handlePlaceAction(ray: Ray) {
+        val hitPosition = getPlacementPositionFromRay(ray) ?: return
+        val position = hitPosition.add(0f, NODE_VISUAL_RADIUS, 0f)
+
+        when (placementState) {
+            CharLinePlacementState.IDLE -> {
+                val startNode = CharacterPathNode(
+                    position = position,
+                    debugInstance = ModelInstance(nodeModel),
+                    isOneWay = isPlacingOneWay,
+                    isMissionOnly = isPlacingMissionOnly,
+                    missionId = if (isPlacingMissionOnly) game.uiManager.selectedMissionForEditing?.id else null
+                )
+                nodes[startNode.id] = startNode
+                firstNode = startNode
+                game.lastPlacedInstance = startNode
+
+                lastPlacedNode?.nextNodeId = startNode.id
+                startNode.previousNodeId = lastPlacedNode?.id
+
+                placementState = CharLinePlacementState.PLACING_LINE
+                game.uiManager.updatePlacementInfo("Character Path: First point set. Click to place next.")
+            }
+            CharLinePlacementState.PLACING_LINE -> {
+                val endNode = CharacterPathNode(
+                    position = position,
+                    debugInstance = ModelInstance(nodeModel)
+                    // Properties like isOneWay will be set on the segment (the start node)
+                )
+                nodes[endNode.id] = endNode
+                game.lastPlacedInstance = endNode
+
+                val startNode = firstNode!!
+                startNode.nextNodeId = endNode.id
+                endNode.previousNodeId = startNode.id
+
+                startNode.isOneWay = isPlacingOneWay
+                startNode.isMissionOnly = isPlacingMissionOnly
+                startNode.missionId = if (isPlacingMissionOnly) game.uiManager.selectedMissionForEditing?.id else null
+
+                game.uiManager.updatePlacementInfo("Character Path line created.")
+                firstNode = endNode
+                lastPlacedNode = endNode
+            }
+        }
+    }
+
+    /**
+     * Editor Function: Handles removing a node.
+     */
+    fun handleRemoveAction(ray: Ray): Boolean {
+        val nodeToRemove = findNodeAtRay(ray) ?: return false
+        val prevNode = nodeToRemove.previousNodeId?.let { nodes[it] }
+        val nextNode = nodeToRemove.nextNodeId?.let { nodes[it] }
+        prevNode?.nextNodeId = nextNode?.id
+        nextNode?.previousNodeId = prevNode?.id
+
+        if (lastPlacedNode?.id == nodeToRemove.id) lastPlacedNode = prevNode
+        if (firstNode?.id == nodeToRemove.id) cancelPlacement()
+
+        nodes.remove(nodeToRemove.id)
+        return true
+    }
+
+    fun startNewPath() {
+        lastPlacedNode = null
+        cancelPlacement()
+    }
+
+    fun cancelPlacement() {
+        firstNode = null
+        placementState = CharLinePlacementState.IDLE
+        isPreviewVisible = false
+    }
+
+    private fun findNodeAtRay(ray: Ray): CharacterPathNode? {
+        return nodes.values.minByOrNull {
+            ray.origin.dst2(it.position)
+        }?.takeIf {
+            Intersector.intersectRaySphere(ray, it.position, NODE_VISUAL_RADIUS, null)
+        }
+    }
+
+    private fun getPlacementPositionFromRay(ray: Ray): Vector3? {
+        val hitBlock = raycastSystem.getBlockAtRay(ray, game.sceneManager.activeChunkManager.getAllBlocks())
+        if (hitBlock != null) {
+            if (Intersector.intersectRayBounds(ray, hitBlock.getBoundingBox(game.blockSize, BoundingBox()), tempVec3)) {
+                return tempVec3.cpy()
+            }
+        }
+        if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            return tempVec3.cpy()
+        }
+        return null
+    }
+
+    /**
+     * Editor Function: Updates the preview line from the last point to the cursor.
+     */
+    fun update(camera: Camera) {
+        if (placementState == CharLinePlacementState.PLACING_LINE && firstNode != null) {
+            val ray = camera.getPickRay(Gdx.input.x.toFloat(), Gdx.input.y.toFloat())
+            val hitPosition = getPlacementPositionFromRay(ray)
+            if (hitPosition != null) {
+                val start = firstNode!!.position
+                val end = hitPosition.add(0f, NODE_VISUAL_RADIUS, 0f)
+                val direction = end.cpy().sub(start)
+                val distance = direction.len()
+
+                previewLineInstance.transform.setToTranslation(start).rotateTowardDirection(end.cpy().sub(start), Vector3.Y).rotate(Vector3.Y, 180f)
+                previewLineInstance.transform.scale(1f, 1f, distance)
+
+                if (isPlacingOneWay) {
+                    val midPoint = start.cpy().lerp(end, 0.5f)
+                    arrowInstance.transform.setToTranslation(midPoint).rotateTowardDirection(direction, Vector3.Y).rotate(Vector3.X, -90f)
+                }
+                isPreviewVisible = true
+            } else {
+                isPreviewVisible = false
+            }
+        } else {
+            isPreviewVisible = false
+        }
+    }
+
+    /**
+     * Editor Function: Renders the path nodes and lines.
+     */
+    fun render(camera: Camera) {
+        if (!isVisible) return
+
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
+        modelBatch.begin(camera)
+        for (node in nodes.values) {
+            node.debugInstance.transform.setToTranslation(node.position)
+            val colorAttr = node.debugInstance.materials.first().get(ColorAttribute.Diffuse) as ColorAttribute
+            colorAttr.color.set(when {
+                node.isMissionOnly -> Color.CORAL
+                node.isOneWay -> Color.SKY
+                else -> Color.FOREST
+            })
+            modelBatch.render(node.debugInstance)
+
+            val nextNode = node.nextNodeId?.let { nodes[it] }
+            if (nextNode != null) {
+                val start = node.position
+                val end = nextNode.position
+                val direction = end.cpy().sub(start)
+                val distance = direction.len()
+                lineInstance.transform.setToTranslation(start).rotateTowardDirection(direction, Vector3.Y).rotate(Vector3.Y, 180f)
+                lineInstance.transform.scale(1f, 1f, distance)
+                modelBatch.render(lineInstance)
+
+                if (node.isOneWay) {
+                    val midPoint = start.cpy().lerp(end, 0.5f)
+                    arrowInstance.transform.setToTranslation(midPoint).rotateTowardDirection(direction, Vector3.Y).rotate(Vector3.X, -90f)
+                    modelBatch.render(arrowInstance)
+                }
+            }
+        }
+        if (isPreviewVisible) {
+            modelBatch.render(previewLineInstance)
+            if (isPlacingOneWay) modelBatch.render(arrowInstance)
+        }
+        modelBatch.end()
+    }
+
+    override fun dispose() {
+        nodeModel.dispose()
+        lineModel.dispose()
+        arrowModel?.dispose()
+        modelBatch.dispose()
+    }
+}

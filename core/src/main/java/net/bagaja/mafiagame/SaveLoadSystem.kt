@@ -230,7 +230,16 @@ class SaveLoadSystem(private val game: MafiaGame) {
             game.carPathSystem.nodes.values.forEach { n -> carPath.nodes.add(CarPathNodeData(n.id, n.position, n.nextNodeId, n.isOneWay)) }
             state.carPathState = carPath
 
-            // 5. Write to file
+            // 5. Character Path Data
+            val charPath = CharacterPathData()
+            game.characterPathSystem.nodes.values.forEach { n ->
+                charPath.nodes.add(CharacterPathNodeData(
+                    n.id, n.position, n.nextNodeId, n.previousNodeId, n.isOneWay, n.isMissionOnly, n.missionId
+                ))
+            }
+            state.characterPathState = charPath
+
+            // 6. Write to file
             saveFile.writeString(json.prettyPrint(state), false)
             println("--- GAME SAVED SUCCESSFULLY to ${saveFile.path()} ---")
             game.uiManager.showTemporaryMessage("Game Saved")
@@ -465,7 +474,23 @@ class SaveLoadSystem(private val game: MafiaGame) {
             // Second pass to link previousNodeId
             game.carPathSystem.nodes.values.forEach { node -> node.nextNodeId?.let { nextId -> game.carPathSystem.nodes[nextId]?.previousNodeId = node.id } }
 
-            // 3. Restore Player State
+            // 3. Restore Character Paths
+            game.characterPathSystem.nodes.clear()
+            state.characterPathState.nodes.forEach { data ->
+                val node = CharacterPathNode(
+                    id = data.id,
+                    position = data.position,
+                    nextNodeId = data.nextNodeId,
+                    previousNodeId = data.previousNodeId,
+                    debugInstance = ModelInstance(game.characterPathSystem.nodeModel),
+                    isOneWay = data.isOneWay,
+                    isMissionOnly = data.isMissionOnly,
+                    missionId = data.missionId
+                )
+                game.characterPathSystem.nodes[data.id] = node
+            }
+
+            // 4. Restore Player State
             game.playerSystem.loadState(state.playerState)
 
             state.worldState.backgrounds.forEach { data ->

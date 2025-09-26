@@ -87,6 +87,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var trajectorySystem: TrajectorySystem
     private lateinit var blockDebugRenderer: BlockDebugRenderer
     lateinit var carPathSystem: CarPathSystem
+    lateinit var characterPathSystem: CharacterPathSystem
     lateinit var objectiveArrowSystem: ObjectiveArrowSystem
 
     override fun create() {
@@ -94,6 +95,7 @@ class MafiaGame : ApplicationAdapter() {
         setupGraphics()
         raycastSystem = RaycastSystem(blockSize)
         carPathSystem = CarPathSystem()
+        characterPathSystem = CharacterPathSystem()
         particleSystem = ParticleSystem()
         objectiveArrowSystem = ObjectiveArrowSystem(this)
         blockSystem = BlockSystem()
@@ -149,7 +151,8 @@ class MafiaGame : ApplicationAdapter() {
             this, uiManager, cameraManager, blockSystem, objectSystem, itemSystem,
             carSystem, houseSystem, backgroundSystem, parallaxBackgroundSystem, interiorSystem,
             enemySystem, npcSystem, particleSystem, spawnerSystem, teleporterSystem,
-            sceneManager, roomTemplateManager, shaderEffectManager, carPathSystem
+            sceneManager, roomTemplateManager, shaderEffectManager, carPathSystem,
+            characterPathSystem
         )
 
        sceneManager.raycastSystem = this.raycastSystem
@@ -157,6 +160,8 @@ class MafiaGame : ApplicationAdapter() {
 
         carPathSystem.sceneManager = sceneManager
         carPathSystem.raycastSystem = raycastSystem
+        characterPathSystem.game = this
+        characterPathSystem.raycastSystem = raycastSystem
 
         blockSystem.sceneManager = sceneManager
         objectSystem.sceneManager = sceneManager
@@ -702,6 +707,7 @@ class MafiaGame : ApplicationAdapter() {
             handlePlayerInput()
             if (isEditorMode) {
                 carPathSystem.update(cameraManager.camera)
+                characterPathSystem.update(cameraManager.camera)
             }
             particleSystem.update(deltaTime)
             spawnerSystem.update(deltaTime, sceneManager.activeSpawners, playerSystem.getPosition())
@@ -890,6 +896,7 @@ class MafiaGame : ApplicationAdapter() {
 
         if (isEditorMode) {
             carPathSystem.render(cameraManager.camera)
+            characterPathSystem.render(cameraManager.camera)
         }
 
         teleporterSystem.renderNameplates(cameraManager.camera, playerSystem)
@@ -988,6 +995,7 @@ class MafiaGame : ApplicationAdapter() {
         objectiveArrowSystem.dispose()
         triggerSystem.dispose()
         carPathSystem.dispose()
+        characterPathSystem.dispose()
 
         // Dispose shader effect manager
         shaderEffectManager.dispose()

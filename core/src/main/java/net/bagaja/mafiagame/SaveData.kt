@@ -11,7 +11,8 @@ data class GameSaveState(
     var playerState: PlayerStateData = PlayerStateData(),
     var worldState: WorldStateData = WorldStateData(),
     var missionState: MissionProgressData = MissionProgressData(),
-    var carPathState: CarPathData = CarPathData()
+    var carPathState: CarPathData = CarPathData(),
+    var characterPathState: CharacterPathData = CharacterPathData()
 )
 
 // --- INDIVIDUAL DATA SNAPSHOTS ---
@@ -248,4 +249,18 @@ data class CarPathNodeData(
     var position: Vector3 = Vector3(),
     var nextNodeId: String? = null,
     var isOneWay: Boolean = false
+)
+
+data class CharacterPathNodeData(
+    var id: String = "",
+    var position: Vector3 = Vector3(),
+    var nextNodeId: String? = null,
+    var previousNodeId: String? = null,
+    var isOneWay: Boolean = false,
+    var isMissionOnly: Boolean = false,
+    var missionId: String? = null
+)
+
+data class CharacterPathData(
+    var nodes: GdxArray<CharacterPathNodeData> = GdxArray()
 )
