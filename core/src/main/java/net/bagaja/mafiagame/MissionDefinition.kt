@@ -157,6 +157,7 @@ data class MissionModifiers(
     var infiniteAmmoForWeapon: WeaponType? = null,
     var disableWeaponSwitching: Boolean = false,
     var disableWeaponPickups: Boolean = false,
+    var disableItemPickups: Boolean = false,
 
     // Vehicle Modifiers
     var makePlayerVehicleInvincible: Boolean = false,
@@ -171,6 +172,9 @@ data class MissionModifiers(
     var disableParticleSpawners: Boolean = false,
     var disableEnemySpawners: Boolean = false,
     var disableNpcSpawners: Boolean = false,
+    var disableCharacterSpawners: Boolean = false,
+    var civiliansFleeOnSight: Boolean = false,
+    var increasedEnemySpawns: Boolean = false,
     var freezeTimeAt: Float? = null, // A value from 0.0 to 1.0
     var disablePoliceResponse: Boolean = false // For a future police system
 )

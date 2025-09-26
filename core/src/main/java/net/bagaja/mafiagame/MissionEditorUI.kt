@@ -60,12 +60,10 @@ class MissionEditorUI(
         window.setPosition(stage.width / 2f, stage.height / 2f, Align.center)
         window.padTop(40f)
 
-        // MODIFIED: Initialize the fields in the init block
         radiusField = TextField("", skin)
         areaXField = TextField("", skin)
         areaYField = TextField("", skin)
         areaZField = TextField("", skin)
-        // END MODIFIED
 
         val mainContentTable = Table()
 
@@ -145,7 +143,7 @@ class MissionEditorUI(
 
         // --- Assembly using SplitPane ---
         val editorScrollPane = ScrollPane(editorDetailsTable, skin)
-        editorScrollPane.setFadeScrollBars(false)
+        editorScrollPane.fadeScrollBars = false
 
         // The SplitPane connects the left and right panels
         val splitPane = SplitPane(leftPanel, editorScrollPane, false, skin)
@@ -189,12 +187,7 @@ class MissionEditorUI(
             }
         })
 
-        showFlowButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) {
-                showMissionFlowDialog()
-            }
-        })
-
+        showFlowButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { showMissionFlowDialog() } })
         missionSelectBox.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 uiManager.game.sceneManager.clearMissionPreviews() // Clear old previews when changing mission
@@ -203,19 +196,10 @@ class MissionEditorUI(
                 uiManager.setPersistentMessage("MISSION EDITING: ${uiManager.selectedMissionForEditing?.title}")
             }
         })
-
-        addStartEventButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) { showEventDialog(null, true) }
-        })
-        addCompleteEventButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) { showEventDialog(null, false) }
-        })
-        addObjectiveButton.addListener(object: ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) { showObjectiveDialog(null) }
-        })
-        addRewardButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) { showRewardDialog(null) }
-        })
+        addStartEventButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { showEventDialog(null, true) } })
+        addCompleteEventButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { showEventDialog(null, false) } })
+        addObjectiveButton.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { showObjectiveDialog(null) } })
+        addRewardButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { showRewardDialog(null) } })
         missionList.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 val selectedId = missionList.selected?.split(":")?.get(0)?.trim()
@@ -236,12 +220,7 @@ class MissionEditorUI(
                 currentMissionDef?.id?.let { missionSystem.deleteMission(it); refreshMissionList(); clearEditor(); missionSystem.game.triggerSystem.refreshTriggers() }
             }
         })
-        editModifiersButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) {
-                showModifiersDialog()
-            }
-        })
-
+        editModifiersButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { showModifiersDialog() } })
         saveButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 applyChanges()
@@ -249,11 +228,7 @@ class MissionEditorUI(
                 hide() // This calls the hide() method below
             }
         })
-        closeButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) {
-                hide() // This also calls the hide() method
-            }
-        })
+        closeButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { hide() } })
     }
 
     private fun initializeMode() {
@@ -325,79 +300,77 @@ class MissionEditorUI(
         val mission = currentMissionDef ?: return
         val dialog = Dialog("Edit Mission Modifiers", skin, "dialog")
         dialog.isMovable = true
-        dialog.isResizable = true
 
-        val content = VerticalGroup().apply {
-            space(8f)
-            pad(15f)
-            align(Align.left)
-            fill()
-        }
+        val content = Table()
+        content.pad(10f).defaults().pad(4f).align(Align.left)
 
         // --- Player Modifiers ---
-        content.addActor(Label("[YELLOW]--- Player Modifiers ---", skin))
+        val playerTable = Table(skin)
+        playerTable.add(Label("[YELLOW]--- Player Modifiers ---", skin)).colspan(2).left().padBottom(5f).row()
         val unlimitedHealth = CheckBox(" Unlimited Health", skin).apply { isChecked = mission.modifiers.setUnlimitedHealth }
         val incomingDmg = TextField(mission.modifiers.incomingDamageMultiplier.toString(), skin)
         val outgoingDmg = TextField(mission.modifiers.playerDamageMultiplier.toString(), skin)
         val speedMulti = TextField(mission.modifiers.playerSpeedMultiplier.toString(), skin)
-        val infiniteAmmoAll = CheckBox(" Infinite Ammo (All Weapons)", skin).apply { isChecked = mission.modifiers.infiniteAmmo }
+        val infiniteAmmoAll = CheckBox(" Infinite Ammo (All)", skin).apply { isChecked = mission.modifiers.infiniteAmmo }
         val disableSwitch = CheckBox(" Disable Weapon Switching", skin).apply { isChecked = mission.modifiers.disableWeaponSwitching }
         val disablePickups = CheckBox(" Disable Weapon Pickups", skin).apply { isChecked = mission.modifiers.disableWeaponPickups }
+        val disableItemPickups = CheckBox(" Disable Item Pickups", skin).apply { isChecked = mission.modifiers.disableItemPickups }
 
-        content.addActor(unlimitedHealth)
-        content.addActor(Table(skin).apply { add("Incoming Damage Multiplier:"); add(incomingDmg).width(80f).left() })
-        content.addActor(Table(skin).apply { add("Player Damage Multiplier:"); add(outgoingDmg).width(80f).left() })
-        content.addActor(Table(skin).apply { add("Player Speed Multiplier:"); add(speedMulti).width(80f).left() })
-        content.addActor(infiniteAmmoAll)
-        content.addActor(disableSwitch)
-        content.addActor(disablePickups)
+        playerTable.add(unlimitedHealth).colspan(2).left().row()
+        playerTable.add("Incoming Dmg x:"); playerTable.add(incomingDmg).width(60f).left().row()
+        playerTable.add("Player Dmg x:"); playerTable.add(outgoingDmg).width(60f).left().row()
+        playerTable.add("Player Speed x:"); playerTable.add(speedMulti).width(60f).left().row()
+        playerTable.add(infiniteAmmoAll).colspan(2).left().row()
+        playerTable.add(disableSwitch).colspan(2).left().row()
+        playerTable.add(disablePickups).colspan(2).left().row()
+        playerTable.add(disableItemPickups).colspan(2).left().row()
 
         // --- Vehicle Modifiers ---
-        content.addActor(Label("[LIME]--- Vehicle Modifiers ---", skin))
-        content.space(18f)
+        val vehicleTable = Table(skin)
+        vehicleTable.add(Label("[LIME]--- Vehicle Modifiers ---", skin)).colspan(2).left().padBottom(5f).row()
         val invincibleVehicle = CheckBox(" Player's Vehicle is Invincible", skin).apply { isChecked = mission.modifiers.makePlayerVehicleInvincible }
         val allCarsUnlocked = CheckBox(" All Cars are Unlocked", skin).apply { isChecked = mission.modifiers.allCarsUnlocked }
         val carSpeedMulti = TextField(mission.modifiers.carSpeedMultiplier.toString(), skin)
-
-        content.addActor(invincibleVehicle)
-        content.addActor(allCarsUnlocked)
-        content.addActor(Table(skin).apply { add("Player Car Speed Multiplier:"); add(carSpeedMulti).width(80f).left() })
+        vehicleTable.add(invincibleVehicle).colspan(2).left().row()
+        vehicleTable.add(allCarsUnlocked).colspan(2).left().row()
+        vehicleTable.add("Car Speed x:"); vehicleTable.add(carSpeedMulti).width(60f).left().row()
 
         // --- World & AI Modifiers ---
-        content.addActor(Label("[CYAN]--- World & AI Modifiers ---", skin))
-        content.space(18f)
-
+        val worldTable = Table(skin)
+        worldTable.add(Label("[CYAN]--- World & AI Modifiers ---", skin)).colspan(2).left().padBottom(5f).row()
         val allHousesLocked = CheckBox(" All Houses are Locked", skin).apply { isChecked = mission.modifiers.allHousesLocked }
         val allHousesUnlocked = CheckBox(" All Houses are Unlocked", skin).apply { isChecked = mission.modifiers.allHousesUnlocked }
-        val disableItemSpawners = CheckBox(" Disable Item/Weapon Spawners", skin).apply { isChecked = mission.modifiers.disableItemSpawners }
-        val disableParticleSpawners = CheckBox(" Disable Particle Spawners", skin).apply { isChecked = mission.modifiers.disableParticleSpawners }
-        val disableEnemySpawners = CheckBox(" Disable Enemy Spawners", skin).apply { isChecked = mission.modifiers.disableEnemySpawners }
-        val disableNpcSpawners = CheckBox(" Disable NPC Spawners", skin).apply { isChecked = mission.modifiers.disableNpcSpawners }
-        val disableSpawners = CheckBox(" Disable Car Spawners (No Traffic)", skin).apply { isChecked = mission.modifiers.disableCarSpawners }
+        val disableCarSpawners = CheckBox(" Disable Car Spawners", skin).apply { isChecked = mission.modifiers.disableCarSpawners }
+        val disableCharacterSpawners = CheckBox(" Disable Character Spawners", skin).apply { isChecked = mission.modifiers.disableCharacterSpawners }
+        val civiliansFlee = CheckBox(" Civilians Flee on Sight", skin).apply { isChecked = mission.modifiers.civiliansFleeOnSight }
+        val increasedSpawns = CheckBox(" Increased Enemy Spawns", skin).apply { isChecked = mission.modifiers.increasedEnemySpawns }
+        worldTable.add(allHousesLocked).colspan(2).left().row()
+        worldTable.add(allHousesUnlocked).colspan(2).left().row()
+        worldTable.add(disableCarSpawners).colspan(2).left().row()
+        worldTable.add(disableCharacterSpawners).colspan(2).left().row()
+        worldTable.add(civiliansFlee).colspan(2).left().row()
+        worldTable.add(increasedSpawns).colspan(2).left().row()
 
         val freezeTimeCheckbox = CheckBox(" Freeze Time of Day", skin).apply { isChecked = mission.modifiers.freezeTimeAt != null }
         val timeSlider = Slider(0f, 1f, 0.01f, false, skin).apply { value = mission.modifiers.freezeTimeAt ?: 0.5f }
-        val timeSliderTable = Table(skin).apply{ add("Time:"); add(timeSlider).growX() }
+        val timeSliderTable = Table(skin).apply{ add(freezeTimeCheckbox).left(); add(timeSlider).growX() }
         timeSliderTable.isVisible = freezeTimeCheckbox.isChecked
         freezeTimeCheckbox.addListener(object: ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 timeSliderTable.isVisible = freezeTimeCheckbox.isChecked
             }
         })
+        worldTable.add(freezeTimeCheckbox).colspan(2).left().row()
+        worldTable.add(timeSliderTable).colspan(2).fillX().row()
 
-        content.addActor(allHousesLocked)
-        content.addActor(allHousesUnlocked)
-        content.addActor(disableSpawners) // Car Spawners
-        content.addActor(disableItemSpawners)
-        content.addActor(disableParticleSpawners)
-        content.addActor(disableEnemySpawners)
-        content.addActor(disableNpcSpawners)
-        content.addActor(freezeTimeCheckbox)
-        content.addActor(timeSliderTable)
+        // Assemble main layout
+        content.add(playerTable).top().padRight(15f)
+        content.add(vehicleTable).top().padRight(15f)
+        content.add(worldTable).top()
 
         val scrollPane = ScrollPane(content, skin)
         scrollPane.fadeScrollBars = false
-        dialog.contentTable.add(scrollPane).grow().minWidth(450f).minHeight(400f)
+        dialog.contentTable.add(scrollPane).grow().minWidth(600f).minHeight(300f).maxHeight(450f)
 
         // --- Buttons ---
         val applyButton = TextButton("Apply", skin)
@@ -411,20 +384,18 @@ class MissionEditorUI(
                 mission.modifiers.infiniteAmmo = infiniteAmmoAll.isChecked
                 mission.modifiers.disableWeaponSwitching = disableSwitch.isChecked
                 mission.modifiers.disableWeaponPickups = disablePickups.isChecked
-
+                mission.modifiers.disableItemPickups = disableItemPickups.isChecked
                 // Vehicle Modifiers
                 mission.modifiers.makePlayerVehicleInvincible = invincibleVehicle.isChecked
                 mission.modifiers.allCarsUnlocked = allCarsUnlocked.isChecked
                 mission.modifiers.carSpeedMultiplier = carSpeedMulti.text.toFloatOrNull() ?: 1.0f
-
                 // World Modifiers
                 mission.modifiers.allHousesLocked = allHousesLocked.isChecked
                 mission.modifiers.allHousesUnlocked = allHousesUnlocked.isChecked
-                mission.modifiers.disableCarSpawners = disableSpawners.isChecked
-                mission.modifiers.disableItemSpawners = disableItemSpawners.isChecked
-                mission.modifiers.disableParticleSpawners = disableParticleSpawners.isChecked
-                mission.modifiers.disableEnemySpawners = disableEnemySpawners.isChecked
-                mission.modifiers.disableNpcSpawners = disableNpcSpawners.isChecked
+                mission.modifiers.disableCarSpawners = disableCarSpawners.isChecked
+                mission.modifiers.disableCharacterSpawners = disableCharacterSpawners.isChecked
+                mission.modifiers.civiliansFleeOnSight = civiliansFlee.isChecked
+                mission.modifiers.increasedEnemySpawns = increasedSpawns.isChecked
                 mission.modifiers.freezeTimeAt = if (freezeTimeCheckbox.isChecked) timeSlider.value else null
 
                 uiManager.showTemporaryMessage("Modifiers updated for '${mission.title}'")
@@ -757,7 +728,7 @@ class MissionEditorUI(
         dialog.contentTable.add(rootTable).grow()
 
         val contentContainer = Table()
-        contentContainer.pad(10f).defaults().pad(5f).align(Align.left)
+        contentContainer.pad(10f).defaults().pad(2f).align(Align.left)
 
         // --- OBJECTIVE PROPERTY UI ---
         val descField = TextField(existingObjective?.description ?: "", skin)
@@ -790,7 +761,6 @@ class MissionEditorUI(
         val requirePlayerCheckbox = CheckBox(" Player Must Also Be At Destination", skin).apply {
             isChecked = existingObjective?.completionCondition?.requirePlayerAtDestination ?: true // Default to true
         }
-
 
         // --- DYNAMIC UI TABLES (Setup) ---
         val timerTable = Table(skin)
@@ -885,20 +855,25 @@ class MissionEditorUI(
         }
 
         // --- DIALOG LAYOUT ---
-        contentContainer.add(Label("Description:", skin)); contentContainer.add(descField).width(300f).row()
-        contentContainer.add(Label("Condition Type:", skin)); contentContainer.add(typeSelect).row()
-        contentContainer.add(hasTimerCheckbox).colspan(2).left().padTop(10f).row()
-        contentContainer.add(timerTable).colspan(2).left().row()
-        contentContainer.add(targetIdTable).colspan(2).row()
-        contentContainer.add(dialogSettingsTable).colspan(2).row()
-        contentContainer.add(areaTable).colspan(2).row()
-        contentContainer.add(stayInAreaTable).colspan(2).row()
-        contentContainer.add(maintainDistanceTable).colspan(2).row()
-        contentContainer.add(altitudeTable).colspan(2).row()
-        contentContainer.add(itemTable).colspan(2).row()
-        contentContainer.add(specificItemTable).colspan(2).row()
+        val settingsTable = Table()
+        settingsTable.defaults().align(Align.left).padBottom(2f)
 
-        contentContainer.add(Label("--- Events on Objective Start ---", skin, "title")).colspan(2).padTop(15f).row()
+        settingsTable.add(Label("Description:", skin)); settingsTable.add(descField).width(300f).row()
+        settingsTable.add(Label("Condition Type:", skin)); settingsTable.add(typeSelect).row()
+        settingsTable.add(hasTimerCheckbox).colspan(2).left().padTop(5f).row()
+        settingsTable.add(timerTable).colspan(2).left().row()
+        settingsTable.add(targetIdTable).colspan(2).row()
+        settingsTable.add(dialogSettingsTable).colspan(2).row()
+        settingsTable.add(areaTable).colspan(2).row()
+        settingsTable.add(stayInAreaTable).colspan(2).row()
+        settingsTable.add(maintainDistanceTable).colspan(2).row()
+        settingsTable.add(altitudeTable).colspan(2).row()
+        settingsTable.add(itemTable).colspan(2).row()
+        settingsTable.add(specificItemTable).colspan(2).row()
+
+        contentContainer.add(settingsTable).row()
+
+        contentContainer.add(Label("--- Events on Objective Start ---", skin, "title")).colspan(2).padTop(10f).row()
         contentContainer.add(objectiveEventsScrollPane).colspan(2).growX().height(80f).row()
         val addEventToObjectiveButton = TextButton("Add Event", skin)
         contentContainer.add(addEventToObjectiveButton).colspan(2).left().padTop(5f).row()

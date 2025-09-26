@@ -376,10 +376,11 @@ class ItemSystem: IFinePositionable {
                 val modifiers = sceneManager.game.missionSystem.activeModifiers
                 val isWeapon = item.itemType.correspondingWeapon != null
 
-                // If this item is a weapon AND the mission modifier is active, skip the pickup.
-                if (isWeapon && modifiers?.disableWeaponPickups == true) {
-                    println("Mission prevents weapon pickup. Ignoring ${item.itemType.displayName}.")
-                    continue // Skip to the next item in the loop
+                // If this item is a weapon AND the mission modifier is active, skip the pickup
+                if ((isWeapon && modifiers?.disableWeaponPickups == true) ||
+                    (!isWeapon && modifiers?.disableItemPickups == true)) {
+                    println("Mission prevents item pickup. Ignoring ${item.itemType.displayName}.")
+                    continue // Skip to the next item
                 }
 
                 if (item.itemType == ItemType.MONEY_STACK) {

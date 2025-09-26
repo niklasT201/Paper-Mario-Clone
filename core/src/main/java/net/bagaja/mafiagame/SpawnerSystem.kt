@@ -106,6 +106,12 @@ class SpawnerSystem(
 
         // MODIFIED: Expanded filtering logic
         val activeSpawners = spawners.filter { spawner ->
+            // NEW: Check for the combined character spawner disable flag first
+            if (modifiers?.disableCharacterSpawners == true &&
+                (spawner.spawnerType == SpawnerType.ENEMY || spawner.spawnerType == SpawnerType.NPC)) {
+                return@filter false
+            }
+
             when (spawner.spawnerType) {
                 SpawnerType.CAR -> modifiers?.disableCarSpawners != true
                 SpawnerType.ITEM -> modifiers?.disableItemSpawners != true
@@ -152,14 +158,22 @@ class SpawnerSystem(
 
             spawner.timer -= deltaTime
             if (spawner.timer <= 0f) {
-                // Time to spawn!
-                when (spawner.spawnerType) {
-                    SpawnerType.PARTICLE -> spawnParticles(spawner)
-                    SpawnerType.ITEM -> spawnItems(spawner)
-                    SpawnerType.WEAPON -> spawnWeaponPickup(spawner)
-                    SpawnerType.ENEMY -> spawnEnemyFromSpawner(spawner)
-                    SpawnerType.NPC -> spawnNpcFromSpawner(spawner)
-                    SpawnerType.CAR -> spawnCar(spawner)
+                val spawnCount = if (spawner.spawnerType == SpawnerType.ENEMY && modifiers?.increasedEnemySpawns == true) {
+                    (2..4).random() // Spawn 2 to 4 enemies instead of just one
+                } else {
+                    1 // Default behavior: spawn one entity
+                }
+
+                for (i in 0 until spawnCount) {
+                    // Time to spawn!
+                    when (spawner.spawnerType) {
+                        SpawnerType.PARTICLE -> spawnParticles(spawner)
+                        SpawnerType.ITEM -> spawnItems(spawner)
+                        SpawnerType.WEAPON -> spawnWeaponPickup(spawner)
+                        SpawnerType.ENEMY -> spawnEnemyFromSpawner(spawner)
+                        SpawnerType.NPC -> spawnNpcFromSpawner(spawner)
+                        SpawnerType.CAR -> spawnCar(spawner)
+                    }
                 }
 
                 if (spawner.spawnerMode == SpawnerMode.ONE_SHOT) {

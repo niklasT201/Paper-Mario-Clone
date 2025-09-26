@@ -700,6 +700,17 @@ class NPCSystem : IFinePositionable {
                     return
                 }
 
+                val modifiers = sceneManager.game.missionSystem.activeModifiers
+                if (modifiers?.civiliansFleeOnSight == true && npc.behaviorType != NPCBehavior.GUARD) {
+                    // This NPC is a civilian and should flee
+                    val fleeDistance = 30f // How far they try to run
+                    if (npc.position.dst(playerPos) < fleeDistance) {
+                        val awayDirection = npc.physics.position.cpy().sub(playerPos).nor()
+                        characterPhysicsSystem.update(npc.physics, awayDirection, deltaTime)
+                        return
+                    }
+                }
+
                 // 2. Path Following Logic
                 var desiredMovement = Vector3.Zero
                 var targetNode = npc.currentTargetPathNodeId?.let { sceneManager.game.carPathSystem.nodes[it] }
