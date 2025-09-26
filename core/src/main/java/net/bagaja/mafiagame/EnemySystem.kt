@@ -493,13 +493,16 @@ class EnemySystem : IFinePositionable {
     }
 
     fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float) {
-        if (playerSystem.isDriving) return // Don't update AI if player is safe in a car
-
-        val playerPos = playerSystem.getPosition()
+       val playerPos = playerSystem.getPosition()
         val iterator = sceneManager.activeEnemies.iterator()
 
         while (iterator.hasNext()) {
             val enemy = iterator.next()
+
+            val isObjectiveTarget = sceneManager.game.missionSystem.activeMission?.getCurrentObjective()?.completionCondition?.targetId == enemy.id
+            if (playerSystem.isDriving && !enemy.isInCar && !isObjectiveTarget) {
+                continue // Skip this specific on-foot enemy, but continue the loop for others.
+            }
 
             // First, handle AI logic (either driving or on-foot)
             if (!finePosMode) {

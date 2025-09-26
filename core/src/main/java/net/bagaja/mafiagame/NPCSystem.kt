@@ -512,13 +512,16 @@ class NPCSystem : IFinePositionable {
     }
 
     fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float) {
-        if (playerSystem.isDriving) return
-
         val playerPos = playerSystem.getPosition()
         val iterator = sceneManager.activeNPCs.iterator()
 
         while(iterator.hasNext()) {
             val npc = iterator.next()
+
+            val isObjectiveTarget = sceneManager.game.missionSystem.activeMission?.getCurrentObjective()?.completionCondition?.targetId == npc.id
+            if (playerSystem.isDriving && !npc.isInCar && !isObjectiveTarget) {
+                continue // Skip this NPC, move to the next one in the loop.
+            }
 
             // First, handle AI logic (either driving or on-foot)
             if (!finePosMode) {

@@ -94,7 +94,6 @@ public class Lwjgl3Launcher {
 // characters in cars start headlights
 // key for player to turn headlights off
 // Objective Markers
-// when entering a car, character cars stop moving
 // drive to location, visual arrow that shows direction
 // SEQUENCE, LOSE_THE_COPS, INFLUENCE_NPC, CAPTURE_TERRITORY
 // Enemy/NPC AI Override, One-Hit Kills, One-Hit Kills, Specific Weapon Infinite Ammo

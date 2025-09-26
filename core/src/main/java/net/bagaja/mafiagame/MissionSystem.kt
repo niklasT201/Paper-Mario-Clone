@@ -10,7 +10,7 @@ import java.util.*
 
 class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueManager) {
     private val allMissions = mutableMapOf<String, MissionDefinition>()
-    private var activeMission: MissionState? = null
+    var activeMission: MissionState? = null
     var activeModifiers: MissionModifiers? = null
     private var gameState = GameState() // This will be loaded from a file later
     private var playerInventorySnapshot: PlayerStateData? = null
