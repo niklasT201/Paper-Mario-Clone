@@ -768,6 +768,12 @@ class EnemySystem : IFinePositionable {
     }
 
     private fun dropAllItemsOnDeath(enemy: GameEnemy) {
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
+        if (modifiers?.disableNoItemDrops == true) {
+            println("${enemy.enemyType.displayName} died, but item drops are disabled by the current mission.")
+            return // Exit the function immediately, dropping nothing.
+        }
+
         println("${enemy.enemyType.displayName} is dropping its inventory.")
         val groundY = sceneManager.findHighestSupportY(enemy.position.x, enemy.position.z, enemy.position.y, 0.1f, blockSize)
         val baseDropPosition = Vector3(enemy.position.x, groundY, enemy.position.z)
@@ -784,11 +790,7 @@ class EnemySystem : IFinePositionable {
             val consolidatedMoneyStack = itemSystem.createItem(baseDropPosition, ItemType.MONEY_STACK)
             if (consolidatedMoneyStack != null) {
                 consolidatedMoneyStack.value = totalMoneyValue // Set the combined value!
-                consolidatedMoneyStack.position.add(
-                    (Random.nextFloat() - 0.5f) * 1.5f,
-                    0.2f,
-                    (Random.nextFloat() - 0.5f) * 1.5f
-                )
+                consolidatedMoneyStack.position.add((Random.nextFloat() - 0.5f) * 1.5f, 0.2f, (Random.nextFloat() - 0.5f) * 1.5f)
                 sceneManager.activeItems.add(consolidatedMoneyStack)
                 println(" -> Dropped consolidated money stack worth $$totalMoneyValue")
             }
@@ -809,7 +811,7 @@ class EnemySystem : IFinePositionable {
             }
         }
 
-       // First, put the ammo from the current magazine back into the reserves map for easy calculation.
+        // First, put the ammo from the current magazine back into the reserves map for easy calculation.
         if (enemy.equippedWeapon != WeaponType.UNARMED) {
             val reserveAmmo = enemy.weapons.getOrDefault(enemy.equippedWeapon, 0)
             enemy.weapons[enemy.equippedWeapon] = reserveAmmo + enemy.currentMagazineCount
@@ -825,11 +827,7 @@ class EnemySystem : IFinePositionable {
                 if (droppedWeapon != null) {
                     // Set the exact total ammo count for this weapon
                     droppedWeapon.ammo = totalAmmo
-                    droppedWeapon.position.add(
-                        (Random.nextFloat() - 0.5f) * 1.5f,
-                        0.2f,
-                        (Random.nextFloat() - 0.5f) * 1.5f
-                    )
+                    droppedWeapon.position.add((Random.nextFloat() - 0.5f) * 1.5f, 0.2f, (Random.nextFloat() - 0.5f) * 1.5f)
                     sceneManager.activeItems.add(droppedWeapon)
                     println(" -> Dropped ${weaponItemType.displayName} with $totalAmmo ammo.")
                 }

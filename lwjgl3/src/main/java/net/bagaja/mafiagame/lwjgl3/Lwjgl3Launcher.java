@@ -93,6 +93,7 @@ public class Lwjgl3Launcher {
 // muscle flash for enemies shooting
 // characters in cars start headlights
 // key for player to turn headlights off
+// item drop modifier removes dropped items from enemies
 // Objective Markers
 // drive to location, visual arrow that shows direction
 // SEQUENCE, LOSE_THE_COPS, INFLUENCE_NPC, CAPTURE_TERRITORY
@@ -100,11 +101,7 @@ public class Lwjgl3Launcher {
 // Cutscene System
 // interact with interiors/objectives, cars, characters = give item, lose item, new event will happen
 
-// disable item pick up
-// disable character spawn
 // disablePoliceResponse: Boolean (Allow the player to cause chaos without getting a wanted level).
-// increasedEnemySpawns: Boolean (For a horde-mode style mission).
-// civiliansFleeOnSight: Boolean (Make all NPCs run away from the player for a "terrorize the city" mission).
 
 // npcs choosing dialog for finishing objects
 // Automatic/Linear Mode or Open World Mode

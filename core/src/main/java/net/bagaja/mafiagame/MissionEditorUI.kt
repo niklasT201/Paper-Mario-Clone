@@ -344,10 +344,12 @@ class MissionEditorUI(
         val disableCharacterSpawners = CheckBox(" Disable Character Spawners", skin).apply { isChecked = mission.modifiers.disableCharacterSpawners }
         val civiliansFlee = CheckBox(" Civilians Flee on Sight", skin).apply { isChecked = mission.modifiers.civiliansFleeOnSight }
         val increasedSpawns = CheckBox(" Increased Enemy Spawns", skin).apply { isChecked = mission.modifiers.increasedEnemySpawns }
+        val disableNoItemDrops = CheckBox(" Disable All Item Drops", skin).apply { isChecked = mission.modifiers.disableNoItemDrops }
         worldTable.add(allHousesLocked).colspan(2).left().row()
         worldTable.add(allHousesUnlocked).colspan(2).left().row()
         worldTable.add(disableCarSpawners).colspan(2).left().row()
         worldTable.add(disableCharacterSpawners).colspan(2).left().row()
+        worldTable.add(disableNoItemDrops).colspan(2).left().row()
         worldTable.add(civiliansFlee).colspan(2).left().row()
         worldTable.add(increasedSpawns).colspan(2).left().row()
 
@@ -397,6 +399,7 @@ class MissionEditorUI(
                 mission.modifiers.civiliansFleeOnSight = civiliansFlee.isChecked
                 mission.modifiers.increasedEnemySpawns = increasedSpawns.isChecked
                 mission.modifiers.freezeTimeAt = if (freezeTimeCheckbox.isChecked) timeSlider.value else null
+                mission.modifiers.disableNoItemDrops = disableNoItemDrops.isChecked
 
                 uiManager.showTemporaryMessage("Modifiers updated for '${mission.title}'")
                 dialog.hide()

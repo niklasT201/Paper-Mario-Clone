@@ -344,8 +344,15 @@ class ItemSystem: IFinePositionable {
 
     fun update(deltaTime: Float, camera: Camera, playerSystem: PlayerSystem, sceneManager: SceneManager) {
         val itemsToRemove = Array<GameItem>()
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
 
         for (item in sceneManager.activeItems) {
+            // Check if the "no item drops" modifier is active
+            if (modifiers?.disableNoItemDrops == true) {
+                itemsToRemove.add(item) // If so, mark this item for immediate removal
+                continue // Skip all other logic for this item
+            }
+
             if (item.isCollected) continue
 
             if (item.pickupDelay > 0f) {
@@ -403,8 +410,11 @@ class ItemSystem: IFinePositionable {
         }
 
         // Remove collected items
-        for (item in itemsToRemove) {
-            sceneManager.activeItems.removeValue(item, true)
+        if (itemsToRemove.size > 0) {
+            println("Removing ${itemsToRemove.size} items due to mission rules or collection.")
+            for (item in itemsToRemove) {
+                sceneManager.activeItems.removeValue(item, true)
+            }
         }
     }
 

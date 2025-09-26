@@ -172,6 +172,7 @@ data class MissionModifiers(
     var disableParticleSpawners: Boolean = false,
     var disableEnemySpawners: Boolean = false,
     var disableNpcSpawners: Boolean = false,
+    var disableNoItemDrops: Boolean = false,
     var disableCharacterSpawners: Boolean = false,
     var civiliansFleeOnSight: Boolean = false,
     var increasedEnemySpawns: Boolean = false,
