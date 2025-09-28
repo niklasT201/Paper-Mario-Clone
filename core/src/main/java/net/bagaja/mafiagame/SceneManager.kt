@@ -1,6 +1,7 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.Plane
 import com.badlogic.gdx.math.Vector3
@@ -907,6 +908,7 @@ class SceneManager(
         val newParticleSpawners = Array<GameSpawner>()
         val newLights = mutableMapOf<Int, LightSource>()
         val newTeleporters = Array<GameTeleporter>()
+        val newCharacterPathNodes = Array<CharacterPathNode>()
 
         println("Building interior from template: ${template.name}")
 
@@ -1178,6 +1180,22 @@ class SceneManager(
                     fireSystem.nextFireMinScale = originalMinScale
                     fireSystem.nextFireMaxScale = originalMaxScale
                 }
+                RoomElementType.CHARACTER_PATH_NODE -> {
+                    if (element.pathNodeId != null) {
+                        val node = CharacterPathNode(
+                            id = element.pathNodeId,
+                            position = element.position.cpy(),
+                            nextNodeId = element.nextNodeId,
+                            previousNodeId = element.previousNodeId,
+                            debugInstance = ModelInstance(game.characterPathSystem.nodeModel),
+                            sceneId = house.id, // The new sceneId is this house's ID
+                            isOneWay = element.isOneWay,
+                            isMissionOnly = element.isMissionOnly,
+                            missionId = element.missionId
+                        )
+                        newCharacterPathNodes.add(node)
+                    }
+                }
             }
         }
         // After all blocks are created, run face culling on the entire collection
@@ -1220,7 +1238,8 @@ class SceneManager(
             fixedTimeProgress = template.fixedTimeProgress,
             lights = newLights,
             savedShaderEffect = template.savedShaderEffect,
-            sourceTemplateId = template.id
+            sourceTemplateId = template.id,
+            characterPathNodes = newCharacterPathNodes
         )
         interiorState.sourceTemplateId = template.id
 
@@ -1478,6 +1497,23 @@ class SceneManager(
             ))
         }
 
+        // ADDED: Convert active CHARACTER PATH NODES to RoomElements
+        // We must filter to only get nodes that belong to the current room!
+        val interiorId = currentInteriorId ?: return false
+        game.characterPathSystem.nodes.values.filter { it.sceneId == interiorId }.forEach { node ->
+            elements.add(RoomElement(
+                position = node.position.cpy(),
+                elementType = RoomElementType.CHARACTER_PATH_NODE,
+                pathNodeId = node.id,
+                nextNodeId = node.nextNodeId,
+                previousNodeId = node.previousNodeId,
+                sceneId = node.sceneId,
+                isOneWay = node.isOneWay,
+                isMissionOnly = node.isMissionOnly,
+                missionId = node.missionId
+            ))
+        }
+
         val newTemplate = RoomTemplate(
             id = id,
             name = name,
@@ -1521,6 +1557,7 @@ class SceneManager(
 
         val newBlocksForChunkManager = Array<GameBlock>()
         val tempTeleporters = Array<GameTeleporter>()
+        val tempPathNodes = mutableMapOf<String, CharacterPathNode>()
 
         // Build the scene from the template's elements
         template.elements.forEach { element ->
@@ -1698,9 +1735,27 @@ class SceneManager(
                     fireSystem.nextFireMinScale = originalMinScale
                     fireSystem.nextFireMaxScale = originalMaxScale
                 }
+                RoomElementType.CHARACTER_PATH_NODE -> {
+                    if (element.pathNodeId != null) {
+                        val node = CharacterPathNode(
+                            id = element.pathNodeId,
+                            position = element.position.cpy(),
+                            nextNodeId = element.nextNodeId,
+                            previousNodeId = element.previousNodeId,
+                            debugInstance = ModelInstance(game.characterPathSystem.nodeModel),
+                            sceneId = currentInteriorId ?: "UNKNOWN_INTERIOR", // Use the current room's ID
+                            isOneWay = element.isOneWay,
+                            isMissionOnly = element.isMissionOnly,
+                            missionId = element.missionId
+                        )
+                        tempPathNodes[node.id] = node // Add to temp map
+                    }
+                }
             }
         }
 
+        // ADDED: Add all the newly created path nodes to the active system
+        game.characterPathSystem.nodes.putAll(tempPathNodes)
         // Link the newly created teleporters
         template.elements.filter { it.elementType == RoomElementType.TELEPORTER }.forEach { element ->
             val sourceTeleporter = tempTeleporters.find { it.id == element.teleporterId }

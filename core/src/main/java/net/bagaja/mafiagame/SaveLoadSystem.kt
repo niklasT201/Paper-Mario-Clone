@@ -229,7 +229,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
             // 4. Car Path Data
             val carPath = CarPathData()
             game.carPathSystem.nodes.values.forEach { n ->
-                carPath.nodes.add(CarPathNodeData(n.id, n.position, n.nextNodeId, n.isOneWay, n.sceneId))
+                carPath.nodes.add(CarPathNodeData(n.id, n.position, n.nextNodeId, n.previousNodeId, n.isOneWay, n.sceneId))
             }
             state.carPathState = carPath
 
@@ -471,7 +471,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
             // 2. Restore Car Paths
             game.carPathSystem.nodes.clear()
             state.carPathState.nodes.forEach { data ->
-                val node = CarPathNode(data.id, data.position, data.nextNodeId, null, ModelInstance(game.carPathSystem.nodeModel), data.isOneWay, data.sceneId)
+                val node = CarPathNode(data.id, data.position, data.nextNodeId, data.previousNodeId, ModelInstance(game.carPathSystem.nodeModel), data.isOneWay, data.sceneId)
                 game.carPathSystem.nodes[data.id] = node
             }
             // Second pass to link previousNodeId

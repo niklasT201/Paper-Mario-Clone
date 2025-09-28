@@ -210,6 +210,8 @@ enum class GameEventType {
     UNLOCK_HOUSE,
     GIVE_WEAPON,
     FORCE_EQUIP_WEAPON,
+    SPAWN_CAR_PATH_NODE,
+    SPAWN_CHARACTER_PATH_NODE,
     CLEAR_INVENTORY
 }
 
@@ -323,7 +325,13 @@ data class GameEvent(
     val damageRadius: Float? = null,
     val fireScale: Float? = null,
     val weaponType: WeaponType? = null,
-    val ammoAmount: Int? = null
+    val ammoAmount: Int? = null,
+
+    val pathNodeId: String? = null,
+    val previousNodeId: String? = null,
+    val isOneWay: Boolean = false,
+    val isMissionOnly: Boolean = false,
+    val missionId: String? = null,
 )
 
 // --- Game State (For Saving/Loading Progress) ---

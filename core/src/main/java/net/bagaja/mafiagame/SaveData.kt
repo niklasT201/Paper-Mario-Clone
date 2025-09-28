@@ -249,6 +249,7 @@ data class CarPathNodeData(
     var id: String = "",
     var position: Vector3 = Vector3(),
     var nextNodeId: String? = null,
+    var previousNodeId: String? = null,
     var isOneWay: Boolean = false,
     var sceneId: String = "WORLD"
 )

@@ -89,7 +89,15 @@ data class RoomElement(
     val spawnerCarDriverType: String? = null,
     val spawnerCarEnemyDriverType: EnemyType? = null,
     val spawnerCarNpcDriverType: NPCType? = null,
-    val spawnerCarSpawnDirection: CarSpawnDirection? = null
+    val spawnerCarSpawnDirection: CarSpawnDirection? = null,
+
+    val pathNodeId: String? = null,
+    val nextNodeId: String? = null,
+    val previousNodeId: String? = null,
+    val sceneId: String? = null,
+    val isOneWay: Boolean = false,
+    val isMissionOnly: Boolean = false,
+    val missionId: String? = null,
 )
 
 enum class RoomElementType {
@@ -101,7 +109,8 @@ enum class RoomElementType {
     NPC,
     PARTICLE_SPAWNER,
     TELEPORTER,
-    FIRE
+    FIRE,
+    CHARACTER_PATH_NODE
 }
 
 data class RoomTemplate(

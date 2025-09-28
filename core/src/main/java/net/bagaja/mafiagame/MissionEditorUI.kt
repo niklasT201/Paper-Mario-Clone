@@ -679,7 +679,7 @@ class MissionEditorUI(
             GameEventType.SPAWN_HOUSE -> "SPAWN House: ${event.houseType?.displayName}"
             GameEventType.SPAWN_OBJECT -> "SPAWN Object: ${event.objectType?.displayName}"
             GameEventType.SPAWN_BLOCK -> "SPAWN Block: ${event.blockType?.displayName}"
-            GameEventType.DESPAWN_BLOCK_AT_POS -> "DESPAWN Block at (${event.spawnPosition?.x?.toInt()}, ${event.spawnPosition?.y?.toInt()}, ${event.spawnPosition?.z?.toInt()})" // Corrected description
+            GameEventType.DESPAWN_BLOCK_AT_POS -> "DESPAWN Block at (${event.spawnPosition?.x?.toInt()}, ${event.spawnPosition?.y?.toInt()}, ${event.spawnPosition?.z?.toInt()})"
             GameEventType.SPAWN_SPAWNER -> "SPAWN Spawner (${event.spawnerType?.name})"
             GameEventType.SPAWN_TELEPORTER -> "SPAWN Teleporter: '${event.teleporterName}'"
             GameEventType.SPAWN_FIRE -> "SPAWN Fire"
@@ -690,6 +690,8 @@ class MissionEditorUI(
             GameEventType.GIVE_WEAPON -> "GIVE WEAPON: ${event.weaponType?.displayName} (Ammo: ${event.ammoAmount ?: "N/A"})"
             GameEventType.FORCE_EQUIP_WEAPON -> "FORCE EQUIP: ${event.weaponType?.displayName}"
             GameEventType.CLEAR_INVENTORY -> "CLEAR PLAYER INVENTORY"
+            GameEventType.SPAWN_CAR_PATH_NODE -> "SPAWN Car Path Node (ID: ${event.pathNodeId})"
+            GameEventType.SPAWN_CHARACTER_PATH_NODE -> "SPAWN Char Path Node (ID: ${event.pathNodeId})"
         }
 
         table.add(Label(text, skin)).growX()

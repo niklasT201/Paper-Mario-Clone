@@ -91,10 +91,31 @@ class CharacterPathSystem : Disposable {
         previewLineInstance = ModelInstance(lineModel)
     }
 
+    fun addNodeFromData(data: CharacterPathNodeData): CharacterPathNode? {
+        val newNode = CharacterPathNode(
+            id = data.id,
+            position = data.position,
+            nextNodeId = data.nextNodeId,
+            previousNodeId = data.previousNodeId,
+            debugInstance = ModelInstance(nodeModel),
+            isOneWay = data.isOneWay,
+            isMissionOnly = data.isMissionOnly,
+            missionId = data.missionId,
+            sceneId = data.sceneId
+        )
+        nodes[newNode.id] = newNode
+        return newNode
+    }
+
     /**
      * Editor Function: Handles placing a new node.
      */
     fun handlePlaceAction(ray: Ray) {
+        if (game.uiManager.currentEditorMode == EditorMode.MISSION) {
+            handleMissionPlacement(ray)
+            return
+        }
+
         val hitPosition = getPlacementPositionFromRay(ray) ?: return
         val position = hitPosition.add(0f, NODE_VISUAL_RADIUS, 0f)
 
@@ -142,6 +163,58 @@ class CharacterPathSystem : Disposable {
                 lastPlacedNode = endNode
             }
         }
+    }
+
+    private fun handleMissionPlacement(ray: Ray) {
+        val mission = game.uiManager.selectedMissionForEditing ?: return
+        val hitPosition = getPlacementPositionFromRay(ray) ?: return
+        val position = hitPosition.add(0f, NODE_VISUAL_RADIUS, 0f)
+
+        val currentSceneId = game.sceneManager.getCurrentSceneId()
+        val newNodeId = "char_path_${UUID.randomUUID()}"
+        val lastPlaced = game.lastPlacedInstance
+
+        var previousNodeId: String? = null
+        // Check if the last placed object was a mission preview node
+        if (lastPlaced is CharacterPathNode && (lastPlaced.isMissionOnly || mission.eventsOnStart.any { it.pathNodeId == lastPlaced.id })) {
+            previousNodeId = lastPlaced.id
+        }
+
+        val event = GameEvent(
+            type = GameEventType.SPAWN_CHARACTER_PATH_NODE,
+            spawnPosition = position,
+            sceneId = currentSceneId,
+            pathNodeId = newNodeId,
+            previousNodeId = previousNodeId,
+            isOneWay = isPlacingOneWay,
+            isMissionOnly = isPlacingMissionOnly,
+            missionId = if (isPlacingMissionOnly) mission.id else null
+        )
+
+        mission.eventsOnStart.add(event)
+        game.missionSystem.saveMission(mission)
+
+        // Create a temporary "preview" node to see in the editor
+        val previewNodeData = CharacterPathNodeData(
+            id = newNodeId,
+            position = position,
+            // Link the preview node visually in the editor
+            previousNodeId = previousNodeId,
+            isMissionOnly = true, // Mark preview as mission-owned
+            sceneId = currentSceneId
+        )
+
+        val previewNode = addNodeFromData(previewNodeData)
+        if (previewNode != null) {
+            // Link the previous preview node to this new one for visual continuity
+            if (previousNodeId != null) {
+                nodes[previousNodeId]?.nextNodeId = previewNode.id
+            }
+            game.lastPlacedInstance = previewNode
+        }
+
+        game.uiManager.updatePlacementInfo("Added path node to '${mission.title}'")
+        game.uiManager.missionEditorUI.refreshEventWidgets()
     }
 
     /**

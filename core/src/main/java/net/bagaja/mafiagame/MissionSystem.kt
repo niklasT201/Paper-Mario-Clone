@@ -1378,6 +1378,44 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     println("Forced player to equip: ${weapon.displayName}")
                 }
             }
+            GameEventType.SPAWN_CAR_PATH_NODE -> {
+                if (event.spawnPosition != null && event.pathNodeId != null) {
+                    val nodeData = CarPathNodeData(
+                        id = event.pathNodeId,
+                        position = event.spawnPosition,
+                        // MODIFIED: Add previousNodeId from the event
+                        previousNodeId = event.previousNodeId,
+                        isOneWay = event.isOneWay,
+                        sceneId = targetSceneId
+                    )
+                    val newNode = game.carPathSystem.addNodeFromData(nodeData)
+
+                    // Link the previous node to this new one for mission execution
+                    if (newNode != null && nodeData.previousNodeId != null) {
+                        game.carPathSystem.nodes[nodeData.previousNodeId]?.nextNodeId = newNode.id
+                    }
+                }
+            }
+
+            GameEventType.SPAWN_CHARACTER_PATH_NODE -> {
+                if (event.spawnPosition != null && event.pathNodeId != null) {
+                    val nodeData = CharacterPathNodeData(
+                        id = event.pathNodeId,
+                        position = event.spawnPosition,
+                        previousNodeId = event.previousNodeId,
+                        isOneWay = event.isOneWay,
+                        isMissionOnly = event.isMissionOnly,
+                        missionId = event.missionId,
+                        sceneId = targetSceneId
+                    )
+                    val newNode = game.characterPathSystem.addNodeFromData(nodeData)
+
+                    // Link the previous node to this new one for mission execution
+                    if (newNode != null && nodeData.previousNodeId != null) {
+                        game.characterPathSystem.nodes[nodeData.previousNodeId]?.nextNodeId = newNode.id
+                    }
+                }
+            }
             GameEventType.CLEAR_INVENTORY -> {
                 game.playerSystem.clearInventory()
                 println("Player inventory temporarily cleared for mission.")

@@ -153,7 +153,26 @@ class CarPathSystem : Disposable {
         return "Direction flip only applies to One-Way lines."
     }
 
+    fun addNodeFromData(data: CarPathNodeData): CarPathNode? {
+        val newNode = CarPathNode(
+            id = data.id,
+            position = data.position,
+            nextNodeId = data.nextNodeId,
+            previousNodeId = null, // Can be linked in a second pass if needed
+            debugInstance = ModelInstance(nodeModel),
+            isOneWay = data.isOneWay,
+            sceneId = data.sceneId
+        )
+        nodes[newNode.id] = newNode
+        return newNode
+    }
+
     fun handlePlaceAction(ray: Ray) {
+        if (sceneManager.game.uiManager.currentEditorMode == EditorMode.MISSION) {
+            handleMissionPlacement(ray)
+            return
+        }
+
         if (sceneManager.currentScene != SceneType.WORLD) {
             sceneManager.game.uiManager.updatePlacementInfo("Error: Car paths can only be placed in the main world.")
             return
@@ -209,6 +228,58 @@ class CarPathSystem : Disposable {
                 lastPlacedNode = endNode
             }
         }
+    }
+
+    private fun handleMissionPlacement(ray: Ray) {
+        // Enforce the world-only rule for car paths.
+        if (sceneManager.currentScene != SceneType.WORLD) {
+            sceneManager.game.uiManager.updatePlacementInfo("Error: Car paths can only be placed in the main world.")
+            return
+        }
+
+        val mission = sceneManager.game.uiManager.selectedMissionForEditing ?: return
+        val hitPosition = getPlacementPositionFromRay(ray) ?: return
+        val position = hitPosition.add(0f, NODE_VISUAL_RADIUS, 0f)
+
+        val newNodeId = "car_path_${UUID.randomUUID()}"
+        val lastPlaced = sceneManager.game.lastPlacedInstance
+
+        var previousNodeId: String? = null
+        // Check if the last placed object was a mission-owned car path node.
+        if (lastPlaced is CarPathNode && mission.eventsOnStart.any { it.pathNodeId == lastPlaced.id }) {
+            previousNodeId = lastPlaced.id
+        }
+
+        val event = GameEvent(
+            type = GameEventType.SPAWN_CAR_PATH_NODE,
+            spawnPosition = position,
+            sceneId = "WORLD", // Car paths are always in the world
+            pathNodeId = newNodeId,
+            previousNodeId = previousNodeId,
+            isOneWay = (currentDirectionality == PathDirectionality.ONE_WAY)
+        )
+
+        mission.eventsOnStart.add(event)
+        sceneManager.game.missionSystem.saveMission(mission)
+
+        // Create a temporary "preview" node to see in the editor.
+        val previewNodeData = CarPathNodeData(
+            id = newNodeId,
+            position = position,
+            sceneId = "WORLD"
+        )
+
+        val previewNode = addNodeFromData(previewNodeData)
+        if (previewNode != null) {
+            // Link the previous preview node to this new one for visual continuity in the editor.
+            if (previousNodeId != null) {
+                nodes[previousNodeId]?.nextNodeId = previewNode.id
+            }
+            sceneManager.game.lastPlacedInstance = previewNode
+        }
+
+        sceneManager.game.uiManager.updatePlacementInfo("Added car path node to '${mission.title}'")
+        sceneManager.game.uiManager.missionEditorUI.refreshEventWidgets()
     }
 
     fun handleRemoveAction(ray: Ray): Boolean {
