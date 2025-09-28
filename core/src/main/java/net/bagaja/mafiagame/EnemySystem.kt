@@ -12,6 +12,7 @@ import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
 import java.util.*
+import kotlin.math.abs
 import kotlin.random.Random
 
 // --- ENUMERATIONS FOR ENEMY PROPERTIES ---
@@ -64,6 +65,7 @@ data class GameEnemy(
     val inventory: MutableList<GameItem> = mutableListOf(),
     val weapons: MutableMap<WeaponType, Int> = mutableMapOf(), // Weapon -> Ammo in reserve
     var equippedWeapon: WeaponType = WeaponType.UNARMED,
+    @Transient var continuousShootingTimer: Float = 0f,
     var assignedPathId: String? = null,
     @Transient var currentPathNode: CharacterPathNode? = null
 ) {
@@ -214,6 +216,10 @@ class EnemySystem : IFinePositionable {
     private val FIRE_FLEE_DISTANCE = 15f
     private val SHOOTER_IDEAL_DISTANCE = 15f
     private val SHOOTER_MIN_DISTANCE = 8f
+
+    private val minShotScale = 0.7f
+    private val maxShotScale = 2.0f
+    private val chargeDurationForMaxScale = 10f
 
     private val PATH_RECALCULATION_INTERVAL = 1.0f
     private val WAYPOINT_TOLERANCE = 1.5f
@@ -1042,22 +1048,29 @@ class EnemySystem : IFinePositionable {
         }
 
         // --- SHOOTING LOGIC ---
-        val isYAligned = kotlin.math.abs(playerPos.y - enemy.position.y) < enemy.enemyType.height
-        val isZAligned = kotlin.math.abs(playerPos.z - enemy.position.z) < COMBAT_DEPTH_TOLERANCE
+        val isYAligned = abs(playerPos.y - enemy.position.y) < enemy.enemyType.height
+        val isZAligned = abs(playerPos.z - enemy.position.z) < COMBAT_DEPTH_TOLERANCE
         val ray = Ray(enemy.position, playerPos.cpy().sub(enemy.position).nor())
         val collision = sceneManager.checkCollisionForRay(ray, enemy.position.dst(playerPos))
-        val hasLineOfSight = collision == null || collision.type == HitObjectType.PLAYER || collision.type == HitObjectType.ENEMY
+        val hasLineOfSight = collision == null || collision.type == HitObjectType.PLAYER
 
         if (hasLineOfSight && isYAligned && isZAligned && enemy.attackTimer <= 0f) {
             if (enemy.currentMagazineCount > 0) {
+                // The enemy is about to shoot, so increment the timer.
+                enemy.continuousShootingTimer += deltaTime
+
                 spawnEnemyBullet(enemy, playerPos, sceneManager)
                 enemy.attackTimer = enemy.equippedWeapon.fireCooldown
                 enemy.currentMagazineCount--
             } else {
-                // No ammo left for this weapon at all.
+                // Can't shoot (reloading), so reset the timer.
+                enemy.continuousShootingTimer = 0f
                 enemy.currentState = AIState.RELOADING
                 enemy.stateTimer = enemy.equippedWeapon.reloadTime
             }
+        } else {
+            // Can't shoot (no line of sight, on cooldown, etc.), so reset the timer.
+            enemy.continuousShootingTimer = 0f
         }
 
         // --- POSITIONING LOGIC ---
@@ -1271,23 +1284,24 @@ class EnemySystem : IFinePositionable {
 
         // 1. Determine direction ONLY on the X-axis (left or right)
         val directionX = if (enemy.physics.facingRotationY == 0f) 1f else -1f
-        val direction = Vector3(directionX, 0f, 0f) // Force a purely horizontal direction
+        val direction = Vector3(directionX, 0f, 0f)
 
         // 2. Calculate velocity based on this new horizontal direction
-        val velocity = direction.cpy().scl(enemy.equippedWeapon.bulletSpeed)
-
-        // 3. Calculate the spawn position based on the horizontal direction
-        val verticalOffset = -0.3f
-        val horizontalOffset = directionX * (enemy.enemyType.width / 2f)
-        val spawnPos = Vector3(
-            enemy.position.x + horizontalOffset,
-            enemy.position.y + verticalOffset,
+        val muzzleOffsetX = directionX * (enemy.enemyType.width * 0.55f) // Closer than the bullet spawn
+        val muzzleOffsetY = -0.2f // Slightly higher than bullet
+        val muzzlePosition = Vector3(
+            enemy.position.x + muzzleOffsetX,
+            enemy.position.y + muzzleOffsetY,
             enemy.position.z
         )
-        spawnPos.mulAdd(direction, 1.0f) // Push it slightly forward from the enemy
+
+        // 2. Calculate the bullet's spawn position
+        val bulletSpawnPos = muzzlePosition.cpy().mulAdd(direction, 1.0f)
+        // 3. Calculate the spawn position based on the horizontal direction
+        val velocity = direction.cpy().scl(enemy.equippedWeapon.bulletSpeed)
 
         val bullet = Bullet(
-            position = spawnPos,
+            position = bulletSpawnPos,
             velocity = velocity,
             modelInstance = ModelInstance(bulletModel),
             lifetime = enemy.equippedWeapon.bulletLifetime,
@@ -1297,6 +1311,34 @@ class EnemySystem : IFinePositionable {
         )
 
         sceneManager.activeBullets.add(bullet)
+
+        // 1. Calculate Smoke Scale
+        val chargeProgress = (enemy.continuousShootingTimer / chargeDurationForMaxScale).coerceIn(0f, 1f)
+        val currentShotScale = minShotScale + (maxShotScale - minShotScale) * chargeProgress
+
+        // 2. Spawn Smoke Particle
+        sceneManager.particleSystem.spawnEffect(
+            type = ParticleEffectType.FIRED_SHOT,
+            position = muzzlePosition.cpy(),
+            overrideScale = currentShotScale
+        )
+
+        // 3. Spawn Muzzle Flash Light
+        val flashLifetime = 0.06f
+        val muzzleFlashLight = LightSource(
+            id = Random.nextInt(Integer.MIN_VALUE, -1000),
+            position = muzzlePosition.cpy(),
+            intensity = 18f,
+            range = 8f,
+            color = Color(1f, 0.75f, 0.4f, 1f),
+            flickerMode = FlickerMode.TIMED_FLICKER_OFF,
+            loopOnDuration = flashLifetime,
+            loopOffDuration = 0f,
+            timedFlickerLifetime = flashLifetime
+        )
+        val instances = sceneManager.game.objectSystem.createLightSourceInstances(muzzleFlashLight)
+        sceneManager.game.lightingManager.addLightSource(muzzleFlashLight, instances)
+
         println("${enemy.enemyType.displayName} shoots at player!")
     }
 

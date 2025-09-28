@@ -40,7 +40,7 @@ class SceneManager(
     private val transitionSystem: TransitionSystem,
     private val faceCullingSystem: FaceCullingSystem,
     val game: MafiaGame,
-    private val particleSystem: ParticleSystem,
+    val particleSystem: ParticleSystem,
     val fireSystem: FireSystem,
     val boneSystem: BoneSystem
 ) {

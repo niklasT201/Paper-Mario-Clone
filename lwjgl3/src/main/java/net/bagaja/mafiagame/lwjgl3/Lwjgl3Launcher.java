@@ -89,11 +89,10 @@ public class Lwjgl3Launcher {
 // add event button automatically adds new event without saving button press
 // new events: PLAY_SOUND
 // label to show how many enemies left for kill all enemies
+// fixing enemy reloading bug
 // broken lantern switches image to broken lantern
-// muscle flash for enemies shooting
 // characters in cars start headlights
 // key for player to turn headlights off
-// item drop modifier removes dropped items from enemies
 // fixing flickering character image
 // Objective Markers
 // drive to location, visual arrow that shows direction
