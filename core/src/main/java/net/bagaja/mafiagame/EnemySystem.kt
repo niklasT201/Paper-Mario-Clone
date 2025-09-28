@@ -1324,20 +1324,22 @@ class EnemySystem : IFinePositionable {
         )
 
         // 3. Spawn Muzzle Flash Light
-        val flashLifetime = 0.06f
-        val muzzleFlashLight = LightSource(
-            id = Random.nextInt(Integer.MIN_VALUE, -1000),
-            position = muzzlePosition.cpy(),
-            intensity = 18f,
-            range = 8f,
-            color = Color(1f, 0.75f, 0.4f, 1f),
-            flickerMode = FlickerMode.TIMED_FLICKER_OFF,
-            loopOnDuration = flashLifetime,
-            loopOffDuration = 0f,
-            timedFlickerLifetime = flashLifetime
-        )
-        val instances = sceneManager.game.objectSystem.createLightSourceInstances(muzzleFlashLight)
-        sceneManager.game.lightingManager.addLightSource(muzzleFlashLight, instances)
+        if (sceneManager.game.playerSystem.isMuzzleFlashLightEnabled()) {
+            val flashLifetime = 0.06f
+            val muzzleFlashLight = LightSource(
+                id = Random.nextInt(Integer.MIN_VALUE, -1000),
+                position = muzzlePosition.cpy(),
+                intensity = 18f,
+                range = 8f,
+                color = Color(1f, 0.75f, 0.4f, 1f),
+                flickerMode = FlickerMode.TIMED_FLICKER_OFF,
+                loopOnDuration = flashLifetime,
+                loopOffDuration = 0f,
+                timedFlickerLifetime = flashLifetime
+            )
+            val instances = sceneManager.game.objectSystem.createLightSourceInstances(muzzleFlashLight)
+            sceneManager.game.lightingManager.addLightSource(muzzleFlashLight, instances)
+        }
 
         println("${enemy.enemyType.displayName} shoots at player!")
     }
