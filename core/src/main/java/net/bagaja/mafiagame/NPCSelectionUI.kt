@@ -12,6 +12,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
+import com.badlogic.gdx.utils.Array
 
 class NPCSelectionUI(
     private val npcSystem: NPCSystem,
@@ -27,6 +28,8 @@ class NPCSelectionUI(
     private val loadedTextures = mutableMapOf<String, Texture>()
     private lateinit var canCollectItemsCheckbox: CheckBox
     private lateinit var isHonestCheckbox: CheckBox
+    private lateinit var pathStyleSelectBox: SelectBox<String>
+    private lateinit var pathStyleTable: Table
 
     // Use specific data classes like in EnemySelectionUI
     private data class NPCSelectionItem(
@@ -108,6 +111,13 @@ class NPCSelectionUI(
 
         mainContainer.add(behaviorScrollPane).width(maxScrollWidth).height(80f).padBottom(10f).row()
 
+        pathStyleTable = Table()
+        pathStyleSelectBox = SelectBox(skin)
+        pathStyleSelectBox.items = Array(PathFollowingStyle.entries.map { it.displayName }.toTypedArray())
+        pathStyleTable.add(Label("Path Style:", skin)).padRight(10f)
+        pathStyleTable.add(pathStyleSelectBox).growX()
+        mainContainer.add(pathStyleTable).padTop(10f).row()
+
         // After behavior section, before rotation label
         val optionsTable = Table()
         canCollectItemsCheckbox = CheckBox(" Can Collect Items", skin)
@@ -131,12 +141,16 @@ class NPCSelectionUI(
     }
 
     fun getSpawnConfig(position: Vector3): NPCSpawnConfig {
+        val selectedStyle = PathFollowingStyle.entries.find { it.displayName == pathStyleSelectBox.selected }
+            ?: PathFollowingStyle.CONTINUOUS
+
         return NPCSpawnConfig(
             npcType = npcSystem.currentSelectedNPCType,
             behavior = npcSystem.currentSelectedBehavior,
             position = position,
             canCollectItems = canCollectItemsCheckbox.isChecked,
-            isHonest = isHonestCheckbox.isChecked
+            isHonest = isHonestCheckbox.isChecked,
+            pathFollowingStyle = selectedStyle
         )
     }
 
@@ -205,6 +219,10 @@ class NPCSelectionUI(
                 scrollToSelectedItem(behaviorScrollPane, i, behaviorItems.size, 105f) // 90f item width + 15f spacing
             }
         }
+
+        // Show/hide the path style dropdown
+        val isPathFollower = npcSystem.currentSelectedBehavior == NPCBehavior.PATH_FOLLOWER
+        pathStyleTable.isVisible = isPathFollower
 
         // Update rotation label text
         val direction = if (npcSystem.currentRotation == 0f) "Right" else "Left"

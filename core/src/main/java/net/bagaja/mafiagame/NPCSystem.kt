@@ -23,6 +23,16 @@ enum class DamageReaction {
     FIGHT_BACK  // Becomes hostile when damaged
 }
 
+enum class PathFollowingStyle(val displayName: String) {
+    CONTINUOUS("Continuous"),
+    STOP_AND_GO("Stop and Go")
+}
+
+enum class PathfindingSubState {
+    MOVING,
+    PAUSING
+}
+
 // --- ENUMERATIONS FOR NPC PROPERTIES ---
 
 enum class NPCType(
@@ -89,7 +99,10 @@ data class GameNPC(
     val canCollectItems: Boolean = true,
     val inventory: MutableList<GameItem> = mutableListOf(),
     var equippedMeleeWeapon: WeaponType = WeaponType.UNARMED,
-    var assignedPathId: String? = null
+    var assignedPathId: String? = null,
+    var pathFollowingStyle: PathFollowingStyle = PathFollowingStyle.CONTINUOUS,
+    @Transient var pathfindingState: PathfindingSubState = PathfindingSubState.MOVING,
+    @Transient var subStateTimer: Float = 0f
 ) {
     var isOnFire: Boolean = false
     var onFireTimer: Float = 0f
@@ -454,7 +467,8 @@ class NPCSystem : IFinePositionable {
             behaviorType = config.behavior,
             position = config.position.cpy(),
             canCollectItems = config.canCollectItems,
-            isHonest = config.isHonest
+            isHonest = config.isHonest,
+            pathFollowingStyle = config.pathFollowingStyle
         )
 
         newNpc.physics = PhysicsComponent(
@@ -690,9 +704,10 @@ class NPCSystem : IFinePositionable {
     }
 
     private fun updatePathFollowerAI(npc: GameNPC, deltaTime: Float) {
+        var desiredMovement = Vector3.Zero
         val charPathSystem = sceneManager.game.characterPathSystem
-        val desiredMovement = Vector3()
 
+        // --- Path Initialization (same for both styles) ---
         if (npc.currentPathNode == null) {
             val startNode = npc.assignedPathId?.let { charPathSystem.nodes[it] }
                 ?: charPathSystem.nodes.values.minByOrNull { it.position.dst2(npc.position) }
@@ -702,9 +717,14 @@ class NPCSystem : IFinePositionable {
                 return // No paths exist
             }
             npc.currentPathNode = startNode
-        }
 
-        val currentNode = npc.currentPathNode ?: return
+            // When starting, immediately set the sub-state timer for the Stop-and-Go style
+            if (npc.pathFollowingStyle == PathFollowingStyle.STOP_AND_GO) {
+                npc.pathfindingState = PathfindingSubState.MOVING
+                npc.subStateTimer = Random.nextFloat() * 5f + 3f // Start by moving for 3 to 8 seconds
+            }
+        }
+        val currentNode = npc.currentPathNode ?: return // Exit if no path node
 
         // Check if the path is for a mission that isn't active.
         if (currentNode.isMissionOnly) {
@@ -715,6 +735,49 @@ class NPCSystem : IFinePositionable {
             }
         }
 
+        // --- AI LOGIC: Differentiated by Style ---
+        if (npc.pathFollowingStyle == PathFollowingStyle.STOP_AND_GO) {
+            // TOURIST BEHAVIOR
+            npc.subStateTimer -= deltaTime
+
+            when (npc.pathfindingState) {
+                PathfindingSubState.MOVING -> {
+                    // Execute the standard movement logic
+                    desiredMovement = calculatePathMovement(npc, currentNode, charPathSystem)
+
+                    if (npc.subStateTimer <= 0f) {
+                        // Time to pause
+                        npc.pathfindingState = PathfindingSubState.PAUSING
+                        npc.subStateTimer = Random.nextFloat() * 3f + 1.5f // Pause for 1.5 to 4.5 seconds
+                        desiredMovement.set(Vector3.Zero) // Stop for this frame
+                    }
+                }
+                PathfindingSubState.PAUSING -> {
+                    // Stand still
+                    desiredMovement.set(Vector3.Zero)
+
+                    if (npc.subStateTimer <= 0f) {
+                        // Time to move again
+                        npc.pathfindingState = PathfindingSubState.MOVING
+                        npc.subStateTimer = Random.nextFloat() * 5f + 3f // Move for 3 to 8 seconds
+                    }
+                }
+            }
+
+        } else {
+            // CONTINUOUS BEHAVIOR
+            desiredMovement = calculatePathMovement(npc, currentNode, charPathSystem)
+        }
+
+        // --- Final Physics Update (same for both styles) ---
+        if (!desiredMovement.isZero) {
+            npc.physics.facingRotationY = if (desiredMovement.x > 0) 0f else 180f
+        }
+        characterPhysicsSystem.update(npc.physics, desiredMovement, deltaTime)
+        npc.physics.speed = npc.npcType.speed // Restore default speed
+    }
+
+    private fun calculatePathMovement(npc: GameNPC, currentNode: CharacterPathNode, charPathSystem: CharacterPathSystem): Vector3 {
         var nextNode = currentNode.nextNodeId?.let { charPathSystem.nodes[it] }
 
         if (nextNode == null) {
@@ -751,29 +814,15 @@ class NPCSystem : IFinePositionable {
             // Calculate final movement vector
             val directionToTarget = targetPoint.sub(npc.position)
             val chillSpeed = npc.npcType.speed * 0.4f
-
-            if (directionToTarget.len2() < (chillSpeed * deltaTime) * (chillSpeed * deltaTime)) {
-                desiredMovement.set(directionToTarget)
-            } else {
-                desiredMovement.set(directionToTarget.nor())
-            }
-
             npc.physics.speed = chillSpeed
 
             // If we are close to the next node, switch our target to it
             if (npc.position.dst2(nextNode.position) < 16f) {
                 npc.currentPathNode = nextNode
             }
-        } else {
-            npc.physics.speed = npc.npcType.speed
+            return directionToTarget.nor()
         }
-
-        if (!desiredMovement.isZero) {
-            npc.physics.facingRotationY = if (desiredMovement.x > 0) 0f else 180f
-        }
-        characterPhysicsSystem.update(npc.physics, desiredMovement, deltaTime)
-
-        npc.physics.speed = npc.npcType.speed
+        return Vector3.Zero
     }
 
     private fun updateAI(npc: GameNPC, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {

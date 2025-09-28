@@ -239,6 +239,7 @@ data class GameEvent(
     val npcType: NPCType? = null,
     val npcBehavior: NPCBehavior? = null,
     val npcRotation: Float? = null,
+    val pathFollowingStyle: PathFollowingStyle? = null,
 
     // Car-specific (Already complete)
     val carType: CarType? = null,

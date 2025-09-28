@@ -1038,7 +1038,8 @@ class SceneManager(
                             position = element.position.cpy(),
                             id = element.targetId,
                             isHonest = element.npcIsHonest ?: true, // Provide defaults
-                            canCollectItems = element.npcCanCollectItems ?: true
+                            canCollectItems = element.npcCanCollectItems ?: true,
+                            pathFollowingStyle = element.pathFollowingStyle ?: PathFollowingStyle.CONTINUOUS
                         )
                         npcSystem.createNPC(config, element.npcRotation)?.let { gameNPC ->
                             // Load the NPC's starting inventory from the template
@@ -1387,6 +1388,7 @@ class SceneManager(
                 npcType = npc.npcType,
                 npcBehavior = npc.behaviorType,
                 npcRotation = npc.facingRotationY,
+                pathFollowingStyle = npc.pathFollowingStyle,
                 targetId = npc.id,
                 npcIsHonest = npc.isHonest,
                 npcCanCollectItems = npc.canCollectItems,

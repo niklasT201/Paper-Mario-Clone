@@ -108,7 +108,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     n.id, n.npcType, n.behaviorType, n.position, n.health,
                     n.currentState, n.provocationLevel,
                     GdxArray(n.inventory.map { i -> ItemData(i.id, i.itemType, i.position, i.ammo, i.value) }.toTypedArray()),
-                    n.isHonest, n.canCollectItems
+                    n.isHonest, n.canCollectItems,
+                    n.pathFollowingStyle
                 ))
             }
             sm.activeItems.forEach { i -> world.items.add(ItemData(i.id, i.itemType, i.position, i.ammo, i.value)) }
@@ -296,6 +297,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     it.health = data.health
                     it.currentState = data.currentState
                     it.provocationLevel = data.provocationLevel
+                    it.pathFollowingStyle = data.pathFollowingStyle
                     it.inventory.addAll(data.inventory.map { iData -> game.itemSystem.createItem(iData.position, iData.itemType)!!.apply { id = iData.id; ammo = iData.ammo; value = iData.value } })
 
                     sm.activeNPCs.add(it)

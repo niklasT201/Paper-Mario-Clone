@@ -94,7 +94,7 @@ public class Lwjgl3Launcher {
 // characters in cars start headlights
 // key for player to turn headlights off
 // item drop modifier removes dropped items from enemies
-// option between follow 100% and random stop on line
+// fixing flickering character image
 // working for enemies too
 // Objective Markers
 // drive to location, visual arrow that shows direction

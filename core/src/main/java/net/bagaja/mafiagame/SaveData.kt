@@ -142,7 +142,8 @@ data class NpcData(
     var provocationLevel: Float = 0f,
     var inventory: GdxArray<ItemData> = GdxArray(),
     var isHonest: Boolean = true,
-    var canCollectItems: Boolean = true
+    var canCollectItems: Boolean = true,
+    var pathFollowingStyle: PathFollowingStyle = PathFollowingStyle.CONTINUOUS
 )
 
 data class ItemData(

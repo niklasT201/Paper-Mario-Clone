@@ -41,6 +41,7 @@ data class NPCSpawnConfig(
     val behavior: NPCBehavior,
     val position: Vector3,
     val id: String? = null,
-    val isHonest: Boolean = true, // Determines if they return found items
-    val canCollectItems: Boolean = true
+    val isHonest: Boolean = true,
+    val canCollectItems: Boolean = true,
+    val pathFollowingStyle: PathFollowingStyle = PathFollowingStyle.CONTINUOUS
 )

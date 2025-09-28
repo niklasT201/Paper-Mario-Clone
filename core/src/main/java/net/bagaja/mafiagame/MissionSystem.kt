@@ -1007,7 +1007,8 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         npcType = event.npcType,
                         behavior = event.npcBehavior,
                         position = event.spawnPosition,
-                        id = event.targetId
+                        id = event.targetId,
+                        pathFollowingStyle = event.pathFollowingStyle ?: PathFollowingStyle.CONTINUOUS
                     )
                     event.npcRotation?.let {
                         game.npcSystem.createNPC(config, it)?.let { newNpc ->
