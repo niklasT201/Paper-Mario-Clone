@@ -777,10 +777,10 @@ enum class ObjectType(
     val lightColorR: Float = 1f,
     val lightColorG: Float = 1f,
     val lightColorB: Float = 1f,
-    val lightOffsetY: Float = 0f, // Vertical offset from object center
+    val lightOffsetY: Float = 0f,
     val isSinglePlane: Boolean = false,
-    val isDestructible: Boolean = false, // NEW: Flag to mark if an object can be destroyed
-    val maxHealth: Float = 100f // NEW: Default max health
+    val isDestructible: Boolean = false,
+    val maxHealth: Float = 100f
 ) {
     TREE("Tree", "textures/objects/models/tree.png", 14.5f, 15.6f),
     BUSH("Bush", "textures/objects/models/bush.png", 3f, 3f),
@@ -823,7 +823,8 @@ enum class ObjectType(
     SPAWNER("Particle Spawner", "", 2f, 2f, true, canBePlacedAnywhere = true),
 
     BROKEN_LANTERN("Broken Lantern", "textures/objects/models/broken_lantern.png", 3f, 11f,
-        hasLightSource = false // Broken lanterns don't emit light
+        hasLightSource = false, // Broken lanterns don't emit light
+        isDestructible = false // A broken lantern cannot be destroyed further
     ),
 
     TELEPORTER("Teleporter", "", 1f, 1f,
@@ -831,8 +832,18 @@ enum class ObjectType(
     ),
 
     TURNEDOFF_LANTERN("Turned Off Lantern", "textures/objects/models/turnedoff_lantern.png", 3f, 11f,
-        hasLightSource = false, isDestructible = true, maxHealth = 200f
+        hasLightSource = false,
+        isDestructible = true,
+        maxHealth = 200f
     );
+
+    val destroyedObjectType: ObjectType? by lazy {
+        when (this) {
+            LANTERN -> BROKEN_LANTERN
+            TURNEDOFF_LANTERN -> BROKEN_LANTERN
+            else -> null
+        }
+    }
 
     // Helper function to get light color as Color object
     fun getLightColor(): Color {

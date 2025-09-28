@@ -90,7 +90,6 @@ public class Lwjgl3Launcher {
 // new events: PLAY_SOUND
 // label to show how many enemies left for kill all enemies
 // fixing enemy reloading bug
-// broken lantern switches image to broken lantern
 // characters in cars start headlights
 // key for player to turn headlights off
 // fixing flickering character image

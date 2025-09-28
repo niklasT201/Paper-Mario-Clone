@@ -1532,8 +1532,29 @@ class PlayerSystem {
                     HitObjectType.OBJECT -> {
                         val gameObject = collisionResult.hitObject as GameObject
                         if (gameObject.takeDamage(bullet.damage)) {
-                            // Object was destroyed, remove it from the scene
-                            sceneManager.activeObjects.removeValue(gameObject, true)
+                            // Object was destroyed. Check if it should be replaced.
+                            val replacementType = gameObject.objectType.destroyedObjectType
+                            if (replacementType != null) {
+                                // 1. Remove the old object's light source (if any)
+                                sceneManager.game.objectSystem.removeGameObjectWithLight(gameObject, sceneManager.game.lightingManager)
+
+                                // 2. Create the new "broken" object at the same position
+                                val newObject = sceneManager.game.objectSystem.createGameObjectWithLight(replacementType, gameObject.position.cpy())
+
+                                // 3. Remove the old object from the active list
+                                sceneManager.activeObjects.removeValue(gameObject, true)
+
+                                // 4. Add the new object to the active list (if creation was successful)
+                                if (newObject != null) {
+                                    sceneManager.activeObjects.add(newObject)
+                                    println("Replaced ${gameObject.objectType.displayName} with ${newObject.objectType.displayName}.")
+                                }
+                            } else {
+                                // It's destructible but has no replacement, so just remove it.
+                                sceneManager.activeObjects.removeValue(gameObject, true)
+                                println("${gameObject.objectType.displayName} was destroyed and removed.")
+                            }
+
                             // Spawn a bigger effect for destroyed objects
                             particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_HEAVY, gameObject.position)
                         } else {
@@ -1875,8 +1896,22 @@ class PlayerSystem {
                         if (distanceToObj < explosionRadius) {
                             val actualDamage = calculateFalloffDamage(explosionDamage, distanceToObj, explosionRadius)
                             if (obj.takeDamage(actualDamage)) {
-                                // Object was destroyed, remove it from the list
-                                sceneManager.activeObjects.removeValue(obj, true)
+                                // Object was destroyed by the explosion.
+                                val replacementType = obj.objectType.destroyedObjectType
+                                if (replacementType != null) {
+                                    // Replace it
+                                    sceneManager.game.objectSystem.removeGameObjectWithLight(obj, sceneManager.game.lightingManager)
+                                    val newObject = sceneManager.game.objectSystem.createGameObjectWithLight(replacementType, obj.position.cpy())
+                                    sceneManager.activeObjects.removeValue(obj, true)
+                                    if (newObject != null) {
+                                        sceneManager.activeObjects.add(newObject)
+                                        println("Replaced ${obj.objectType.displayName} with ${newObject.objectType.displayName} via explosion.")
+                                    }
+                                } else {
+                                    // Remove it
+                                    sceneManager.activeObjects.removeValue(obj, true)
+                                    println("${obj.objectType.displayName} was destroyed by explosion and removed.")
+                                }
                                 particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_HEAVY, obj.position)
                             }
                         }
