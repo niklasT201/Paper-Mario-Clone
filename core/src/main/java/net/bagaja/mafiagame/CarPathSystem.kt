@@ -23,7 +23,8 @@ data class CarPathNode(
     var nextNodeId: String? = null,
     var previousNodeId: String? = null,
     val debugInstance: ModelInstance,
-    var isOneWay: Boolean = false
+    var isOneWay: Boolean = false,
+    var sceneId: String = "WORLD"
 )
 
 enum class PathDirectionality(val displayName: String) {
@@ -153,12 +154,17 @@ class CarPathSystem : Disposable {
     }
 
     fun handlePlaceAction(ray: Ray) {
+        if (sceneManager.currentScene != SceneType.WORLD) {
+            sceneManager.game.uiManager.updatePlacementInfo("Error: Car paths can only be placed in the main world.")
+            return
+        }
+
         val hitPosition = getPlacementPositionFromRay(ray) ?: return
-        val position = hitPosition.add(0f, NODE_VISUAL_RADIUS, 0f) // Place node on top of the surface
+        val position = hitPosition.add(0f, NODE_VISUAL_RADIUS, 0f)
 
         when (placementState) {
             LinePlacementState.IDLE -> {
-                val startNode = CarPathNode(position = position, debugInstance = ModelInstance(nodeModel))
+                val startNode = CarPathNode(position = position, debugInstance = ModelInstance(nodeModel), sceneId = "WORLD")
                 nodes[startNode.id] = startNode
                 firstNode = startNode
 
@@ -175,7 +181,7 @@ class CarPathSystem : Disposable {
                 println("Car Path: Set starting point.")
             }
             LinePlacementState.PLACING_LINE -> {
-                val endNode = CarPathNode(position = position, debugInstance = ModelInstance(nodeModel))
+                val endNode = CarPathNode(position = position, debugInstance = ModelInstance(nodeModel), sceneId = "WORLD")
                 nodes[endNode.id] = endNode
 
                 sceneManager.game.lastPlacedInstance = endNode
@@ -291,9 +297,12 @@ class CarPathSystem : Disposable {
     fun render(camera: Camera) {
         if (!isVisible) return
 
+        val currentSceneId = sceneManager.getCurrentSceneId()
+
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
         modelBatch.begin(camera)
         for (node in nodes.values) {
+            if (node.sceneId != currentSceneId) continue
             // Render the node sphere
             node.debugInstance.transform.setToTranslation(node.position)
             modelBatch.render(node.debugInstance)

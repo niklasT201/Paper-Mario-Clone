@@ -27,7 +27,8 @@ data class CharacterPathNode(
     val debugInstance: ModelInstance,
     var isOneWay: Boolean = false,        // If true, characters must follow the direction from prev -> next
     var isMissionOnly: Boolean = false, // If true, only used when a mission is active
-    var missionId: String? = null       // The ID of the mission this path belongs to
+    var missionId: String? = null,       // The ID of the mission this path belongs to
+    var sceneId: String = "WORLD"
 )
 
 /**
@@ -56,9 +57,9 @@ class CharacterPathSystem : Disposable {
     val nodeModel: Model
     private val lineModel: Model
     private var arrowModel: Model? = null
-    private lateinit var lineInstance: ModelInstance
-    private lateinit var arrowInstance: ModelInstance
-    private lateinit var previewLineInstance: ModelInstance
+    private var lineInstance: ModelInstance
+    private var arrowInstance: ModelInstance
+    private var previewLineInstance: ModelInstance
 
     // Editor state
     private var placementState = CharLinePlacementState.IDLE
@@ -97,6 +98,8 @@ class CharacterPathSystem : Disposable {
         val hitPosition = getPlacementPositionFromRay(ray) ?: return
         val position = hitPosition.add(0f, NODE_VISUAL_RADIUS, 0f)
 
+        val currentSceneId = game.sceneManager.getCurrentSceneId()
+
         when (placementState) {
             CharLinePlacementState.IDLE -> {
                 val startNode = CharacterPathNode(
@@ -104,7 +107,8 @@ class CharacterPathSystem : Disposable {
                     debugInstance = ModelInstance(nodeModel),
                     isOneWay = isPlacingOneWay,
                     isMissionOnly = isPlacingMissionOnly,
-                    missionId = if (isPlacingMissionOnly) game.uiManager.selectedMissionForEditing?.id else null
+                    missionId = if (isPlacingMissionOnly) game.uiManager.selectedMissionForEditing?.id else null,
+                    sceneId = currentSceneId
                 )
                 nodes[startNode.id] = startNode
                 firstNode = startNode
@@ -119,8 +123,8 @@ class CharacterPathSystem : Disposable {
             CharLinePlacementState.PLACING_LINE -> {
                 val endNode = CharacterPathNode(
                     position = position,
-                    debugInstance = ModelInstance(nodeModel)
-                    // Properties like isOneWay will be set on the segment (the start node)
+                    debugInstance = ModelInstance(nodeModel),
+                    sceneId = currentSceneId
                 )
                 nodes[endNode.id] = endNode
                 game.lastPlacedInstance = endNode
@@ -224,9 +228,13 @@ class CharacterPathSystem : Disposable {
     fun render(camera: Camera) {
         if (!isVisible) return
 
+        val currentSceneId = game.sceneManager.getCurrentSceneId()
+
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
         modelBatch.begin(camera)
         for (node in nodes.values) {
+            if (node.sceneId != currentSceneId) continue
+
             node.debugInstance.transform.setToTranslation(node.position)
             val colorAttr = node.debugInstance.materials.first().get(ColorAttribute.Diffuse) as ColorAttribute
             colorAttr.color.set(when {

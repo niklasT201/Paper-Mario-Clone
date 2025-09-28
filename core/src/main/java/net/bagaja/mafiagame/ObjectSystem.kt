@@ -348,15 +348,22 @@ class ObjectSystem: IFinePositionable {
 
             if (spawnerGameObject != null) {
                 // Manually set the transform of the visible debug model to the spawn position
+                val currentSceneId = if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+                    sceneManager.getCurrentHouse()?.id ?: "WORLD"
+                } else {
+                    "WORLD"
+                }
+
                 spawnerGameObject.debugInstance?.transform?.setTranslation(spawnerPosition)
 
                 val newSpawner = GameSpawner(
                     position = spawnerPosition.cpy(),
-                    gameObject = spawnerGameObject
+                    gameObject = spawnerGameObject,
+                    sceneId = currentSceneId
                 )
                 sceneManager.activeSpawners.add(newSpawner)
                 sceneManager.game.lastPlacedInstance = newSpawner
-                println("Placed a new generic Spawner at $spawnerPosition")
+                println("Placed a new generic Spawner at $spawnerPosition in scene '$currentSceneId'")
 
                 // Immediately open the UI to configure the new spawner
                 uiManager.showSpawnerUI(newSpawner)

@@ -142,6 +142,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                 world.spawners.add(SpawnerData(
                     id = s.id,
                     position = s.position,
+                    sceneId = s.sceneId,
                     spawnerType = s.spawnerType,
                     spawnInterval = s.spawnInterval,
                     minSpawnRange = s.minSpawnRange,
@@ -227,14 +228,16 @@ class SaveLoadSystem(private val game: MafiaGame) {
 
             // 4. Car Path Data
             val carPath = CarPathData()
-            game.carPathSystem.nodes.values.forEach { n -> carPath.nodes.add(CarPathNodeData(n.id, n.position, n.nextNodeId, n.isOneWay)) }
+            game.carPathSystem.nodes.values.forEach { n ->
+                carPath.nodes.add(CarPathNodeData(n.id, n.position, n.nextNodeId, n.isOneWay, n.sceneId))
+            }
             state.carPathState = carPath
 
             // 5. Character Path Data
             val charPath = CharacterPathData()
             game.characterPathSystem.nodes.values.forEach { n ->
                 charPath.nodes.add(CharacterPathNodeData(
-                    n.id, n.position, n.nextNodeId, n.previousNodeId, n.isOneWay, n.isMissionOnly, n.missionId
+                    n.id, n.position, n.nextNodeId, n.previousNodeId, n.isOneWay, n.isMissionOnly, n.missionId, n.sceneId
                 ))
             }
             state.characterPathState = charPath
@@ -376,6 +379,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                         id = data.id,
                         position = data.position,
                         gameObject = spawnerGameObject,
+                        sceneId = data.sceneId,
                         spawnerType = data.spawnerType,
                         spawnInterval = data.spawnInterval,
                         minSpawnRange = data.minSpawnRange,
@@ -466,9 +470,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
 
             // 2. Restore Car Paths
             game.carPathSystem.nodes.clear()
-            val nodeDataMap = state.carPathState.nodes.associateBy { it.id }
-            nodeDataMap.values.forEach { data ->
-                val node = CarPathNode(data.id, data.position, data.nextNodeId, null, ModelInstance(game.carPathSystem.nodeModel), data.isOneWay)
+            state.carPathState.nodes.forEach { data ->
+                val node = CarPathNode(data.id, data.position, data.nextNodeId, null, ModelInstance(game.carPathSystem.nodeModel), data.isOneWay, data.sceneId)
                 game.carPathSystem.nodes[data.id] = node
             }
             // Second pass to link previousNodeId
@@ -485,7 +488,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     debugInstance = ModelInstance(game.characterPathSystem.nodeModel),
                     isOneWay = data.isOneWay,
                     isMissionOnly = data.isMissionOnly,
-                    missionId = data.missionId
+                    missionId = data.missionId,
+                    sceneId = data.sceneId
                 )
                 game.characterPathSystem.nodes[data.id] = node
             }

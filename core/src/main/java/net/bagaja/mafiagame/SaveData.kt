@@ -191,6 +191,7 @@ data class LightData(
 data class SpawnerData(
     var id: String = "",
     var position: Vector3 = Vector3(),
+    var sceneId: String = "WORLD",
     var spawnerType: SpawnerType = SpawnerType.PARTICLE,
     var spawnInterval: Float = 5.0f,
     var minSpawnRange: Float = 0f,
@@ -248,7 +249,8 @@ data class CarPathNodeData(
     var id: String = "",
     var position: Vector3 = Vector3(),
     var nextNodeId: String? = null,
-    var isOneWay: Boolean = false
+    var isOneWay: Boolean = false,
+    var sceneId: String = "WORLD"
 )
 
 data class CharacterPathNodeData(
@@ -258,7 +260,8 @@ data class CharacterPathNodeData(
     var previousNodeId: String? = null,
     var isOneWay: Boolean = false,
     var isMissionOnly: Boolean = false,
-    var missionId: String? = null
+    var missionId: String? = null,
+    var sceneId: String = "WORLD"
 )
 
 data class CharacterPathData(

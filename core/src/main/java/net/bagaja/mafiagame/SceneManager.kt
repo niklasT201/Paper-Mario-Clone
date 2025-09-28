@@ -746,10 +746,26 @@ class SceneManager(
         }
     }
 
+    fun getCurrentSceneId(): String {
+        return if (currentScene == SceneType.HOUSE_INTERIOR) {
+            currentInteriorId ?: "WORLD" // Fallback to WORLD if ID is null
+        } else {
+            "WORLD"
+        }
+    }
+
     // --- PRIVATE HELPER METHODS ---
 
     private fun saveWorldState() {
         println("Saving world state...")
+
+        val worldCarPathNodes = Array<CarPathNode>().apply {
+            addAll(*game.carPathSystem.nodes.values.filter { it.sceneId == "WORLD" }.toTypedArray())
+        }
+        val worldCharPathNodes = Array<CharacterPathNode>().apply {
+            addAll(*game.characterPathSystem.nodes.values.filter { it.sceneId == "WORLD" }.toTypedArray())
+        }
+
         // We create NEW arrays to snapshot the state, not just reference the active ones.
         worldState = WorldState(
             objects = Array(activeObjects),
@@ -769,7 +785,9 @@ class SceneManager(
             fires = Array(fireSystem.activeFires),
             bullets = Array(activeBullets),
             throwables = Array(activeThrowables),
-            teleporters = Array(teleporterSystem.activeTeleporters)
+            teleporters = Array(teleporterSystem.activeTeleporters),
+            carPathNodes = worldCarPathNodes,
+            characterPathNodes = worldCharPathNodes
         )
         println("World state saved. Player at ${worldState!!.playerPosition}")
     }
@@ -801,6 +819,11 @@ class SceneManager(
         activeBullets.addAll(state.bullets)
         activeThrowables.addAll(state.throwables)
         teleporterSystem.activeTeleporters.addAll(state.teleporters)
+
+        game.carPathSystem.nodes.clear()
+        state.carPathNodes.forEach { game.carPathSystem.nodes[it.id] = it }
+        game.characterPathSystem.nodes.clear()
+        state.characterPathNodes.forEach { game.characterPathSystem.nodes[it.id] = it }
 
         setSceneLights(state.lights)
     }
@@ -842,6 +865,11 @@ class SceneManager(
         currentState.throwables.clear(); currentState.throwables.addAll(activeThrowables)
         currentState.playerPosition.set(playerSystem.getPosition())
 
+        currentState.characterPathNodes.clear()
+        currentState.characterPathNodes.addAll(
+            *game.characterPathSystem.nodes.values.filter { it.sceneId == id }.toTypedArray()
+        )
+
         currentState.lights.clear()
         currentState.lights.putAll(game.lightingManager.getLightSources())
     }
@@ -861,6 +889,10 @@ class SceneManager(
         activeFootprints.addAll(state.footprints)
         activeBones.addAll(state.bones)
         fireSystem.activeFires.addAll(state.fires)
+
+        game.characterPathSystem.nodes.clear()
+        state.characterPathNodes.forEach { game.characterPathSystem.nodes[it.id] = it }
+        game.carPathSystem.nodes.clear()
 
         setSceneLights(state.lights)
     }
@@ -1706,6 +1738,9 @@ class SceneManager(
         fireSystem.activeFires.clear()
         activeBullets.clear()
         activeThrowables.clear()
+        game.carPathSystem.nodes.clear()
+        game.characterPathSystem.nodes.clear()
+
 
         // Also clear any active lights from the lighting manager
         val currentLightIds = game.lightingManager.getLightSources().keys.toList()
@@ -1731,7 +1766,9 @@ data class WorldState(
     val fires: Array<GameFire> = Array(),
     val bullets: Array<Bullet> = Array(),
     val throwables: Array<ThrowableEntity> = Array(),
-    val teleporters: Array<GameTeleporter> = Array()
+    val teleporters: Array<GameTeleporter> = Array(),
+    val carPathNodes: Array<CarPathNode> = Array(),
+    val characterPathNodes: Array<CharacterPathNode> = Array()
 )
 
 // The state for a single house interior.
@@ -1756,7 +1793,9 @@ data class InteriorState(
     val bones: Array<GameBone> = Array(),
     val fires: Array<GameFire> = Array(),
     val bullets: Array<Bullet> = Array(),
-    val throwables: Array<ThrowableEntity> = Array()
+    val throwables: Array<ThrowableEntity> = Array(),
+    val carPathNodes: Array<CharacterPathNode> = Array(),
+    val characterPathNodes: Array<CharacterPathNode> = Array()
 )
 
 data class InteriorLayout(

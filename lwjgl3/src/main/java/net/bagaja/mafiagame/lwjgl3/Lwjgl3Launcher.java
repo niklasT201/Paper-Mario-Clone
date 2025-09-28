@@ -93,10 +93,9 @@ public class Lwjgl3Launcher {
 // muscle flash for enemies shooting
 // characters in cars start headlights
 // key for player to turn headlights off
-// will be saved for missions and world
-// does understand room and world
-// working for enemies too
 // item drop modifier removes dropped items from enemies
+// option between follow 100% and random stop on line
+// working for enemies too
 // Objective Markers
 // drive to location, visual arrow that shows direction
 // SEQUENCE, LOSE_THE_COPS, INFLUENCE_NPC, CAPTURE_TERRITORY

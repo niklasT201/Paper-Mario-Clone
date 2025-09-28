@@ -30,6 +30,7 @@ data class GameSpawner(
     val id: String = UUID.randomUUID().toString(),
     var position: Vector3,
     val gameObject: GameObject, // The visible purple cube in the world
+    var sceneId: String = "WORLD",
 
     // --- General Spawner Settings ---
     var spawnerType: SpawnerType = SpawnerType.PARTICLE,
@@ -102,11 +103,20 @@ class SpawnerSystem(
     fun update(deltaTime: Float, spawners: Array<GameSpawner>, playerPosition: Vector3) {
         if (spawners.isEmpty) return
 
-        val modifiers = sceneManager.game.missionSystem.activeModifiers
+        val currentSceneId = if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+            sceneManager.getCurrentHouse()?.id ?: "WORLD" // Fallback to WORLD if house ID is somehow null
+        } else {
+            "WORLD"
+        }
 
-        // MODIFIED: Expanded filtering logic
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
         val activeSpawners = spawners.filter { spawner ->
-            // NEW: Check for the combined character spawner disable flag first
+            // Condition 1: The spawner MUST belong to the current scene.
+            if (spawner.sceneId != currentSceneId) {
+                return@filter false
+            }
+
+            // Condition 2: Check for mission modifiers that might disable this spawner.
             if (modifiers?.disableCharacterSpawners == true &&
                 (spawner.spawnerType == SpawnerType.ENEMY || spawner.spawnerType == SpawnerType.NPC)) {
                 return@filter false
@@ -148,6 +158,7 @@ class SpawnerSystem(
                 }
             }
 
+            // Check if the player is within the spawner's activation range.
             val distanceSq = spawner.position.dst2(playerPosition)
             val isInRange = distanceSq >= getMinRangeSq(spawner) && distanceSq <= getMaxRangeSq(spawner)
 
@@ -156,8 +167,10 @@ class SpawnerSystem(
                 continue // Skip this spawner
             }
 
+            // Countdown the timer.
             spawner.timer -= deltaTime
             if (spawner.timer <= 0f) {
+                // Check for increased enemy spawn modifier
                 val spawnCount = if (spawner.spawnerType == SpawnerType.ENEMY && modifiers?.increasedEnemySpawns == true) {
                     (2..4).random() // Spawn 2 to 4 enemies instead of just one
                 } else {
@@ -176,10 +189,11 @@ class SpawnerSystem(
                     }
                 }
 
+                // If it's a one-shot spawner, mark it as depleted.
                 if (spawner.spawnerMode == SpawnerMode.ONE_SHOT) {
                     spawner.isDepleted = true
                 }
-                spawner.timer = spawner.spawnInterval // Reset timer for next spawn
+                spawner.timer = spawner.spawnInterval // Reset timer for the next spawn
             }
         }
     }
