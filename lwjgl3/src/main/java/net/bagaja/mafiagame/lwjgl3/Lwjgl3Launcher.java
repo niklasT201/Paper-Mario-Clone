@@ -95,7 +95,6 @@ public class Lwjgl3Launcher {
 // key for player to turn headlights off
 // item drop modifier removes dropped items from enemies
 // fixing flickering character image
-// working for enemies too
 // Objective Markers
 // drive to location, visual arrow that shows direction
 // SEQUENCE, LOSE_THE_COPS, INFLUENCE_NPC, CAPTURE_TERRITORY

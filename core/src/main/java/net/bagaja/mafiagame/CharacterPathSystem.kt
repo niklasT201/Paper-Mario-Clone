@@ -245,7 +245,7 @@ class CharacterPathSystem : Disposable {
         isPreviewVisible = false
     }
 
-    private fun findNodeAtRay(ray: Ray): CharacterPathNode? {
+    fun findNodeAtRay(ray: Ray): CharacterPathNode? {
         return nodes.values.minByOrNull {
             ray.origin.dst2(it.position)
         }?.takeIf {

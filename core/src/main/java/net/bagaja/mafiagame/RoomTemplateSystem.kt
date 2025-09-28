@@ -18,6 +18,7 @@ data class RoomElement(
     val interiorType: InteriorType? = null,
     val enemyType: EnemyType? = null,
     val enemyBehavior: EnemyBehavior? = null,
+    val assignedPathId: String? = null,
     val npcType: NPCType? = null,
     val npcBehavior: NPCBehavior? = null,
     val npcRotation: Float = 0f,

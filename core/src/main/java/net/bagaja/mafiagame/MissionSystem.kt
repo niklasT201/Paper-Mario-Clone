@@ -984,6 +984,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         behavior = event.enemyBehavior,
                         position = event.spawnPosition,
                         id = event.targetId,
+                        assignedPathId = event.assignedPathId,
                         healthSetting = event.healthSetting ?: HealthSetting.FIXED_DEFAULT,
                         customHealthValue = event.customHealthValue ?: event.enemyType.baseHealth,
                         minRandomHealth = event.minRandomHealth ?: (event.enemyType.baseHealth * 0.8f),
@@ -1331,6 +1332,9 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     if (game.sceneManager.activeObjects.removeAll { it.id == id }) wasRemoved = true
                     if (game.sceneManager.activeSpawners.removeAll { it.id == id }) wasRemoved = true
 
+                    if (game.carPathSystem.nodes.remove(id) != null) wasRemoved = true
+                    if (game.characterPathSystem.nodes.remove(id) != null) wasRemoved = true
+
                     if (game.sceneManager.activeHouses.removeAll { it.id == id }) wasRemoved = true
 
                     val fireToRemove = game.fireSystem.activeFires.find { it.id == id }
@@ -1346,7 +1350,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     }
 
                     if (wasRemoved) {
-                        println("Despawned entity with ID: $id from active scene.")
+                        println("Despawned entity (or path node) with ID: $id from active scene.")
                     } else {
                         println("Warning: Despawn event for ID '$id' did not find a matching entity in the active scene.")
                     }

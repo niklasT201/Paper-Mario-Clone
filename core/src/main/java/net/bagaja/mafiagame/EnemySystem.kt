@@ -35,7 +35,8 @@ enum class EnemyBehavior(val displayName: String) {
     AGGRESSIVE_RUSHER("Rusher"),
     SKIRMISHER("Skirmisher"),
     NEUTRAL("Neutral"),
-    COWARD_HIDER("Coward")
+    COWARD_HIDER("Coward"),
+    PATH_FOLLOWER("Path Follower")
 }
 
 // AI State for the enemy's state machine
@@ -62,7 +63,9 @@ data class GameEnemy(
     val canCollectItems: Boolean = true,
     val inventory: MutableList<GameItem> = mutableListOf(),
     val weapons: MutableMap<WeaponType, Int> = mutableMapOf(), // Weapon -> Ammo in reserve
-    var equippedWeapon: WeaponType = WeaponType.UNARMED
+    var equippedWeapon: WeaponType = WeaponType.UNARMED,
+    var assignedPathId: String? = null,
+    @Transient var currentPathNode: CharacterPathNode? = null
 ) {
     var currentBehavior: EnemyBehavior = behaviorType
     var provocationLevel: Float = 0f
@@ -416,7 +419,8 @@ class EnemySystem : IFinePositionable {
             health = finalHealth,
             weaponCollectionPolicy = config.weaponCollectionPolicy,
             canCollectItems = config.canCollectItems,
-            equippedWeapon = config.initialWeapon
+            equippedWeapon = config.initialWeapon,
+            assignedPathId = config.assignedPathId
         )
         // Set current behavior from the config
         enemy.currentBehavior = config.behavior
@@ -860,9 +864,65 @@ class EnemySystem : IFinePositionable {
         println("${enemy.enemyType.displayName} exited a car at ${enemy.position}")
     }
 
+    private fun updatePathFollowerAI(enemy: GameEnemy, deltaTime: Float) {
+        var desiredMovement = Vector3.Zero
+        val charPathSystem = sceneManager.game.characterPathSystem
+
+        // --- Path Initialization ---
+        if (enemy.currentPathNode == null) {
+            val startNode = enemy.assignedPathId?.let { charPathSystem.nodes[it] }
+                ?: charPathSystem.nodes.values.minByOrNull { it.position.dst2(enemy.position) }
+
+            if (startNode == null) {
+                characterPhysicsSystem.update(enemy.physics, desiredMovement, deltaTime)
+                return // No path found, do nothing.
+            }
+            enemy.currentPathNode = startNode
+        }
+        val currentNode = enemy.currentPathNode ?: return
+
+        // --- Mission Path Check ---
+        if (currentNode.isMissionOnly) {
+            val mission = sceneManager.game.missionSystem.getMissionDefinition(currentNode.missionId ?: "")
+            if (mission == null || !sceneManager.game.missionSystem.isMissionActive(mission.id)) {
+                characterPhysicsSystem.update(enemy.physics, Vector3.Zero, deltaTime) // Stop moving
+                return
+            }
+        }
+
+        // --- Movement Calculation (Continuous) ---
+        var nextNode = currentNode.nextNodeId?.let { charPathSystem.nodes[it] }
+        if (nextNode == null) {
+            val prevNode = currentNode.previousNodeId?.let { charPathSystem.nodes[it] }
+            if (prevNode != null && !prevNode.isOneWay) {
+                nextNode = prevNode
+            }
+        }
+
+        if (nextNode != null) {
+            desiredMovement = nextNode.position.cpy().sub(enemy.position).nor()
+            if (enemy.position.dst2(nextNode.position) < 4f) { // 2 unit radius
+                enemy.currentPathNode = nextNode
+            }
+        }
+
+        // --- Visual Direction (The simple, flickering version as requested) ---
+        if (!desiredMovement.isZero) {
+            enemy.physics.facingRotationY = if (desiredMovement.x > 0) 0f else 180f
+        }
+
+        // --- Final Physics Update ---
+        characterPhysicsSystem.update(enemy.physics, desiredMovement, deltaTime)
+    }
+
     private fun updateAI(enemy: GameEnemy, playerSystem: PlayerSystem, deltaTime: Float, sceneManager: SceneManager) {
         if (enemy.currentState == AIState.DYING) {
             return
+        }
+
+        if (enemy.behaviorType == EnemyBehavior.PATH_FOLLOWER) {
+            updatePathFollowerAI(enemy, deltaTime)
+            return // Stop other AI logic from running for this enemy
         }
 
         if (enemy.isInCar) {

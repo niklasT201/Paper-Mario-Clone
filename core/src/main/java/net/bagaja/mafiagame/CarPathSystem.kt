@@ -283,7 +283,7 @@ class CarPathSystem : Disposable {
     }
 
     fun handleRemoveAction(ray: Ray): Boolean {
-        val nodeToRemove = findNearestNode(ray.origin, 2f) ?: return false
+        val nodeToRemove = findNodeAtRay(ray) ?: return false
 
         // Re-link the path to patch the hole
         val prevNode = nodeToRemove.previousNodeId?.let { nodes[it] }

@@ -97,6 +97,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
             sm.activeEnemies.forEach { e ->
                 world.enemies.add(EnemyData(
                     e.id, e.enemyType, e.behaviorType, e.position, e.health,
+                    e.assignedPathId,
                     GdxArray(e.inventory.map { i -> ItemData(i.id, i.itemType, i.position, i.ammo, i.value) }.toTypedArray()),
                     ObjectMap<WeaponType, Int>().apply { e.weapons.forEach { (w, a) -> put(w, a) } },
                     e.equippedWeapon,
@@ -106,9 +107,12 @@ class SaveLoadSystem(private val game: MafiaGame) {
             sm.activeNPCs.forEach { n ->
                 world.npcs.add(NpcData(
                     n.id, n.npcType, n.behaviorType, n.position, n.health,
-                    n.currentState, n.provocationLevel,
+                    n.assignedPathId,
+                    n.currentState,
+                    n.provocationLevel,
                     GdxArray(n.inventory.map { i -> ItemData(i.id, i.itemType, i.position, i.ammo, i.value) }.toTypedArray()),
-                    n.isHonest, n.canCollectItems,
+                    n.isHonest,
+                    n.canCollectItems,
                     n.pathFollowingStyle
                 ))
             }
@@ -274,7 +278,13 @@ class SaveLoadSystem(private val game: MafiaGame) {
             // 1. Restore World State (Characters must be created before they can be put in cars)
             val enemyMap = mutableMapOf<String, GameEnemy>()
             state.worldState.enemies.forEach { data ->
-                val config = EnemySpawnConfig(id = data.id, enemyType = data.enemyType, behavior = data.behaviorType, position = data.position)
+                val config = EnemySpawnConfig(
+                    id = data.id,
+                    enemyType = data.enemyType,
+                    behavior = data.behaviorType,
+                    position = data.position,
+                    assignedPathId = data.assignedPathId
+                )
                 game.enemySystem.createEnemy(config)?.let {
                     it.health = data.health
                     data.weapons.forEach { entry -> it.weapons[entry.key] = entry.value }
@@ -292,13 +302,25 @@ class SaveLoadSystem(private val game: MafiaGame) {
             }
             val npcMap = mutableMapOf<String, GameNPC>()
             state.worldState.npcs.forEach { data ->
-                val config = NPCSpawnConfig(id = data.id, npcType = data.npcType, behavior = data.behaviorType, position = data.position, isHonest = data.isHonest, canCollectItems = data.canCollectItems)
+                val config = NPCSpawnConfig(
+                    id = data.id,
+                    npcType = data.npcType,
+                    behavior = data.behaviorType,
+                    position = data.position,
+                    isHonest = data.isHonest,
+                    canCollectItems = data.canCollectItems,
+                    pathFollowingStyle = data.pathFollowingStyle,
+                    assignedPathId = data.assignedPathId
+                )
                 game.npcSystem.createNPC(config)?.let {
                     it.health = data.health
                     it.currentState = data.currentState
                     it.provocationLevel = data.provocationLevel
                     it.pathFollowingStyle = data.pathFollowingStyle
                     it.inventory.addAll(data.inventory.map { iData -> game.itemSystem.createItem(iData.position, iData.itemType)!!.apply { id = iData.id; ammo = iData.ammo; value = iData.value } })
+
+                    it.assignedPathId = data.assignedPathId
+                    it.pathFollowingStyle = data.pathFollowingStyle
 
                     sm.activeNPCs.add(it)
                     npcMap[it.id] = it

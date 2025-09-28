@@ -30,6 +30,8 @@ class NPCSelectionUI(
     private lateinit var isHonestCheckbox: CheckBox
     private lateinit var pathStyleSelectBox: SelectBox<String>
     private lateinit var pathStyleTable: Table
+    private lateinit var pathIdField: TextField
+    private lateinit var pathIdTable: Table
 
     // Use specific data classes like in EnemySelectionUI
     private data class NPCSelectionItem(
@@ -111,6 +113,12 @@ class NPCSelectionUI(
 
         mainContainer.add(behaviorScrollPane).width(maxScrollWidth).height(80f).padBottom(10f).row()
 
+        pathIdTable = Table()
+        pathIdField = TextField("", skin).apply { messageText = "Paste Path Start Node ID" }
+        pathIdTable.add(Label("Path Start ID:", skin)).padRight(10f)
+        pathIdTable.add(pathIdField).width(250f)
+        mainContainer.add(pathIdTable).padTop(10f).row()
+
         pathStyleTable = Table()
         pathStyleSelectBox = SelectBox(skin)
         pathStyleSelectBox.items = Array(PathFollowingStyle.entries.map { it.displayName }.toTypedArray())
@@ -144,13 +152,16 @@ class NPCSelectionUI(
         val selectedStyle = PathFollowingStyle.entries.find { it.displayName == pathStyleSelectBox.selected }
             ?: PathFollowingStyle.CONTINUOUS
 
+        val pathId = pathIdField.text.ifBlank { null } // ADDED
+
         return NPCSpawnConfig(
             npcType = npcSystem.currentSelectedNPCType,
             behavior = npcSystem.currentSelectedBehavior,
             position = position,
             canCollectItems = canCollectItemsCheckbox.isChecked,
             isHonest = isHonestCheckbox.isChecked,
-            pathFollowingStyle = selectedStyle
+            pathFollowingStyle = selectedStyle,
+            assignedPathId = pathId
         )
     }
 
@@ -223,6 +234,7 @@ class NPCSelectionUI(
         // Show/hide the path style dropdown
         val isPathFollower = npcSystem.currentSelectedBehavior == NPCBehavior.PATH_FOLLOWER
         pathStyleTable.isVisible = isPathFollower
+        pathIdTable.isVisible = isPathFollower
 
         // Update rotation label text
         val direction = if (npcSystem.currentRotation == 0f) "Right" else "Left"

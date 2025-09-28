@@ -33,7 +33,8 @@ data class EnemySpawnConfig(
     val setAmmoValue: Int = 30, // Custom ammo amount
 
     val weaponCollectionPolicy: WeaponCollectionPolicy = WeaponCollectionPolicy.CANNOT_COLLECT,
-    val canCollectItems: Boolean = true
+    val canCollectItems: Boolean = true,
+    val assignedPathId: String? = null
 )
 
 data class NPCSpawnConfig(
@@ -43,5 +44,6 @@ data class NPCSpawnConfig(
     val id: String? = null,
     val isHonest: Boolean = true,
     val canCollectItems: Boolean = true,
-    val pathFollowingStyle: PathFollowingStyle = PathFollowingStyle.CONTINUOUS
+    val pathFollowingStyle: PathFollowingStyle = PathFollowingStyle.CONTINUOUS,
+    val assignedPathId: String? = null
 )

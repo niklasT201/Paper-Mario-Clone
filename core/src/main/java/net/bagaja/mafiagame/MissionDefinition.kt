@@ -225,6 +225,7 @@ data class GameEvent(
     // Enemy-specific
     val enemyType: EnemyType? = null,
     val enemyBehavior: EnemyBehavior? = null,
+    val assignedPathId: String? = null,
     val healthSetting: HealthSetting? = null,
     val customHealthValue: Float? = null,
     val minRandomHealth: Float? = null,

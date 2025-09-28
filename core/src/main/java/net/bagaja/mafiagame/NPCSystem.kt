@@ -468,7 +468,8 @@ class NPCSystem : IFinePositionable {
             position = config.position.cpy(),
             canCollectItems = config.canCollectItems,
             isHonest = config.isHonest,
-            pathFollowingStyle = config.pathFollowingStyle
+            pathFollowingStyle = config.pathFollowingStyle,
+            assignedPathId = config.assignedPathId
         )
 
         newNpc.physics = PhysicsComponent(

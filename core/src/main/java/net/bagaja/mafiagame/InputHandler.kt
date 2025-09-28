@@ -71,7 +71,6 @@ class InputHandler(
     private var pageDownPressed = false
     val groundPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
 
-    // NEW: Helper function to handle preview logic to avoid code duplication
     private fun handleBackgroundPreviewUpdate(screenX: Int, screenY: Int) {
         if (uiManager.selectedTool == Tool.BACKGROUND) {
             val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
@@ -352,6 +351,40 @@ class InputHandler(
                                 Gdx.app.clipboard.contents = obj.id
                                 uiManager.showTemporaryMessage("Copied Object ID: ${obj.id}")
                                 return true
+                            }
+
+                            // 1. Check for Car Path Nodes
+                            val carPathNode = game.carPathSystem.findNodeAtRay(ray)
+                            if (carPathNode != null) {
+                                if (uiManager.selectedTool == Tool.CAR) {
+                                    // If Car Tool is active, right-click REMOVES the node.
+                                    if (game.carPathSystem.handleRemoveAction(ray)) {
+                                        uiManager.updatePlacementInfo("Removed car path node.")
+                                        return true // Action handled
+                                    }
+                                } else {
+                                    // If any other tool is active, right-click COPIES the ID.
+                                    Gdx.app.clipboard.contents = carPathNode.id
+                                    uiManager.showTemporaryMessage("Copied Car Path Node ID: ${carPathNode.id}")
+                                    return true // Action handled
+                                }
+                            }
+
+                            // 2. Check for Character Path Nodes
+                            val charPathNode = game.characterPathSystem.findNodeAtRay(ray)
+                            if (charPathNode != null) {
+                                if (uiManager.selectedTool == Tool.PLAYER) {
+                                    // If Player Tool is active, right-click REMOVES the node.
+                                    if (game.characterPathSystem.handleRemoveAction(ray)) {
+                                        uiManager.updatePlacementInfo("Removed character path node.")
+                                        return true // Action handled
+                                    }
+                                } else {
+                                    // If any other tool is active, right-click COPIES the ID.
+                                    Gdx.app.clipboard.contents = charPathNode.id
+                                    uiManager.showTemporaryMessage("Copied Char Path Node ID: ${charPathNode.id}")
+                                    return true // Action handled
+                                }
                             }
 
                             val block = game.raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())

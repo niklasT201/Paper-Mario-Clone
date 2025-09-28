@@ -7,9 +7,11 @@ import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
@@ -36,13 +38,16 @@ class EnemySelectionUI(
     private lateinit var setAmmoField: TextField
     private lateinit var ammoFieldsTable: Table
 
-    private val primaryBehaviors = listOf(EnemyBehavior.STATIONARY_SHOOTER, EnemyBehavior.AGGRESSIVE_RUSHER, EnemyBehavior.NEUTRAL)
+    private val primaryBehaviors = listOf(EnemyBehavior.STATIONARY_SHOOTER, EnemyBehavior.AGGRESSIVE_RUSHER, EnemyBehavior.NEUTRAL, EnemyBehavior.PATH_FOLLOWER)
     private val emptyAmmoBehaviors = listOf(EnemyBehavior.AGGRESSIVE_RUSHER, EnemyBehavior.SKIRMISHER)
 
     private var primaryTacticIndex = 0
     private var emptyAmmoTacticIndex = 0
 
     private val loadedTextures = mutableMapOf<String, Texture>()
+
+    private lateinit var pathIdField: TextField
+    private lateinit var pathIdTable: Table
 
     private data class EnemySelectionItem(
         val container: Table, val iconImage: Image, val nameLabel: Label, val statsLabel: Label,
@@ -125,6 +130,12 @@ class EnemySelectionUI(
         topSelectionContainer.add(archetypeColumn).top().padRight(40f)
         topSelectionContainer.add(tacticsColumn).top()
         mainContainer.add(topSelectionContainer).padBottom(25f).row()
+
+        pathIdTable = Table()
+        pathIdField = TextField("", skin).apply { messageText = "Paste Path Start Node ID" }
+        pathIdTable.add(Label("Path Start ID:", skin)).padRight(10f)
+        pathIdTable.add(pathIdField).width(250f)
+        mainContainer.add(pathIdTable).padBottom(15f).row()
 
         // 4. Bottom Section for Detailed Configuration
         val configTitle = Label("Placement Settings", skin, "title")
@@ -217,6 +228,16 @@ class EnemySelectionUI(
         // Set initial visibility of dynamic fields
         updateHealthFieldVisibility()
         updateAmmoUIVisibility()
+
+        primaryTacticItems.forEach { item ->
+            item.container.addListener(object : ClickListener() {
+                override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                    primaryTacticIndex = primaryBehaviors.indexOf(item.behavior)
+                    enemySystem.currentSelectedBehavior = item.behavior
+                    update() // This will now also update the visibility of the path ID field
+                }
+            })
+        }
     }
 
     private fun updateHealthFieldVisibility() {
@@ -254,6 +275,7 @@ class EnemySelectionUI(
         val initialWeapon = WeaponType.entries.find { it.displayName == initialWeaponSelectBox.selected } ?: WeaponType.UNARMED
         val ammoMode = AmmoSpawnMode.valueOf(ammoModeSelectBox.selected)
         val setAmmo = setAmmoField.text.toIntOrNull() ?: 30
+        val pathId = pathIdField.text.ifBlank { null }
 
         return EnemySpawnConfig(
             enemyType = enemyType,
@@ -265,6 +287,7 @@ class EnemySelectionUI(
             maxRandomHealth = maxHealth,
             weaponCollectionPolicy = weaponPolicy,
             canCollectItems = canCollectItemsCheckbox.isChecked,
+            assignedPathId = pathId,
             initialWeapon = initialWeapon,
             ammoSpawnMode = ammoMode,
             setAmmoValue = setAmmo
@@ -305,6 +328,8 @@ class EnemySelectionUI(
         emptyAmmoTacticItems.forEachIndexed { index, item ->
             updateItemSelection(item.container, index == emptyAmmoTacticIndex, item.background, item.selectedBackground, item.nameLabel)
         }
+
+        pathIdTable.isVisible = (primaryBehaviors[primaryTacticIndex] == EnemyBehavior.PATH_FOLLOWER)
     }
 
     private fun createEnemyTypeItem(enemyType: EnemyType, isSelected: Boolean): EnemySelectionItem {
@@ -443,6 +468,17 @@ class EnemySelectionUI(
             EnemyBehavior.NEUTRAL -> {
                 pixmap.setColor(Color(0.7f, 0.7f, 0.7f, 1f))
                 pixmap.drawCircle(20,20,15)
+            }
+            EnemyBehavior.PATH_FOLLOWER -> {
+                // Dotted line with an arrow icon
+                pixmap.setColor(Color.valueOf("#4A90E2")) // A distinct blue
+                // Draw dotted line
+                for (i in 5 until 35 step 4) {
+                    pixmap.drawLine(i, 20, i + 2, 20)
+                }
+                // Draw arrowhead
+                pixmap.drawLine(35, 20, 30, 15)
+                pixmap.drawLine(35, 20, 30, 25)
             }
         }
         val texture = Texture(pixmap)
