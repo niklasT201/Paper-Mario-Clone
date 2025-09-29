@@ -504,7 +504,7 @@ data class GameCar(
     var visualRotationY = 0f // Current visual rotation
     private var targetRotationY = 0f // Target visual rotation
     private val rotationSpeed = 360f // Degrees per second
-    private var lastHorizontalDirection = 0f
+    private var lastHorizontalDirection = if (initialVisualRotation == 180f) -1f else 1f
 
     // Animation System for the Car
     private val animationSystem = AnimationSystem()
@@ -711,7 +711,7 @@ data class GameCar(
             light.intensity = MathUtils.lerp(light.intensity, targetIntensity, deltaTime * 5f)
 
             // Calculate the forward direction based on the car's visual rotation
-            val forwardX = if (visualRotationY == 180f) 1f else -1f
+            val forwardX = if (visualRotationY >= 90f) 1f else -1f // Check if we are more left-facing than right-facing
 
             // Position the light in front of the car
             val headlightForwardOffset = 10f

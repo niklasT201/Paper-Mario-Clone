@@ -125,7 +125,7 @@ class PlayerSystem {
     private var isHoldingShootButton = false
     private val isRotating: Boolean
         get() {
-            return kotlin.math.abs(playerCurrentRotationY - playerTargetRotationY) > 1f
+            return !MathUtils.isEqual(playerCurrentRotationY, playerTargetRotationY, 1.0f)
         }
 
     // Animation system
@@ -469,14 +469,29 @@ class PlayerSystem {
 
                 when (equippedWeapon.actionType) {
                     WeaponActionType.SHOOTING -> {
-                        if (canShoot() && !isReloading && Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
-                            if (!isRotating) {
-                                spawnBullet() // This function will now handle ammo reduction
-                                fireRateTimer = equippedWeapon.fireCooldown
-                                state = PlayerState.ATTACKING
-                                attackTimer = shootingPoseDuration
-                            }
-                        } else if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+                       // 1. Determine the intended shooting direction from player input.
+                        var intendedDirectionX = 0f
+                        if (Gdx.input.isKeyPressed(Input.Keys.A)) intendedDirectionX = -1f
+                        if (Gdx.input.isKeyPressed(Input.Keys.D)) intendedDirectionX = 1f
+
+                        // If no movement keys are pressed, the direction is based on where the player is already facing.
+                        if (intendedDirectionX == 0f) {
+                            intendedDirectionX = if (playerCurrentRotationY == 180f) -1f else 1f
+                        }
+
+                        // 2. Check if the player's visual rotation matches the intended direction.
+                        val isFacingCorrectDirection = (intendedDirectionX < 0 && playerCurrentRotationY == 180f) || (intendedDirectionX > 0 && playerCurrentRotationY == 0f)
+
+                        // 3. The final condition to allow shooting.
+                        val canShootNow = canShoot() && !isReloading && Gdx.input.isButtonPressed(Input.Buttons.LEFT) && !isRotating && isFacingCorrectDirection
+
+                        if (canShootNow) {
+                            spawnBullet() // This function will now handle ammo reduction
+                            fireRateTimer = equippedWeapon.fireCooldown
+                            state = PlayerState.ATTACKING
+                            attackTimer = shootingPoseDuration
+                        }
+                        else if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
                             // Player tried to shoot but couldn't (e.g., empty magazine)
                             println("Click! (Out of ammo or empty magazine)")
                             checkAndRemoveWeaponIfOutOfAmmo()
@@ -489,7 +504,7 @@ class PlayerSystem {
                         }
                     }
                     WeaponActionType.MELEE -> {
-                        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+                        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT) && !isRotating) {
                             if (!isRotating) {
                                 val animName = when (equippedWeapon) {
                                     WeaponType.UNARMED -> "attack_punch"
@@ -1212,7 +1227,7 @@ class PlayerSystem {
         isMoving = physicsComponent.isMoving
 
         if (desiredMovement.x != 0f) {
-            lastMovementDirection = if (desiredMovement.x > 0) 1f else -1f
+            lastMovementDirection = desiredMovement.x
         }
         playerTargetRotationY = if (lastMovementDirection < 0f) 180f else 0f
         updatePlayerRotation(deltaTime)
