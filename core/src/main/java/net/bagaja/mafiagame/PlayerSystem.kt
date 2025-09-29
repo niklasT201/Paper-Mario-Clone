@@ -191,7 +191,6 @@ class PlayerSystem {
     private val FOOTPRINT_SPAWN_INTERVAL = 0.35f // One print every 0.35 seconds of movement
 
     private lateinit var lightingManager: LightingManager
-    private var headlightLight: LightSource? = null
     private val headlightForwardOffset = 10f // How far in front of the car center the light is
     private val headlightVerticalOffset = 2.0f
 
@@ -230,17 +229,6 @@ class PlayerSystem {
         muzzleFlashLight = light
         // We add the PointLight to the environment so it can be rendered
         lightingManager.getEnvironment().add(light.createPointLight())
-
-        val carLight = LightSource(
-            id = -2, // A different negative ID to be safe
-            position = Vector3(),
-            intensity = 0f, // Start OFF
-            range = 45f,
-            color = Color(1f, 1f, 0.8f, 1f)
-        )
-        headlightLight = carLight
-        // Directly add its PointLight to the environment. It is now a transient effect.
-        lightingManager.getEnvironment().add(carLight.createPointLight())
     }
 
     private fun setupBillboardShader() {
@@ -974,7 +962,8 @@ class PlayerSystem {
 
         // Remove player from the car's occupant list
         car.removeOccupant(this)
-        headlightLight?.let { it.intensity = 0f; it.updatePointLight() }
+        car.headlightLight?.let { it.intensity = 0f; it.updatePointLight() }
+
         car.modelInstance.userData = null
         val exitOffset = Vector3(-5f, 0f, 0f).rotate(Vector3.Y, car.visualRotationY) // Use visual rotation
         val exitPosition = Vector3(car.position).add(exitOffset)
@@ -1077,24 +1066,7 @@ class PlayerSystem {
     private fun handleCarMovement(deltaTime: Float, sceneManager: SceneManager, allCars: Array<GameCar>): Boolean {
         val car = drivingCar ?: return false
 
-        headlightLight?.let { light ->
-            val sunIntensity = lightingManager.getDayNightCycle().getSunIntensity()
-            val targetIntensity = if (sunIntensity < 0.25f && !car.isDestroyed) HEADLIGHT_INTENSITY else 0f
-            light.intensity = MathUtils.lerp(light.intensity, targetIntensity, deltaTime * 5f)
-
-            // Calculate the forward direction based on the CAR'S visual rotation
-            val forwardX = if (car.visualRotationY == 180f) 1f else -1f
-
-            // Position the light in front of the car
-            val lightPosition = car.position.cpy().add(
-                forwardX * headlightForwardOffset,
-                headlightVerticalOffset,
-                0f
-            )
-
-            light.position.set(lightPosition)
-            light.updatePointLight()
-        }
+        car.updateHeadlight(deltaTime)
 
         if (car.isDestroyed) {
             car.setDrivingAnimationState(false) // Ensure it doesn't play driving animations

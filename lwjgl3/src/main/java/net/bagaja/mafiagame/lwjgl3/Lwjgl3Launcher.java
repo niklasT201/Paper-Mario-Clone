@@ -89,9 +89,9 @@ public class Lwjgl3Launcher {
 // add event button automatically adds new event without saving button press
 // new events: PLAY_SOUND
 // label to show how many enemies left for kill all enemies
+// headlight turns off and turns on back when car rotates left/right
+// fix left/right bug
 // fixing enemy reloading bug
-// characters in cars start headlights
-// key for player to turn headlights off
 // fixing flickering character image
 // Objective Markers
 // drive to location, visual arrow that shows direction

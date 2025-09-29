@@ -115,7 +115,8 @@ data class CarData(
     var state: CarState = CarState.DRIVABLE,
     var wreckedTimer: Float = 0f,
     var fadeOutTimer: Float = 0f,
-    var visualRotationY: Float = 0f
+    var visualRotationY: Float = 0f,
+    var areHeadlightsOn: Boolean = false
 )
 
 data class EnemyData(

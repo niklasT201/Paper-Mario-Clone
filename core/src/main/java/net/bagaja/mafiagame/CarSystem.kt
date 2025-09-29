@@ -1,15 +1,13 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.graphics.Camera
-import com.badlogic.gdx.graphics.GL20
-import com.badlogic.gdx.graphics.Texture
-import com.badlogic.gdx.graphics.VertexAttributes
+import com.badlogic.gdx.graphics.*
 import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.math.MathUtils
 import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
@@ -63,6 +61,9 @@ class CarSystem: IFinePositionable {
     private val tempVec3 = Vector3()
     private var blockSize: Float = 4f
 
+    companion object {
+        const val HEADLIGHT_INTENSITY = 12f
+    }
 
     fun initialize(blockSize: Float) {
         this.blockSize = blockSize
@@ -263,6 +264,21 @@ class CarSystem: IFinePositionable {
                 health = carType.baseHealth,
                 initialVisualRotation = initialVisualRotation
             )
+
+            // Create and attach a unique headlight
+            val headlight = sceneManager.game.objectSystem.createLightSource(
+                position = Vector3(), // Position will be updated every frame by the car itself
+                intensity = 0f,       // Start with lights off
+                range = 45f,
+                color = Color(1f, 1f, 0.8f, 1f)
+            )
+            // Use a unique negative ID to prevent conflicts with placeable lights
+            headlight.id = -(2000 + sceneManager.activeCars.size)
+            val instances = sceneManager.game.objectSystem.createLightSourceInstances(headlight)
+            sceneManager.game.lightingManager.addLightSource(headlight, instances)
+
+            // Associate the created light with the car object
+            gameCar.headlightLight = headlight
 
             sceneManager.activeCars.add(gameCar)
             sceneManager.game.lastPlacedInstance = gameCar
@@ -476,7 +492,9 @@ data class GameCar(
     var direction: Float = 0f,
     val isLocked: Boolean = false,
     var health: Float = carType.baseHealth,
-    val initialVisualRotation: Float = 0f
+    val initialVisualRotation: Float = 0f,
+    @Transient var headlightLight: LightSource? = null,
+    var areHeadlightsOn: Boolean = false
 ) {
     companion object {
         const val WRECKED_DURATION = 25f
@@ -630,9 +648,17 @@ data class GameCar(
 
     fun updateAIControlled(deltaTime: Float, desiredMovement: Vector3, sceneManager: SceneManager, allCars: com.badlogic.gdx.utils.Array<GameCar>) {
         if (isDestroyed) {
+            // Ensure headlight turns off if car is destroyed
+            headlightLight?.let { it.intensity = 0f; it.updatePointLight() }
             setDrivingAnimationState(false)
             return
         }
+
+        // AI Headlight
+        val sunIntensity = sceneManager.game.lightingManager.getDayNightCycle().getSunIntensity()
+        // AI turns lights on if it's dark and the car isn't wrecked.
+        areHeadlightsOn = sunIntensity < 0.25f && !isDestroyed
+        updateHeadlight(deltaTime)
 
         val originalPosition = position.cpy()
         val moveAmount = carType.speed * deltaTime // Speed can be based on car health or a fixed value
@@ -675,6 +701,29 @@ data class GameCar(
         // 5. Finalize
         if (!position.epsilonEquals(originalPosition, 0.001f)) {
             updateTransform()
+        }
+    }
+
+    fun updateHeadlight(deltaTime: Float) {
+        headlightLight?.let { light ->
+            val targetIntensity = if (areHeadlightsOn) CarSystem.HEADLIGHT_INTENSITY else 0f
+            // Smoothly fade the light on or off
+            light.intensity = MathUtils.lerp(light.intensity, targetIntensity, deltaTime * 5f)
+
+            // Calculate the forward direction based on the car's visual rotation
+            val forwardX = if (visualRotationY == 180f) 1f else -1f
+
+            // Position the light in front of the car
+            val headlightForwardOffset = 10f
+            val headlightVerticalOffset = 2.0f
+            val lightPosition = position.cpy().add(
+                forwardX * headlightForwardOffset,
+                headlightVerticalOffset,
+                0f
+            )
+
+            light.position.set(lightPosition)
+            light.updatePointLight()
         }
     }
 

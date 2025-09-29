@@ -695,6 +695,17 @@ class InputHandler(
                             game.playerSystem.switchToNextWeapon()
                             return true
                         }
+                        Input.Keys.L -> {
+                            // Check if the player is currently driving a car
+                            if (game.playerSystem.isDriving) {
+                                val car = game.playerSystem.drivingCar
+                                if (car != null && !car.isDestroyed) {
+                                    car.areHeadlightsOn = !car.areHeadlightsOn // Toggle the state
+                                    println("Player toggled headlights ${if (car.areHeadlightsOn) "ON" else "OFF"}.")
+                                    return true // Consume the key press
+                                }
+                            }
+                        }
                     }
                 }
 
