@@ -23,7 +23,8 @@ enum class RewardType {
     GIVE_AMMO,
     GIVE_ITEM,
     UNLOCK_CAR_SPAWN, // For adding a new car to a garage, for example.
-    SHOW_MESSAGE
+    SHOW_MESSAGE,
+    UPGRADE_SPAWNER_WEAPON
 }
 
 // --- Core Mission Definition ---
@@ -75,7 +76,9 @@ data class MissionReward(
     val message: String = "Mission Complete!",
     val weaponType: WeaponType? = null,
     val itemType: ItemType? = null,
-    val carType: CarType? = null
+    val carType: CarType? = null,
+    val spawnerTargetEnemyType: EnemyType? = null, // Which enemy type to upgrade
+    val newDefaultWeapon: WeaponType? = null     // The new weapon they will spawn with
 )
 
 enum class ConditionType {

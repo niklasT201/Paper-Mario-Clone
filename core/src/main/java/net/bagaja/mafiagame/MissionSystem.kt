@@ -3,6 +3,7 @@ package net.bagaja.mafiagame
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.Json
 import com.badlogic.gdx.utils.JsonWriter
 import com.badlogic.gdx.utils.ObjectMap
@@ -935,6 +936,17 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     }
                 }
             }
+            RewardType.UPGRADE_SPAWNER_WEAPON -> {
+                val targetEnemy = reward.spawnerTargetEnemyType
+                val newWeapon = reward.newDefaultWeapon
+                if (targetEnemy != null && newWeapon != null) {
+                    println("Applying spawner upgrade: All ${targetEnemy.displayName} will now spawn with ${newWeapon.displayName}.")
+                    val allSpawners = game.sceneManager.activeSpawners + (game.sceneManager.worldState?.spawners ?: Array())
+                    allSpawners.filter { it.spawnerType == SpawnerType.ENEMY && it.enemyType == targetEnemy }
+                        .forEach { it.upgradedWeapon = newWeapon }
+                }
+            }
+
             else -> println("Reward type ${reward.type} not yet implemented.")
         }
         println("Granted reward: ${reward.type}")

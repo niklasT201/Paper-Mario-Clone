@@ -246,7 +246,8 @@ data class SpawnerData(
     var carDriverType: String = "None",
     var carEnemyDriverType: EnemyType = EnemyType.MOUSE_THUG,
     var carNpcDriverType: NPCType = NPCType.GEORGE_MELES,
-    var carSpawnDirection: CarSpawnDirection = CarSpawnDirection.LEFT
+    var carSpawnDirection: CarSpawnDirection = CarSpawnDirection.LEFT,
+    var upgradedWeapon: WeaponType? = null
 )
 
 data class CarPathNodeData(

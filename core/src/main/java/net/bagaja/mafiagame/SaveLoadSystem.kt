@@ -187,7 +187,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     carDriverType = s.carDriverType,
                     carEnemyDriverType = s.carEnemyDriverType,
                     carNpcDriverType = s.carNpcDriverType,
-                    carSpawnDirection = s.carSpawnDirection
+                    carSpawnDirection = s.carSpawnDirection,
+                    upgradedWeapon = s.upgradedWeapon
                 ))
             }
             game.teleporterSystem.activeTeleporters.forEach { tp ->
@@ -446,6 +447,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                         carNpcDriverType = data.carNpcDriverType,
                         carSpawnDirection = data.carSpawnDirection
                     )
+                    newSpawner.upgradedWeapon = data.upgradedWeapon
 
                     sm.activeSpawners.add(newSpawner)
                 }

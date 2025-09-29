@@ -85,7 +85,8 @@ data class GameSpawner(
     var carDriverType: String = "None", // "None", "Enemy", or "NPC"
     var carEnemyDriverType: EnemyType = EnemyType.MOUSE_THUG,
     var carNpcDriverType: NPCType = NPCType.GEORGE_MELES,
-    var carSpawnDirection: CarSpawnDirection = CarSpawnDirection.LEFT
+    var carSpawnDirection: CarSpawnDirection = CarSpawnDirection.LEFT,
+    var upgradedWeapon: WeaponType? = null
 )
 
 class SpawnerSystem(
@@ -199,6 +200,8 @@ class SpawnerSystem(
     }
 
     private fun spawnEnemyFromSpawner(spawner: GameSpawner) {
+        val finalWeapon = spawner.upgradedWeapon ?: spawner.enemyInitialWeapon
+
         val config = EnemySpawnConfig(
             enemyType = spawner.enemyType,
             behavior = spawner.enemyBehavior,
@@ -207,7 +210,7 @@ class SpawnerSystem(
             customHealthValue = spawner.enemyCustomHealth,
             minRandomHealth = spawner.enemyMinHealth,
             maxRandomHealth = spawner.enemyMaxHealth,
-            initialWeapon = spawner.enemyInitialWeapon,
+            initialWeapon = finalWeapon,
             ammoSpawnMode = spawner.ammoSpawnMode,
             setAmmoValue = spawner.setAmmoValue,
             weaponCollectionPolicy = spawner.enemyWeaponCollectionPolicy,

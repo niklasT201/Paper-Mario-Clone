@@ -68,8 +68,6 @@ public class Lwjgl3Launcher {
 // Save and Load Player Progress
 // Expanding & Polishing
 // save shaders and visual settings
-// save particles for current session
-// collected item checks value and not just item, maybe changing to id
 // number before mission list
 // id under mission name
 // C button to copy mission id
@@ -81,14 +79,15 @@ public class Lwjgl3Launcher {
 // visual that a character wants to talk
 // y=0 standard bottom only in editor mode
 // weather events
-// after specific missions, enemies change weapons
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // more options for starting a mission
+// remove visual light source from enemies
 // pulling out characters from vehicles
 // pressing e to talk will no longer switch weapon
 // add event button automatically adds new event without saving button press
 // new events: PLAY_SOUND
 // label to show how many enemies left for kill all enemies
+// heavy weapon check for rotation
 // fixing enemy reloading bug
 // fixing flickering character image
 // Objective Markers

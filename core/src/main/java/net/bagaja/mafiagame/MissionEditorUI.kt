@@ -1080,6 +1080,14 @@ class MissionEditorUI(
             items = GdxArray(ItemType.entries.map { it.displayName }.toTypedArray())
             selected = existingReward?.itemType?.displayName ?: ItemType.MONEY_STACK.displayName
         }
+        val spawnerTargetEnemySelectBox = SelectBox<String>(skin).apply {
+            items = GdxArray(EnemyType.entries.map { it.displayName }.toTypedArray())
+            selected = existingReward?.spawnerTargetEnemyType?.displayName
+        }
+        val newDefaultWeaponSelectBox = SelectBox<String>(skin).apply {
+            items = GdxArray(WeaponType.entries.map { it.displayName }.toTypedArray())
+            selected = existingReward?.newDefaultWeapon?.displayName
+        }
 
         content.add("Reward Type:"); content.add(typeSelect).row()
 
@@ -1088,10 +1096,17 @@ class MissionEditorUI(
         val weaponTable = Table(skin).apply { add("Weapon Type:"); add(weaponTypeSelect) }
         val itemTable = Table(skin).apply { add("Item Type:"); add(itemTypeSelect) }
 
+        val spawnerUpgradeTable = Table(skin)
+        spawnerUpgradeTable.add(Label("Enemy Type to Upgrade:", skin)).left().row()
+        spawnerUpgradeTable.add(spawnerTargetEnemySelectBox).growX().row()
+        spawnerUpgradeTable.add(Label("New Default Weapon:", skin)).left().padTop(5f).row()
+        spawnerUpgradeTable.add(newDefaultWeaponSelectBox).growX().row()
+
         content.add(amountTable).colspan(2).row()
         content.add(messageTable).colspan(2).row()
         content.add(weaponTable).colspan(2).row()
         content.add(itemTable).colspan(2).row()
+        content.add(spawnerUpgradeTable).colspan(2).row()
 
         fun updateVisibleFields() {
             val selectedType = try { RewardType.valueOf(typeSelect.selected) } catch (e: Exception) { RewardType.SHOW_MESSAGE }
@@ -1099,6 +1114,7 @@ class MissionEditorUI(
             messageTable.isVisible = selectedType == RewardType.SHOW_MESSAGE
             weaponTable.isVisible = selectedType == RewardType.GIVE_AMMO
             itemTable.isVisible = selectedType == RewardType.GIVE_ITEM
+            spawnerUpgradeTable.isVisible = selectedType == RewardType.UPGRADE_SPAWNER_WEAPON
             dialog.pack()
         }
 
@@ -1114,19 +1130,25 @@ class MissionEditorUI(
                 val rewardType = try { RewardType.valueOf(typeSelect.selected) } catch (e: Exception) { RewardType.SHOW_MESSAGE }
                 val weaponType = WeaponType.entries.find { it.displayName == weaponTypeSelect.selected }
                 val itemType = ItemType.entries.find { it.displayName == itemTypeSelect.selected }
+                val targetEnemyType = EnemyType.entries.find { it.displayName == spawnerTargetEnemySelectBox.selected }
+                val newWeaponType = WeaponType.entries.find { it.displayName == newDefaultWeaponSelectBox.selected }
 
                 val newReward = existingReward?.copy(
                     type = rewardType,
                     amount = amountField.text.toIntOrNull() ?: 0,
                     message = messageField.text.ifBlank { "Reward granted." },
                     weaponType = weaponType,
-                    itemType = itemType
+                    itemType = itemType,
+                    spawnerTargetEnemyType = targetEnemyType,
+                    newDefaultWeapon = newWeaponType
                 ) ?: MissionReward(
                     type = rewardType,
                     amount = amountField.text.toIntOrNull() ?: 0,
                     message = messageField.text.ifBlank { "Reward granted." },
                     weaponType = weaponType,
-                    itemType = itemType
+                    itemType = itemType,
+                    spawnerTargetEnemyType = targetEnemyType,
+                    newDefaultWeapon = newWeaponType
                 )
 
                 if (existingReward == null) tempRewards.add(newReward)
