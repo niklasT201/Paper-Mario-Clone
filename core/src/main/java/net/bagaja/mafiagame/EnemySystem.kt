@@ -67,7 +67,8 @@ data class GameEnemy(
     var equippedWeapon: WeaponType = WeaponType.UNARMED,
     @Transient var continuousShootingTimer: Float = 0f,
     var assignedPathId: String? = null,
-    @Transient var currentPathNode: CharacterPathNode? = null
+    @Transient var currentPathNode: CharacterPathNode? = null,
+    var missionId: String? = null
 ) {
     var currentBehavior: EnemyBehavior = behaviorType
     var provocationLevel: Float = 0f
@@ -299,6 +300,7 @@ class EnemySystem : IFinePositionable {
             return
         }
 
+        // World Editing logic
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
             val enemyType = sceneManager.game.uiManager.enemySelectionUI.getSpawnConfig(Vector3()).enemyType
@@ -316,11 +318,7 @@ class EnemySystem : IFinePositionable {
     }
 
     private fun handleMissionPlacement(ray: Ray) {
-        val mission = sceneManager.game.uiManager.selectedMissionForEditing
-        if (mission == null) {
-            sceneManager.game.uiManager.updatePlacementInfo("ERROR: No mission selected for editing!")
-            return
-        }
+        val mission = sceneManager.game.uiManager.selectedMissionForEditing ?: return
 
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             // First, get the config with a temporary position to determine the enemy's height
@@ -331,11 +329,7 @@ class EnemySystem : IFinePositionable {
             // Now, get the final, complete config using the correct spawn position
             val finalConfig = sceneManager.game.uiManager.enemySelectionUI.getSpawnConfig(finalEnemyPosition)
 
-            val currentSceneId = if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
-                sceneManager.getCurrentHouse()?.id ?: "WORLD"
-            } else {
-                "WORLD"
-            }
+            val currentSceneId = sceneManager.getCurrentSceneId()
 
             // 1. Create the GameEvent for the mission file, now including ALL config details
             val event = GameEvent(
@@ -353,7 +347,8 @@ class EnemySystem : IFinePositionable {
                 ammoSpawnMode = finalConfig.ammoSpawnMode,
                 setAmmoValue = finalConfig.setAmmoValue,
                 weaponCollectionPolicy = finalConfig.weaponCollectionPolicy,
-                canCollectItems = finalConfig.canCollectItems
+                canCollectItems = finalConfig.canCollectItems,
+                assignedPathId = finalConfig.assignedPathId
             )
 
             // 2. Add the event and save the mission
@@ -365,6 +360,7 @@ class EnemySystem : IFinePositionable {
             val previewEnemy = createEnemy(previewConfig)
             if (previewEnemy != null) {
                 previewEnemy.modelInstance.transform.setToTranslation(previewEnemy.position)
+                previewEnemy.missionId = mission.id
 
                 sceneManager.activeMissionPreviewEnemies.add(previewEnemy)
                 sceneManager.game.lastPlacedInstance = previewEnemy

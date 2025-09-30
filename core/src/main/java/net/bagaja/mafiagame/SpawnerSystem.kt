@@ -86,7 +86,8 @@ data class GameSpawner(
     var carEnemyDriverType: EnemyType = EnemyType.MOUSE_THUG,
     var carNpcDriverType: NPCType = NPCType.GEORGE_MELES,
     var carSpawnDirection: CarSpawnDirection = CarSpawnDirection.LEFT,
-    var upgradedWeapon: WeaponType? = null
+    var upgradedWeapon: WeaponType? = null,
+    var missionId: String? = null
 )
 
 class SpawnerSystem(

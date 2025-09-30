@@ -24,7 +24,8 @@ data class CarPathNode(
     var previousNodeId: String? = null,
     val debugInstance: ModelInstance,
     var isOneWay: Boolean = false,
-    var sceneId: String = "WORLD"
+    var sceneId: String = "WORLD",
+    var missionId: String? = null
 )
 
 enum class PathDirectionality(val displayName: String) {

@@ -36,7 +36,8 @@ data class LightSource(
     val flickerMode: FlickerMode = FlickerMode.NONE,
     val loopOnDuration: Float = 0.1f,
     val loopOffDuration: Float = 0.1f,
-    val timedFlickerLifetime: Float = 10.0f
+    val timedFlickerLifetime: Float = 10.0f,
+    var missionId: String? = null
 ) {
     var pointLight: RangePointLight? = null
     private var modelInstance: ModelInstance? = null

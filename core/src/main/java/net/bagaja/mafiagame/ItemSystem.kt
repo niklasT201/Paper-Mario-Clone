@@ -157,6 +157,7 @@ class ItemSystem: IFinePositionable {
             return
         }
 
+        // World Editing logic
         val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
         if (hitBlock != null) {
             // We hit a block directly - place item on top of it
@@ -202,12 +203,7 @@ class ItemSystem: IFinePositionable {
         if (itemPosition != null) {
             val itemType = currentSelectedItem
             val eventType = if (itemType == ItemType.MONEY_STACK) GameEventType.SPAWN_MONEY_STACK else GameEventType.SPAWN_ITEM
-
-            val currentSceneId = if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
-                sceneManager.getCurrentHouse()?.id ?: "WORLD"
-            } else {
-                "WORLD"
-            }
+            val currentSceneId = sceneManager.getCurrentSceneId()
 
             // 1. Create the GameEvent
             val event = GameEvent(
@@ -216,7 +212,7 @@ class ItemSystem: IFinePositionable {
                 sceneId = currentSceneId,
                 itemType = itemType,
                 itemValue = itemType.value,
-                targetId = null // Ensure this is null for items
+                targetId = if (itemType.correspondingWeapon != null) "item_${UUID.randomUUID()}" else null // Give specific items an ID
             )
 
             // 2. Add and save
@@ -228,6 +224,8 @@ class ItemSystem: IFinePositionable {
             if (previewItem != null) {
                 previewItem.modelInstance.transform.setToTranslation(itemPosition)
 
+                previewItem.missionId = mission.id
+                if (event.targetId != null) previewItem.id = event.targetId
                 sceneManager.activeMissionPreviewItems.add(previewItem)
                 sceneManager.game.lastPlacedInstance = previewItem
                 sceneManager.game.uiManager.updatePlacementInfo("Added $eventType to '${mission.title}'")
@@ -473,7 +471,8 @@ data class GameItem(
     var ammo: Int = itemType.ammoAmount,
     var value: Int = itemType.value, // This is the changed line
     var pickupDelay: Float = 0f,
-    var id: String = UUID.randomUUID().toString()
+    var id: String = UUID.randomUUID().toString(),
+    var missionId: String? = null
 ) {
     init {
         // Random bobbing offset so items don't all bob in sync

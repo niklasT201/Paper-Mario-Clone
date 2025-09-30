@@ -427,7 +427,8 @@ data class GameInterior(
     val position: Vector3 = Vector3(),
     var rotation: Float = 0f,
     val scale: Vector3,
-    val id: String = UUID.randomUUID().toString()
+    val id: String = UUID.randomUUID().toString(),
+    var missionId: String? = null
 ) {
     // For 3D collision detection (same as GameHouse)
     private val mesh = instance.model?.meshes?.firstOrNull()

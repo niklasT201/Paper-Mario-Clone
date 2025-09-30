@@ -106,6 +106,7 @@ class HouseSystem: IFinePositionable {
             return
         }
 
+        // World Editing logic
         if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
@@ -130,16 +131,17 @@ class HouseSystem: IFinePositionable {
 
     private fun handleMissionPlacement(ray: Ray) {
         val mission = sceneManager.game.uiManager.selectedMissionForEditing ?: return
+
         if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
             val properY = findHighestSurfaceYAt(gridX, gridZ)
             val housePosition = Vector3(gridX, properY, gridZ)
 
-            val currentSceneId = if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
-                sceneManager.getCurrentHouse()?.id ?: "WORLD"
-            } else {
-                "WORLD"
+            val currentSceneId = sceneManager.getCurrentSceneId()
+            if (currentSceneId != "WORLD") {
+                sceneManager.game.uiManager.updatePlacementInfo("ERROR: Houses can only be placed in the World scene.")
+                return
             }
 
             val event = GameEvent(
@@ -153,13 +155,18 @@ class HouseSystem: IFinePositionable {
             mission.eventsOnStart.add(event)
             sceneManager.game.missionSystem.saveMission(mission)
 
-            val previewHouse = addHouse(housePosition.x, housePosition.y, housePosition.z, currentSelectedHouse)
-            if (previewHouse != null) {
-                sceneManager.activeHouses.removeValue(previewHouse, true) // Remove from real list
-                sceneManager.activeMissionPreviewHouses.add(previewHouse) // Add to preview list
-                sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_HOUSE to '${mission.title}'")
-                sceneManager.game.uiManager.missionEditorUI.refreshEventWidgets()
-            }
+            // Create a temporary "preview" house
+            val houseInstance = createHouseInstance(currentSelectedHouse) ?: return
+            val previewHouse = GameHouse(
+                houseInstance, currentSelectedHouse, housePosition, isNextHouseLocked,
+                null, null, currentRotation, missionId = mission.id
+            )
+            previewHouse.updateTransform()
+
+            sceneManager.activeMissionPreviewHouses.add(previewHouse) // Remove from real list
+            sceneManager.game.lastPlacedInstance = previewHouse // Add to preview list
+            sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_HOUSE to '${mission.title}'")
+            sceneManager.game.uiManager.missionEditorUI.refreshEventWidgets()
         }
     }
 
@@ -340,7 +347,8 @@ data class GameHouse(
     var exitDoorId: String? = null,
     var rotationY: Float = 0f,
     var id: String = UUID.randomUUID().toString(),
-    var entryPointId: String? = null
+    var entryPointId: String? = null,
+    var missionId: String? = null
 ) {
     // Data for Mesh Collision
     private val mesh = modelInstance.model.meshes.first() // Get the first mesh from the model

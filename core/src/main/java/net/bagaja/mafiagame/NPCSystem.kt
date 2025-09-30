@@ -102,7 +102,8 @@ data class GameNPC(
     var assignedPathId: String? = null,
     var pathFollowingStyle: PathFollowingStyle = PathFollowingStyle.CONTINUOUS,
     @Transient var pathfindingState: PathfindingSubState = PathfindingSubState.MOVING,
-    @Transient var subStateTimer: Float = 0f
+    @Transient var subStateTimer: Float = 0f,
+    var missionId: String? = null
 ) {
     var isOnFire: Boolean = false
     var onFireTimer: Float = 0f
@@ -355,6 +356,7 @@ class NPCSystem : IFinePositionable {
             return
         }
 
+        // World Editing logic
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
 
@@ -376,22 +378,14 @@ class NPCSystem : IFinePositionable {
     }
 
     private fun handleMissionPlacement(ray: Ray) {
-        val mission = sceneManager.game.uiManager.selectedMissionForEditing
-        if (mission == null) {
-            sceneManager.game.uiManager.updatePlacementInfo("ERROR: No mission selected for editing!")
-            return
-        }
+        val mission = sceneManager.game.uiManager.selectedMissionForEditing ?: return
 
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
-            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
             val config = sceneManager.game.uiManager.npcSelectionUI.getSpawnConfig(Vector3.Zero)
+            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
             val npcPosition = Vector3(tempVec3.x, surfaceY + config.npcType.height / 2f, tempVec3.z)
 
-            val currentSceneId = if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
-                sceneManager.getCurrentHouse()?.id ?: "WORLD"
-            } else {
-                "WORLD"
-            }
+            val currentSceneId = sceneManager.getCurrentSceneId()
 
             // 1. Create the GameEvent for the mission file
             val event = GameEvent(
@@ -401,7 +395,9 @@ class NPCSystem : IFinePositionable {
                 targetId = "npc_${UUID.randomUUID()}",
                 npcType = config.npcType,
                 npcBehavior = config.behavior,
-                npcRotation = currentRotation
+                npcRotation = currentRotation,
+                pathFollowingStyle = config.pathFollowingStyle,
+                assignedPathId = config.assignedPathId
             )
 
             // 2. Add the event and save the mission
@@ -415,6 +411,7 @@ class NPCSystem : IFinePositionable {
                 previewNpc.modelInstance.transform.setToTranslation(previewNpc.position)
                 previewNpc.modelInstance.transform.rotate(Vector3.Y, currentRotation)
 
+                previewNpc.missionId = mission.id
                 sceneManager.activeMissionPreviewNPCs.add(previewNpc)
                 sceneManager.game.lastPlacedInstance = previewNpc
                 sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_NPC to '${mission.title}'")

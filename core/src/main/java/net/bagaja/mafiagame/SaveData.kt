@@ -189,7 +189,8 @@ data class LightData(
     var timedFlickerLifetime: Float = 10f,
     var rotationX: Float = 0f,
     var rotationY: Float = 0f,
-    var rotationZ: Float = 0f
+    var rotationZ: Float = 0f,
+    var missionId: String? = null
 )
 
 data class SpawnerData(
@@ -256,7 +257,8 @@ data class CarPathNodeData(
     var nextNodeId: String? = null,
     var previousNodeId: String? = null,
     var isOneWay: Boolean = false,
-    var sceneId: String = "WORLD"
+    var sceneId: String = "WORLD",
+    var missionId: String? = null
 )
 
 data class CharacterPathNodeData(

@@ -545,6 +545,9 @@ class MissionEditorUI(
         val posYField = TextField(existingEvent?.spawnPosition?.y?.toString() ?: "0", skin)
         val posZField = TextField(existingEvent?.spawnPosition?.z?.toString() ?: "0", skin)
 
+        val keepAfterMissionCheckbox = CheckBox(" Keep After Mission", skin)
+        keepAfterMissionCheckbox.isChecked = existingEvent?.keepAfterMission ?: false
+
         // --- Event-Specific Fields ---
         val enemyTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(EnemyType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.enemyType?.displayName }
         val npcTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(NPCType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.npcType?.displayName }
@@ -588,11 +591,14 @@ class MissionEditorUI(
         content.add("Event Type:"); content.add(typeSelect).row()
         content.add(targetIdTable).colspan(2).growX().row()
         content.add(posTable).colspan(2).growX().row()
+        content.add(keepAfterMissionCheckbox).colspan(2).left().padTop(5f).row()
         content.add(settingsStack).colspan(2).growX().row()
 
         fun updateVisibleFields() {
             val type = GameEventType.valueOf(typeSelect.selected)
             val isSpawn = type.name.startsWith("SPAWN")
+
+            keepAfterMissionCheckbox.isVisible = isSpawn
 
             posTable.isVisible = isSpawn || type == GameEventType.DESPAWN_BLOCK_AT_POS
 
@@ -630,6 +636,7 @@ class MissionEditorUI(
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 val newEvent = GameEvent(
                     type = GameEventType.valueOf(typeSelect.selected),
+                    keepAfterMission = keepAfterMissionCheckbox.isChecked,
                     targetId = targetIdField.text.ifBlank { null },
                     spawnPosition = Vector3(posXField.text.toFloatOrNull() ?: 0f, posYField.text.toFloatOrNull() ?: 0f, posZField.text.toFloatOrNull() ?: 0f),
                     enemyType = EnemyType.entries.find { it.displayName == enemyTypeSelect.selected },

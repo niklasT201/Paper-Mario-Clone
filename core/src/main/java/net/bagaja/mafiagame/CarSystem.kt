@@ -111,6 +111,7 @@ class CarSystem: IFinePositionable {
             return
         }
 
+        // World Editing logic
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             // Snap to grid
             val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
@@ -173,11 +174,11 @@ class CarSystem: IFinePositionable {
 
             // Get the full configuration from the UI, including driver info
             val config = uiManager.getCarSpawnConfig()
+            val currentSceneId = sceneManager.getCurrentSceneId()
 
-            val currentSceneId = if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
-                sceneManager.getCurrentHouse()?.id ?: "WORLD"
-            } else {
-                "WORLD"
+            if (currentSceneId != "WORLD") {
+                uiManager.updatePlacementInfo("ERROR: Cars can only be placed in the World scene.")
+                return
             }
 
             // 1. Create the GameEvent for the mission file
@@ -207,7 +208,8 @@ class CarSystem: IFinePositionable {
                     position = carPosition,
                     sceneManager = this.sceneManager,
                     isLocked = config.isLocked,
-                    health = config.carType.baseHealth
+                    health = config.carType.baseHealth,
+                    missionId = mission.id
                 )
                 sceneManager.activeMissionPreviewCars.add(previewCar)
                 sceneManager.game.lastPlacedInstance = previewCar
@@ -216,23 +218,23 @@ class CarSystem: IFinePositionable {
                 when (config.driverCharacterType) {
                     "Enemy" -> {
                         val enemyConfig = EnemySpawnConfig(config.enemyDriverType!!, EnemyBehavior.AGGRESSIVE_RUSHER, previewCar.position)
-                        val driver = enemySystem.createEnemy(enemyConfig)
-                        if (driver != null) {
+                        enemySystem.createEnemy(enemyConfig)?.let { driver ->
+                            driver.missionId = mission.id
                             driver.enterCar(previewCar) // Place preview enemy in preview car
                             sceneManager.activeMissionPreviewEnemies.add(driver) // Add to preview list
                         }
                     }
                     "NPC" -> {
                         val npcConfig = NPCSpawnConfig(config.npcDriverType!!, NPCBehavior.WANDER, previewCar.position)
-                        val driver = npcSystem.createNPC(npcConfig)
-                        if (driver != null) {
+                        npcSystem.createNPC(npcConfig)?.let { driver ->
+                            driver.missionId = mission.id
                             driver.enterCar(previewCar) // Place preview NPC in preview car
                             sceneManager.activeMissionPreviewNPCs.add(driver) // Add to preview list
                         }
                     }
                 }
-                sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_CAR to '${mission.title}'")
-                sceneManager.game.uiManager.missionEditorUI.refreshEventWidgets()
+                uiManager.updatePlacementInfo("Added SPAWN_CAR to '${mission.title}'")
+                uiManager.missionEditorUI.refreshEventWidgets()
             }
         }
     }
@@ -494,7 +496,8 @@ data class GameCar(
     var health: Float = carType.baseHealth,
     val initialVisualRotation: Float = 0f,
     @Transient var headlightLight: LightSource? = null,
-    var areHeadlightsOn: Boolean = false
+    var areHeadlightsOn: Boolean = false,
+    var missionId: String? = null
 ) {
     companion object {
         const val WRECKED_DURATION = 25f

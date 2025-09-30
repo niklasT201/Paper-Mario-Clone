@@ -178,21 +178,22 @@ class ObjectSystem: IFinePositionable {
     }
 
     private fun handleMissionPlacement(ray: Ray, objectType: ObjectType) {
-        val mission = sceneManager.game.uiManager.selectedMissionForEditing ?: return
+        val mission = sceneManager.game.uiManager.selectedMissionForEditing
+        if (mission == null) {
+            uiManager.updatePlacementInfo("ERROR: No mission selected for editing!")
+            return
+        }
+
         if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
             val properY = findHighestSurfaceYAt(gridX, gridZ)
-            val objectPosition = Vector3(gridX, properY, gridZ)
+            val objectPosition = Vector3(gridX, properY + objectType.height / 2f, gridZ) // Centered vertically
 
             // Get light settings from the UI if we are placing a light source
             val lightSettings = if (objectType == ObjectType.LIGHT_SOURCE) uiManager.getLightSourceSettings() else null
 
-            val currentSceneId = if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
-                sceneManager.getCurrentHouse()?.id ?: "WORLD"
-            } else {
-                "WORLD"
-            }
+            val currentSceneId = sceneManager.getCurrentSceneId()
 
             val event = GameEvent(
                 type = GameEventType.SPAWN_OBJECT,
@@ -209,11 +210,14 @@ class ObjectSystem: IFinePositionable {
             mission.eventsOnStart.add(event)
             sceneManager.game.missionSystem.saveMission(mission)
 
-            val previewObject = createGameObjectWithLight(objectType, objectPosition)
+            // Create a temporary preview object
+            val previewObject = createGameObjectWithLight(objectType, objectPosition) // Don't pass lighting manager, it's just a visual
             if (previewObject != null) {
+                previewObject.missionId = mission.id // Tag it for potential identification
                 sceneManager.activeMissionPreviewObjects.add(previewObject)
+                sceneManager.game.lastPlacedInstance = previewObject
                 uiManager.updatePlacementInfo("Added SPAWN_OBJECT to '${mission.title}'")
-                sceneManager.game.uiManager.missionEditorUI.refreshEventWidgets()
+                uiManager.missionEditorUI.refreshEventWidgets()
             }
         }
     }
@@ -691,7 +695,8 @@ data class GameObject(
     var debugInstance: ModelInstance? = null, // For debug visualization of invisible objects
     var associatedLightId: Int? = null, // Link to light source if this object has one
     var isBroken: Boolean = false, // For future lantern breaking functionality
-    var health: Float = objectType.maxHealth
+    var health: Float = objectType.maxHealth,
+    var missionId: String? = null
 ) {
     init {
         // Apply initial transform to the model instance(s)
@@ -760,7 +765,8 @@ data class GameTeleporter(
     val id: String,
     val gameObject: GameObject,
     var linkedTeleporterId: String? = null,
-    var name: String = "Unnamed Link"
+    var name: String = "Unnamed Link",
+    var missionId: String? = null
 )
 
 // Enhanced object type definitions with invisible light source and future broken lantern

@@ -123,7 +123,7 @@ class SceneManager(
         activeMissionPreviewObjects.clear()
 
         // Also remove any preview blocks
-        val blocksToRemove = activeChunkManager.getAllBlocks().filter { it.isMissionOwned }
+        val blocksToRemove = activeChunkManager.getAllBlocks().filter { it.missionId != null }
         if (blocksToRemove.isNotEmpty()) {
             println("Removing ${blocksToRemove.size} mission preview blocks...")
             blocksToRemove.forEach { removeBlock(it) }
@@ -139,6 +139,113 @@ class SceneManager(
 
     fun removeBlock(block: GameBlock) {
         activeChunkManager.removeBlock(block)
+    }
+
+    fun cleanupMissionEntities(missionId: String) {
+        println("--- Cleaning up entities for mission: $missionId ---")
+
+        // --- Special Cases First (Entities requiring system-specific removal logic) ---
+
+        // Blocks (must process dirty chunks after removal)
+        val blocksToRemove = activeChunkManager.getAllBlocks().filter { it.missionId == missionId }
+        if (blocksToRemove.isNotEmpty()) {
+            println("  - Removing ${blocksToRemove.size} mission blocks.")
+            blocksToRemove.forEach { removeBlock(it) }
+            activeChunkManager.processDirtyChunks()
+        }
+
+        // Objects (must also remove associated lights)
+        val objectsToRemove = activeObjects.filter { it.missionId == missionId }
+        if (objectsToRemove.isNotEmpty()) {
+            println("  - Removing ${objectsToRemove.size} mission objects.")
+            // Create a copy to iterate over while modifying the original list
+            val objectsToRemoveCopy = Array(objectsToRemove.toTypedArray())
+            for (obj in objectsToRemoveCopy) {
+                objectSystem.removeGameObjectWithLight(obj, game.lightingManager)
+                activeObjects.removeValue(obj, true)
+            }
+        }
+
+        // Fires (must be removed via its system to also clean up lights)
+        val firesToRemove = fireSystem.activeFires.filter { it.missionId == missionId }
+        if (firesToRemove.isNotEmpty()) {
+            println("  - Removing ${firesToRemove.size} mission fires.")
+            val firesToRemoveCopy = Array(firesToRemove.toTypedArray())
+            for (fire in firesToRemoveCopy) {
+                // This properly removes the fire and its associated game object and light
+                fireSystem.removeFire(fire, objectSystem, game.lightingManager)
+                activeObjects.removeValue(fire.gameObject, true)
+            }
+        }
+
+        // Teleporters (must be removed via its system for unlinking)
+        val teleportersToRemove = teleporterSystem.activeTeleporters.filter { it.missionId == missionId }
+        if (teleportersToRemove.isNotEmpty()){
+            println("  - Removing ${teleportersToRemove.size} mission teleporters.")
+            val teleportersToRemoveCopy = Array(teleportersToRemove.toTypedArray())
+            for (teleporter in teleportersToRemoveCopy) {
+                teleporterSystem.removeTeleporter(teleporter)
+            }
+        }
+
+        // Path Nodes (must be removed from a map, not a list)
+        val carNodesToRemove = game.carPathSystem.nodes.values.filter { it.missionId == missionId }.map { it.id }
+        if (carNodesToRemove.isNotEmpty()) {
+            println("  - Removing ${carNodesToRemove.size} mission car path nodes.")
+            carNodesToRemove.forEach { game.carPathSystem.nodes.remove(it) }
+        }
+        val charNodesToRemove = game.characterPathSystem.nodes.values.filter { it.missionId == missionId }.map { it.id }
+        if (charNodesToRemove.isNotEmpty()) {
+            println("  - Removing ${charNodesToRemove.size} mission character path nodes.")
+            charNodesToRemove.forEach { game.characterPathSystem.nodes.remove(it) }
+        }
+
+        // --- Standard List Cleanup (using removeAll with a temporary array) ---
+        // Note: com.badlogic.gdx.utils.Array doesn't have a simple removeAll with a predicate.
+
+        val carsToRemove = activeCars.filter { it.missionId == missionId }
+        if (carsToRemove.isNotEmpty()) {
+            println("  - Removing ${carsToRemove.size} mission cars.")
+            activeCars.removeAll(Array(carsToRemove.toTypedArray()), true)
+        }
+
+        val enemiesToRemove = activeEnemies.filter { it.missionId == missionId }
+        if (enemiesToRemove.isNotEmpty()) {
+            println("  - Removing ${enemiesToRemove.size} mission enemies.")
+            activeEnemies.removeAll(Array(enemiesToRemove.toTypedArray()), true)
+        }
+
+        val npcsToRemove = activeNPCs.filter { it.missionId == missionId }
+        if (npcsToRemove.isNotEmpty()) {
+            println("  - Removing ${npcsToRemove.size} mission NPCs.")
+            activeNPCs.removeAll(Array(npcsToRemove.toTypedArray()), true)
+        }
+
+        val itemsToRemove = activeItems.filter { it.missionId == missionId }
+        if (itemsToRemove.isNotEmpty()) {
+            println("  - Removing ${itemsToRemove.size} mission items.")
+            activeItems.removeAll(Array(itemsToRemove.toTypedArray()), true)
+        }
+
+        val housesToRemove = activeHouses.filter { it.missionId == missionId }
+        if (housesToRemove.isNotEmpty()) {
+            println("  - Removing ${housesToRemove.size} mission houses.")
+            activeHouses.removeAll(Array(housesToRemove.toTypedArray()), true)
+        }
+
+        val interiorsToRemove = activeInteriors.filter { it.missionId == missionId }
+        if (interiorsToRemove.isNotEmpty()) {
+            println("  - Removing ${interiorsToRemove.size} mission interiors.")
+            activeInteriors.removeAll(Array(interiorsToRemove.toTypedArray()), true)
+        }
+
+        val spawnersToRemove = activeSpawners.filter { it.missionId == missionId }
+        if (spawnersToRemove.isNotEmpty()) {
+            println("  - Removing ${spawnersToRemove.size} mission spawners.")
+            activeSpawners.removeAll(Array(spawnersToRemove.toTypedArray()), true)
+        }
+
+        println("--- Mission cleanup complete ---")
     }
 
     fun checkCollisionForRay(ray: Ray, maxDistance: Float): CollisionResult? {

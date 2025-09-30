@@ -220,6 +220,7 @@ enum class GameEventType {
 
 data class GameEvent(
     val type: GameEventType = GameEventType.SPAWN_ENEMY,
+    val keepAfterMission: Boolean = false,
     val spawnPosition: Vector3? = null,
     val targetId: String? = null,
     val sceneId: String? = null,

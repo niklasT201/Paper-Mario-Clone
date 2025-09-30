@@ -86,16 +86,18 @@ class SaveLoadSystem(private val game: MafiaGame) {
             // 2. World Data
             val world = WorldStateData()
             world.dayNightCycleTime = game.lightingManager.getDayNightCycle().currentTime
-            sm.activeChunkManager.getAllBlocks().forEach { b -> world.blocks.add(BlockData(b.blockType, b.shape, b.position, b.rotationY, b.textureRotationY, b.topTextureRotationY, b.cameraVisibility)) }
-            sm.activeCars.forEach { c ->
-                world.cars.add(CarData(
-                    c.id, c.carType, c.position, c.health, c.isLocked,
+
+            // --- FILTERED ENTITY SAVING ---
+            sm.activeChunkManager.getAllBlocks().filter { it.missionId == null }.forEach { b -> world.blocks.add(BlockData(b.blockType, b.shape, b.position, b.rotationY, b.textureRotationY, b.topTextureRotationY, b.cameraVisibility)) }
+
+            sm.activeCars.filter { it.missionId == null }.forEach { c ->
+                world.cars.add(CarData(c.id, c.carType, c.position, c.health, c.isLocked,
                     (c.seats.first()?.occupant as? GameEnemy)?.id ?: (c.seats.first()?.occupant as? GameNPC)?.id,
                     c.state, c.wreckedTimer, c.fadeOutTimer, c.visualRotationY,
                     c.areHeadlightsOn
                 ))
             }
-            sm.activeEnemies.forEach { e ->
+            sm.activeEnemies.filter { it.missionId == null }.forEach { e ->
                 world.enemies.add(EnemyData(
                     e.id, e.enemyType, e.behaviorType, e.position, e.health,
                     e.assignedPathId,
@@ -105,7 +107,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     e.currentState, e.currentMagazineCount, e.provocationLevel
                 ))
             }
-            sm.activeNPCs.forEach { n ->
+            sm.activeNPCs.filter { it.missionId == null }.forEach { n ->
                 world.npcs.add(NpcData(
                     n.id, n.npcType, n.behaviorType, n.position, n.health,
                     n.assignedPathId,
@@ -117,14 +119,14 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     n.pathFollowingStyle
                 ))
             }
-            sm.activeItems.forEach { i -> world.items.add(ItemData(i.id, i.itemType, i.position, i.ammo, i.value)) }
-            sm.activeObjects.forEach { o ->
+            sm.activeItems.filter { it.missionId == null }.forEach { i -> world.items.add(ItemData(i.id, i.itemType, i.position, i.ammo, i.value)) }
+            sm.activeObjects.filter { it.missionId == null }.forEach { o ->
                 world.objects.add(ObjectData(
                     o.id, o.objectType, o.position, o.associatedLightId,
                     o.isBroken
                 ))
             }
-            sm.activeHouses.forEach { h ->
+            sm.activeHouses.filter { it.missionId == null }.forEach { h ->
                 world.houses.add(HouseData(
                     h.id,
                     h.houseType,
@@ -136,12 +138,13 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     h.exitDoorId
                 ))
             }
-            sm.activeEntryPoints.forEach { ep -> world.entryPoints.add(EntryPointData(ep.id, ep.houseId, ep.position)) }
-            game.lightingManager.getLightSources().values.forEach { l ->
+            sm.activeEntryPoints.forEach { ep -> world.entryPoints.add(EntryPointData(ep.id, ep.houseId, ep.position)) } // Entry points are not mission-only
+            game.lightingManager.getLightSources().values.filter { it.missionId == null }.forEach { l ->
                 world.lights.add(LightData(
                     l.id, l.position, l.color, l.intensity, l.range,
                     l.isEnabled, l.flickerMode, l.loopOnDuration, l.loopOffDuration, l.timedFlickerLifetime,
-                    l.rotationX, l.rotationY, l.rotationZ
+                    l.rotationX, l.rotationY, l.rotationZ,
+                    l.missionId
                 ))
             }
             sm.activeSpawners.forEach { s ->
@@ -191,10 +194,12 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     upgradedWeapon = s.upgradedWeapon
                 ))
             }
-            game.teleporterSystem.activeTeleporters.forEach { tp ->
+
+            game.teleporterSystem.activeTeleporters.filter { it.missionId == null }.forEach { tp ->
                 world.teleporters.add(TeleporterData(tp.id, tp.name, tp.linkedTeleporterId, tp.gameObject.position))
             }
-            game.fireSystem.activeFires.forEach { fire ->
+
+            game.fireSystem.activeFires.filter { it.missionId == null }.forEach { fire ->
                 world.fires.add(FireData(
                     fire.id,
                     fire.gameObject.position,
@@ -210,23 +215,24 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     fire.generation
                 ))
             }
+
+            // Backgrounds are not mission-specific
             game.backgroundSystem.getBackgrounds().forEach { bg ->
                 world.backgrounds.add(BackgroundData(bg.backgroundType, bg.position))
             }
-            game.parallaxBackgroundSystem.getLayers().forEachIndexed { index, layer ->
-                layer.images.forEach { image ->
-                    world.parallaxImages.add(
-                        ParallaxImageData(
-                            (image.modelInstance.materials.first().get(TextureAttribute.Diffuse) as TextureAttribute)
-                                .textureDescription.texture.let { tex ->
-                                    ParallaxBackgroundSystem.ParallaxImageType.entries.find { it.texturePath == image.texture.toString() } // Find the type by texture path
-                                        ?: ParallaxBackgroundSystem.ParallaxImageType.MOUNTAINS // Fallback
-                                },
-                            image.basePosition.x,
-                            index
-                        )
+            game.parallaxBackgroundSystem.getLayers().forEachIndexed { index, layer ->  layer.images.forEach { image ->
+                world.parallaxImages.add(
+                    ParallaxImageData(
+                        (image.modelInstance.materials.first().get(TextureAttribute.Diffuse) as TextureAttribute)
+                            .textureDescription.texture.let { tex ->
+                                ParallaxBackgroundSystem.ParallaxImageType.entries.find { it.texturePath == image.texture.toString() } // Find the type by texture path
+                                    ?: ParallaxBackgroundSystem.ParallaxImageType.MOUNTAINS // Fallback
+                            },
+                        image.basePosition.x,
+                        index
                     )
-                }
+                )
+            }
             }
             state.worldState = world
 
@@ -235,16 +241,15 @@ class SaveLoadSystem(private val game: MafiaGame) {
 
             // 4. Car Path Data
             val carPath = CarPathData()
-            game.carPathSystem.nodes.values.forEach { n ->
+            game.carPathSystem.nodes.values.filter { it.missionId == null }.forEach { n ->
                 carPath.nodes.add(CarPathNodeData(n.id, n.position, n.nextNodeId, n.previousNodeId, n.isOneWay, n.sceneId))
             }
             state.carPathState = carPath
 
             // 5. Character Path Data
             val charPath = CharacterPathData()
-            game.characterPathSystem.nodes.values.forEach { n ->
-                charPath.nodes.add(CharacterPathNodeData(
-                    n.id, n.position, n.nextNodeId, n.previousNodeId, n.isOneWay, n.isMissionOnly, n.missionId, n.sceneId
+            game.characterPathSystem.nodes.values.filter { it.missionId == null }.forEach { n ->
+                charPath.nodes.add(CharacterPathNodeData(n.id, n.position, n.nextNodeId, n.previousNodeId, n.isOneWay, n.isMissionOnly, n.missionId, n.sceneId
                 ))
             }
             state.characterPathState = charPath
@@ -394,6 +399,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     data.isEnabled, data.rotationX, data.rotationY, data.rotationZ,
                     data.flickerMode, data.loopOnDuration, data.loopOffDuration, data.timedFlickerLifetime
                 )
+                light.missionId = data.missionId
                 game.objectSystem.loadLightSource(light)
                 game.lightingManager.addLightSource(light, game.objectSystem.createLightSourceInstances(light))
             }

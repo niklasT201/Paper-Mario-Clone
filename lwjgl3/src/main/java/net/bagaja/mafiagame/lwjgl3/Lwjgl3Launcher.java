@@ -99,9 +99,7 @@ public class Lwjgl3Launcher {
 
 // disablePoliceResponse: Boolean (Allow the player to cause chaos without getting a wanted level).
 
-// npcs choosing dialog for finishing objects
 // Automatic/Linear Mode or Open World Mode
-// missions objects can be removed after a mission, and be mission only
 // light sources visible in user mode
 // mission loader
 // fast loading mission

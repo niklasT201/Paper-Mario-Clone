@@ -767,6 +767,8 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
     private fun endMission(completed: Boolean) {
         val mission = activeMission ?: return
+        val endedMissionId = mission.definition.id // Get ID before we null it out
+
         if (completed) {
             println("--- MISSION COMPLETE: ${mission.definition.title} ---")
             gameState.completedMissionIds.add(mission.definition.id)
@@ -808,6 +810,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
         stayInAreaGraceTimer = -1f
         game.uiManager.updateReturnToAreaTimer(-1f)
+        game.sceneManager.cleanupMissionEntities(endedMissionId)
 
         activeMission = null
     }
@@ -958,7 +961,10 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
     }
 
     private fun executeEvent(event: GameEvent) {
-        println("Executing mission event: ${event.type} for scene '${event.sceneId ?: "WORLD"}'")
+        // Determine if the entity should be tagged with the mission ID or be permanent
+        val missionId = if (event.keepAfterMission) null else activeMission?.definition?.id
+
+        println("Executing mission event: ${event.type} for scene '${event.sceneId ?: "WORLD"}' (Keep after mission: ${event.keepAfterMission})")
 
         val targetSceneId = event.sceneId ?: "WORLD"
         val currentSceneId = if (game.sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
@@ -1008,6 +1014,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         canCollectItems = event.canCollectItems ?: true
                     )
                     game.enemySystem.createEnemy(config)?.let { newEnemy ->
+                        newEnemy.missionId = missionId
                         addEntityToScene(newEnemy, game.sceneManager.activeEnemies, { game.sceneManager.worldState?.enemies }) {
                             game.sceneManager.interiorStates[it]?.enemies
                         }
@@ -1025,6 +1032,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     )
                     event.npcRotation?.let {
                         game.npcSystem.createNPC(config, it)?.let { newNpc ->
+                            newNpc.missionId = missionId
                             addEntityToScene(newNpc, game.sceneManager.activeNPCs, { game.sceneManager.worldState?.npcs }) {
                                 game.sceneManager.interiorStates[it]?.npcs
                             }
@@ -1047,7 +1055,8 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         sceneManager = game.sceneManager,
                         isLocked = event.carIsLocked,
                         health = event.carType.baseHealth,
-                        initialVisualRotation = event.houseRotationY ?: 0f
+                        initialVisualRotation = event.houseRotationY ?: 0f,
+                        missionId = missionId
                     )
                     event.targetId?.let { newCar.id = it }
 
@@ -1060,6 +1069,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                                 val createdDriver = game.enemySystem.createEnemy(enemyConfig)
                                 if (createdDriver != null) {
                                     driver = createdDriver
+                                    createdDriver.missionId = missionId
                                     createdDriver.enterCar(newCar)
                                     createdDriver.currentState = AIState.PATROLLING_IN_CAR
                                 }
@@ -1071,6 +1081,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                                 val createdDriver = game.npcSystem.createNPC(npcConfig)
                                 if (createdDriver != null) {
                                     driver = createdDriver
+                                    createdDriver.missionId = missionId
                                     createdDriver.enterCar(newCar)
                                     createdDriver.currentState = NPCState.PATROLLING_IN_CAR
                                 }
@@ -1082,14 +1093,21 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
                     // Create a local, non-changing copy of the driver for the smart cast to work.
                     when (val finalDriver = driver) {
-                        is GameEnemy -> addEntityToScene(finalDriver, game.sceneManager.activeEnemies, { game.sceneManager.worldState?.enemies }, { null })
-                        is GameNPC -> addEntityToScene(finalDriver, game.sceneManager.activeNPCs, { game.sceneManager.worldState?.npcs }, { null })
+                        is GameEnemy -> {
+                            finalDriver.missionId = missionId
+                            addEntityToScene(finalDriver, game.sceneManager.activeEnemies, { game.sceneManager.worldState?.enemies }, { null })
+                        }
+                        is GameNPC -> {
+                            finalDriver.missionId = missionId
+                            addEntityToScene(finalDriver, game.sceneManager.activeNPCs, { game.sceneManager.worldState?.npcs }, { null })
+                        }
                     }
                 }
             }
             GameEventType.SPAWN_ITEM, GameEventType.SPAWN_MONEY_STACK -> {
                 if (event.itemType != null && event.spawnPosition != null) {
                     game.itemSystem.createItem(event.spawnPosition, event.itemType)?.let { newItem ->
+                        newItem.missionId = missionId
                         if (event.type == GameEventType.SPAWN_MONEY_STACK) newItem.value = event.itemValue
                         event.targetId?.let { newItem.id = it }
                         addEntityToScene(newItem, game.sceneManager.activeItems, { game.sceneManager.worldState?.items }) {
@@ -1108,6 +1126,8 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         textureRotation = event.blockTextureRotationY ?: 0f,
                         topTextureRotation = event.blockTopTextureRotationY ?: 0f
                     ).copy(cameraVisibility = event.blockCameraVisibility ?: CameraVisibility.ALWAYS_VISIBLE)
+
+                    newBlock.missionId = missionId
 
                     val targetChunkManager = when (targetSceneId) {
                         currentSceneId -> game.sceneManager.activeChunkManager
@@ -1141,6 +1161,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     game.houseSystem.currentRotation = event.houseRotationY ?: 0f
                     val newHouse = game.houseSystem.addHouse(event.spawnPosition.x, event.spawnPosition.y, event.spawnPosition.z, event.houseType, event.houseIsLocked ?: false)
                     if (newHouse != null) {
+                        newHouse.missionId = missionId
                         event.targetId?.let { newHouse.id = it }
                         addEntityToScene(newHouse, game.sceneManager.activeHouses, { game.sceneManager.worldState?.houses }, { null })
                     }
@@ -1203,6 +1224,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                             loopOnDuration = event.loopOnDuration ?: 0.1f,
                             loopOffDuration = event.loopOffDuration ?: 0.2f
                         )
+                        light.missionId = missionId
                         if (targetSceneId == currentSceneId) {
                             val instances = game.objectSystem.createLightSourceInstances(light)
                             game.lightingManager.addLightSource(light, instances)
@@ -1212,6 +1234,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         }
                     } else {
                         game.objectSystem.createGameObjectWithLight(event.objectType, event.spawnPosition, if (targetSceneId == currentSceneId) game.lightingManager else null)?.let { newObject ->
+                            newObject.missionId = missionId
                             event.targetId?.let { newObject.id = it }
                             addEntityToScene(newObject, game.sceneManager.activeObjects, { game.sceneManager.worldState?.objects }) {
                                 game.sceneManager.interiorStates[it]?.objects
@@ -1230,6 +1253,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                             position = event.spawnPosition.cpy(),
                             gameObject = spawnerGameObject
                         )
+                        newSpawner.missionId = missionId
 
                         // Load all saved spawner properties from the event
                         newSpawner.spawnerType = event.spawnerType ?: newSpawner.spawnerType
@@ -1301,6 +1325,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                             linkedTeleporterId = event.linkedTeleporterId,
                             name = event.teleporterName ?: "Teleporter"
                         )
+                        newTeleporter.missionId = missionId
                         addEntityToScene(newTeleporter, game.teleporterSystem.activeTeleporters, { game.sceneManager.worldState?.teleporters }) {
                             game.sceneManager.interiorStates[it]?.teleporters
                         }
@@ -1324,6 +1349,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     // Create the fire using the dedicated system
                     val newFire = fireSystem.addFire(event.spawnPosition.cpy(), game.objectSystem, game.lightingManager)
                     if (newFire != null) {
+                        newFire.missionId = missionId
                         addEntityToScene(newFire, game.fireSystem.activeFires, { game.sceneManager.worldState?.fires }) {
                             game.sceneManager.interiorStates[it]?.fires
                         }
@@ -1400,10 +1426,10 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     val nodeData = CarPathNodeData(
                         id = event.pathNodeId,
                         position = event.spawnPosition,
-                        // MODIFIED: Add previousNodeId from the event
                         previousNodeId = event.previousNodeId,
                         isOneWay = event.isOneWay,
-                        sceneId = targetSceneId
+                        sceneId = targetSceneId,
+                        missionId = missionId
                     )
                     val newNode = game.carPathSystem.addNodeFromData(nodeData)
 
@@ -1422,7 +1448,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         previousNodeId = event.previousNodeId,
                         isOneWay = event.isOneWay,
                         isMissionOnly = event.isMissionOnly,
-                        missionId = event.missionId,
+                        missionId = missionId,
                         sceneId = targetSceneId
                     )
                     val newNode = game.characterPathSystem.addNodeFromData(nodeData)

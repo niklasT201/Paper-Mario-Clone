@@ -107,25 +107,28 @@ class BlockSystem {
     }
 
     fun handlePlaceAction(ray: Ray) {
-        // --- THIS IS THE ONLY CHANGE NEEDED FOR THIS FUNCTION ---
-        val isMissionMode = sceneManager.game.uiManager.currentEditorMode == EditorMode.MISSION
+        val missionId = if (sceneManager.game.uiManager.currentEditorMode == EditorMode.MISSION) {
+            sceneManager.game.uiManager.selectedMissionForEditing?.id
+        } else {
+            null
+        }
 
         if (areaFillState != AreaFillState.IDLE) {
             // Pass the flag to the area fill function
-            handleAreaFillAction(ray, isMissionMode)
+            handleAreaFillAction(ray, missionId)
             return
         }
 
         val hitBlock = raycastSystem.getBlockAtRay(ray, sceneManager.activeChunkManager.getAllBlocks())
         if (hitBlock != null) {
             // Pass the flag to the adjacent placement function
-            placeBlockAdjacentTo(ray, hitBlock, isMissionMode)
+            placeBlockAdjacentTo(ray, hitBlock, missionId)
         } else {
             if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
                 val gridX = floor(tempVec3.x / internalBlockSize) * internalBlockSize
                 val gridZ = floor(tempVec3.z / internalBlockSize) * internalBlockSize
                 // Pass the flag to the area placement function
-                placeBlockArea(gridX, 0f, gridZ, isMissionMode)
+                placeBlockArea(gridX, 0f, gridZ, missionId)
             }
         }
     }
@@ -152,7 +155,7 @@ class BlockSystem {
         }
     }
 
-    private fun handleAreaFillAction(ray: Ray, isMissionMode: Boolean) {
+    private fun handleAreaFillAction(ray: Ray, missionId: String?) {
         val gridPosition = getGridPositionFromRay(ray) ?: return
 
         if (firstCornerGridPosition == null) {
@@ -165,7 +168,7 @@ class BlockSystem {
             sceneManager.game.uiManager.updatePlacementInfo("Filling area...")
 
             // 4. FIX: Pass the 'isMissionMode' flag to the fillAreaBetween function
-            fillAreaBetween(firstCornerGridPosition!!, gridPosition, isMissionMode)
+            fillAreaBetween(firstCornerGridPosition!!, gridPosition, missionId)
 
             firstCornerGridPosition = null
             sceneManager.game.uiManager.updatePlacementInfo("Area fill complete. Select first corner for new area.")
@@ -205,7 +208,7 @@ class BlockSystem {
         return null
     }
 
-    private fun fillAreaBetween(corner1: Vector3, corner2: Vector3, isMissionMode: Boolean) {
+    private fun fillAreaBetween(corner1: Vector3, corner2: Vector3, missionId: String?) {
         val blockType = this.currentSelectedBlock
         val step = internalBlockSize.toInt()
 
@@ -229,7 +232,7 @@ class BlockSystem {
                     )
                     // Check if a block already exists to avoid duplicates
                     if (sceneManager.activeChunkManager.getBlockAtWorld(placePosition) == null) {
-                        addBlock(x.toFloat(), y.toFloat(), z.toFloat(), blockType, isMissionMode)
+                        addBlock(x.toFloat(), y.toFloat(), z.toFloat(), blockType, missionId)
                         blocksPlaced++
                     }
                 }
@@ -247,7 +250,7 @@ class BlockSystem {
         return false
     }
 
-    private fun placeBlockAdjacentTo(ray: Ray, hitBlock: GameBlock, isMissionMode: Boolean) {
+    private fun placeBlockAdjacentTo(ray: Ray, hitBlock: GameBlock, missionId: String?) {
         // Calculate intersection point with the hit block
         val blockBounds = BoundingBox()
         hitBlock.getBoundingBox(internalBlockSize, blockBounds)
@@ -277,11 +280,11 @@ class BlockSystem {
             val gridZ = floor(newZ / internalBlockSize) * internalBlockSize
 
             // 2. FIX: Pass the 'isMissionMode' flag down to the next function call
-            placeBlockArea(gridX, gridY, gridZ, isMissionMode)
+            placeBlockArea(gridX, gridY, gridZ, missionId)
         }
     }
 
-    private fun placeBlockArea(cornerX: Float, cornerY: Float, cornerZ: Float, isMissionMode: Boolean) {
+    private fun placeBlockArea(cornerX: Float, cornerY: Float, cornerZ: Float, missionId: String?) {
         val buildMode = this.currentBuildMode
         val blockType = this.currentSelectedBlock
         val size = buildMode.size
@@ -295,7 +298,7 @@ class BlockSystem {
                 gameBlock.position.dst(position) < 0.1f
             }
             if (existingBlock == null) {
-                addBlock(cornerX, cornerY, cornerZ, blockType, isMissionMode)
+                addBlock(cornerX, cornerY, cornerZ, blockType, missionId)
                 println("${blockType.displayName} (${this.currentSelectedShape.getDisplayName()}) placed at: $cornerX, $cornerY, $cornerZ")
             } else {
                 println("Block already exists at this position")
@@ -339,7 +342,7 @@ class BlockSystem {
                 }
 
                 if (existingBlock == null) {
-                    addBlock(currentBlockX, currentBlockY, currentBlockZ, blockType, isMissionMode)
+                    addBlock(currentBlockX, currentBlockY, currentBlockZ, blockType, missionId)
                 }
             }
         }
@@ -399,7 +402,7 @@ class BlockSystem {
         }
     }
 
-    private fun addBlock(x: Float, y: Float, z: Float, blockType: BlockType, isMissionOwned: Boolean = false) {
+    private fun addBlock(x: Float, y: Float, z: Float, blockType: BlockType, missionId: String? = null) {
         val shape = this.currentSelectedShape
         val blockHeight = internalBlockSize * blockType.height
 
@@ -417,10 +420,10 @@ class BlockSystem {
             geometryRotation = this.currentGeometryRotation,
             textureRotation = this.currentTextureRotation,
             topTextureRotation = this.currentTopTextureRotation
-        ).copy(isMissionOwned = isMissionOwned) // Apply the mission flag
+        ).copy(missionId = missionId) // Apply the mission flag
 
         // If it was a mission block, create and save the event
-        if (isMissionOwned) {
+        if (missionId != null) {
             val mission = sceneManager.game.uiManager.selectedMissionForEditing
             if (mission == null) {
                 println("ERROR: Tried to place a mission block but no mission is selected!")
@@ -433,6 +436,7 @@ class BlockSystem {
                 "WORLD"
             }
 
+            // Create the event for the mission file
             val event = GameEvent(
                 type = GameEventType.SPAWN_BLOCK,
                 spawnPosition = gameBlock.position,
@@ -449,13 +453,18 @@ class BlockSystem {
             sceneManager.game.uiManager.missionEditorUI.refreshEventWidgets()
 
             // Only show the message for the primary block in an area fill
+            sceneManager.addBlock(gameBlock)
+            sceneManager.game.lastPlacedInstance = gameBlock
+
+            // Only show message for the primary block
             if (sceneManager.game.lastPlacedInstance !is GameBlock) {
                 sceneManager.game.uiManager.updatePlacementInfo("Added SPAWN_BLOCK to '${mission.title}'")
             }
+        } else {
+            // This is a normal, non-mission block
+            sceneManager.addBlock(gameBlock)
+            sceneManager.game.lastPlacedInstance = gameBlock
         }
-
-        sceneManager.addBlock(gameBlock)
-        sceneManager.game.lastPlacedInstance = gameBlock
     }
 
     private fun removeBlock(blockToRemove: GameBlock) {

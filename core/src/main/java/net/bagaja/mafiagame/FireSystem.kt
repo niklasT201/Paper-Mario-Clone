@@ -29,7 +29,8 @@ data class GameFire(
     var fadesOut: Boolean,
     var lifetime: Float,
     val canSpread: Boolean = false,
-    val generation: Int = 0
+    val generation: Int = 0,
+    var missionId: String? = null
 ) {
     private val material = gameObject.modelInstance.materials.first()
     private val blendingAttribute: BlendingAttribute? = material.get(BlendingAttribute.Type) as? BlendingAttribute
