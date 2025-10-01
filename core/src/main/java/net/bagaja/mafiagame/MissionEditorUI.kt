@@ -1,6 +1,7 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.ui.*
@@ -546,7 +547,7 @@ class MissionEditorUI(
         val posZField = TextField(existingEvent?.spawnPosition?.z?.toString() ?: "0", skin)
         val keepAfterMissionCheckbox = CheckBox(" Keep After Mission Ends", skin).apply { isChecked = existingEvent?.keepAfterMission ?: false }
 
-        // --- All Event-Specific Fields Declared Here ---
+        // --- All Event-Specific Fields ---
         val enemyTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(EnemyType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.enemyType?.displayName }
         val enemyBehaviorSelectBox = SelectBox<String>(skin).apply { items = GdxArray(EnemyBehavior.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.enemyBehavior?.displayName }
         val enemyPathIdField = TextField(existingEvent?.assignedPathId ?: "", skin).apply { messageText = "Optional Path ID" }
@@ -575,9 +576,14 @@ class MissionEditorUI(
         val houseLockedCheckbox = CheckBox(" Start Locked", skin).apply { isChecked = existingEvent?.houseIsLocked ?: false }
         val houseRotationYField = TextField(existingEvent?.houseRotationY?.toString() ?: "0", skin)
         val objectTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(ObjectType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.objectType?.displayName }
+        val lightColorRField = TextField(existingEvent?.lightColor?.r?.toString() ?: "1.0", skin)
+        val lightColorGField = TextField(existingEvent?.lightColor?.g?.toString() ?: "1.0", skin)
+        val lightColorBField = TextField(existingEvent?.lightColor?.b?.toString() ?: "1.0", skin)
         val lightIntensityField = TextField(existingEvent?.lightIntensity?.toString() ?: "50", skin)
         val lightRangeField = TextField(existingEvent?.lightRange?.toString() ?: "50", skin)
         val lightFlickerSelect = SelectBox<String>(skin).apply { items = GdxArray(FlickerMode.entries.map { it.name }.toTypedArray()); selected = existingEvent?.flickerMode?.name ?: FlickerMode.NONE.name }
+        val loopOnDurationField = TextField(existingEvent?.loopOnDuration?.toString() ?: "0.1", skin)
+        val loopOffDurationField = TextField(existingEvent?.loopOffDuration?.toString() ?: "0.2", skin)
         val blockTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(BlockType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.blockType?.displayName }
         val blockShapeSelect = SelectBox<String>(skin).apply { items = GdxArray(BlockShape.entries.map { it.getDisplayName() }.toTypedArray()); selected = existingEvent?.blockShape?.getDisplayName() }
         val blockRotationYField = TextField(existingEvent?.blockRotationY?.toString() ?: "0", skin)
@@ -634,13 +640,15 @@ class MissionEditorUI(
             add("Rotation Y:"); add(houseRotationYField).width(80f).row()
             add(houseLockedCheckbox).colspan(2).left().row()
         }
-        val objectLightTbl = Table(skin).apply {
-            add("Intensity:"); add(lightIntensityField).width(80f); add("Range:").padLeft(10f); add(lightRangeField).width(80f).row();
-            add("Flicker:").padTop(5f); add(lightFlickerSelect).growX().colspan(4).row()
+        val lightSettingsTable = Table(skin).apply {
+            val intensityRangeRow = Table(skin); intensityRangeRow.add("Intensity:"); intensityRangeRow.add(lightIntensityField).width(60f); intensityRangeRow.add("Range:").padLeft(10f); intensityRangeRow.add(lightRangeField).width(60f); add(intensityRangeRow).colspan(4).left().row()
+            val colorRow = Table(skin); colorRow.add("Color R:"); colorRow.add(lightColorRField).width(50f); colorRow.add("G:").padLeft(10f); colorRow.add(lightColorGField).width(50f); colorRow.add("B:").padLeft(10f); colorRow.add(lightColorBField).width(50f); add(colorRow).colspan(4).left().row()
+            val flickerRow = Table(skin); flickerRow.add("Flicker:"); flickerRow.add(lightFlickerSelect); add(flickerRow).colspan(4).left().row()
+            val loopRow = Table(skin); loopRow.add("On (s):"); loopRow.add(loopOnDurationField).width(60f); loopRow.add("Off (s):").padLeft(10f); loopRow.add(loopOffDurationField).width(60f); add(loopRow).colspan(4).left().row()
         }
         val objectSettingsTable = Table(skin).apply {
             add("Object Type:"); add(objectTypeSelect).growX().row()
-            add(objectLightTbl).colspan(2).left().row()
+            add(lightSettingsTable).colspan(2).left().row()
         }
         val blockSettingsTable = Table(skin).apply {
             add("Block Type:"); add(blockTypeSelect).growX().row()
@@ -684,7 +692,7 @@ class MissionEditorUI(
             weaponSettingsTable.isVisible = type in listOf(GameEventType.GIVE_WEAPON, GameEventType.FORCE_EQUIP_WEAPON)
 
             // Dynamic visibility within panels
-            objectLightTbl.isVisible = ObjectType.entries.find { it.displayName == objectTypeSelect.selected }?.hasLightSource ?: false
+            lightSettingsTable.isVisible = ObjectType.entries.find { it.displayName == objectTypeSelect.selected } == ObjectType.LIGHT_SOURCE
             val enemyHealthSetting = HealthSetting.entries.find { it.displayName == enemyHealthSettingSelectBox.selected }
             enemyCustomHpRow.isVisible = enemyHealthSetting == HealthSetting.FIXED_CUSTOM
             enemyRandomTbl.isVisible = enemyHealthSetting == HealthSetting.RANDOM_RANGE
@@ -699,7 +707,7 @@ class MissionEditorUI(
         objectTypeSelect.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields() })
         enemyHealthSettingSelectBox.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields() })
         carDriverTypeSelect.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields() })
-        itemTypeSelect.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields() }) // Listener for item type
+        itemTypeSelect.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields() })
 
         dialog.button("Save").addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
@@ -753,9 +761,12 @@ class MissionEditorUI(
                     )
                     GameEventType.SPAWN_OBJECT -> baseEvent.copy(
                         objectType = ObjectType.entries.find { it.displayName == objectTypeSelect.selected },
+                        lightColor = if (ObjectType.entries.find { it.displayName == objectTypeSelect.selected } == ObjectType.LIGHT_SOURCE) Color(lightColorRField.text.toFloatOrNull() ?: 1f, lightColorGField.text.toFloatOrNull() ?: 1f, lightColorBField.text.toFloatOrNull() ?: 1f, 1f) else null,
                         lightIntensity = lightIntensityField.text.toFloatOrNull(),
                         lightRange = lightRangeField.text.toFloatOrNull(),
-                        flickerMode = FlickerMode.valueOf(lightFlickerSelect.selected)
+                        flickerMode = if (ObjectType.entries.find { it.displayName == objectTypeSelect.selected } == ObjectType.LIGHT_SOURCE) FlickerMode.valueOf(lightFlickerSelect.selected) else null,
+                        loopOnDuration = loopOnDurationField.text.toFloatOrNull(),
+                        loopOffDuration = loopOffDurationField.text.toFloatOrNull()
                     )
                     GameEventType.SPAWN_BLOCK -> baseEvent.copy(
                         blockType = BlockType.entries.find { it.displayName == blockTypeSelect.selected },

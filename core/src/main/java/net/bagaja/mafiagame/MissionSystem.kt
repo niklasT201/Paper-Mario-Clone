@@ -1197,15 +1197,26 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                             color = event.lightColor ?: Color.WHITE,
                             flickerMode = event.flickerMode ?: FlickerMode.NONE,
                             loopOnDuration = event.loopOnDuration ?: 0.1f,
-                            loopOffDuration = event.loopOffDuration ?: 0.2f
+                            loopOffDuration = event.loopOffDuration ?: 0.2f,
+                            timedFlickerLifetime = event.lifetime ?: 10f
                         )
-                        light.missionId = missionId
+                        light.missionId = missionId // missionId will be null if keepAfterMission is true
+
+                        // 2. Add to the active scene IF it's the current scene
                         if (targetSceneId == currentSceneId) {
                             val instances = game.objectSystem.createLightSourceInstances(light)
                             game.lightingManager.addLightSource(light, instances)
-                        } else {
-                            val targetLightsMap = if (targetSceneId == "WORLD") game.sceneManager.worldState?.lights else game.sceneManager.interiorStates[targetSceneId]?.lights
-                            targetLightsMap?.put(light.id, light)
+                        }
+
+                        if (missionId == null) { // This means keepAfterMission was true
+                            if (targetSceneId == "WORLD") {
+                                game.sceneManager.worldState?.lights?.put(light.id, light)
+                                println("Added permanent light source #${light.id} to world state map.")
+                            } else {
+                                // Logic for adding to a persistent interior state if needed
+                                game.sceneManager.interiorStates[targetSceneId]?.lights?.put(light.id, light)
+                                println("Added permanent light source #${light.id} to interior state map for scene '$targetSceneId'.")
+                            }
                         }
                     } else {
                         game.objectSystem.createGameObjectWithLight(event.objectType, event.spawnPosition, if (targetSceneId == currentSceneId) game.lightingManager else null)?.let { newObject ->
