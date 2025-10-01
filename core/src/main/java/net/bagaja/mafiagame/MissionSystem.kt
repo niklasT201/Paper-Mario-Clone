@@ -961,10 +961,8 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
     }
 
     private fun executeEvent(event: GameEvent) {
-        // Determine if the entity should be tagged with the mission ID or be permanent
         val missionId = if (event.keepAfterMission) null else activeMission?.definition?.id
-
-        println("Executing mission event: ${event.type} for scene '${event.sceneId ?: "WORLD"}' (Keep after mission: ${event.keepAfterMission})")
+        println("Executing mission event: ${event.type} for scene '${event.sceneId ?: "WORLD"}' (Keep after mission: ${event.keepAfterMission}, Assigned missionId: $missionId)")
 
         val targetSceneId = event.sceneId ?: "WORLD"
         val currentSceneId = if (game.sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
@@ -979,27 +977,31 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             worldListProvider: () -> com.badlogic.gdx.utils.Array<T>?,
             interiorListProvider: (String) -> com.badlogic.gdx.utils.Array<T>?
         ) {
-            if (targetSceneId == currentSceneId) {
-                activeList.add(entity)
-            } else {
+            // Always add the entity to the currently active list so it appears immediately.
+            activeList.add(entity)
+
+            // If the entity is permanent (missionId is null), we must also add it to the correct persistent state.
+            if (missionId == null) {
                 if (targetSceneId == "WORLD") {
-                    game.sceneManager.worldState?.let { worldListProvider()?.add(entity) }
-                    println("Event for WORLD scene: Added entity to world state while in an interior.")
+                    game.sceneManager.worldState?.let {
+                        worldListProvider()?.add(entity)
+                        println("Added permanent entity to WORLD state.")
+                    }
                 } else {
                     game.sceneManager.interiorStates[targetSceneId]?.let {
                         interiorListProvider(targetSceneId)?.add(entity)
-                        println("Event for another scene: Added entity to state for house '$targetSceneId'.")
-                    } ?: println("ERROR: Could not find interior state for house '$targetSceneId' to spawn entity.")
+                        println("Added permanent entity to INTERIOR state for scene '$targetSceneId'.")
+                    }
                 }
             }
         }
 
         when (event.type) {
             GameEventType.SPAWN_ENEMY -> {
-                if (event.enemyType != null && event.enemyBehavior != null && event.spawnPosition != null) {
+                if (event.enemyType != null && event.spawnPosition != null) {
                     val config = EnemySpawnConfig(
                         enemyType = event.enemyType,
-                        behavior = event.enemyBehavior,
+                        behavior = event.enemyBehavior ?: EnemyBehavior.STATIONARY_SHOOTER,
                         position = event.spawnPosition,
                         id = event.targetId,
                         assignedPathId = event.assignedPathId,
@@ -1022,40 +1024,31 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 }
             }
             GameEventType.SPAWN_NPC -> {
-                if (event.npcType != null && event.npcBehavior != null && event.spawnPosition != null) {
+                if (event.npcType != null && event.spawnPosition != null) {
                     val config = NPCSpawnConfig(
                         npcType = event.npcType,
-                        behavior = event.npcBehavior,
+                        behavior = event.npcBehavior ?: NPCBehavior.STATIONARY,
                         position = event.spawnPosition,
                         id = event.targetId,
                         pathFollowingStyle = event.pathFollowingStyle ?: PathFollowingStyle.CONTINUOUS
                     )
-                    event.npcRotation?.let {
-                        game.npcSystem.createNPC(config, it)?.let { newNpc ->
-                            newNpc.missionId = missionId
-                            addEntityToScene(newNpc, game.sceneManager.activeNPCs, { game.sceneManager.worldState?.npcs }) {
-                                game.sceneManager.interiorStates[it]?.npcs
-                            }
+                    game.npcSystem.createNPC(config, event.npcRotation ?: 0f)?.let { newNpc ->
+                        newNpc.missionId = missionId
+                        addEntityToScene(newNpc, game.sceneManager.activeNPCs, { game.sceneManager.worldState?.npcs }) {
+                            game.sceneManager.interiorStates[it]?.npcs
                         }
                     }
                 }
             }
             GameEventType.SPAWN_CAR -> {
                 if (event.carType != null && event.spawnPosition != null) {
-                    if (targetSceneId != "WORLD") {
-                        println("WARNING: Mission event tried to spawn a car in an interior ('$targetSceneId'). Aborting event.")
-                        return
-                    }
+                    if (targetSceneId != "WORLD") return
 
                     val carInstance = game.carSystem.createCarInstance(event.carType) ?: return
                     val newCar = GameCar(
-                        modelInstance = carInstance,
-                        carType = event.carType,
-                        position = event.spawnPosition,
-                        sceneManager = game.sceneManager,
-                        isLocked = event.carIsLocked,
-                        health = event.carType.baseHealth,
-                        initialVisualRotation = event.houseRotationY ?: 0f,
+                        modelInstance = carInstance, carType = event.carType, position = event.spawnPosition,
+                        sceneManager = game.sceneManager, isLocked = event.carIsLocked,
+                        health = event.carType.baseHealth, initialVisualRotation = event.houseRotationY ?: 0f,
                         missionId = missionId
                     )
                     event.targetId?.let { newCar.id = it }
@@ -1063,30 +1056,8 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     var driver: Any? = null
 
                     when (event.carDriverType) {
-                        "Enemy" -> {
-                            event.carEnemyDriverType?.let { enemyType ->
-                                val enemyConfig = EnemySpawnConfig(enemyType, EnemyBehavior.AGGRESSIVE_RUSHER, newCar.position)
-                                val createdDriver = game.enemySystem.createEnemy(enemyConfig)
-                                if (createdDriver != null) {
-                                    driver = createdDriver
-                                    createdDriver.missionId = missionId
-                                    createdDriver.enterCar(newCar)
-                                    createdDriver.currentState = AIState.PATROLLING_IN_CAR
-                                }
-                            }
-                        }
-                        "NPC" -> {
-                            event.carNpcDriverType?.let { npcType ->
-                                val npcConfig = NPCSpawnConfig(npcType, NPCBehavior.WANDER, newCar.position)
-                                val createdDriver = game.npcSystem.createNPC(npcConfig)
-                                if (createdDriver != null) {
-                                    driver = createdDriver
-                                    createdDriver.missionId = missionId
-                                    createdDriver.enterCar(newCar)
-                                    createdDriver.currentState = NPCState.PATROLLING_IN_CAR
-                                }
-                            }
-                        }
+                        "Enemy" -> event.carEnemyDriverType?.let { driver = game.enemySystem.createEnemy(EnemySpawnConfig(it, EnemyBehavior.AGGRESSIVE_RUSHER, newCar.position)) }
+                        "NPC" -> event.carNpcDriverType?.let { driver = game.npcSystem.createNPC(NPCSpawnConfig(it, NPCBehavior.WANDER, newCar.position)) }
                     }
 
                     addEntityToScene(newCar, game.sceneManager.activeCars, { game.sceneManager.worldState?.cars }, { null })
@@ -1095,10 +1066,14 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     when (val finalDriver = driver) {
                         is GameEnemy -> {
                             finalDriver.missionId = missionId
+                            finalDriver.enterCar(newCar)
+                            finalDriver.currentState = AIState.PATROLLING_IN_CAR
                             addEntityToScene(finalDriver, game.sceneManager.activeEnemies, { game.sceneManager.worldState?.enemies }, { null })
                         }
                         is GameNPC -> {
                             finalDriver.missionId = missionId
+                            finalDriver.enterCar(newCar)
+                            finalDriver.currentState = NPCState.PATROLLING_IN_CAR
                             addEntityToScene(finalDriver, game.sceneManager.activeNPCs, { game.sceneManager.worldState?.npcs }, { null })
                         }
                     }

@@ -82,6 +82,7 @@ public class Lwjgl3Launcher {
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // more options for starting a mission
 // remove visual light source from enemies
+// mission trigger not visible during other missions
 // pulling out characters from vehicles
 // pressing e to talk will no longer switch weapon
 // add event button automatically adds new event without saving button press
