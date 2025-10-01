@@ -818,13 +818,6 @@ class MafiaGame : ApplicationAdapter() {
             }
         }
 
-        // Render teleporter pads
-        for (teleporter in teleporterSystem.activeTeleporters) {
-            teleporter.gameObject.getRenderInstance(objectSystem.debugMode)?.let {
-                modelBatch.render(it, environment)
-            }
-        }
-
         for (spawner in sceneManager.activeSpawners) {
             spawner.gameObject.getRenderInstance(objectSystem.debugMode)?.let {
                 modelBatch.render(it, environment)
@@ -833,16 +826,26 @@ class MafiaGame : ApplicationAdapter() {
 
         // Render light sources
         if (isEditorMode) {
+            // Render light source debug visuals
             lightingManager.renderLightInstances(modelBatch, environment, objectSystem.debugMode)
             lightingManager.renderLightAreas(modelBatch)
+
+            // Render house entry point debug visuals
             houseSystem.renderEntryPoints(modelBatch, environment, objectSystem)
+
+            // Render teleporter pad debug visuals
+            for (teleporter in teleporterSystem.activeTeleporters) {
+                teleporter.gameObject.getRenderInstance(objectSystem.debugMode)?.let {
+                    modelBatch.render(it, environment)
+                }
+            }
         }
 
         for (house in sceneManager.activeHouses) {
             modelBatch.render(house.modelInstance, environment)
         }
 
-        for (house in sceneManager.activeMissionPreviewHouses) { // NEW
+        for (house in sceneManager.activeMissionPreviewHouses) {
             modelBatch.render(house.modelInstance, environment)
         }
 

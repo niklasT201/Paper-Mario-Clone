@@ -224,6 +224,18 @@ class LightingManager {
         return true
     }
 
+    fun addLightSource(lightSource: LightSource) {
+        // Add to the main map for tracking (important for flickering/timed lights)
+        lightSources[lightSource.id] = lightSource
+
+        // Create and add the actual point light for rendering
+        val pointLight = lightSource.createPointLight()
+        environment.add(pointLight)
+        activeLights.add(pointLight)
+
+        println("Added temporary light effect #${lightSource.id}")
+    }
+
     fun removeLightSource(lightId: Int): Boolean {
         val lightSource = lightSources.remove(lightId)
         if (lightSource != null) {

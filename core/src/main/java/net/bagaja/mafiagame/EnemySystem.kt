@@ -1333,8 +1333,7 @@ class EnemySystem : IFinePositionable {
                 loopOffDuration = 0f,
                 timedFlickerLifetime = flashLifetime
             )
-            val instances = sceneManager.game.objectSystem.createLightSourceInstances(muzzleFlashLight)
-            sceneManager.game.lightingManager.addLightSource(muzzleFlashLight, instances)
+            sceneManager.game.lightingManager.addLightSource(muzzleFlashLight)
         }
 
         println("${enemy.enemyType.displayName} shoots at player!")
