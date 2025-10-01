@@ -569,6 +569,7 @@ class MissionEditorUI(
         val carEnemyDriverTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(EnemyType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.carEnemyDriverType?.displayName }
         val carNpcDriverTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(NPCType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.carNpcDriverType?.displayName }
         val itemTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(ItemType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.itemType?.displayName }
+        val itemValueField = TextField(existingEvent?.itemValue?.toString() ?: "100", skin)
         val moneyValueField = TextField(existingEvent?.itemValue?.toString() ?: "100", skin)
         val houseTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(HouseType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.houseType?.displayName }
         val houseLockedCheckbox = CheckBox(" Start Locked", skin).apply { isChecked = existingEvent?.houseIsLocked ?: false }
@@ -576,9 +577,13 @@ class MissionEditorUI(
         val objectTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(ObjectType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.objectType?.displayName }
         val lightIntensityField = TextField(existingEvent?.lightIntensity?.toString() ?: "50", skin)
         val lightRangeField = TextField(existingEvent?.lightRange?.toString() ?: "50", skin)
+        val lightFlickerSelect = SelectBox<String>(skin).apply { items = GdxArray(FlickerMode.entries.map { it.name }.toTypedArray()); selected = existingEvent?.flickerMode?.name ?: FlickerMode.NONE.name }
         val blockTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(BlockType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.blockType?.displayName }
         val blockShapeSelect = SelectBox<String>(skin).apply { items = GdxArray(BlockShape.entries.map { it.getDisplayName() }.toTypedArray()); selected = existingEvent?.blockShape?.getDisplayName() }
         val blockRotationYField = TextField(existingEvent?.blockRotationY?.toString() ?: "0", skin)
+        val blockTextureRotationYField = TextField(existingEvent?.blockTextureRotationY?.toString() ?: "0", skin)
+        val blockTopTextureRotationYField = TextField(existingEvent?.blockTopTextureRotationY?.toString() ?: "0", skin)
+        val blockCameraVisibilitySelect = SelectBox<String>(skin).apply { items = GdxArray(CameraVisibility.entries.map { it.getDisplayName() }.toTypedArray()); selected = existingEvent?.blockCameraVisibility?.getDisplayName() ?: CameraVisibility.ALWAYS_VISIBLE.getDisplayName() }
         val dialogIdSelect = SelectBox<String>(skin).apply { items = GdxArray(missionSystem.getAllDialogueIds().toTypedArray()); selected = existingEvent?.dialogId }
         val weaponTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(WeaponType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.weaponType?.displayName }
         val ammoAmountField = TextField(existingEvent?.ammoAmount?.toString() ?: "0", skin).apply { messageText = "Default" }
@@ -618,14 +623,21 @@ class MissionEditorUI(
             add(carEnemyDriverRow).colspan(2).growX().row()
             add(carNpcDriverRow).colspan(2).growX().row()
         }
-        val itemSettingsTable = Table(skin).apply { add("Item Type:"); add(itemTypeSelect).growX() }
+        val itemValueRow = Table(skin).apply { add("Value ($):"); add(itemValueField).width(100f) }
+        val itemSettingsTable = Table(skin).apply {
+            add("Item Type:"); add(itemTypeSelect).growX().row()
+            add(itemValueRow).colspan(2).left().row()
+        }
         val moneySettingsTable = Table(skin).apply { add("Amount:"); add(moneyValueField).width(100f) }
         val houseSettingsTable = Table(skin).apply {
             add("House Type:"); add(houseTypeSelect).growX().row()
             add("Rotation Y:"); add(houseRotationYField).width(80f).row()
             add(houseLockedCheckbox).colspan(2).left().row()
         }
-        val objectLightTbl = Table(skin).apply { add("Intensity:"); add(lightIntensityField).width(80f); add("Range:").padLeft(10f); add(lightRangeField).width(80f) }
+        val objectLightTbl = Table(skin).apply {
+            add("Intensity:"); add(lightIntensityField).width(80f); add("Range:").padLeft(10f); add(lightRangeField).width(80f).row();
+            add("Flicker:").padTop(5f); add(lightFlickerSelect).growX().colspan(4).row()
+        }
         val objectSettingsTable = Table(skin).apply {
             add("Object Type:"); add(objectTypeSelect).growX().row()
             add(objectLightTbl).colspan(2).left().row()
@@ -633,7 +645,10 @@ class MissionEditorUI(
         val blockSettingsTable = Table(skin).apply {
             add("Block Type:"); add(blockTypeSelect).growX().row()
             add("Shape:"); add(blockShapeSelect).growX().row()
-            add("Rotation Y:"); add(blockRotationYField).width(80f).row()
+            add("Geo Rotation:"); add(blockRotationYField).width(80f).row()
+            add("Tex Rotation:"); add(blockTextureRotationYField).width(80f).row()
+            add("Top Tex Rot:"); add(blockTopTextureRotationYField).width(80f).row()
+            add("Visibility:"); add(blockCameraVisibilitySelect).growX().row()
         }
         val dialogSettingsTable = Table(skin).apply { add("Dialog ID:"); add(dialogIdSelect).growX() }
         val weaponSettingsTable = Table(skin).apply {
@@ -675,6 +690,7 @@ class MissionEditorUI(
             enemyRandomTbl.isVisible = enemyHealthSetting == HealthSetting.RANDOM_RANGE
             carEnemyDriverRow.isVisible = carDriverTypeSelect.selected == "Enemy"
             carNpcDriverRow.isVisible = carDriverTypeSelect.selected == "NPC"
+            itemValueRow.isVisible = ItemType.entries.find { it.displayName == itemTypeSelect.selected } == ItemType.MONEY_STACK
 
             dialog.pack()
         }
@@ -683,6 +699,7 @@ class MissionEditorUI(
         objectTypeSelect.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields() })
         enemyHealthSettingSelectBox.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields() })
         carDriverTypeSelect.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields() })
+        itemTypeSelect.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields() }) // Listener for item type
 
         dialog.button("Save").addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
@@ -721,8 +738,14 @@ class MissionEditorUI(
                         carEnemyDriverType = EnemyType.entries.find { it.displayName == carEnemyDriverTypeSelect.selected },
                         carNpcDriverType = NPCType.entries.find { it.displayName == carNpcDriverTypeSelect.selected }
                     )
-                    GameEventType.SPAWN_ITEM -> baseEvent.copy(itemType = ItemType.entries.find { it.displayName == itemTypeSelect.selected })
-                    GameEventType.SPAWN_MONEY_STACK -> baseEvent.copy(itemValue = moneyValueField.text.toIntOrNull() ?: 100)
+                    GameEventType.SPAWN_ITEM -> baseEvent.copy(
+                        itemType = ItemType.entries.find { it.displayName == itemTypeSelect.selected },
+                        itemValue = if (ItemType.entries.find { it.displayName == itemTypeSelect.selected } == ItemType.MONEY_STACK) itemValueField.text.toIntOrNull() ?: 100 else 0
+                    )
+                    GameEventType.SPAWN_MONEY_STACK -> baseEvent.copy(
+                        itemType = ItemType.MONEY_STACK,
+                        itemValue = moneyValueField.text.toIntOrNull() ?: 100
+                    )
                     GameEventType.SPAWN_HOUSE -> baseEvent.copy(
                         houseType = HouseType.entries.find { it.displayName == houseTypeSelect.selected },
                         houseRotationY = houseRotationYField.text.toFloatOrNull(),
@@ -731,12 +754,16 @@ class MissionEditorUI(
                     GameEventType.SPAWN_OBJECT -> baseEvent.copy(
                         objectType = ObjectType.entries.find { it.displayName == objectTypeSelect.selected },
                         lightIntensity = lightIntensityField.text.toFloatOrNull(),
-                        lightRange = lightRangeField.text.toFloatOrNull()
+                        lightRange = lightRangeField.text.toFloatOrNull(),
+                        flickerMode = FlickerMode.valueOf(lightFlickerSelect.selected)
                     )
                     GameEventType.SPAWN_BLOCK -> baseEvent.copy(
                         blockType = BlockType.entries.find { it.displayName == blockTypeSelect.selected },
                         blockShape = BlockShape.entries.find { it.getDisplayName() == blockShapeSelect.selected },
-                        blockRotationY = blockRotationYField.text.toFloatOrNull()
+                        blockRotationY = blockRotationYField.text.toFloatOrNull(),
+                        blockTextureRotationY = blockTextureRotationYField.text.toFloatOrNull(),
+                        blockTopTextureRotationY = blockTopTextureRotationYField.text.toFloatOrNull(),
+                        blockCameraVisibility = CameraVisibility.entries.find { it.getDisplayName() == blockCameraVisibilitySelect.selected }
                     )
                     GameEventType.START_DIALOG -> baseEvent.copy(dialogId = dialogIdSelect.selected)
                     GameEventType.GIVE_WEAPON, GameEventType.FORCE_EQUIP_WEAPON -> baseEvent.copy(
