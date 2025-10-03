@@ -420,6 +420,45 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
     }
 
     private fun onObjectiveStarted(objective: MissionObjective) {
+        val condition = objective.completionCondition
+        if (condition.targetId != null) {
+            val targetExists = when (condition.type) {
+                // These objectives require a specific entity to exist
+                ConditionType.ELIMINATE_TARGET,
+                ConditionType.TALK_TO_NPC,
+                ConditionType.INTERACT_WITH_OBJECT,
+                ConditionType.DESTROY_CAR,
+                ConditionType.BURN_DOWN_HOUSE,
+                ConditionType.DESTROY_OBJECT,
+                ConditionType.DRIVE_TO_LOCATION,
+                ConditionType.MAINTAIN_DISTANCE -> {
+                    // Check all relevant lists for the target ID
+                    game.sceneManager.activeEnemies.any { it.id == condition.targetId } ||
+                        game.sceneManager.activeNPCs.any { it.id == condition.targetId } ||
+                        game.sceneManager.activeCars.any { it.id == condition.targetId } ||
+                        game.sceneManager.activeObjects.any { it.id == condition.targetId } ||
+                        game.sceneManager.activeHouses.any { it.id == condition.targetId }
+                }
+                // For ENTER_AREA, it only matters if we are checking the target's position
+                ConditionType.ENTER_AREA -> {
+                    if (condition.checkTargetInsteadOfPlayer) {
+                        game.sceneManager.activeCars.any { it.id == condition.targetId } ||
+                            game.sceneManager.activeEnemies.any { it.id == condition.targetId } ||
+                            game.sceneManager.activeNPCs.any { it.id == condition.targetId }
+                    } else {
+                        true // Not checking a target, so it's valid
+                    }
+                }
+                else -> true // Other objectives don't require a targetId, so they are valid by default
+            }
+
+            if (!targetExists) {
+                println("Mission Failed: Objective '${objective.description}' cannot start because its target (ID: ${condition.targetId}) does not exist in the scene.")
+                failMission()
+                return // IMPORTANT: Stop processing the start of this broken objective
+            }
+        }
+
         // If the new objective is to eliminate all enemies
         objective.eventsOnStart.forEach { executeEvent(it) }
 
@@ -1056,8 +1095,22 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     var driver: Any? = null
 
                     when (event.carDriverType) {
-                        "Enemy" -> event.carEnemyDriverType?.let { driver = game.enemySystem.createEnemy(EnemySpawnConfig(it, EnemyBehavior.AGGRESSIVE_RUSHER, newCar.position)) }
-                        "NPC" -> event.carNpcDriverType?.let { driver = game.npcSystem.createNPC(NPCSpawnConfig(it, NPCBehavior.WANDER, newCar.position)) }
+                        "Enemy" -> {
+                            if (event.carEnemyDriverType == null) {
+                                println("Mission Failed: SPAWN_CAR event requested an Enemy driver but no Enemy Type was specified.")
+                                failMission()
+                                return // Stop executing this broken event
+                            }
+                            driver = game.enemySystem.createEnemy(EnemySpawnConfig(event.carEnemyDriverType, EnemyBehavior.AGGRESSIVE_RUSHER, newCar.position))
+                        }
+                        "NPC" -> {
+                            if (event.carNpcDriverType == null) {
+                                println("Mission Failed: SPAWN_CAR event requested an NPC driver but no NPC Type was specified.")
+                                failMission()
+                                return // Stop executing this broken event
+                            }
+                            driver = game.npcSystem.createNPC(NPCSpawnConfig(event.carNpcDriverType, NPCBehavior.WANDER, newCar.position))
+                        }
                     }
 
                     addEntityToScene(newCar, game.sceneManager.activeCars, { game.sceneManager.worldState?.cars }, { null })
