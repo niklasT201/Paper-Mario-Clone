@@ -46,7 +46,6 @@ public class Lwjgl3Launcher {
 // industrial assets
 // more animations adding
 
-// changing room transition effect colors
 // edge houses
 // using new animation images
 // collected ammunition label for bullets and weapons
@@ -77,7 +76,6 @@ public class Lwjgl3Launcher {
 // weather events
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // more options for starting a mission
-// remove visual light source from enemies
 // mission trigger not visible during other missions
 // pulling out characters from vehicles
 // pressing e to talk will no longer switch weapon

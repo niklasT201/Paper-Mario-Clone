@@ -135,6 +135,7 @@ class MafiaGame : ApplicationAdapter() {
             enemySystem, npcSystem, roomTemplateManager, cameraManager, houseSystem, transitionSystem,
             faceCullingSystem, this, particleSystem, fireSystem, boneSystem
         )
+        sceneManager.transitionSystem.useSimpleFade = true
 
         pathfindingSystem = PathfindingSystem(sceneManager, blockSize, playerSystem.playerSize)
         characterPhysicsSystem = CharacterPhysicsSystem(sceneManager)

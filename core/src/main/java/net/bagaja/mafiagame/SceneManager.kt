@@ -37,7 +37,7 @@ class SceneManager(
     private val roomTemplateManager: RoomTemplateManager,
     val cameraManager: CameraManager,
     private val houseSystem: HouseSystem,
-    private val transitionSystem: TransitionSystem,
+    val transitionSystem: TransitionSystem,
     private val faceCullingSystem: FaceCullingSystem,
     val game: MafiaGame,
     val particleSystem: ParticleSystem,
@@ -696,14 +696,26 @@ class SceneManager(
     }
 
     fun update(deltaTime: Float) {
-        // Checks if an animation has finished
-        if (transitionSystem.isFinished()) {
+        // Check if we've just entered the door animation phase (or equivalent phase in simple fade)
+        if (transitionSystem.getCurrentPhase() == TransitionSystem.TransitionPhase.DOOR_ANIMATION) {
             when (currentScene) {
-                SceneType.TRANSITIONING_TO_INTERIOR -> completeTransitionToInterior()
-                SceneType.TRANSITIONING_TO_WORLD -> completeTransitionToWorld()
-                else -> {} // Do nothing
+                SceneType.TRANSITIONING_TO_INTERIOR -> {
+                    // Load the interior NOW while screen is black
+                    completeTransitionToInterior()
+                    currentScene = SceneType.HOUSE_INTERIOR
+                }
+                SceneType.TRANSITIONING_TO_WORLD -> {
+                    // Load the world NOW while screen is black
+                    completeTransitionToWorld()
+                    currentScene = SceneType.WORLD
+                }
+                else -> {}
             }
-            transitionSystem.reset() // Reset for the next use
+        }
+
+        // Just reset when animation fully finishes
+        if (transitionSystem.isFinished()) {
+            transitionSystem.reset()
         }
     }
 
@@ -714,22 +726,20 @@ class SceneManager(
 
     // --- TRANSITION LOGIC ---
     fun transitionToInterior(house: GameHouse) {
-        if (isTransitioning()) return // Prevent starting a new transition while one is active
-
+        if (isTransitioning()) return
         println("Starting transition to interior of house: ${house.id}")
         saveWorldState()
         pendingHouse = house
         currentScene = SceneType.TRANSITIONING_TO_INTERIOR
-        transitionSystem.startInTransition(duration = 1.5f)
+        transitionSystem.startInTransition(duration = 7.0f)  // Or whatever duration you want
     }
 
     fun transitionToWorld() {
         if (isTransitioning()) return
-
         println("Starting transition back to world...")
-        saveCurrentInteriorState() // Save any changes made to the live interior
+        saveCurrentInteriorState()
         currentScene = SceneType.TRANSITIONING_TO_WORLD
-        transitionSystem.startOutTransition(duration = 1.5f) // Start the 0.7 second animation
+        transitionSystem.startOutTransition(duration = 7.0f)
     }
 
     private fun completeTransitionToInterior() {

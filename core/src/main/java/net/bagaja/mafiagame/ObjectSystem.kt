@@ -800,6 +800,8 @@ enum class ObjectType(
     IRON_FENCE_CENTER("Iron Fence Center", "textures/objects/models/iron_fence_cent.png", 3f, 5f, isSinglePlane = true),
     IRON_FENCE_END("Iron Fence End", "textures/objects/models/iron_fence_end.png", 3.5f, 5f, isSinglePlane = true),
 
+    DOOR("Door", "textures/interior/door.png", 6f, 8f, isSinglePlane = true),
+
     GRAFITI_MOTH("Moth Graffiti", "textures/objects/models/grafity_moth.png", 5f, 5f,
         isSinglePlane = true
     ),
