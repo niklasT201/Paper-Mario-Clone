@@ -69,8 +69,6 @@ public class Lwjgl3Launcher {
 // Expanding & Polishing
 // save shaders and visual settings
 // number before mission list
-// id under mission name
-// C button to copy mission id
 // npcs outside missions having dialogs, enemies too
 // choosing character images via images, not paths
 // visual screen for finished mission

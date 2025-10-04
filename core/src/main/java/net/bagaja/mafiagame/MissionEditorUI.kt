@@ -9,8 +9,10 @@ import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.Array as GdxArray
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.ui.List
 import com.badlogic.gdx.scenes.scene2d.ui.Stack
+import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import java.util.*
 
 class MissionEditorUI(
@@ -23,7 +25,8 @@ class MissionEditorUI(
     private var currentMissionDef: MissionDefinition? = null
 
     // Left Panel
-    private val missionList: com.badlogic.gdx.scenes.scene2d.ui.List<String>
+    private val missionListContainer: Table
+    private var selectedMissionRow: Table? = null
 
     // Right Panel
     private val missionIdField: TextField
@@ -31,8 +34,6 @@ class MissionEditorUI(
     private val missionDescriptionArea: TextArea
     private val prerequisitesField: TextField
     private val scopeSelectBox: SelectBox<String>
-    private lateinit var objectiveDialogIdSelectBox: SelectBox<String>
-    private lateinit var dialogSettingsTable: Table
 
     private val objectivesContainer: VerticalGroup
     private val rewardsContainer: VerticalGroup
@@ -82,9 +83,12 @@ class MissionEditorUI(
 
         // --- Left Panel ---
         val leftPanel = Table()
-        missionList = List(skin)
-        val listScrollPane = ScrollPane(missionList, skin)
+        missionListContainer = Table()
+        missionListContainer.top() // Align rows to the top of the table
+
+        val listScrollPane = ScrollPane(missionListContainer, skin)
         listScrollPane.fadeScrollBars = false // Keep scrollbars visible
+
         val newMissionButton = TextButton("New Mission", skin)
         val deleteMissionButton = TextButton("Delete Selected", skin)
         val listButtonTable = Table()
@@ -201,24 +205,28 @@ class MissionEditorUI(
         addCompleteEventButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { showEventDialog(null, false) } })
         addObjectiveButton.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { showObjectiveDialog(null) } })
         addRewardButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { showRewardDialog(null) } })
-        missionList.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) {
-                val selectedId = missionList.selected?.split(":")?.get(0)?.trim()
-                if (selectedId != null) populateEditor(selectedId)
-            }
-        })
         newMissionButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 val newMission = missionSystem.createNewMission()
                 refreshMissionList()
-                missionList.selected = newMission.id + ": " + newMission.title
+                val newRow = missionListContainer.children.find { (it as? Table)?.userObject == newMission.id } as? Table
+                if (newRow != null) {
+                    selectMissionRow(newRow, newMission.id)
+                }
                 missionSystem.game.triggerSystem.refreshTriggers()
             }
         })
 
         deleteMissionButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
-                currentMissionDef?.id?.let { missionSystem.deleteMission(it); refreshMissionList(); clearEditor(); missionSystem.game.triggerSystem.refreshTriggers() }
+                // Use the userObject from the selected row table to get the ID
+                val selectedId = selectedMissionRow?.userObject as? String
+                if (selectedId != null) {
+                    missionSystem.deleteMission(selectedId)
+                    refreshMissionList()
+                    clearEditor()
+                    missionSystem.game.triggerSystem.refreshTriggers()
+                }
             }
         })
         editModifiersButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { showModifiersDialog() } })
@@ -433,6 +441,56 @@ class MissionEditorUI(
         dialog.contentTable.add(scrollPane).grow().minSize(500f, 400f).maxSize(800f, 600f)
         dialog.button("Close")
         dialog.show(stage)
+    }
+
+    private fun createMissionRowWidget(mission: MissionDefinition): Table {
+        val rowTable = Table()
+        rowTable.userObject = mission.id // Store the ID for easy retrieval
+        rowTable.background = skin.getDrawable("textfield")
+        rowTable.pad(4f)
+
+        // The mission title and ID
+        val missionLabel = Label("${mission.title} [GRAY](${mission.id})[]", skin, "small")
+        missionLabel.style.font.data.markupEnabled = true // <-- CORRECT
+        missionLabel.setWrap(true)
+        missionLabel.setAlignment(Align.left)
+        // The "C" (Copy) button
+        val copyButton = TextButton("C", skin, "default")
+
+        rowTable.add(missionLabel).growX().left()
+        rowTable.add(copyButton).size(25f, 25f).padLeft(5f)
+
+        // Handler for clicking the main row to select it for editing
+        rowTable.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                if (copyButton.isOver) return // Let the copy button's listener handle it
+                selectMissionRow(rowTable, mission.id)
+            }
+        })
+
+        // Handler for the copy button
+        copyButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                Gdx.app.clipboard.contents = mission.id
+                uiManager.showTemporaryMessage("Copied ID: ${mission.id}")
+                event?.stop() // Stop the event from propagating to the row's listener
+            }
+        })
+
+        return rowTable
+    }
+
+    private fun selectMissionRow(rowTable: Table, missionId: String) {
+        // Deselect the old row
+        selectedMissionRow?.background = skin.getDrawable("textfield")
+
+        // Select the new row and highlight it
+        rowTable.background = skin.getDrawable("selection")
+        selectedMissionRow = rowTable
+        currentMissionDef = missionSystem.getMissionDefinition(missionId)
+
+        // Populate the editor with the selected mission's data
+        populateEditor(missionId)
     }
 
     private fun populateMissionFlow(mission: MissionDefinition, container: Table) {
@@ -1383,10 +1441,33 @@ class MissionEditorUI(
     }
 
     private fun refreshMissionList() {
-        val missions = missionSystem.getAllMissionDefinitions().values
+        val previouslySelectedId = selectedMissionRow?.userObject as? String
+
+        missionListContainer.clearChildren()
+        selectedMissionRow = null
+        clearEditor()
+
+        val missions = missionSystem.getAllMissionDefinitions().values.sortedBy { it.id }
         val missionStrings = GdxArray(missions.map { "${it.id}: ${it.title}" }.toTypedArray())
-        missionList.setItems(missionStrings)
         missionSelectBox.items = missionStrings // Also update the mission selector dropdown
+
+        if (missions.isNotEmpty()) {
+            missions.forEach { mission ->
+                val rowWidget = createMissionRowWidget(mission)
+                missionListContainer.add(rowWidget).growX().fillX().row()
+            }
+
+            // Try to re-select the previously selected mission
+            val rowToSelect = missionListContainer.children.find { (it as? Table)?.userObject == previouslySelectedId } as? Table
+            if (rowToSelect != null) {
+                selectMissionRow(rowToSelect, previouslySelectedId!!)
+            } else {
+                // Otherwise, just select the first one in the list
+                val firstRow = missionListContainer.children.first() as Table
+                val firstMissionId = firstRow.userObject as String
+                selectMissionRow(firstRow, firstMissionId)
+            }
+        }
     }
 
     fun show() {
