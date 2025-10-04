@@ -13,6 +13,7 @@ import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.ui.List
 import com.badlogic.gdx.scenes.scene2d.ui.Stack
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
+import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import java.util.*
 
 class MissionEditorUI(
@@ -23,6 +24,8 @@ class MissionEditorUI(
 ) {
     private val window: Window = Window("Mission Editor", skin, "dialog")
     private var currentMissionDef: MissionDefinition? = null
+    private var defaultMissionBackground: Drawable
+    private var selectedMissionBackground: Drawable
 
     // Left Panel
     private val missionListContainer: Table
@@ -66,6 +69,11 @@ class MissionEditorUI(
         areaXField = TextField("", skin)
         areaYField = TextField("", skin)
         areaZField = TextField("", skin)
+
+        val defaultColor = Color.valueOf("#3a3a3a") // A dark, neutral gray
+        val selectedColor = Color.valueOf("#6F5E48") // A muted, classy gold/brown
+        defaultMissionBackground = skin.newDrawable("white", defaultColor)
+        selectedMissionBackground = skin.newDrawable("white", selectedColor)
 
         val mainContentTable = Table()
 
@@ -446,12 +454,13 @@ class MissionEditorUI(
     private fun createMissionRowWidget(mission: MissionDefinition): Table {
         val rowTable = Table()
         rowTable.userObject = mission.id // Store the ID for easy retrieval
-        rowTable.background = skin.getDrawable("textfield")
+        rowTable.background = defaultMissionBackground // Use our new default background
         rowTable.pad(4f)
 
         // The mission title and ID
         val missionLabel = Label("${mission.title} [GRAY](${mission.id})[]", skin, "small")
-        missionLabel.style.font.data.markupEnabled = true // <-- CORRECT
+        missionLabel.style.font.data.markupEnabled = true
+        missionLabel.color = Color.valueOf("#D8D8D8") // Set a nice, readable light gray for unselected text
         missionLabel.setWrap(true)
         missionLabel.setAlignment(Align.left)
         // The "C" (Copy) button
@@ -482,10 +491,14 @@ class MissionEditorUI(
 
     private fun selectMissionRow(rowTable: Table, missionId: String) {
         // Deselect the old row
-        selectedMissionRow?.background = skin.getDrawable("textfield")
+        selectedMissionRow?.let {
+            it.background = defaultMissionBackground
+            (it.getChild(0) as? Label)?.color = Color.valueOf("#D8D8D8")
+        }
 
         // Select the new row and highlight it
-        rowTable.background = skin.getDrawable("selection")
+        rowTable.background = selectedMissionBackground
+        (rowTable.getChild(0) as? Label)?.color = Color.valueOf("#F5F5DC") // A nice beige/cream color for selected text
         selectedMissionRow = rowTable
         currentMissionDef = missionSystem.getMissionDefinition(missionId)
 
