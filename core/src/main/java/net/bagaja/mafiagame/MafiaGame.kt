@@ -466,6 +466,10 @@ class MafiaGame : ApplicationAdapter() {
                 }
                 else -> {}
             }
+            if (!playerSystem.isDriving) { // Don't switch weapons if driving
+                playerSystem.switchToNextWeapon()
+            }
+            // --- END OF NEW BLOCK ---
         }
     }
 

@@ -78,7 +78,6 @@ public class Lwjgl3Launcher {
 // more options for starting a mission
 // mission trigger not visible during other missions
 // pulling out characters from vehicles
-// pressing e to talk will no longer switch weapon
 // add event button automatically adds new event without saving button press
 // new events: PLAY_SOUND
 // label to show how many enemies left for kill all enemies

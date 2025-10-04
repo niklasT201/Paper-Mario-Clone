@@ -690,11 +690,6 @@ class InputHandler(
 //                            game.playerSystem.dropEquippedWeapon(sceneManager, itemSystem)
 //                            return true
 //                        }
-                        Input.Keys.E -> {
-                            // Cycle to the next weapon
-                            game.playerSystem.switchToNextWeapon()
-                            return true
-                        }
                         Input.Keys.L -> {
                             // Check if the player is currently driving a car
                             if (game.playerSystem.isDriving) {
