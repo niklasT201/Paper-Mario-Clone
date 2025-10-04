@@ -68,7 +68,6 @@ public class Lwjgl3Launcher {
 // Save and Load Player Progress
 // Expanding & Polishing
 // save shaders and visual settings
-// number before mission list
 // npcs outside missions having dialogs, enemies too
 // choosing character images via images, not paths
 // visual screen for finished mission

@@ -71,7 +71,7 @@ class MissionEditorUI(
         areaZField = TextField("", skin)
 
         val defaultColor = Color.valueOf("#3a3a3a") // A dark, neutral gray
-        val selectedColor = Color.valueOf("#6F5E48") // A muted, classy gold/brown
+        val selectedColor = Color.valueOf("#553C73") // A muted, dark purple
         defaultMissionBackground = skin.newDrawable("white", defaultColor)
         selectedMissionBackground = skin.newDrawable("white", selectedColor)
 
@@ -203,10 +203,16 @@ class MissionEditorUI(
         showFlowButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { showMissionFlowDialog() } })
         missionSelectBox.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
-                uiManager.game.sceneManager.clearMissionPreviews() // Clear old previews when changing mission
-                val missionId = missionSelectBox.selected.split(":")[0].trim()
-                uiManager.selectedMissionForEditing = missionSystem.getMissionDefinition(missionId)
-                uiManager.setPersistentMessage("MISSION EDITING: ${uiManager.selectedMissionForEditing?.title}")
+                val selectedText = missionSelectBox.selected ?: return
+                val missionId = selectedText.split(":")[0].trim()
+
+                // Find the corresponding row widget in our main list
+                val rowToSelect = missionListContainer.children.find { (it as? Table)?.userObject == missionId } as? Table
+
+                // Call our central selection function
+                if (rowToSelect != null) {
+                    selectMissionRow(rowToSelect, missionId)
+                }
             }
         })
         addStartEventButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { showEventDialog(null, true) } })
@@ -451,16 +457,17 @@ class MissionEditorUI(
         dialog.show(stage)
     }
 
-    private fun createMissionRowWidget(mission: MissionDefinition): Table {
+    private fun createMissionRowWidget(mission: MissionDefinition, index: Int): Table {
         val rowTable = Table()
         rowTable.userObject = mission.id // Store the ID for easy retrieval
         rowTable.background = defaultMissionBackground // Use our new default background
         rowTable.pad(4f)
 
         // The mission title and ID
-        val missionLabel = Label("${mission.title} [GRAY](${mission.id})[]", skin, "small")
+        val missionLabelText = "$index. ${mission.title} [#A0A0A0](${mission.id})[]"
+        val missionLabel = Label(missionLabelText, skin, "small")
         missionLabel.style.font.data.markupEnabled = true
-        missionLabel.color = Color.valueOf("#D8D8D8") // Set a nice, readable light gray for unselected text
+        missionLabel.color = Color.valueOf("#EAEAEA") // Brighter default text
         missionLabel.setWrap(true)
         missionLabel.setAlignment(Align.left)
         // The "C" (Copy) button
@@ -490,20 +497,36 @@ class MissionEditorUI(
     }
 
     private fun selectMissionRow(rowTable: Table, missionId: String) {
+        // Guard Clause: If this mission is already selected, do nothing
+        if (currentMissionDef?.id == missionId) return
+
+        uiManager.game.sceneManager.clearMissionPreviews()
+
         // Deselect the old row
         selectedMissionRow?.let {
             it.background = defaultMissionBackground
-            (it.getChild(0) as? Label)?.color = Color.valueOf("#D8D8D8")
+            (it.getChild(0) as? Label)?.color = Color.valueOf("#EAEAEA")
         }
 
         // Select the new row and highlight it
         rowTable.background = selectedMissionBackground
-        (rowTable.getChild(0) as? Label)?.color = Color.valueOf("#F5F5DC") // A nice beige/cream color for selected text
+        (rowTable.getChild(0) as? Label)?.color = Color.valueOf("#F5F5DC")
         selectedMissionRow = rowTable
+
+        // Update all relevant states
         currentMissionDef = missionSystem.getMissionDefinition(missionId)
+        uiManager.selectedMissionForEditing = currentMissionDef
+        uiManager.setPersistentMessage("MISSION EDITING: ${currentMissionDef?.title}")
 
         // Populate the editor with the selected mission's data
         populateEditor(missionId)
+
+        // Synchronize the dropdown menu
+        val items = missionSelectBox.items
+        val indexToSelect = items.indexOfFirst { it.startsWith(missionId) }
+        if (indexToSelect != -1) {
+            missionSelectBox.selectedIndex = indexToSelect
+        }
     }
 
     private fun populateMissionFlow(mission: MissionDefinition, container: Table) {
@@ -1465,8 +1488,8 @@ class MissionEditorUI(
         missionSelectBox.items = missionStrings // Also update the mission selector dropdown
 
         if (missions.isNotEmpty()) {
-            missions.forEach { mission ->
-                val rowWidget = createMissionRowWidget(mission)
+            missions.forEachIndexed { index, mission ->
+                val rowWidget = createMissionRowWidget(mission, index + 1)
                 missionListContainer.add(rowWidget).growX().fillX().row()
             }
 
