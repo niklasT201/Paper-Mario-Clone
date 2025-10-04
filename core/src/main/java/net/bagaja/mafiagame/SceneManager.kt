@@ -721,7 +721,8 @@ class SceneManager(
 
     fun isTransitioning(): Boolean {
         return currentScene == SceneType.TRANSITIONING_TO_INTERIOR ||
-            currentScene == SceneType.TRANSITIONING_TO_WORLD
+            currentScene == SceneType.TRANSITIONING_TO_WORLD ||
+            transitionSystem.isActive()
     }
 
     // --- TRANSITION LOGIC ---
