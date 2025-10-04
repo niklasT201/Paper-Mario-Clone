@@ -1000,8 +1000,10 @@ class PlayerSystem {
     }
 
     private fun calculateSafeYPositionForExit(x: Float, z: Float, carY: Float, sceneManager: SceneManager): Float {
+        val fallbackY = if (sceneManager.game.isEditorMode) 0f else -1000f
+
         // Find the highest block/surface that the player can stand on at position (x, z)
-        var highestSupportY = 0f // Ground level
+        var highestSupportY = fallbackY // Ground level
         var foundSupport = false
 
         // Create a small area around the player position to check for support
@@ -1043,9 +1045,9 @@ class PlayerSystem {
             }
         }
 
-        // Calculate where the player should be placed
+        // CHANGED: Use the fallbackY in the final return statement
         val targetY = highestSupportY + playerSize.y / 2f + 0.05f
-        return if (foundSupport) targetY else (0f + playerSize.y / 2f) // Ground level if no support
+        return if (foundSupport) targetY else (fallbackY + playerSize.y / 2f)
     }
 
     // Helper function for stair support during car exit

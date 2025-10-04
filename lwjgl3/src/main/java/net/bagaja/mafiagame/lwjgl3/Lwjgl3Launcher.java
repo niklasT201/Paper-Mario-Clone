@@ -74,7 +74,6 @@ public class Lwjgl3Launcher {
 // death resets mission
 // nickelodeons having real short films
 // visual that a character wants to talk
-// y=0 standard bottom only in editor mode
 // weather events
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // more options for starting a mission

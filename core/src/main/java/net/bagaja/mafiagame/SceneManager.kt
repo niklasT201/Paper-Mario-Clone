@@ -339,7 +339,9 @@ class SceneManager(
     }
 
     fun findHighestSupportY(x: Float, z: Float, currentY: Float, checkRadius: Float, blockSize: Float): Float {
-        var highestSupportY = 0f // Default to ground level
+        val fallbackY = if (game.isEditorMode) 0f else -1000f
+
+        var highestSupportY = fallbackY // Default to ground level
         val entityFootY = currentY - (playerSystem.playerSize.y / 2f)
         val checkRange = 10f
 
@@ -442,7 +444,9 @@ class SceneManager(
     }
 
     fun findStrictSupportY(x: Float, z: Float, currentY: Float, checkRadius: Float, blockSize: Float): Float {
-        var highestSupportY = 0f // Default to ground level
+        val fallbackY = if (game.isEditorMode) 0f else -1000f
+
+        var highestSupportY = fallbackY // Default to ground level
         val entityFootY = currentY - (playerSystem.playerSize.y / 2f)
 
         // 1. Check Blocks
@@ -493,7 +497,8 @@ class SceneManager(
     }
 
     fun findHighestSupportYForItem(x: Float, z: Float, currentY: Float, blockSize: Float): Float {
-        var highestSupportY = 0f // Default to ground level
+        val fallbackY = if (game.isEditorMode) 0f else -1000f
+        var highestSupportY = fallbackY // Default to ground level
         val checkRadius = 0.1f // A tiny radius is fine for items
 
         // 1. Check Blocks using the efficient column query
@@ -600,7 +605,8 @@ class SceneManager(
     }
 
     fun findHighestSupportYForCar(x: Float, z: Float, checkRadius: Float, blockSize: Float): Float {
-        var highestSupportY = 0f // Default to ground level
+        val fallbackY = if (game.isEditorMode) 0f else -1000f
+        var highestSupportY = fallbackY // Default to ground level
 
         // Check against all active blocks
         val blocksInColumn = activeChunkManager.getBlocksInColumn(x, z)
