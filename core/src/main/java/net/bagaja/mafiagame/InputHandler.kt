@@ -671,24 +671,10 @@ class InputHandler(
                     }
                 }
 
-                if (keycode == Input.Keys.NUM_4) {
-                    if (game.isEditorMode) {
-                        game.isInspectModeEnabled = !game.isInspectModeEnabled
-                        val status = if (game.isInspectModeEnabled) "ON" else "OFF"
-                        uiManager.updatePlacementInfo("Inspect Mode (Right-Click Copy): $status")
-                        return true
-                    }
-                }
-
                 if (keycode == Input.Keys.F8) {
                     game.toggleEditorMode()
                     val modeStatus = if (game.isEditorMode) "EDITOR" else "GAME"
                     uiManager.updatePlacementInfo("Mode switched to: $modeStatus")
-                    return true
-                }
-
-                if (keycode == Input.Keys.F9) {
-                    uiManager.toggleDialogueEditor()
                     return true
                 }
 
@@ -704,7 +690,7 @@ class InputHandler(
                             if (game.playerSystem.isDriving) {
                                 val car = game.playerSystem.drivingCar
                                 if (car != null && !car.isDestroyed) {
-                                    car.areHeadlightsOn = !car.areHeadlightsOn // Toggle the state
+                                    car.areHeadlightsOn = !car.areHeadlightsOn
                                     println("Player toggled headlights ${if (car.areHeadlightsOn) "ON" else "OFF"}.")
                                     return true // Consume the key press
                                 }
@@ -715,6 +701,23 @@ class InputHandler(
 
                 // EDITOR MODE CHECK
                 if (game.isEditorMode) {
+
+                    if (keycode == Input.Keys.F7) {
+                        uiManager.toggleMissionEditor()
+                        return true
+                    }
+                    if (keycode == Input.Keys.F9) {
+                        uiManager.toggleDialogueEditor()
+                        return true
+                    }
+
+                    if (keycode == Input.Keys.NUM_4) {
+                        game.isInspectModeEnabled = !game.isInspectModeEnabled
+                        val status = if (game.isInspectModeEnabled) "ON" else "OFF"
+                        uiManager.updatePlacementInfo("Inspect Mode (Right-Click Copy): $status")
+                        return true
+                    }
+
                     if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT) || Gdx.input.isKeyPressed(Input.Keys.CONTROL_RIGHT)) {
                         if (keycode == Input.Keys.S) {
                             // Save Template Hotkey
@@ -797,10 +800,6 @@ class InputHandler(
                                 val status = blockSystem.toggleAreaFillMode()
                                 uiManager.updatePlacementInfo(status)
                             }
-                            return true
-                        }
-                        Input.Keys.F7 -> {
-                            uiManager.toggleMissionEditor()
                             return true
                         }
                         Input.Keys.K -> {

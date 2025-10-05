@@ -90,7 +90,7 @@ public class Lwjgl3Launcher {
 // Cutscene System
 // interact with interiors/objectives, cars, characters = give item, lose item, new event will happen
 
-// disablePoliceResponse: Boolean (Allow the player to cause chaos without getting a wanted level).
+// disablePoliceResponse: Boolean (Allow the player to cause chaos without getting a wanted level).6
 
 // Automatic/Linear Mode or Open World Mode
 // mission loader
