@@ -14,6 +14,7 @@ import com.badlogic.gdx.utils.Array
 
 class MafiaGame : ApplicationAdapter() {
     var isEditorMode = true
+    var isInspectModeEnabled = false
     val renderDistanceInChunks = 2
     private lateinit var modelBatch: ModelBatch
     private lateinit var shaderProvider: BillboardShaderProvider

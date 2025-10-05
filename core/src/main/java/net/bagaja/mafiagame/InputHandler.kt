@@ -281,7 +281,7 @@ class InputHandler(
                                 teleporterSystem.cancelLinking()
                                 return true // Consume the click
                             }
-
+                            if (game.isInspectModeEnabled) {
                             val teleporterGameObjects = Array(teleporterSystem.activeTeleporters.map { it.gameObject }.toTypedArray())
                             val hitTeleporterObject = game.raycastSystem.getObjectAtRay(ray, teleporterGameObjects)
 
@@ -396,7 +396,7 @@ class InputHandler(
                                 uiManager.showTemporaryMessage("Copied Block Position: $posString")
                                 return true // Consume the click
                             }
-
+                            }
                             var removed = false
                             when (uiManager.selectedTool) {
                                 Tool.BLOCK -> removed = blockSystem.handleRemoveAction(ray)
@@ -668,6 +668,15 @@ class InputHandler(
                         // Provide feedback to the player via the UI
                         uiManager.updatePlacementInfo("Targeting Indicator: $status")
                         return true // Consume the key press
+                    }
+                }
+
+                if (keycode == Input.Keys.NUM_4) {
+                    if (game.isEditorMode) {
+                        game.isInspectModeEnabled = !game.isInspectModeEnabled
+                        val status = if (game.isInspectModeEnabled) "ON" else "OFF"
+                        uiManager.updatePlacementInfo("Inspect Mode (Right-Click Copy): $status")
+                        return true
                     }
                 }
 
