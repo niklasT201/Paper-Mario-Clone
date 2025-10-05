@@ -10,6 +10,8 @@ import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
+import com.badlogic.gdx.scenes.scene2d.actions.DelayAction
+import com.badlogic.gdx.scenes.scene2d.actions.SequenceAction
 import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
@@ -1313,17 +1315,21 @@ class UIManager(
         moneyDisplayTable.pack() // Recalculate size based on new text
 
         if (moneyElement.isVisible) {
-           // Always stop any previous animation sequence
-            moneyDisplayTable.clearActions()
-
-            val width = moneyDisplayTable.width + 5f
-            moneyDisplayTable.addAction(Actions.sequence(
-                Actions.delay(2.5f),
-                Actions.moveBy(width, 0f, 0.4f, Interpolation.swingIn),
-                Actions.run {
-                    setHudElementVisibility(HudInfoKey.MONEY, false)
+            var foundAndResetDelay = false
+            for (action in moneyDisplayTable.actions) {
+                if (action is SequenceAction) {
+                    // Find the delay part of the animation sequence.
+                    for (subAction in action.actions) {
+                        if (subAction is DelayAction) {
+                            subAction.restart() // This resets the timer on the delay!
+                            foundAndResetDelay = true
+                            break
+                        }
+                    }
                 }
-            ))
+                if (foundAndResetDelay) break
+            }
+
         } else {
             // The display is completely off-screen. Play the full "slide in" animation.
             setHudElementVisibility(HudInfoKey.MONEY, true)
