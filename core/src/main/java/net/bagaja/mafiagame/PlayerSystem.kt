@@ -1209,7 +1209,7 @@ class PlayerSystem {
         val speedMultiplier = sceneManager.game.missionSystem.activeModifiers?.playerSpeedMultiplier ?: 1.0f
         physicsComponent.speed = basePlayerSpeed * speedMultiplier
 
-        // 1. Calculate desired horizontal movement
+        // 1. Calculate desired horizontal movement from raw input
         val desiredMovement = Vector3()
         if (Gdx.input.isKeyPressed(Input.Keys.A)) desiredMovement.x -= 1f
         if (Gdx.input.isKeyPressed(Input.Keys.D)) desiredMovement.x += 1f
@@ -1218,27 +1218,29 @@ class PlayerSystem {
         if (isPressingW) desiredMovement.z -= 1f
         if (Gdx.input.isKeyPressed(Input.Keys.S)) desiredMovement.z += 1f
 
-        if (isHoldingShootButton && !equippedWeapon.allowsMovementWhileShooting) {
-            desiredMovement.set(0f, 0f, 0f)
-        }
-
-        // 2. Resolve X-axis movement
-        val moved = characterPhysicsSystem.update(physicsComponent, desiredMovement, deltaTime)
-
-        // 3. Resolve Z-axis movement second
-        isMoving = physicsComponent.isMoving
-
+        // 2. Update rotation based on the raw input
         if (desiredMovement.x != 0f) {
             lastMovementDirection = desiredMovement.x
         }
         playerTargetRotationY = if (lastMovementDirection < 0f) 180f else 0f
         updatePlayerRotation(deltaTime)
 
+        // 3. NOW, check if movement should be cancelled due to a heavy weapon.
+        if (isHoldingShootButton && !equippedWeapon.allowsMovementWhileShooting) {
+            desiredMovement.set(0f, 0f, 0f) // Cancel the actual movement vector
+        }
+
+        // 4. Pass the (potentially zeroed) movement vector to the physics system
+        val moved = characterPhysicsSystem.update(physicsComponent, desiredMovement, deltaTime)
+
+        // 5. The rest of the logic for animations and effects remains the same.
+        isMoving = physicsComponent.isMoving
+
         if (isMoving && !lastIsMoving) animationSystem.playAnimation("walking")
         else if (!isMoving && lastIsMoving) animationSystem.playAnimation("idle")
         lastIsMoving = isMoving
 
-        // 4. Resolve Y-axis movement (Gravity and Grounding) with MULTI-POINT CHECK
+        // 6. Resolve Y-axis movement (Gravity and Grounding) with MULTI-POINT CHECK
         if (isMoving) {
             // Player is moving
             continuousMovementTimer += deltaTime
@@ -1256,7 +1258,7 @@ class PlayerSystem {
                     if (desiredMovement.x == 0f && desiredMovement.z != 0f) {
                         // CASE 1: Forward / Backward Movement
                         particleTypeToSpawn = ParticleEffectType.MOVEMENT_WIPE_VERTICAL
-                        wipeRotation = if (desiredMovement.z < 0) 90f else 270f // W key is negative Z
+                        wipeRotation = if (desiredMovement.z < 0) 90f else 270f  // W key is negative Z
 
                         val zOffset = if (desiredMovement.z < 0) 1.0f else -1.0f
                         wipePosition = physicsComponent.position.cpy().add(0f, -1.0f, zOffset)
