@@ -302,7 +302,11 @@ class EnemySystem : IFinePositionable {
 
         // World Editing logic
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
-            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+            var surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+            if (surfaceY < -500f) {
+                surfaceY = 0f
+            }
+
             val enemyType = sceneManager.game.uiManager.enemySelectionUI.getSpawnConfig(Vector3()).enemyType
             val enemyPosition = Vector3(tempVec3.x, surfaceY + enemyType.height / 2f, tempVec3.z)
 
@@ -323,7 +327,12 @@ class EnemySystem : IFinePositionable {
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             // First, get the config with a temporary position to determine the enemy's height
             val tempConfig = sceneManager.game.uiManager.enemySelectionUI.getSpawnConfig(Vector3.Zero)
-            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+
+            var surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+            if (surfaceY < -500f) {
+                surfaceY = 0f
+            }
+
             val finalEnemyPosition = Vector3(tempVec3.x, surfaceY + tempConfig.enemyType.height / 2f, tempVec3.z)
 
             // Now, get the final, complete config using the correct spawn position

@@ -1326,7 +1326,12 @@ class PlayerSystem {
             // Snap to grid
             val gridX = floor(intersection.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(intersection.z / blockSize) * blockSize + blockSize / 2
-            val highestBlockY = sceneManager.findHighestSupportY(gridX, gridZ, 1000f, 0.1f, blockSize)
+
+            var highestBlockY = sceneManager.findHighestSupportY(gridX, gridZ, 1000f, 0.1f, blockSize)
+            if (highestBlockY < -500f) { // Check for fallback
+                highestBlockY = 0f
+            }
+
             val playerY = highestBlockY + playerSize.y / 2f
             val potentialPosition = Vector3(gridX, playerY, gridZ)
 

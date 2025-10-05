@@ -299,7 +299,12 @@ class ItemSystem: IFinePositionable {
             // Items can be placed more freely, but still need to be on top of blocks
             val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
-            val properY = calculateGroundYAt(gridX, gridZ, ITEM_SURFACE_OFFSET)
+
+            var properY = calculateGroundYAt(gridX, gridZ, ITEM_SURFACE_OFFSET)
+            if (properY < -500f) { // Check for the fallback value
+                // If no ground, place it on y=0 plus its offset
+                properY = 0f + ITEM_SURFACE_OFFSET
+            }
 
             val itemPosition = Vector3(gridX, properY, gridZ)
             addItemToScene(itemPosition)

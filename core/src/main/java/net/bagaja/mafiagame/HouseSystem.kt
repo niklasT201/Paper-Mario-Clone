@@ -110,7 +110,11 @@ class HouseSystem: IFinePositionable {
         if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
-            val properY = findHighestSurfaceYAt(gridX, gridZ)
+
+            var properY = findHighestSurfaceYAt(gridX, gridZ)
+            if (properY < -500f) { // Check for the fallback "falling" value
+                properY = 0f     // Default to the ground plane
+            }
 
             val existingHouse = sceneManager.activeHouses.find { house ->
                 kotlin.math.abs(house.position.x - gridX) < 3f &&
@@ -135,7 +139,12 @@ class HouseSystem: IFinePositionable {
         if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
-            val properY = findHighestSurfaceYAt(gridX, gridZ)
+
+            var properY = findHighestSurfaceYAt(gridX, gridZ)
+            if (properY < -500f) {
+                properY = 0f
+            }
+
             val housePosition = Vector3(gridX, properY, gridZ)
 
             val currentSceneId = sceneManager.getCurrentSceneId()

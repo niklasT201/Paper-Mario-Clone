@@ -187,7 +187,12 @@ class ObjectSystem: IFinePositionable {
         if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
-            val properY = findHighestSurfaceYAt(gridX, gridZ)
+
+            var properY = findHighestSurfaceYAt(gridX, gridZ)
+            if (properY < -500f) {
+                properY = 0f
+            }
+
             val objectPosition = Vector3(gridX, properY + objectType.height / 2f, gridZ) // Centered vertically
 
             // Get light settings from the UI if we are placing a light source
@@ -268,7 +273,11 @@ class ObjectSystem: IFinePositionable {
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
-            val properY = findHighestSurfaceYAt(gridX, gridZ)
+
+            var properY = findHighestSurfaceYAt(gridX, gridZ)
+            if (properY < -500f) { // Check for the fallback value
+                properY = 0f
+            }
 
             val existingObject = sceneManager.activeObjects.find { gameObject ->
                 kotlin.math.abs(gameObject.position.x - gridX) < 1f &&

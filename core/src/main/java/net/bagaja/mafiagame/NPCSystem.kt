@@ -358,7 +358,10 @@ class NPCSystem : IFinePositionable {
 
         // World Editing logic
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
-            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+            var surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+            if (surfaceY < -500f) {
+                surfaceY = 0f
+            }
 
             // Get config from UI to know the height for placement
             val tempConfig = sceneManager.game.uiManager.npcSelectionUI.getSpawnConfig(Vector3.Zero)
@@ -382,7 +385,12 @@ class NPCSystem : IFinePositionable {
 
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val config = sceneManager.game.uiManager.npcSelectionUI.getSpawnConfig(Vector3.Zero)
-            val surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+
+            var surfaceY = findHighestSurfaceYAt(tempVec3.x, tempVec3.z)
+            if (surfaceY < -500f) {
+                surfaceY = 0f
+            }
+
             val npcPosition = Vector3(tempVec3.x, surfaceY + config.npcType.height / 2f, tempVec3.z)
 
             val currentSceneId = sceneManager.getCurrentSceneId()

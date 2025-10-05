@@ -116,7 +116,12 @@ class CarSystem: IFinePositionable {
             // Snap to grid
             val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
-            val properY = findHighestSurfaceYAt(gridX, gridZ)
+
+            var properY = findHighestSurfaceYAt(gridX, gridZ)
+            if (properY < -500f) { // Check for the fallback "falling" value
+                properY = 0f     // Default to the ground plane
+            }
+
             val position = Vector3(gridX, properY, gridZ)
 
             // Check if there's already a car at this position
@@ -169,7 +174,12 @@ class CarSystem: IFinePositionable {
         if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
             val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
-            val properY = findHighestSurfaceYAt(gridX, gridZ)
+
+            var properY = findHighestSurfaceYAt(gridX, gridZ)
+            if (properY < -500f) {
+                properY = 0f
+            }
+
             val carPosition = Vector3(gridX, properY, gridZ)
 
             // Get the full configuration from the UI, including driver info
