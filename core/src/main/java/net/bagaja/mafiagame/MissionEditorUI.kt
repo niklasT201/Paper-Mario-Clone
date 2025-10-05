@@ -985,6 +985,9 @@ class MissionEditorUI(
         val hasTimerCheckbox = CheckBox(" Enable Timer", skin).apply {
             isChecked = existingObjective?.hasTimer ?: false
         }
+        val showCounterCheckbox = CheckBox(" Show 'Enemies Left' Counter", skin).apply {
+            isChecked = existingObjective?.showEnemiesLeftCounter ?: false
+        }
         val timerDurationField = TextField(existingObjective?.timerDuration?.toString() ?: "60.0", skin)
         val targetIdField = TextField(existingObjective?.completionCondition?.targetId ?: "", skin)
         val altitudeField = TextField(existingObjective?.completionCondition?.targetAltitude?.toString() ?: "100.0", skin)
@@ -1114,6 +1117,7 @@ class MissionEditorUI(
         settingsTable.add(Label("Condition Type:", skin)); settingsTable.add(typeSelect).row()
         settingsTable.add(hasTimerCheckbox).colspan(2).left().padTop(5f).row()
         settingsTable.add(timerTable).colspan(2).left().row()
+        settingsTable.add(showCounterCheckbox).colspan(2).left().padTop(5f).row()
         settingsTable.add(targetIdTable).colspan(2).row()
         settingsTable.add(dialogSettingsTable).colspan(2).row()
         settingsTable.add(areaTable).colspan(2).row()
@@ -1175,6 +1179,11 @@ class MissionEditorUI(
         // --- LOGIC TO SHOW/HIDE DYNAMIC FIELDS ---
         fun updateVisibleFields() {
             val selectedType = try { ConditionType.valueOf(typeSelect.selected) } catch (e: Exception) { ConditionType.ENTER_AREA }
+            showCounterCheckbox.isVisible = selectedType in listOf(
+                ConditionType.ELIMINATE_TARGET,
+                ConditionType.ELIMINATE_ALL_ENEMIES
+            )
+
             val isSurviveObjective = selectedType == ConditionType.SURVIVE_FOR_TIME
 
             if (isSurviveObjective) {
@@ -1271,13 +1280,15 @@ class MissionEditorUI(
                     description = descField.text.ifBlank { "New Objective" },
                     completionCondition = newCondition,
                     hasTimer = hasTimerCheckbox.isChecked,
-                    timerDuration = timerDurationField.text.toFloatOrNull() ?: 60f
+                    timerDuration = timerDurationField.text.toFloatOrNull() ?: 60f,
+                    showEnemiesLeftCounter = showCounterCheckbox.isChecked
                 ) ?: MissionObjective(
                     description = descField.text.ifBlank { "New Objective" },
                     completionCondition = newCondition,
                     eventsOnStart = eventsOnStart,
                     hasTimer = hasTimerCheckbox.isChecked,
-                    timerDuration = timerDurationField.text.toFloatOrNull() ?: 60f
+                    timerDuration = timerDurationField.text.toFloatOrNull() ?: 60f,
+                    showEnemiesLeftCounter = showCounterCheckbox.isChecked
                 )
 
                 if (existingObjective == null) {

@@ -44,8 +44,8 @@ enum class HudInfoKey(val order: Int) {
     FPS(0),
     MONEY(1),
     MISSION_OBJECTIVE(2),
-    MISSION_TIMER(3)
-    // Add new elements here in the future, like ENEMIES_LEFT(4), etc.
+    ENEMIES_LEFT(3),      // NEW: Added the new label key
+    MISSION_TIMER(4)      // MODIFIED: Pushed the timer down to order 4
 }
 
 data class HudInfoElement(val key: HudInfoKey, val actor: Actor, var isVisible: Boolean = false)
@@ -144,6 +144,7 @@ class UIManager(
     private lateinit var missionTimerLabel: Label
     private lateinit var leaveCarTimerLabel: Label
     private lateinit var returnToAreaTimerLabel: Label
+    private lateinit var enemiesLeftLabel: Label
     private var isTimerInDelayPhase = false
 
     private lateinit var notificationPatch: NinePatch
@@ -577,10 +578,13 @@ class UIManager(
             color = Color.WHITE
         }
 
+        enemiesLeftLabel = Label("", skin, "title").apply { color = Color.ORANGE }
+
         // 3. Register all components with the dynamic HUD manager list, defining their order
         dynamicHudElements.add(HudInfoElement(HudInfoKey.FPS, fpsLabel, false))
         dynamicHudElements.add(HudInfoElement(HudInfoKey.MONEY, moneyDisplayTable, false))
         dynamicHudElements.add(HudInfoElement(HudInfoKey.MISSION_OBJECTIVE, missionObjectiveLabel, false))
+        dynamicHudElements.add(HudInfoElement(HudInfoKey.ENEMIES_LEFT, enemiesLeftLabel, false)) // NEW
         dynamicHudElements.add(HudInfoElement(HudInfoKey.MISSION_TIMER, missionTimerLabel, false))
     }
 
@@ -773,6 +777,27 @@ class UIManager(
     fun prevEmptyAmmoTactic() {
         if (::enemySelectionUI.isInitialized) {
             enemySelectionUI.prevEmptyAmmoTactic()
+        }
+    }
+
+    fun updateEnemiesLeft(count: Int) {
+        // A count less than 0 is a signal to hide the label.
+        val isVisible = count > 0
+
+        if (isVisible) {
+            enemiesLeftLabel.setText("Enemies Left: $count")
+        }
+
+        val element = dynamicHudElements.find { it.key == HudInfoKey.ENEMIES_LEFT }
+        val wasVisible = element?.isVisible ?: false
+
+        setHudElementVisibility(HudInfoKey.ENEMIES_LEFT, isVisible)
+
+        // Only play the fade-in animation when it first appears.
+        if (isVisible && !wasVisible) {
+            enemiesLeftLabel.clearActions()
+            enemiesLeftLabel.color.a = 0f
+            enemiesLeftLabel.addAction(Actions.fadeIn(0.5f))
         }
     }
 

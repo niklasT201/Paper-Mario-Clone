@@ -273,6 +273,29 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         val currentMission = activeMission ?: return
         val objective = currentMission.getCurrentObjective() ?: return
 
+        if (objective.showEnemiesLeftCounter) {
+            val condition = objective.completionCondition
+            if (condition.type == ConditionType.ELIMINATE_ALL_ENEMIES) {
+                val enemiesToTrack = (currentMission.missionVariables["enemies_to_eliminate"] as? List<*>)?.filterIsInstance<String>()
+                val count = if (enemiesToTrack != null) {
+                    game.sceneManager.activeEnemies.count { it.id in enemiesToTrack }
+                } else {
+                    game.sceneManager.activeEnemies.size
+                }
+                game.uiManager.updateEnemiesLeft(count)
+            } else if (condition.type == ConditionType.ELIMINATE_TARGET) {
+                val targetExists = game.sceneManager.activeEnemies.any { it.id == condition.targetId }
+                val count = if (targetExists) 1 else 0
+                game.uiManager.updateEnemiesLeft(count)
+            } else {
+                // Hide the counter if the objective type doesn't match (e.g., if you change it in the editor)
+                game.uiManager.updateEnemiesLeft(-1)
+            }
+        } else {
+            // If the objective does not want the counter, make sure it's hidden.
+            game.uiManager.updateEnemiesLeft(-1)
+        }
+
         // 1. Check if we are in the "start delay" phase.
         if (objectiveTimerStartDelay > 0f) {
             objectiveTimerStartDelay -= deltaTime
@@ -754,6 +777,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         missionState.missionVariables.remove("objective_timer")
         objectiveTimerStartDelay = -1f // Also clear the start delay
         game.uiManager.updateMissionTimer(-1f) // Hide the UI timer
+        game.uiManager.updateEnemiesLeft(-1)
 
         missionState.currentObjectiveIndex++
 
@@ -832,6 +856,8 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             // Reset player speed back to its default value if it was changed.
             game.playerSystem.physicsComponent.speed = game.playerSystem.basePlayerSpeed
         }
+
+        game.uiManager.updateEnemiesLeft(-1)
 
         // Deactivate modifiers when the mission ends
         println("Deactivating mission modifiers.")

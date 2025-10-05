@@ -67,7 +67,8 @@ data class MissionObjective(
     val completionCondition: CompletionCondition = CompletionCondition(),
     val eventsOnStart: MutableList<GameEvent> = mutableListOf(),
     val hasTimer: Boolean = false,
-    val timerDuration: Float = 60f
+    val timerDuration: Float = 60f,
+    val showEnemiesLeftCounter: Boolean = false
 )
 
 data class MissionReward(
