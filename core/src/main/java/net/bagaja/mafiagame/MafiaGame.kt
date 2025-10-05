@@ -637,6 +637,7 @@ class MafiaGame : ApplicationAdapter() {
         // If we just switched OUT of editor mode, hide all editor-specific UI panels.
         if (!isEditorMode) {
             uiManager.hideAllEditorPanels()
+            uiManager.updatePlacementInfo("")
         }
     }
 

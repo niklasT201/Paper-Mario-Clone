@@ -357,8 +357,6 @@ class UILayoutBuilder(private val skin: Skin) {
      */
     fun createFpsDisplay(): Pair<Table, Label> {
         val fpsTable = Table()
-        fpsTable.setFillParent(true)
-        fpsTable.top().right()
         fpsTable.pad(15f)
 
         val fpsLabel = Label("FPS: 0", skin)

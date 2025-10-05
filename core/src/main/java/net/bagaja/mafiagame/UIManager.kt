@@ -34,6 +34,16 @@ enum class ViolenceLevel(val displayName: String) {
     FULL_VIOLENCE("Full")
 }
 
+enum class HudInfoKey(val order: Int) {
+    FPS(0),
+    MONEY(1),
+    MISSION_OBJECTIVE(2),
+    MISSION_TIMER(3)
+    // Add new elements here in the future, like ENEMIES_LEFT(4), etc.
+}
+
+data class HudInfoElement(val key: HudInfoKey, val actor: Actor, var isVisible: Boolean = false)
+
 class UIManager(
     val game: MafiaGame,
     private val blockSystem: BlockSystem,
@@ -102,7 +112,6 @@ class UIManager(
     // HUD Tables
     private lateinit var wantedPosterHudTable: Table
     private lateinit var minimalistHudTable: Table
-    private lateinit var missionTimerLabel: Label
     private lateinit var healthLabelMinimalist: Label
 
     // Minimalist HUD elements
@@ -114,17 +123,19 @@ class UIManager(
     private lateinit var reloadIndicatorPoster: Label
 
     // Money Display elements
-    private lateinit var moneyDisplayTable: Table
-    private lateinit var moneyValueLabel: Label
     private lateinit var moneyStackTexture: Texture
     private lateinit var toolButtons: MutableList<Table>
     private lateinit var statsLabels: MutableMap<String, Label>
     private lateinit var placementInfoLabel: Label
     private lateinit var persistentMessageLabel: Label
     private lateinit var temporaryMessageLabel: Label
+    private lateinit var dynamicHudTable: Table
+    private val dynamicHudElements = mutableListOf<HudInfoElement>()
     private lateinit var fpsLabel: Label
-    private lateinit var fpsTable: Table
+    private lateinit var moneyDisplayTable: Table
+    private lateinit var moneyValueLabel: Label
     private lateinit var missionObjectiveLabel: Label
+    private lateinit var missionTimerLabel: Label
     private lateinit var leaveCarTimerLabel: Label
     private lateinit var returnToAreaTimerLabel: Label
     private var isTimerInDelayPhase = false
@@ -167,81 +178,13 @@ class UIManager(
         dialogSystem = DialogSystem()
         dialogSystem.initialize(stage, skin)
 
-        // Setup FPS display
-        val (fpsTableCreated, fpsLabelCreated) = layoutBuilder.createFpsDisplay()
-        fpsTable = fpsTableCreated
-        fpsLabel = fpsLabelCreated
-        stage.addActor(fpsTable)
-
         // Setup main UI
+        setupDynamicHud()
         setupMainUI()
         setupLetterboxUI()
         setupCinematicBarsUI()
         setupGameHUD() // This function will now build BOTH HUDs
-        setupMoneyDisplay()
-
-        temporaryMessageLabel = Label("", skin, "title")
-        temporaryMessageLabel.setAlignment(Align.center)
-        temporaryMessageLabel.color = Color.GREEN // Use a different color for feedback
-        temporaryMessageLabel.isVisible = false
-        val tempMessageTable = Table()
-        tempMessageTable.setFillParent(true)
-        tempMessageTable.top().pad(90f) // Position it slightly below the persistent message
-        tempMessageTable.add(temporaryMessageLabel)
-        stage.addActor(tempMessageTable)
-
-        // Setup persistent message
-        persistentMessageLabel = layoutBuilder.createPersistentMessageLabel()
-        val persistentMessageTable = Table()
-        persistentMessageTable.setFillParent(true)
-        persistentMessageTable.top().pad(50f)
-        persistentMessageTable.add(persistentMessageLabel)
-        stage.addActor(persistentMessageTable)
-
-        // 1. Create the labels for the objective and timer
-        missionObjectiveLabel = Label("", skin, "title")
-
-        missionTimerLabel = Label("", skin, "title")
-        missionTimerLabel.setFontScale(1.0f) // MODIFIED: Reduced font size to standard
-        missionTimerLabel.color = Color.WHITE
-        missionTimerLabel.isVisible = false
-
-        // 2. Create ONE table in the top-right corner for both labels
-        val objectiveTable = Table()
-        objectiveTable.setFillParent(true)
-        objectiveTable.top().right().pad(20f)
-
-        // 3. Add the objective text to the first row, aligned right
-        objectiveTable.add(missionObjectiveLabel).right()
-        objectiveTable.row() // Move to the next row
-
-        // 4. Add the timer to the second row, aligned right
-        objectiveTable.add(missionTimerLabel).right().padTop(5f)
-
-        stage.addActor(objectiveTable)
-
-        // Leave Car Timer is separate and stays at the bottom center (Unchanged)
-        leaveCarTimerLabel = Label("", skin, "title")
-        leaveCarTimerLabel.setFontScale(1.0f)
-        leaveCarTimerLabel.color = Color.RED
-        leaveCarTimerLabel.setAlignment(Align.center)
-        leaveCarTimerLabel.isVisible = false
-        val timerTable = Table()
-        timerTable.setFillParent(true)
-        timerTable.bottom().padBottom(50f) // Position at the bottom center of the screen
-        timerTable.add(leaveCarTimerLabel)
-        stage.addActor(timerTable)
-
-        returnToAreaTimerLabel = Label("", skin, "title")
-        returnToAreaTimerLabel.setFontScale(1.0f)
-        returnToAreaTimerLabel.color = Color.ORANGE // Use a different color to distinguish
-        returnToAreaTimerLabel.setAlignment(Align.center)
-        returnToAreaTimerLabel.isVisible = false
-        val returnAreaTimerTable = Table()
-        returnAreaTimerTable.setFillParent(true)
-        returnAreaTimerTable.bottom().padBottom(90f) // Position it just above the car timer
-        returnAreaTimerTable.add(returnToAreaTimerLabel)
-        stage.addActor(returnAreaTimerTable)
+        setupMessageLabels()
 
         // Initialize all your selection UIs
         blockSelectionUI = BlockSelectionUI(blockSystem, skin, stage)
@@ -313,6 +256,8 @@ class UIManager(
 
         // Set initial visibility for the main UI panel
         mainTable.isVisible = isUIVisible && game.isEditorMode
+
+        // Initialize Editor UIs
         missionEditorUI = MissionEditorUI(skin, stage, game.missionSystem, this)
         triggerEditorUI = TriggerEditorUI(skin, stage, game.missionSystem, game.triggerSystem, game.sceneManager, this)
         dialogueEditorUI = DialogueEditorUI(skin, stage, this, dialogueManager)
@@ -590,14 +535,125 @@ class UIManager(
         }
     }
 
-    fun updateFps() {
-        if (fpsTable.isVisible) {
-            fpsLabel.setText("FPS: ${Gdx.graphics.framesPerSecond}")
+    private fun setupDynamicHud() {
+        // 1. Create the master table that will hold all dynamic elements
+        dynamicHudTable = Table()
+        dynamicHudTable.setFillParent(true)
+        dynamicHudTable.top().right().pad(20f) // Anchor it to the top-right
+        stage.addActor(dynamicHudTable)
+
+        // 2. Create the individual UI components (Labels, Tables, etc.)
+        fpsLabel = Label("FPS: --", skin, "title").apply { color = Color.GREEN }
+
+        moneyStackTexture = try {
+            Texture(Gdx.files.internal("gui/dollar_stack.png"))
+        } catch (e: Exception) {
+            Pixmap(32, 32, Pixmap.Format.RGBA8888).let { pixmap ->
+                pixmap.setColor(Color.GREEN); pixmap.fill(); Texture(pixmap).also { pixmap.dispose() }
+            }
+        }
+        moneyDisplayTable = Table()
+        val moneyIcon = Image(moneyStackTexture).apply { setScaling(Scaling.fit) }
+        val dollarLabel = Label("$", skin, "title").apply { color = Color.WHITE }
+        moneyValueLabel = Label("0", skin, "title").apply { color = Color.WHITE }
+        moneyDisplayTable.add(moneyIcon).size(40f)
+        moneyDisplayTable.add(dollarLabel).padLeft(10f)
+        moneyDisplayTable.add(moneyValueLabel).padLeft(5f)
+
+        missionObjectiveLabel = Label("", skin, "title")
+        missionTimerLabel = Label("", skin, "title").apply {
+            setFontScale(1.0f)
+            color = Color.WHITE
+        }
+
+        // 3. Register all components with the dynamic HUD manager list, defining their order
+        dynamicHudElements.add(HudInfoElement(HudInfoKey.FPS, fpsLabel, false))
+        dynamicHudElements.add(HudInfoElement(HudInfoKey.MONEY, moneyDisplayTable, false))
+        dynamicHudElements.add(HudInfoElement(HudInfoKey.MISSION_OBJECTIVE, missionObjectiveLabel, false))
+        dynamicHudElements.add(HudInfoElement(HudInfoKey.MISSION_TIMER, missionTimerLabel, false))
+    }
+
+    private fun refreshDynamicHudTable() {
+        dynamicHudTable.clear()
+        dynamicHudTable.top().right()
+
+        // Filter for visible elements, sort them by their predefined order, and add them to the table
+        dynamicHudElements
+            .filter { it.isVisible }
+            .sortedBy { it.key.order }
+            .forEach { hudElement ->
+                dynamicHudTable.add(hudElement.actor).right().padBottom(8f)
+                dynamicHudTable.row()
+            }
+    }
+
+    private fun setHudElementVisibility(key: HudInfoKey, visible: Boolean) {
+        val element = dynamicHudElements.find { it.key == key }
+        if (element != null && element.isVisible != visible) {
+            element.isVisible = visible
+            // If we are showing an element, ensure it's fully opaque before it appears
+            if (visible) {
+                element.actor.color.a = 1f
+            }
+            refreshDynamicHudTable() // Rebuild the table layout!
         }
     }
 
+    private fun setupMessageLabels() {
+        temporaryMessageLabel = Label("", skin, "title").apply {
+            setAlignment(Align.center)
+            color = Color.GREEN
+            isVisible = false
+        }
+        val tempMessageTable = Table().apply {
+            setFillParent(true)
+            top().pad(90f)
+            add(temporaryMessageLabel)
+        }
+        stage.addActor(tempMessageTable)
+
+        persistentMessageLabel = layoutBuilder.createPersistentMessageLabel()
+        val persistentMessageTable = Table().apply {
+            setFillParent(true)
+            top().pad(50f)
+            add(persistentMessageLabel)
+        }
+        stage.addActor(persistentMessageTable)
+
+        leaveCarTimerLabel = Label("", skin, "title").apply {
+            setFontScale(1.0f)
+            color = Color.RED
+            setAlignment(Align.center)
+            isVisible = false
+        }
+        val timerTable = Table().apply {
+            setFillParent(true)
+            bottom().padBottom(50f)
+            add(leaveCarTimerLabel)
+        }
+        stage.addActor(timerTable)
+
+        returnToAreaTimerLabel = Label("", skin, "title").apply {
+            setFontScale(1.0f)
+            color = Color.ORANGE
+            setAlignment(Align.center)
+            isVisible = false
+        }
+        val returnAreaTimerTable = Table().apply {
+            setFillParent(true)
+            bottom().padBottom(90f)
+            add(returnToAreaTimerLabel)
+        }
+        stage.addActor(returnAreaTimerTable)
+    }
+
+    fun updateFps() {
+        fpsLabel.setText("FPS: ${Gdx.graphics.framesPerSecond}")
+    }
+
     fun toggleFpsLabel() {
-        fpsTable.isVisible = !fpsTable.isVisible
+        val element = dynamicHudElements.find { it.key == HudInfoKey.FPS } ?: return
+        setHudElementVisibility(HudInfoKey.FPS, !element.isVisible)
     }
 
     fun toggleVisibility() {
@@ -1049,28 +1105,16 @@ class UIManager(
         isTimerInDelayPhase = isDelay
 
         if (timeRemaining > 0f) {
-            missionTimerLabel.isVisible = true
-
-            if (isDelay) {
-                missionTimerLabel.color = Color.LIGHT_GRAY
-            } else {
-                missionTimerLabel.color = Color.WHITE
-            }
-
+            missionTimerLabel.color = if (isDelay) Color.LIGHT_GRAY else Color.WHITE
             val minutes = (timeRemaining / 60).toInt()
             val seconds = (timeRemaining % 60).toInt()
             missionTimerLabel.setText(String.format("%02d:%02d", minutes, seconds))
 
             // Ensure it's fully visible if it was faded out before
-            missionTimerLabel.color.a = 1f
+            setHudElementVisibility(HudInfoKey.MISSION_TIMER, true)
         } else {
             // fade it out smoothly
-            if (missionTimerLabel.isVisible) {
-                missionTimerLabel.addAction(Actions.sequence(
-                    Actions.fadeOut(0.3f, Interpolation.fade),
-                    Actions.run { missionTimerLabel.isVisible = false }
-                ))
-            }
+            setHudElementVisibility(HudInfoKey.MISSION_TIMER, false)
         }
     }
 
@@ -1262,41 +1306,39 @@ class UIManager(
     fun getCurrentHudStyle(): HudStyle = currentHudStyle
 
     fun showMoneyUpdate(newAmount: Int) {
+        // Find our money element in the master list to check its visibility state.
+        val moneyElement = dynamicHudElements.find { it.key == HudInfoKey.MONEY } ?: return
+
         moneyValueLabel.setText(newAmount.toString())
         moneyDisplayTable.pack() // Recalculate size based on new text
 
-        // Always stop any previous animation sequence
-        moneyDisplayTable.clearActions()
+        if (moneyElement.isVisible) {
+           // Always stop any previous animation sequence
+            moneyDisplayTable.clearActions()
 
-        val yPos = stage.height - 80f
-        val targetX = stage.width - moneyDisplayTable.width - 30f // The final on-screen X position
-        val startX = stage.width // The off-screen X position to the right
-
-        // Make sure the actor is visible to start any new animation.
-        moneyDisplayTable.isVisible = true
-
-        // Check if the table is already on-screen by checking its current X coordinate.
-        val isAlreadyOnScreen = moneyDisplayTable.x < startX
-
-        // Define the sequence for sliding out and hiding
-        val slideOutSequence = Actions.sequence(
-            Actions.moveTo(startX, yPos, 0.4f, Interpolation.swingIn),
-            Actions.run { moneyDisplayTable.isVisible = false }
-        )
-
-        if (isAlreadyOnScreen) {
-            moneyDisplayTable.setPosition(targetX, yPos)
+            val width = moneyDisplayTable.width + 5f
             moneyDisplayTable.addAction(Actions.sequence(
                 Actions.delay(2.5f),
-                slideOutSequence
+                Actions.moveBy(width, 0f, 0.4f, Interpolation.swingIn),
+                Actions.run {
+                    setHudElementVisibility(HudInfoKey.MONEY, false)
+                }
             ))
         } else {
             // The display is completely off-screen. Play the full "slide in" animation.
-            moneyDisplayTable.setPosition(startX, yPos) // Ensure it starts off-screen
+            setHudElementVisibility(HudInfoKey.MONEY, true)
+
+            val width = moneyDisplayTable.width + 5f
+
+            // Play the full slide-in, delay, and slide-out sequence.
             moneyDisplayTable.addAction(Actions.sequence(
-                Actions.moveTo(targetX, yPos, 0.4f, Interpolation.swingOut), // Slide in
+                Actions.moveBy(width, 0f), // Instantly move it off-screen to the right
+                Actions.moveBy(-width, 0f, 0.4f, Interpolation.swingOut), // Slide in
                 Actions.delay(2.5f), // Wait
-                slideOutSequence // Slide out
+                Actions.moveBy(width, 0f, 0.4f, Interpolation.swingIn), // Slide out
+                Actions.run {
+                    setHudElementVisibility(HudInfoKey.MONEY, false)
+                }
             ))
         }
     }
@@ -1304,11 +1346,16 @@ class UIManager(
     fun isDialogActive(): Boolean = dialogSystem.isActive()
 
     fun updateMissionObjective(text: String) {
+        val isVisible = text.isNotBlank()
         missionObjectiveLabel.setText(text)
-        // Optional: Add a fade-in animation
-        missionObjectiveLabel.clearActions()
-        missionObjectiveLabel.color.a = 0f
-        missionObjectiveLabel.addAction(Actions.fadeIn(0.5f))
+        setHudElementVisibility(HudInfoKey.MISSION_OBJECTIVE, isVisible)
+
+        if (isVisible) {
+            // Optional: Add a fade-in animation
+            missionObjectiveLabel.clearActions()
+            missionObjectiveLabel.color.a = 0f
+            missionObjectiveLabel.addAction(Actions.fadeIn(0.5f))
+        }
     }
 
     fun showEnemyInventory(enemy: GameEnemy) {
