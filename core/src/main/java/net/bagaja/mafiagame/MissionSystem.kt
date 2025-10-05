@@ -706,6 +706,9 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
         val missionDef = allMissions[id] ?: return
 
+        // Trigger UI notification
+        game.uiManager.showMissionStartNotification(missionDef.title)
+
         // Take an inventory snapshot if this mission modifies it
         val modifiesInventory = missionDef.eventsOnStart.any {
             it.type in listOf(GameEventType.CLEAR_INVENTORY, GameEventType.GIVE_WEAPON, GameEventType.FORCE_EQUIP_WEAPON)

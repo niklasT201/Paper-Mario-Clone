@@ -4,6 +4,9 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
+import com.badlogic.gdx.graphics.g2d.NinePatch
+import com.badlogic.gdx.graphics.g2d.TextureRegion
+import com.badlogic.gdx.graphics.g3d.particles.ParticleChannels.TextureRegion
 import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.scenes.scene2d.Actor
@@ -15,6 +18,7 @@ import com.badlogic.gdx.scenes.scene2d.actions.SequenceAction
 import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
+import com.badlogic.gdx.scenes.scene2d.utils.NinePatchDrawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.Scaling
@@ -142,6 +146,10 @@ class UIManager(
     private lateinit var returnToAreaTimerLabel: Label
     private var isTimerInDelayPhase = false
 
+    private lateinit var notificationPatch: NinePatch
+    private lateinit var notificationTable: Table
+    private lateinit var notificationLabel: Label
+
     private var currentViolenceLevel = ViolenceLevel.FULL_VIOLENCE
     var currentEditorMode = EditorMode.WORLD
     var selectedMissionForEditing: MissionDefinition? = null
@@ -186,6 +194,7 @@ class UIManager(
         setupLetterboxUI()
         setupCinematicBarsUI()
         setupGameHUD() // This function will now build BOTH HUDs
+        setupMissionNotification()
         setupMessageLabels()
 
         // Initialize all your selection UIs
@@ -1151,6 +1160,65 @@ class UIManager(
         } else {
             false
         }
+    }
+
+    private fun setupMissionNotification() {
+        // 1. Load your image as a texture
+        val texture = Texture(Gdx.files.internal("gui/notifycation.png"))
+
+        // 2. Create the NinePatch (8, 8, 8, 8)
+        // left, right, top, bottom
+        notificationPatch = NinePatch(TextureRegion(texture), 8, 8, 8, 8)
+
+        // 3. Create the table that will act as the notification window
+        notificationTable = Table()
+        notificationTable.background = NinePatchDrawable(notificationPatch) // Use the NinePatch as the background
+        notificationTable.isVisible = false // Start hidden
+
+        // 4. Create the label that will hold the mission title
+        notificationLabel = Label("", skin, "title")
+        notificationLabel.color = Color.BLACK
+        notificationLabel.wrap = true // Allow text to wrap if the title is very long
+        notificationLabel.setAlignment(Align.center)
+
+        // 5. Add the label
+        notificationTable.add(notificationLabel).pad(15f).growX()
+
+        // 6. Position the notification table at the top-center of the screen
+        val container = Container(notificationTable)
+        container.setFillParent(true)
+        container.top().padTop(5f)
+        stage.addActor(container)
+    }
+
+    fun showMissionStartNotification(missionTitle: String) {
+        // Set the text for the label
+        notificationLabel.setText(missionTitle)
+
+        notificationTable.pack()
+
+        // Stop any previous animations
+        notificationTable.clearActions()
+        notificationTable.isVisible = true
+
+        // Set initial state for animation (off-screen and faded out)
+        notificationTable.color.a = 0f
+        notificationTable.setOrigin(Align.center)
+        notificationTable.setPosition(stage.width / 2f, stage.height + 20f, Align.top) // Start above the screen
+
+        // Create the animation sequence
+        notificationTable.addAction(Actions.sequence(
+            // Animate it fading in and sliding down into view
+            Actions.parallel(
+                Actions.fadeIn(0.5f, Interpolation.pow2Out),
+                Actions.moveBy(0f, -80f, 0.5f, Interpolation.pow2Out)
+            ),
+            Actions.delay(4.0f),
+            // Animate it fading out
+            Actions.fadeOut(0.5f, Interpolation.fade),
+            // Hide the actor completely when the animation is finished
+            Actions.visible(false)
+        ))
     }
 
     fun hideAllEditorPanels() {
