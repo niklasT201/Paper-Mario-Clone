@@ -154,7 +154,12 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
                 val distanceToVisual = playerPos.dst(center)
                 if (distanceToVisual < VISUAL_ACTIVATION_DISTANCE) {
                     // Find the ground height to place the visual correctly
-                    val groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
+                    var groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
+
+                    // If no surface was found, default to y=0 to keep the trigger visible on the ground plane.
+                    if (groundY < -500f) {
+                        groundY = 0f
+                    }
 
                     // Update the position every frame
                     trigger.modelInstance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)

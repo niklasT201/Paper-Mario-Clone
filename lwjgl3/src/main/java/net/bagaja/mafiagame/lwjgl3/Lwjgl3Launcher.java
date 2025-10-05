@@ -47,6 +47,7 @@ public class Lwjgl3Launcher {
 // more animations adding
 
 // edge houses
+// key to allow copy ids
 // using new animation images
 // collected ammunition label for bullets and weapons
 // rusher stopping in front of the player

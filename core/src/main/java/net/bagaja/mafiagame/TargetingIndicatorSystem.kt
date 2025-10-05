@@ -169,7 +169,14 @@ class TargetingIndicatorSystem {
 
         // 4. If nothing was hit, place the indicator on the ground (Fallback)
         if (Intersector.intersectRayPlane(ray, groundPlane, intersectionPoint)) {
-            val groundY = sceneManager.findHighestSupportY(intersectionPoint.x, intersectionPoint.z, intersectionPoint.y, 0.1f, sceneManager.game.blockSize)
+            // Find the highest actual surface (block, house, etc.)
+            var groundY = sceneManager.findHighestSupportY(intersectionPoint.x, intersectionPoint.z, intersectionPoint.y, 0.1f, sceneManager.game.blockSize)
+
+            // If no surface was found and we got the large negative fallback value,
+            if (groundY < -500f) { // Using -500f as a safe threshold to detect the -1000f value
+                groundY = 0f
+            }
+
             indicatorPosition.set(intersectionPoint.x, groundY + GROUND_OFFSET, intersectionPoint.z)
             isVisible = true
             updateTransform()
