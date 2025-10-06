@@ -859,7 +859,9 @@ class PlayerSystem {
 
         // Add the ammo from the picked-up item to reserves
         if (ammoToGive != null && ammoToGive > 0) {
-            addAmmo(weaponType, ammoToGive)
+            addAmmoToReserves(weaponType, ammoToGive)
+        } else if (weaponType.actionType == WeaponActionType.MELEE && weaponType != WeaponType.UNARMED) {
+            sceneManager.game.uiManager.queueWeaponPickupNotification(weaponType, 1)
         }
 
         println("Player equipped: ${weaponType.displayName}. Magazine loaded with $currentMagazineCount rounds.")
@@ -923,7 +925,12 @@ class PlayerSystem {
     fun addAmmoToReserves(weaponType: WeaponType, amount: Int) {
         val currentAmmo = ammoReserves.getOrDefault(weaponType, 0)
         ammoReserves[weaponType] = currentAmmo + amount
+
+        // NEW: Trigger the notification from here with the correct amount.
+        sceneManager.game.uiManager.queueWeaponPickupNotification(weaponType, amount)
+
         println("Added $amount ammo for ${weaponType.displayName}. Total reserve: ${ammoReserves[weaponType]}")
+
         // Make sure the weapon is in the player's inventory list if they get ammo for it
         if (weaponType != WeaponType.UNARMED && !weapons.contains(weaponType)) {
             weapons.add(weaponType)

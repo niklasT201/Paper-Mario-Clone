@@ -43,9 +43,10 @@ enum class ViolenceLevel(val displayName: String) {
 enum class HudInfoKey(val order: Int) {
     FPS(0),
     MONEY(1),
-    MISSION_OBJECTIVE(2),
-    ENEMIES_LEFT(3),      // NEW: Added the new label key
-    MISSION_TIMER(4)      // MODIFIED: Pushed the timer down to order 4
+    WEAPON_PICKUP(2),      // NEW: Added the weapon pickup key
+    MISSION_OBJECTIVE(3),  // MODIFIED: Order updated
+    ENEMIES_LEFT(4),       // MODIFIED: Order updated
+    MISSION_TIMER(5)       // MODIFIED: Order updated
 }
 
 data class HudInfoElement(val key: HudInfoKey, val actor: Actor, var isVisible: Boolean = false)
@@ -150,6 +151,14 @@ class UIManager(
     private lateinit var notificationPatch: NinePatch
     private lateinit var notificationTable: Table
     private lateinit var notificationLabel: Label
+    private lateinit var weaponPickupTable: Table
+    private lateinit var weaponPickupIcon: Image
+    private lateinit var weaponPickupLabel: Label
+    private lateinit var weaponPickupStackLabel: Label
+    private val weaponStackCountColor = Color.valueOf("#D3D3D3")
+    private val weaponPickupQueue = ArrayDeque<WeaponPickupInfo>()
+    private var isWeaponNotificationActive = false
+    private data class WeaponPickupInfo(val weaponType: WeaponType, val ammoCount: Int, var stackCount: Int = 1)
 
     private var currentViolenceLevel = ViolenceLevel.FULL_VIOLENCE
     var currentEditorMode = EditorMode.WORLD
@@ -580,11 +589,31 @@ class UIManager(
 
         enemiesLeftLabel = Label("", skin, "title").apply { color = Color.ORANGE }
 
+        weaponPickupTable = Table()
+        weaponPickupIcon = Image().apply { setScaling(Scaling.fit) }
+        weaponPickupLabel = Label("", skin, "title").apply { color = Color.WHITE }
+
+        weaponPickupStackLabel = Label("", skin, "title").apply {
+            color = weaponStackCountColor
+            setFontScale(0.7f) // Make it smaller
+        }
+
+        val stackLabelContainer = Container(weaponPickupStackLabel)
+        stackLabelContainer.top().right().padTop(-2f).padRight(-11f)
+
+        val labelStack = Stack()
+        labelStack.add(weaponPickupLabel)
+        labelStack.add(stackLabelContainer)
+
+        weaponPickupTable.add(weaponPickupIcon).size(40f)
+        weaponPickupTable.add(labelStack).padLeft(10f)
+
         // 3. Register all components with the dynamic HUD manager list, defining their order
         dynamicHudElements.add(HudInfoElement(HudInfoKey.FPS, fpsLabel, false))
         dynamicHudElements.add(HudInfoElement(HudInfoKey.MONEY, moneyDisplayTable, false))
+        dynamicHudElements.add(HudInfoElement(HudInfoKey.WEAPON_PICKUP, weaponPickupTable, false))
         dynamicHudElements.add(HudInfoElement(HudInfoKey.MISSION_OBJECTIVE, missionObjectiveLabel, false))
-        dynamicHudElements.add(HudInfoElement(HudInfoKey.ENEMIES_LEFT, enemiesLeftLabel, false)) // NEW
+        dynamicHudElements.add(HudInfoElement(HudInfoKey.ENEMIES_LEFT, enemiesLeftLabel, false))
         dynamicHudElements.add(HudInfoElement(HudInfoKey.MISSION_TIMER, missionTimerLabel, false))
     }
 
@@ -660,6 +689,87 @@ class UIManager(
             add(returnToAreaTimerLabel)
         }
         stage.addActor(returnAreaTimerTable)
+    }
+
+    fun queueWeaponPickupNotification(weaponType: WeaponType, ammoCount: Int) {
+        val lastPickup = weaponPickupQueue.lastOrNull()
+
+        if (lastPickup != null && lastPickup.weaponType == weaponType && lastPickup.ammoCount == ammoCount) {
+            // It's the same! Increment the stack count.
+            lastPickup.stackCount++
+        } else {
+            // It's different, so add a new entry.
+            weaponPickupQueue.add(WeaponPickupInfo(weaponType, ammoCount))
+        }
+
+        if (!isWeaponNotificationActive) {
+            // Set the flag immediately to "lock" the processing loop.
+            isWeaponNotificationActive = true
+            // Schedule the processing to start on the *next* frame.
+            Gdx.app.postRunnable { processNextWeaponPickup() }
+        }
+    }
+
+    private fun processNextWeaponPickup() {
+        if (weaponPickupQueue.isEmpty()) {
+            // The queue is empty, so we are done. Animate out.
+            val width = weaponPickupTable.width + 5f
+            weaponPickupTable.addAction(Actions.sequence(
+                Actions.moveBy(width, 0f, 0.4f, Interpolation.swingIn),
+                Actions.run {
+                    setHudElementVisibility(HudInfoKey.WEAPON_PICKUP, false)
+                    isWeaponNotificationActive = false // Release the lock
+                }
+            ))
+            return
+        }
+
+        val pickupInfo = weaponPickupQueue.removeFirst()
+
+        // Update icon
+        val itemType = ItemType.entries.find { it.correspondingWeapon == pickupInfo.weaponType }
+        if (itemType != null) {
+            val texture = itemSystem.getTextureForItem(itemType)
+            if (texture != null) {
+                weaponPickupIcon.drawable = TextureRegionDrawable(texture)
+            }
+        }
+
+        weaponPickupLabel.setText("+${pickupInfo.ammoCount}")
+        if (pickupInfo.stackCount > 1) {
+            weaponPickupStackLabel.setText("${pickupInfo.stackCount}")
+        } else {
+            weaponPickupStackLabel.setText("") // Clear the text if there's no stack
+        }
+        weaponPickupTable.pack() // Repack to fit new text
+
+        val isQueueMonotonous = weaponPickupQueue.map { it.weaponType }.distinct().size <= 1
+        val duration = if (isQueueMonotonous) 3.0f else 1.2f
+
+        val isFirstInSequence = !dynamicHudElements.find { it.key == HudInfoKey.WEAPON_PICKUP }!!.isVisible
+
+        if (isFirstInSequence) {
+            // First item in a new batch, play the slide-in animation.
+            setHudElementVisibility(HudInfoKey.WEAPON_PICKUP, true)
+            val width = weaponPickupTable.width + 5f
+
+            weaponPickupTable.addAction(Actions.sequence(
+                Actions.moveBy(width, 0f),
+                Actions.moveBy(-width, 0f, 0.4f, Interpolation.swingOut),
+                Actions.delay(duration),
+                Actions.run { processNextWeaponPickup() } // Process next item
+            ))
+        } else {
+            // Subsequent item, just fade in the new content.
+            weaponPickupTable.clearActions()
+            weaponPickupTable.color.a = 0f
+
+            weaponPickupTable.addAction(Actions.sequence(
+                Actions.fadeIn(0.2f),
+                Actions.delay(duration),
+                Actions.run { processNextWeaponPickup() } // Process next item
+            ))
+        }
     }
 
     fun updateFps() {
