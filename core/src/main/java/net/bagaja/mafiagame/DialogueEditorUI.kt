@@ -172,11 +172,14 @@ class DialogueEditorUI(
                         val textField = actor.findActor<TextArea>("text")
                         val textureField = actor.findActor<TextField>("texture")
 
-                        sequenceData.lines.add(DialogueLineData().apply {
-                            speaker = speakerField.text
-                            text = textField.text
-                            speakerTexturePath = textureField.text.ifBlank { null }
-                        })
+                        // Only try to save the line if all required fields were successfully found.
+                        if (speakerField != null && textField != null && textureField != null) {
+                            sequenceData.lines.add(DialogueLineData().apply {
+                                speaker = speakerField.text
+                                text = textField.text
+                                speakerTexturePath = textureField.text.ifBlank { null }
+                            })
+                        }
                     }
                 }
             }
@@ -270,19 +273,7 @@ class DialogueEditorUI(
         linesContainer.clearChildren()
 
         sequenceData.lines.forEach { lineData ->
-            val lineTable = Table()
-            val speakerField = TextField(lineData.speaker, skin)
-            val textField = TextArea(lineData.text, skin)
-            val textureField = TextField(lineData.speakerTexturePath ?: "", skin)
-
-            lineTable.add(Label("Speaker:", skin)).left()
-            lineTable.add(speakerField).growX().row()
-            lineTable.add(Label("Text:", skin)).left().top()
-            lineTable.add(textField).growX().height(60f).row()
-            lineTable.add(Label("Portrait Path:", skin)).left()
-            lineTable.add(textureField).growX().row()
-
-            linesContainer.addActor(lineTable)
+            linesContainer.addActor(createLineWidget(lineData))
         }
     }
 
