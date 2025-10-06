@@ -276,12 +276,8 @@ class DialogSystem {
         // Animate the portrait sliding in, now based on the visible height
         speakerPortraitImage.isVisible = true
         speakerPortraitImage.color.a = 0f
-        val visibleHeight = NPC_PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO
-        speakerPortraitImage.setPosition(speakerPortraitImage.x, -visibleHeight / 2) // Start halfway off-screen
-        speakerPortraitImage.addAction(Actions.parallel(
-            Actions.fadeIn(0.4f, Interpolation.fade),
-            Actions.moveBy(0f, visibleHeight / 2, 0.4f, Interpolation.pow2Out)
-        ))
+        speakerPortraitImage.clearActions() // Clear any old animations
+        speakerPortraitImage.addAction(Actions.fadeIn(0.4f, Interpolation.fade))
     }
 
     private fun finishCurrentLine() {

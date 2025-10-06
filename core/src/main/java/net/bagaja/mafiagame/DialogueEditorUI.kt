@@ -1,12 +1,16 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.files.FileHandle
+import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
+import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.Array as GdxArray
+import com.badlogic.gdx.graphics.g2d.TextureRegion
 
 class DialogueEditorUI(
     private val skin: Skin,
@@ -22,12 +26,18 @@ class DialogueEditorUI(
     private val sequenceIdField: TextField
     private val linesContainer: VerticalGroup
 
+    // Cache for available textures
+    private val availableTextures = GdxArray<String>()
+
     init {
         window.isMovable = true
         window.isModal = false
-        window.setSize(Gdx.graphics.width * 1.9f, Gdx.graphics.height * 0.7f)
+        window.setSize(Gdx.graphics.width * 1.9f, Gdx.graphics.height * 1.7f)
         window.setPosition(stage.width / 2f, stage.height / 2f, Align.center)
         window.padTop(40f)
+
+        // Scan for available textures
+        scanAvailableTextures()
 
         val mainContentTable = Table()
 
@@ -139,13 +149,57 @@ class DialogueEditorUI(
         saveButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 saveCurrentChanges()
-                dialogueManager.loadAllDialogues() // Reload all data to ensure consistency
-                uiManager.game.missionSystem.refreshDialogueIds() // Tell the mission system to update its knowledge
+                dialogueManager.loadAllDialogues()
+                uiManager.game.missionSystem.refreshDialogueIds()
                 hide()
             }
         })
 
         closeButton.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = hide() })
+    }
+
+    private fun scanAvailableTextures() {
+        availableTextures.clear()
+        availableTextures.add("(None)") // Default empty option
+
+        val textureFolders = arrayOf(
+            "textures/characters",
+            "textures/player",
+            "textures/player/player_story_start",
+            "textures/player/weapons"
+        )
+
+        textureFolders.forEach { folderPath ->
+            val folder = Gdx.files.internal(folderPath)
+            if (folder.exists() && folder.isDirectory) {
+                scanFolderForImages(folder, folderPath)
+            } else {
+                Gdx.app.log("DialogueEditor", "Folder not found: $folderPath")
+            }
+        }
+
+        Gdx.app.log("DialogueEditor", "Found ${availableTextures.size - 1} textures")
+    }
+
+    private fun scanFolderForImages(folder: FileHandle, basePath: String) {
+        val imageExtensions = arrayOf("png", "jpg", "jpeg", "bmp")
+
+        try {
+            folder.list().forEach { file ->
+                if (file.isDirectory) {
+                    scanFolderForImages(file, "${basePath}/${file.name()}")
+                } else {
+                    val extension = file.extension().lowercase()
+                    if (extension in imageExtensions) {
+                        val fullPath = "${basePath}/${file.name()}"
+                        availableTextures.add(fullPath)
+                        Gdx.app.log("DialogueEditor", "Found texture: $fullPath")
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Gdx.app.error("DialogueEditor", "Error scanning folder $basePath: ${e.message}")
+        }
     }
 
     private fun saveCurrentChanges() {
@@ -195,16 +249,125 @@ class DialogueEditorUI(
 
         val speakerField = TextField(lineData.speaker, skin).apply { name = "speaker" }
         val textField = TextArea(lineData.text, skin).apply { name = "text" }
-        val textureField = TextField(lineData.speakerTexturePath ?: "", skin).apply { name = "texture"; messageText = "Optional path..." }
         val removeButton = TextButton("X", skin)
 
         table.add(Label("Speaker:", skin)).left()
-        table.add(speakerField).growX().row()
+        table.add(speakerField).growX().colspan(2).row()
         table.add(Label("Text:", skin)).left().top()
-        table.add(textField).growX().height(60f).row()
-        table.add(Label("Portrait Path:", skin)).left()
-        table.add(textureField).growX().row()
-        table.add(removeButton).right().colspan(2)
+        table.add(textField).growX().height(60f).colspan(2).row()
+
+        // Portrait selection section with preview
+        table.add(Label("Portrait:", skin)).left().top()
+
+        val portraitControlTable = Table()
+
+        // Dropdown selector
+        val textureSelectBox = SelectBox<String>(skin)
+        textureSelectBox.items = availableTextures
+
+        // Manual path field
+        val textureField = TextField(lineData.speakerTexturePath ?: "", skin).apply {
+            name = "texture"
+            messageText = "Or enter custom path..."
+        }
+
+        // Set initial dropdown selection based on existing path
+        if (!lineData.speakerTexturePath.isNullOrBlank()) {
+            // Try to find the path in available textures
+            var foundMatch = false
+            for (i in 0 until availableTextures.size) {
+                if (availableTextures[i] == lineData.speakerTexturePath) {
+                    textureSelectBox.selectedIndex = i
+                    foundMatch = true
+                    break
+                }
+            }
+            // If not found in list, keep dropdown at "(None)" but field shows custom path
+            if (!foundMatch) {
+                textureSelectBox.selectedIndex = 0
+            }
+        } else {
+            textureSelectBox.selectedIndex = 0 // Select "(None)"
+        }
+
+        // Preview image
+        val previewImage = Image()
+        previewImage.setSize(64f, 64f)
+
+        // Update preview function
+        fun updatePreview(path: String?) {
+            try {
+                if (!path.isNullOrBlank() && path != "(None)") {
+                    val textureFile = Gdx.files.internal(path)
+                    if (textureFile.exists()) {
+                        val texture = Texture(textureFile)
+                        previewImage.drawable = TextureRegionDrawable(TextureRegion(texture))
+                        Gdx.app.log("DialogueEditor", "Preview loaded: $path")
+                    } else {
+                        previewImage.drawable = null
+                        Gdx.app.log("DialogueEditor", "Preview file not found: $path")
+                    }
+                } else {
+                    previewImage.drawable = null
+                }
+            } catch (e: Exception) {
+                previewImage.drawable = null
+                Gdx.app.error("DialogueEditor", "Failed to load preview: ${e.message}")
+            }
+        }
+
+        // Initial preview
+        updatePreview(lineData.speakerTexturePath)
+
+        // Listener for dropdown - updates text field when dropdown changes
+        textureSelectBox.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                val selected = textureSelectBox.selected
+                Gdx.app.log("DialogueEditor", "Dropdown selected: $selected")
+                if (selected != "(None)") {
+                    textureField.text = selected
+                    updatePreview(selected)
+                } else {
+                    textureField.text = ""
+                    updatePreview(null)
+                }
+            }
+        })
+
+        // Listener for manual text field - updates dropdown if matching path exists
+        textureField.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                val enteredPath = textureField.text
+                updatePreview(enteredPath)
+
+                // Try to sync dropdown with manually entered path
+                if (!enteredPath.isNullOrBlank()) {
+                    var foundMatch = false
+                    for (i in 0 until availableTextures.size) {
+                        if (availableTextures[i] == enteredPath) {
+                            textureSelectBox.selectedIndex = i
+                            foundMatch = true
+                            break
+                        }
+                    }
+                    if (!foundMatch && enteredPath.isNotBlank()) {
+                        textureSelectBox.selectedIndex = 0 // Reset to "(None)" for custom paths
+                    }
+                } else {
+                    textureSelectBox.selectedIndex = 0
+                }
+            }
+        })
+
+        portraitControlTable.add(Label("Select:", skin)).padRight(5f)
+        portraitControlTable.add(textureSelectBox).width(250f).padRight(10f).row()
+        portraitControlTable.add(Label("Path:", skin)).padRight(5f).padTop(5f)
+        portraitControlTable.add(textureField).width(250f).padTop(5f)
+
+        table.add(portraitControlTable).left().padRight(10f)
+        table.add(previewImage).size(64f).right().row()
+
+        table.add(removeButton).right().colspan(3)
 
         removeButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
@@ -221,12 +384,9 @@ class DialogueEditorUI(
         populateFileSelectBox() // Load data when the editor is shown
     }
 
-    // NEW FUNCTION: Populates the file dropdown
     private fun populateFileSelectBox() {
         val fileNames = dialogueManager.getDialogueFileNames()
         if (fileNames.isEmpty()) {
-            // If there are no files, we can't select anything yet.
-            // In the next step, we'll add a "New File" button.
             fileSelectBox.setItems("(No files found)")
             sequenceList.clearItems()
         } else {
@@ -243,15 +403,11 @@ class DialogueEditorUI(
         val selectedFile = fileSelectBox.selected ?: return
         val dialogueFile = dialogueManager.getDialogueFile(selectedFile) ?: return
 
-        // --- FIX IS HERE ---
-        // Create a new GdxArray and add all keys from the iterator directly to it.
-        // This is the most direct and unambiguous way.
         val sequenceIdArray = GdxArray<String>()
         for (id in dialogueFile.keys()) {
             sequenceIdArray.add(id)
         }
         sequenceList.setItems(sequenceIdArray)
-        // --- END OF FIX ---
 
         if (sequenceList.items.size > 0) {
             sequenceList.selectedIndex = 0
