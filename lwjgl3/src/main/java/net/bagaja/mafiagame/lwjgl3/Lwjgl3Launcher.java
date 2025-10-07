@@ -61,13 +61,10 @@ public class Lwjgl3Launcher {
 // step up stair
 // maybe improving billboard shader
 // south park like animation
-// Making Missions Dynamic & Fun
 // Persistence & Consequences
 // Save and Load Player Progress
-// Expanding & Polishing
 // save shaders and visual settings
 // npcs outside missions having dialogs, enemies too
-// choosing character images via images, not paths
 // visual screen for finished mission
 // death resets mission
 // nickelodeons having real short films
@@ -95,7 +92,6 @@ public class Lwjgl3Launcher {
 // fast loading mission
 // multiple profiles
 // fire and light source being connected
-// dialog preview image for characters
 // option to check if damage is done by player
 // trigger point changes design when switching mission trigger
 // adding multiple city areas, district 2d polygons

@@ -1737,6 +1737,7 @@ class UIManager(
             healthBarFullTexture.dispose()
         }
         dialogSystem.dispose()
+        dialogueEditorUI.dispose()
         characterInventoryUI.dispose()
         stage.dispose()
         skin.dispose()

@@ -28,6 +28,7 @@ class DialogueEditorUI(
 
     // Cache for available textures
     private val availableTextures = GdxArray<String>()
+    private val previewTextures = mutableMapOf<String, Texture>()
 
     init {
         window.isMovable = true
@@ -48,15 +49,17 @@ class DialogueEditorUI(
         val fileTable = Table()
         fileSelectBox = SelectBox(skin)
         val newFileButton = TextButton("New", skin)
+        //val refreshButton = TextButton("Refresh", skin)
         fileTable.add(Label("File:", skin)).left()
         fileTable.add(fileSelectBox).growX().padLeft(5f).padRight(5f)
-        fileTable.add(newFileButton)
+        fileTable.add(newFileButton)//.padRight(5f)
+        //fileTable.add(refreshButton)
         leftPanel.add(fileTable).row()
 
         leftPanel.add(Label("Sequences:", skin)).left().padTop(10f).row()
         sequenceList = com.badlogic.gdx.scenes.scene2d.ui.List(skin)
         val sequenceScrollPane = ScrollPane(sequenceList, skin)
-        sequenceScrollPane.setFadeScrollBars(false)
+        sequenceScrollPane.fadeScrollBars = false
         leftPanel.add(sequenceScrollPane).expand().fill().padBottom(10f).row()
 
         val newSequenceButton = TextButton("New Sequence", skin)
@@ -118,6 +121,13 @@ class DialogueEditorUI(
                 }
             }
         })
+//
+//        refreshButton.addListener(object : ChangeListener() {
+//            override fun changed(event: ChangeEvent?, actor: Actor?) {
+//                scanAvailableTextures()
+//                uiManager.showTemporaryMessage("Found ${availableTextures.size - 1} textures")
+//            }
+//        })
 
         newSequenceButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
@@ -159,46 +169,85 @@ class DialogueEditorUI(
     }
 
     private fun scanAvailableTextures() {
+        Gdx.app.log("DialogueEditor", "--- Starting texture scan ---")
+        Gdx.app.log("DialogueEditor", "Working directory: ${System.getProperty("user.dir")}")
         availableTextures.clear()
-        availableTextures.add("(None)") // Default empty option
+        availableTextures.add("(None)")
 
         val textureFolders = arrayOf(
             "textures/characters",
             "textures/player",
-            "textures/player/player_story_start",
-            "textures/player/weapons"
+            "textures/player/animations",
+            "textures/player/player_story_start"
         )
 
         textureFolders.forEach { folderPath ->
-            val folder = Gdx.files.internal(folderPath)
-            if (folder.exists() && folder.isDirectory) {
-                scanFolderForImages(folder, folderPath)
-            } else {
-                Gdx.app.log("DialogueEditor", "Folder not found: $folderPath")
+            try {
+                // Try internal first (for packaged/deployed apps)
+                var folder = Gdx.files.internal(folderPath)
+
+                // If internal doesn't work as directory, try with assets/ prefix
+                if (!folder.isDirectory && folder.exists()) {
+                    Gdx.app.log("DialogueEditor", "  Internal path exists but not as directory, trying local...")
+                    folder = Gdx.files.local("assets/$folderPath")
+                }
+
+                Gdx.app.log("DialogueEditor", "Checking folder: $folderPath")
+                Gdx.app.log("DialogueEditor", "  Full path: ${folder.file().absolutePath}")
+                Gdx.app.log("DialogueEditor", "  Exists: ${folder.exists()}")
+                Gdx.app.log("DialogueEditor", "  Is directory: ${folder.isDirectory}")
+
+                if (folder.exists() && folder.isDirectory) {
+                    Gdx.app.log("DialogueEditor", "  Scanning folder: ${folder.path()}")
+                    scanFolderForImages(folder, folderPath)
+                } else {
+                    Gdx.app.log("DialogueEditor", "  Skipping - folder not accessible")
+                }
+            } catch (e: Exception) {
+                Gdx.app.error("DialogueEditor", "Error accessing folder '$folderPath': ${e.message}", e)
             }
         }
 
-        Gdx.app.log("DialogueEditor", "Found ${availableTextures.size - 1} textures")
+        availableTextures.sort()
+        availableTextures.removeValue("(None)", false)
+        availableTextures.insert(0, "(None)")
+
+        Gdx.app.log("DialogueEditor", "--- Finished scanning. Found ${availableTextures.size - 1} total textures. ---")
+        if (availableTextures.size > 1) {
+            Gdx.app.log("DialogueEditor", "First 5 textures: ${availableTextures.take(6).toList()}")
+        }
     }
 
     private fun scanFolderForImages(folder: FileHandle, basePath: String) {
-        val imageExtensions = arrayOf("png", "jpg", "jpeg", "bmp")
+        val imageExtensions = setOf("png", "jpg", "jpeg", "bmp")
 
         try {
-            folder.list().forEach { file ->
-                if (file.isDirectory) {
-                    scanFolderForImages(file, "${basePath}/${file.name()}")
-                } else {
-                    val extension = file.extension().lowercase()
-                    if (extension in imageExtensions) {
-                        val fullPath = "${basePath}/${file.name()}"
-                        availableTextures.add(fullPath)
-                        Gdx.app.log("DialogueEditor", "Found texture: $fullPath")
+            val files = folder.list()
+            Gdx.app.log("DialogueEditor", "    Scanning ${files.size} items in ${folder.path()}")
+
+            files.forEach { file ->
+                try {
+                    if (file.isDirectory) {
+                        scanFolderForImages(file, basePath)
+                    } else {
+                        val ext = file.extension().lowercase()
+                        if (ext in imageExtensions) {
+                            // Use the original base path to ensure correct relative path
+                            val relativePath = file.path()
+                                .replace('\\', '/')
+                                .substringAfter("assets/")
+                                .let { if (it.startsWith(basePath)) it else "$basePath/${file.name()}" }
+
+                            availableTextures.add(relativePath)
+                            Gdx.app.log("DialogueEditor", "      -> Found texture: $relativePath")
+                        }
                     }
+                } catch (e: Exception) {
+                    Gdx.app.error("DialogueEditor", "      Error processing file '${file.name()}': ${e.message}")
                 }
             }
         } catch (e: Exception) {
-            Gdx.app.error("DialogueEditor", "Error scanning folder $basePath: ${e.message}")
+            Gdx.app.error("DialogueEditor", "    Error listing folder '${folder.path()}': ${e.message}", e)
         }
     }
 
@@ -231,7 +280,7 @@ class DialogueEditorUI(
                             sequenceData.lines.add(DialogueLineData().apply {
                                 speaker = speakerField.text
                                 text = textField.text
-                                speakerTexturePath = textureField.text.ifBlank { null }
+                                speakerTexturePath = textureField.text.replace('\\', '/').ifBlank { null }
                             })
                         }
                     }
@@ -271,19 +320,13 @@ class DialogueEditorUI(
             messageText = "Or enter custom path..."
         }
 
-        // Set initial dropdown selection based on existing path
-        if (!lineData.speakerTexturePath.isNullOrBlank()) {
-            // Try to find the path in available textures
-            var foundMatch = false
-            for (i in 0 until availableTextures.size) {
-                if (availableTextures[i] == lineData.speakerTexturePath) {
-                    textureSelectBox.selectedIndex = i
-                    foundMatch = true
-                    break
-                }
-            }
-            // If not found in list, keep dropdown at "(None)" but field shows custom path
-            if (!foundMatch) {
+        val initialPath = lineData.speakerTexturePath
+        if (!initialPath.isNullOrBlank()) {
+            val normalizedPath = initialPath.replace('\\', '/')
+            val matchIndex = availableTextures.indexOfFirst { it.equals(normalizedPath, ignoreCase = true) }
+            if (matchIndex != -1) {
+                textureSelectBox.selectedIndex = matchIndex
+            } else {
                 textureSelectBox.selectedIndex = 0
             }
         } else {
@@ -298,21 +341,17 @@ class DialogueEditorUI(
         fun updatePreview(path: String?) {
             try {
                 if (!path.isNullOrBlank() && path != "(None)") {
-                    val textureFile = Gdx.files.internal(path)
-                    if (textureFile.exists()) {
-                        val texture = Texture(textureFile)
-                        previewImage.drawable = TextureRegionDrawable(TextureRegion(texture))
-                        Gdx.app.log("DialogueEditor", "Preview loaded: $path")
-                    } else {
-                        previewImage.drawable = null
-                        Gdx.app.log("DialogueEditor", "Preview file not found: $path")
+                    val texture = previewTextures.getOrPut(path) {
+                        val textureFile = Gdx.files.internal(path)
+                        if (textureFile.exists()) Texture(textureFile) else throw Exception("File not found")
                     }
+                    previewImage.drawable = TextureRegionDrawable(TextureRegion(texture))
                 } else {
                     previewImage.drawable = null
                 }
             } catch (e: Exception) {
                 previewImage.drawable = null
-                Gdx.app.error("DialogueEditor", "Failed to load preview: ${e.message}")
+                Gdx.app.error("DialogueEditor", "Failed to load preview for '$path': ${e.message}")
             }
         }
 
@@ -323,7 +362,6 @@ class DialogueEditorUI(
         textureSelectBox.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 val selected = textureSelectBox.selected
-                Gdx.app.log("DialogueEditor", "Dropdown selected: $selected")
                 if (selected != "(None)") {
                     textureField.text = selected
                     updatePreview(selected)
@@ -337,30 +375,31 @@ class DialogueEditorUI(
         // Listener for manual text field - updates dropdown if matching path exists
         textureField.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
-                val enteredPath = textureField.text
-                updatePreview(enteredPath)
+                val enteredPath = textureField.text.trim()
 
-                // Try to sync dropdown with manually entered path
-                if (!enteredPath.isNullOrBlank()) {
-                    var foundMatch = false
-                    for (i in 0 until availableTextures.size) {
-                        if (availableTextures[i] == enteredPath) {
-                            textureSelectBox.selectedIndex = i
-                            foundMatch = true
-                            break
-                        }
+                if (enteredPath.isNotBlank()) {
+                    updatePreview(enteredPath)
+
+                    val normalizedPath = enteredPath.replace('\\', '/')
+                    val matchIndex = availableTextures.indexOfFirst {
+                        it.equals(normalizedPath, ignoreCase = true)
                     }
-                    if (!foundMatch && enteredPath.isNotBlank()) {
-                        textureSelectBox.selectedIndex = 0 // Reset to "(None)" for custom paths
+
+                    if (matchIndex != -1) {
+                        textureSelectBox.selectedIndex = matchIndex
+                    } else {
+                        // Path not in dropdown, but might still be valid - keep dropdown at (None)
+                        textureSelectBox.selectedIndex = 0
                     }
                 } else {
+                    updatePreview(null)
                     textureSelectBox.selectedIndex = 0
                 }
             }
         })
 
         portraitControlTable.add(Label("Select:", skin)).padRight(5f)
-        portraitControlTable.add(textureSelectBox).width(250f).padRight(10f).row()
+        portraitControlTable.add(textureSelectBox).width(250f).row()
         portraitControlTable.add(Label("Path:", skin)).padRight(5f).padTop(5f)
         portraitControlTable.add(textureField).width(250f).padTop(5f)
 
@@ -439,4 +478,9 @@ class DialogueEditorUI(
     }
 
     fun isVisible(): Boolean = window.isVisible
+
+    fun dispose() {
+        previewTextures.values.forEach { it.dispose() }
+        previewTextures.clear()
+    }
 }
