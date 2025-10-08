@@ -331,6 +331,10 @@ data class GameEvent(
     val damagePerSecond: Float? = null,
     val damageRadius: Float? = null,
     val fireScale: Float? = null,
+    val canSpread: Boolean? = null,
+    val generation: Int? = null,
+    val associatedLightId: Int? = null,
+
     val weaponType: WeaponType? = null,
     val ammoAmount: Int? = null,
 

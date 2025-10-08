@@ -193,36 +193,74 @@ class ObjectSystem: IFinePositionable {
                 properY = 0f
             }
 
-            val objectPosition = Vector3(gridX, properY + objectType.height / 2f, gridZ) // Centered vertically
+            val objectPosition: Vector3
 
-            // Get light settings from the UI if we are placing a light source
-            val lightSettings = if (objectType == ObjectType.LIGHT_SOURCE) uiManager.getLightSourceSettings() else null
+            if (objectType == ObjectType.FIRE_SPREAD) {
+                // For fire, place it directly ON the ground.
+                objectPosition = Vector3(gridX, properY, gridZ)
+            } else {
+                // For other objects, center them vertically as before.
+                objectPosition = Vector3(gridX, properY + objectType.height / 2f, gridZ)
+            }
 
-            val currentSceneId = sceneManager.getCurrentSceneId()
+            when (objectType) {
+                ObjectType.FIRE_SPREAD -> {
+                    val fireSystem = sceneManager.game.fireSystem
+                    val event = GameEvent(
+                        type = GameEventType.SPAWN_FIRE,
+                        spawnPosition = objectPosition, // Now using the corrected position
+                        sceneId = sceneManager.getCurrentSceneId(),
+                        targetId = "mission_fire_${UUID.randomUUID()}",
+                        isLooping = fireSystem.nextFireIsLooping,
+                        fadesOut = fireSystem.nextFireFadesOut,
+                        lifetime = fireSystem.nextFireLifetime,
+                        canBeExtinguished = fireSystem.nextFireCanBeExtinguished,
+                        dealsDamage = fireSystem.nextFireDealsDamage,
+                        damagePerSecond = fireSystem.nextFireDamagePerSecond,
+                        damageRadius = fireSystem.nextFireDamageRadius,
+                        fireScale = (fireSystem.nextFireMinScale + fireSystem.nextFireMaxScale) / 2f
+                    )
+                    mission.eventsOnStart.add(event)
+                    sceneManager.game.missionSystem.saveMission(mission)
 
-            val event = GameEvent(
-                type = GameEventType.SPAWN_OBJECT,
-                spawnPosition = objectPosition,
-                sceneId = currentSceneId,
-                objectType = objectType,
-                lightColor = lightSettings?.color,
-                lightIntensity = lightSettings?.intensity,
-                lightRange = lightSettings?.range,
-                flickerMode = lightSettings?.flickerMode,
-                loopOnDuration = lightSettings?.loopOnDuration,
-                loopOffDuration = lightSettings?.loopOffDuration
-            )
-            mission.eventsOnStart.add(event)
-            sceneManager.game.missionSystem.saveMission(mission)
+                    val previewFire = fireSystem.addFire(objectPosition, this, lightingManager)
+                    if (previewFire != null) {
+                        previewFire.missionId = mission.id
+                        sceneManager.activeObjects.add(previewFire.gameObject)
+                        sceneManager.game.lastPlacedInstance = previewFire
+                    }
+                    uiManager.updatePlacementInfo("Added SPAWN_FIRE to '${mission.title}'")
+                    uiManager.missionEditorUI.refreshEventWidgets()
+                }
+                else -> {
+                    // Get light settings from the UI if we are placing a light source
+                    val lightSettings = if (objectType == ObjectType.LIGHT_SOURCE) uiManager.getLightSourceSettings() else null
 
-            // Create a temporary preview object
-            val previewObject = createGameObjectWithLight(objectType, objectPosition) // Don't pass lighting manager, it's just a visual
-            if (previewObject != null) {
-                previewObject.missionId = mission.id // Tag it for potential identification
-                sceneManager.activeMissionPreviewObjects.add(previewObject)
-                sceneManager.game.lastPlacedInstance = previewObject
-                uiManager.updatePlacementInfo("Added SPAWN_OBJECT to '${mission.title}'")
-                uiManager.missionEditorUI.refreshEventWidgets()
+                    val event = GameEvent(
+                        type = GameEventType.SPAWN_OBJECT,
+                        spawnPosition = objectPosition,
+                        sceneId = sceneManager.getCurrentSceneId(),
+                        objectType = objectType,
+                        lightColor = lightSettings?.color,
+                        lightIntensity = lightSettings?.intensity,
+                        lightRange = lightSettings?.range,
+                        flickerMode = lightSettings?.flickerMode,
+                        loopOnDuration = lightSettings?.loopOnDuration,
+                        loopOffDuration = lightSettings?.loopOffDuration
+                    )
+                    mission.eventsOnStart.add(event)
+                    sceneManager.game.missionSystem.saveMission(mission)
+
+                    // create preview
+                    val previewObject = createGameObjectWithLight(objectType, objectPosition)
+                    if (previewObject != null) {
+                        previewObject.missionId = mission.id
+                        sceneManager.activeMissionPreviewObjects.add(previewObject)
+                        sceneManager.game.lastPlacedInstance = previewObject
+                        uiManager.updatePlacementInfo("Added SPAWN_OBJECT to '${mission.title}'")
+                        uiManager.missionEditorUI.refreshEventWidgets()
+                    }
+                }
             }
         }
     }

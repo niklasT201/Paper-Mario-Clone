@@ -1404,6 +1404,19 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 if (event.spawnPosition != null) {
                     // Configure fire system
                     val fireSystem = game.fireSystem
+
+                    // Save the FireSystem's current settings so this event doesn't mess up the user's editor selection
+                    val originalLooping = fireSystem.nextFireIsLooping
+                    val originalFadesOut = fireSystem.nextFireFadesOut
+                    val originalLifetime = fireSystem.nextFireLifetime
+                    val originalCanBeExtinguished = fireSystem.nextFireCanBeExtinguished
+                    val originalDealsDamage = fireSystem.nextFireDealsDamage
+                    val originalDamagePerSecond = fireSystem.nextFireDamagePerSecond
+                    val originalDamageRadius = fireSystem.nextFireDamageRadius
+                    val originalMinScale = fireSystem.nextFireMinScale
+                    val originalMaxScale = fireSystem.nextFireMaxScale
+
+                    // Configure the FireSystem for this specific event's fire
                     fireSystem.nextFireIsLooping = event.isLooping ?: true
                     fireSystem.nextFireFadesOut = event.fadesOut ?: false
                     fireSystem.nextFireLifetime = event.lifetime ?: 20f
@@ -1411,11 +1424,20 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     fireSystem.nextFireDealsDamage = event.dealsDamage ?: true
                     fireSystem.nextFireDamagePerSecond = event.damagePerSecond ?: 10f
                     fireSystem.nextFireDamageRadius = event.damageRadius ?: 5f
-                    fireSystem.nextFireMinScale = event.fireScale ?: 1f // Use fireScale for both min/max
+                    fireSystem.nextFireMinScale = event.fireScale ?: 1f
                     fireSystem.nextFireMaxScale = event.fireScale ?: 1f
 
-                    // Create the fire using the dedicated system
-                    val newFire = fireSystem.addFire(event.spawnPosition.cpy(), game.objectSystem, game.lightingManager)
+                    // Create the fire using the dedicated system, now passing the existing light ID
+                    val newFire = fireSystem.addFire(
+                        position = event.spawnPosition.cpy(),
+                        objectSystem = game.objectSystem,
+                        lightingManager = game.lightingManager,
+                        generation = event.generation ?: 0,
+                        canSpread = event.canSpread ?: false,
+                        id = event.targetId ?: UUID.randomUUID().toString(),
+                        existingAssociatedLightId = event.associatedLightId // <-- THE FIX IS HERE!
+                    )
+
                     if (newFire != null) {
                         newFire.missionId = missionId
                         addEntityToScene(newFire, game.fireSystem.activeFires, { game.sceneManager.worldState?.fires }) {
@@ -1425,6 +1447,17 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                             game.sceneManager.interiorStates[it]?.objects
                         }
                     }
+
+                    // Restore original settings to the FireSystem so manual placement isn't affected
+                    fireSystem.nextFireIsLooping = originalLooping
+                    fireSystem.nextFireFadesOut = originalFadesOut
+                    fireSystem.nextFireLifetime = originalLifetime
+                    fireSystem.nextFireCanBeExtinguished = originalCanBeExtinguished
+                    fireSystem.nextFireDealsDamage = originalDealsDamage
+                    fireSystem.nextFireDamagePerSecond = originalDamagePerSecond
+                    fireSystem.nextFireDamageRadius = originalDamageRadius
+                    fireSystem.nextFireMinScale = originalMinScale
+                    fireSystem.nextFireMaxScale = originalMaxScale
                 }
             }
             GameEventType.DESPAWN_ENTITY -> {

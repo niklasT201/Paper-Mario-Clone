@@ -1033,16 +1033,33 @@ class SceneManager(
         val newLights = mutableMapOf<Int, LightSource>()
         val newTeleporters = Array<GameTeleporter>()
         val newCharacterPathNodes = Array<CharacterPathNode>()
+        val newFires = Array<GameFire>()
 
         println("Building interior from template: ${template.name}")
 
-        template.elements.forEach { element ->
+        // --- PASS 1: CREATE ALL LIGHT SOURCES FIRST ---
+        template.elements.filter { it.elementType == RoomElementType.OBJECT && it.objectType == ObjectType.LIGHT_SOURCE }.forEach { element ->
+            val light = objectSystem.createLightSource(
+                position = element.position.cpy(),
+                intensity = element.lightIntensity ?: LightSource.DEFAULT_INTENSITY,
+                range = element.lightRange ?: LightSource.DEFAULT_RANGE,
+                color = element.lightColor ?: Color(LightSource.DEFAULT_COLOR_R, LightSource.DEFAULT_COLOR_G, LightSource.DEFAULT_COLOR_B, 1f),
+                flickerMode = element.flickerMode ?: FlickerMode.NONE,
+                loopOnDuration = element.loopOnDuration ?: 0.1f,
+                loopOffDuration = element.loopOffDuration ?: 0.2f
+            )
+            // Ensure we respect the saved ID to maintain links
+            element.targetId?.let { savedId -> light.id = savedId.toInt() }
+            newLights[light.id] = light
+        }
+
+        template.elements.filterNot { it.elementType == RoomElementType.OBJECT && it.objectType == ObjectType.LIGHT_SOURCE }.forEach { element ->
             when (element.elementType) {
                 RoomElementType.BLOCK -> {
                     element.blockType?.let { blockType ->
                         val gameBlock = blockSystem.createGameBlock(
                             type = blockType,
-                            shape = element.shape ?: BlockShape.FULL_BLOCK, // Use saved shape or default to full block
+                            shape = element.shape ?: BlockShape.FULL_BLOCK,
                             position = element.position.cpy(),
                             geometryRotation = element.rotation,
                             textureRotation = element.textureRotation,
@@ -1061,12 +1078,14 @@ class SceneManager(
                                 position = element.position.cpy(),
                                 intensity = element.lightIntensity ?: LightSource.DEFAULT_INTENSITY,
                                 range = element.lightRange ?: LightSource.DEFAULT_RANGE,
-                                color = element.lightColor ?: Color(LightSource.DEFAULT_COLOR_R, LightSource.DEFAULT_COLOR_G, LightSource.DEFAULT_COLOR_B, 1f),
+                                color = element.lightColor ?: Color.WHITE,
                                 flickerMode = element.flickerMode ?: FlickerMode.NONE,
                                 loopOnDuration = element.loopOnDuration ?: 0.1f,
                                 loopOffDuration = element.loopOffDuration ?: 0.2f
                             )
+                            // Restore the light's original ID and its parent link
                             element.targetId?.let { savedId -> light.id = savedId.toInt() }
+                            light.parentObjectId = element.missionId // We re-used missionId to store this
                             newLights[light.id] = light
                         } else {
                             // This is for regular, non-light-source objects
@@ -1075,6 +1094,35 @@ class SceneManager(
                                 newObjects.add(gameObject)
                             }
                         }
+                    }
+                }
+
+                RoomElementType.FIRE -> {
+                    val fireSystem = game.fireSystem
+                    // Temporarily configure the fire system with the saved properties
+                    fireSystem.nextFireIsLooping = element.isLooping ?: true
+                    fireSystem.nextFireFadesOut = element.fadesOut ?: false
+                    fireSystem.nextFireLifetime = element.lifetime ?: 20f
+                    fireSystem.nextFireCanBeExtinguished = element.canBeExtinguished ?: true
+                    fireSystem.nextFireDealsDamage = element.dealsDamage ?: true
+                    fireSystem.nextFireDamagePerSecond = element.damagePerSecond ?: 10f
+                    fireSystem.nextFireDamageRadius = element.damageRadius ?: 5f
+                    fireSystem.nextFireMinScale = element.scale.x
+                    fireSystem.nextFireMaxScale = element.scale.x
+
+                    val newFire = fireSystem.addFire(
+                        position = element.position.cpy(),
+                        objectSystem = objectSystem,
+                        lightingManager = game.lightingManager,
+                        id = element.targetId ?: UUID.randomUUID().toString(),
+                        generation = element.generation ?: 0,
+                        canSpread = element.canSpread ?: false,
+                        existingAssociatedLightId = element.associatedLightId
+                    )
+
+                    if (newFire != null) {
+                        newObjects.add(newFire.gameObject)
+                        newFires.add(newFire)
                     }
                 }
                 RoomElementType.ITEM -> {
@@ -1261,51 +1309,6 @@ class SceneManager(
                         }
                     }
                 }
-                RoomElementType.FIRE -> {
-                    // Temporarily configure the fire system with the saved properties
-                    val originalLooping = fireSystem.nextFireIsLooping
-                    val originalFadesOut = fireSystem.nextFireFadesOut
-                    val originalLifetime = fireSystem.nextFireLifetime
-                    val originalCanBeExtinguished = fireSystem.nextFireCanBeExtinguished
-                    val originalDealsDamage = fireSystem.nextFireDealsDamage
-                    val originalDamagePerSecond = fireSystem.nextFireDamagePerSecond
-                    val originalDamageRadius = fireSystem.nextFireDamageRadius
-                    val originalMinScale = fireSystem.nextFireMinScale
-                    val originalMaxScale = fireSystem.nextFireMaxScale
-
-                    fireSystem.nextFireIsLooping = element.isLooping ?: true
-                    fireSystem.nextFireFadesOut = element.fadesOut ?: false
-                    fireSystem.nextFireLifetime = element.lifetime ?: 20f
-                    fireSystem.nextFireCanBeExtinguished = element.canBeExtinguished ?: true
-                    fireSystem.nextFireDealsDamage = element.dealsDamage ?: true
-                    fireSystem.nextFireDamagePerSecond = element.damagePerSecond ?: 10f
-                    fireSystem.nextFireDamageRadius = element.damageRadius ?: 5f
-                    fireSystem.nextFireMinScale = element.scale.x
-                    fireSystem.nextFireMaxScale = element.scale.x
-
-                    // Create the fire
-                    val newFire = fireSystem.addFire(
-                        position = element.position.cpy(),
-                        objectSystem = objectSystem,
-                        lightingManager = game.lightingManager,
-                        id = element.targetId ?: UUID.randomUUID().toString()
-                    )
-                    if (newFire != null) {
-                        // Add its underlying game object to the list of objects for this new room state
-                        newObjects.add(newFire.gameObject)
-                    }
-
-                    // Restore the original settings to the fire system
-                    fireSystem.nextFireIsLooping = originalLooping
-                    fireSystem.nextFireFadesOut = originalFadesOut
-                    fireSystem.nextFireLifetime = originalLifetime
-                    fireSystem.nextFireCanBeExtinguished = originalCanBeExtinguished
-                    fireSystem.nextFireDealsDamage = originalDealsDamage
-                    fireSystem.nextFireDamagePerSecond = originalDamagePerSecond
-                    fireSystem.nextFireDamageRadius = originalDamageRadius
-                    fireSystem.nextFireMinScale = originalMinScale
-                    fireSystem.nextFireMaxScale = originalMaxScale
-                }
                 RoomElementType.CHARACTER_PATH_NODE -> {
                     if (element.pathNodeId != null) {
                         val node = CharacterPathNode(
@@ -1365,7 +1368,8 @@ class SceneManager(
             lights = newLights,
             savedShaderEffect = template.savedShaderEffect,
             sourceTemplateId = template.id,
-            characterPathNodes = newCharacterPathNodes
+            characterPathNodes = newCharacterPathNodes,
+            fires = newFires
         )
         interiorState.sourceTemplateId = template.id
 
@@ -1582,7 +1586,15 @@ class SceneManager(
             ))
         }
 
+        val fireLightIds = fireSystem.activeFires.mapNotNull { it.gameObject.associatedLightId }
+
+        // Convert active lights to RoomElements, BUT EXCLUDE the ones that belong to a fire.
         game.lightingManager.getLightSources().values.forEach { light ->
+            if (light.id in fireLightIds) {
+                return@forEach
+            }
+
+            // This is a standalone light, save it as before.
             if (light.flickerMode == FlickerMode.NONE || light.flickerMode == FlickerMode.LOOP) {
                 elements.add(RoomElement(
                     position = light.position.cpy(),
@@ -1610,19 +1622,43 @@ class SceneManager(
         }
 
         fireSystem.activeFires.forEach { fire ->
-            elements.add(RoomElement(
-                position = fire.gameObject.position.cpy(),
-                elementType = RoomElementType.FIRE,
-                targetId = fire.id,
-                isLooping = fire.isLooping,
-                fadesOut = fire.fadesOut,
-                lifetime = fire.lifetime,
-                canBeExtinguished = fire.canBeExtinguished,
-                dealsDamage = fire.dealsDamage,
-                damagePerSecond = fire.damagePerSecond,
-                damageRadius = fire.damageRadius,
-                scale = Vector3(fire.initialScale, 1f, 1f)
-            ))
+            val lightSource = fire.gameObject.associatedLightId?.let { game.lightingManager.getLightSources()[it] }
+
+            if (lightSource != null) {
+                // --- NEW: CREATE A SEPARATE ELEMENT FOR THE LIGHT SOURCE ---
+                elements.add(RoomElement(
+                    elementType = RoomElementType.OBJECT, // Saved as a generic object
+                    objectType = ObjectType.LIGHT_SOURCE,  // Specifically a light source
+                    position = lightSource.position.cpy(),
+                    targetId = lightSource.id.toString(), // Use targetId to store the light's ID as a string
+                    lightColor = lightSource.color.cpy(),
+                    lightIntensity = lightSource.baseIntensity,
+                    lightRange = lightSource.range,
+                    flickerMode = lightSource.flickerMode,
+                    loopOnDuration = lightSource.loopOnDuration,
+                    loopOffDuration = lightSource.loopOffDuration,
+                    // IMPORTANT: Link back to the parent fire object
+                    missionId = lightSource.parentObjectId // Re-using missionId field to store parentObjectId
+                ))
+
+                // --- MODIFIED: CREATE THE FIRE ELEMENT (NOW SIMPLER) ---
+                elements.add(RoomElement(
+                    position = fire.gameObject.position.cpy(),
+                    elementType = RoomElementType.FIRE,
+                    targetId = fire.id,
+                    isLooping = fire.isLooping,
+                    fadesOut = fire.fadesOut,
+                    lifetime = fire.lifetime,
+                    canBeExtinguished = fire.canBeExtinguished,
+                    dealsDamage = fire.dealsDamage,
+                    damagePerSecond = fire.damagePerSecond,
+                    damageRadius = fire.damageRadius,
+                    scale = Vector3(fire.initialScale, 1f, 1f),
+                    canSpread = fire.canSpread,
+                    generation = fire.generation,
+                    associatedLightId = fire.gameObject.associatedLightId
+                ))
+            }
         }
 
         // ADDED: Convert active CHARACTER PATH NODES to RoomElements

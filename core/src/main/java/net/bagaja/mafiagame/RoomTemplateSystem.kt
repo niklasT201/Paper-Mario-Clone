@@ -66,6 +66,9 @@ data class RoomElement(
     val dealsDamage: Boolean? = null,
     val damagePerSecond: Float? = null,
     val damageRadius: Float? = null,
+    val canSpread: Boolean? = null,
+    val generation: Int? = null,
+    val associatedLightId: Int? = null,
     val spawnOnlyWhenPreviousIsGone: Boolean? = null,
 
     // Enemy Configuration
