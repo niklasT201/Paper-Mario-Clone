@@ -61,7 +61,8 @@ data class FireData(
     var damageRadius: Float = 5f,
     var initialScale: Float = 1f,
     var canSpread: Boolean = false,
-    var generation: Int = 0
+    var generation: Int = 0,
+    var associatedLightId: Int? = null
 )
 
 data class WorldStateData(
@@ -190,7 +191,8 @@ data class LightData(
     var rotationX: Float = 0f,
     var rotationY: Float = 0f,
     var rotationZ: Float = 0f,
-    var missionId: String? = null
+    var missionId: String? = null,
+    var parentObjectId: String? = null
 )
 
 data class SpawnerData(

@@ -142,14 +142,26 @@ class FireSystem {
         lightRangeOverride: Float? = null,
         generation: Int = 0,
         canSpread: Boolean = false,
-        id: String = UUID.randomUUID().toString()
+        id: String = UUID.randomUUID().toString(),
+        // ADD THIS NEW OPTIONAL PARAMETER FOR LOADING
+        existingAssociatedLightId: Int? = null
     ): GameFire? {
         // If an override is provided
         val finalLightIntensity = lightIntensityOverride ?: ObjectType.FIRE_SPREAD.lightIntensity
         val finalLightRange = lightRangeOverride ?: ObjectType.FIRE_SPREAD.lightRange
 
-        val fireObject = objectSystem.createGameObjectWithLight(ObjectType.FIRE_SPREAD, position) ?: return null
+        // --- MODIFIED BLOCK ---
+        // Pass the existing light ID if it's provided (from a save file)
+        val fireObject = objectSystem.createGameObjectWithLight(
+            ObjectType.FIRE_SPREAD,
+            position,
+            lightingManager,
+            existingAssociatedLightId // Pass the ID here
+        ) ?: return null
+        // --- END MODIFIED BLOCK ---
+
         fireObject.modelInstance.userData = "fire_effect"
+        fireObject.id = id // Assign the ID here
 
         // Remove the default light that
         fireObject.associatedLightId?.let {
@@ -164,7 +176,9 @@ class FireSystem {
             range = finalLightRange,
             color = ObjectType.FIRE_SPREAD.getLightColor()
         )
+
         // Associate this new light
+        customLightSource.parentObjectId = fireObject.id
         fireObject.associatedLightId = customLightSource.id
 
         val lightInstances = objectSystem.createLightSourceInstances(customLightSource)

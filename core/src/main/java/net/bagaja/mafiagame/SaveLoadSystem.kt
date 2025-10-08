@@ -121,6 +121,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
             }
             sm.activeItems.filter { it.missionId == null }.forEach { i -> world.items.add(ItemData(i.id, i.itemType, i.position, i.ammo, i.value)) }
             sm.activeObjects.filter { it.missionId == null }.forEach { o ->
+                if (o.objectType == ObjectType.FIRE_SPREAD) return@forEach
+
                 world.objects.add(ObjectData(
                     o.id, o.objectType, o.position, o.associatedLightId,
                     o.isBroken
@@ -144,7 +146,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     l.id, l.position, l.color, l.intensity, l.range,
                     l.isEnabled, l.flickerMode, l.loopOnDuration, l.loopOffDuration, l.timedFlickerLifetime,
                     l.rotationX, l.rotationY, l.rotationZ,
-                    l.missionId
+                    l.missionId,
+                    l.parentObjectId
                 ))
             }
             sm.activeSpawners.forEach { s ->
@@ -212,7 +215,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     fire.damageRadius,
                     fire.initialScale,
                     fire.canSpread,
-                    fire.generation
+                    fire.generation,
+                    fire.gameObject.associatedLightId
                 ))
             }
 
@@ -400,9 +404,14 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     data.flickerMode, data.loopOnDuration, data.loopOffDuration, data.timedFlickerLifetime
                 )
                 light.missionId = data.missionId
+                light.parentObjectId = data.parentObjectId
+
                 game.objectSystem.loadLightSource(light)
                 game.lightingManager.addLightSource(light, game.objectSystem.createLightSourceInstances(light))
             }
+
+            validateLoadedLights(state.worldState)
+
             state.worldState.spawners.forEach { data ->
                 val spawnerGameObject = game.objectSystem.createGameObjectWithLight(ObjectType.SPAWNER, data.position.cpy())
                 if (spawnerGameObject != null) {
@@ -495,7 +504,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     lightingManager = game.lightingManager,
                     generation = data.generation,
                     canSpread = data.canSpread,
-                    id = data.id
+                    id = data.id,
+                    existingAssociatedLightId = data.associatedLightId
                 )
                 if (newFire != null) {
                     sm.activeObjects.add(newFire.gameObject)
@@ -552,6 +562,24 @@ class SaveLoadSystem(private val game: MafiaGame) {
         } catch (e: Exception) {
             println("--- ERROR LOADING GAME: ${e.message} ---"); e.printStackTrace()
             game.uiManager.showTemporaryMessage("Error: Save file corrupted!")
+        }
+    }
+
+    private fun validateLoadedLights(world: WorldStateData) {
+        val allObjectIds = world.objects.map { it.id } + world.fires.map { it.id } // Create a set of all valid parent IDs
+
+        // Find all lights that have a parentObjectId that no longer exists
+        val lightsToRemove = game.lightingManager.getLightSources().values.filter { light ->
+            light.parentObjectId != null && !allObjectIds.contains(light.parentObjectId)
+        }
+
+        if (lightsToRemove.isNotEmpty()) {
+            println("--- Save File Validation: Found ${lightsToRemove.size} orphan light(s). Removing... ---")
+            lightsToRemove.forEach { light ->
+                println("  - Removing orphan light #${light.id} (parent '${light.parentObjectId}' not found).")
+                game.lightingManager.removeLightSource(light.id)
+                game.objectSystem.removeLightSource(light.id)
+            }
         }
     }
 }

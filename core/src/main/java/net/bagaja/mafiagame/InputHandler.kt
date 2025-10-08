@@ -253,6 +253,33 @@ class InputHandler(
 
                         // PRIORITY 2: Handle removal actions in Editor Mode.
                         if (game.isEditorMode) {
+                            // Try to remove a block. If successful, consume the event.
+                            val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+
+                            // HIGHEST PRIORITY: Check if we are right-clicking a light source that belongs to another object.
+                            val lightToRemove = game.raycastSystem.getLightSourceAtRay(ray, game.lightingManager)
+                            if (lightToRemove?.parentObjectId != null) {
+                                val parentId = lightToRemove.parentObjectId!! // We know it's not null here
+
+                                // Try to find the parent object in the active lists.
+                                val parentFire = game.fireSystem.activeFires.find { it.gameObject.id == parentId }
+                                val parentObject = game.sceneManager.activeObjects.find { it.id == parentId }
+
+                                if (parentFire != null) {
+                                    // The parent is a fire. Use the FireSystem to remove it completely.
+                                    game.sceneManager.activeObjects.removeValue(parentFire.gameObject, true)
+                                    game.fireSystem.removeFire(parentFire, game.objectSystem, game.lightingManager)
+                                    uiManager.showTemporaryMessage("Removed Fire (via its light source)")
+                                    return true // Action is handled, consume the click.
+                                } else if (parentObject != null) {
+                                    // The parent is a generic object (like a lantern). Remove it.
+                                    game.objectSystem.removeGameObjectWithLight(parentObject, game.lightingManager)
+                                    game.sceneManager.activeObjects.removeValue(parentObject, true)
+                                    uiManager.showTemporaryMessage("Removed ${parentObject.objectType.displayName} (via its light source)")
+                                    return true // Action is handled, consume the click.
+                                }
+                            }
+
                             // If in mission mode, try to remove a preview object first.
                             if (uiManager.currentEditorMode == EditorMode.MISSION) {
                                 val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
@@ -260,9 +287,6 @@ class InputHandler(
                                     return true // A preview was removed, consume the click.
                                 }
                             }
-
-                            // Try to remove a block. If successful, consume the event.
-                            val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
 
                             if (uiManager.selectedTool == Tool.PLAYER && isPlacingCharacterPath) {
                                 characterPathSystem.cancelPlacement()

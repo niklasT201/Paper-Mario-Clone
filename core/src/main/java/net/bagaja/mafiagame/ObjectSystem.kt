@@ -228,45 +228,48 @@ class ObjectSystem: IFinePositionable {
     }
 
     fun handleRemoveAction(ray: Ray): Boolean {
-        // 1. Check for Fires
-        val fireToRemove = fireSystem.activeFires.find { fire ->
+        // Find ALL possible targets under the cursor
+        val hitLight = raycastSystem.getLightSourceAtRay(ray, lightingManager)
+        val hitFireObject = fireSystem.activeFires.find { fire ->
             raycastSystem.getObjectAtRay(ray, Array(arrayOf(fire.gameObject))) != null
-        }
-        if (fireToRemove != null) {
-            sceneManager.activeObjects.removeValue(fireToRemove.gameObject, true)
-            fireSystem.removeFire(fireToRemove, this, lightingManager)
+        }?.gameObject
+        val hitGenericObject = raycastSystem.getObjectAtRay(ray, sceneManager.activeObjects)
+
+        // Case 1: The user clicked on a light source.
+        if (hitLight != null) {
+            val parentId = hitLight.parentObjectId
+            if (parentId != null) {
+                // It has a parent. Find and remove the PARENT object.
+                val parentObject = sceneManager.activeObjects.find { it.id == parentId }
+                if (parentObject != null) {
+                    removeObject(parentObject) // This will handle fire vs. generic objects
+                    return true
+                }
+            }
+
+            // It's a standalone light. Remove just the light.
+            lightingManager.removeLightSource(hitLight.id)
+            this.removeLightSource(hitLight.id)
+            uiManager.showTemporaryMessage("Removed standalone Light Source")
             return true
         }
 
-        // 3. Check for Light Sources
-        val lightToRemove = raycastSystem.getLightSourceAtRay(ray, lightingManager)
-        if (lightToRemove != null) {
-            lightingManager.removeLightSource(lightToRemove.id)
-            this.removeLightSource(lightToRemove.id) // Use the object system's own method
+        // Case 2: The user clicked on a fire's visual component (but not its light).
+        if (hitFireObject != null) {
+            removeObject(hitFireObject)
             return true
         }
 
-        // 4. Check for Spawners (if in debug mode)
-        val spawnerToRemove = raycastSystem.getSpawnerAtRay(ray, sceneManager.activeSpawners)
-        if (spawnerToRemove != null && debugMode) {
-            removeSpawner(spawnerToRemove)
+        // Case 3: The user clicked on any other generic object.
+        if (hitGenericObject != null) {
+            if (hitGenericObject.objectType == ObjectType.TELEPORTER) {
+                return false
+            }
+            removeObject(hitGenericObject)
             return true
         }
 
-        // 5. Check for any other generic object
-        val objectToRemove = raycastSystem.getObjectAtRay(ray, sceneManager.activeObjects)
-        if (objectToRemove != null) {
-            removeObject(objectToRemove)
-            return true
-        }
-
-        // Open Spawner UI if not in debug mode
-        if (spawnerToRemove != null && !debugMode) {
-            uiManager.showSpawnerUI(spawnerToRemove)
-            return true // Consume the click
-        }
-
-        return false
+        return false // No object was hit or actioned.
     }
 
     private fun placeGenericObject(ray: Ray, objectType: ObjectType) {
@@ -312,9 +315,20 @@ class ObjectSystem: IFinePositionable {
     }
 
     private fun removeObject(objectToRemove: GameObject) {
+        // First, check if the object is part of a fire system
+        val fire = fireSystem.activeFires.find { it.gameObject.id == objectToRemove.id }
+        if (fire != null) {
+            // Use the fire system's removal process which handles the light source
+            fireSystem.removeFire(fire, this, lightingManager)
+            sceneManager.activeObjects.removeValue(objectToRemove, true)
+            uiManager.showTemporaryMessage("Removed Fire")
+            return
+        }
+
+        // If it's not a fire, it might be another object with a light (e.g., lantern)
         removeGameObjectWithLight(objectToRemove, lightingManager)
         sceneManager.activeObjects.removeValue(objectToRemove, true)
-        println("${objectToRemove.objectType.displayName} removed at: ${objectToRemove.position}")
+        uiManager.showTemporaryMessage("Removed ${objectToRemove.objectType.displayName}")
     }
 
     private fun placeLightSourceFromRay(ray: Ray) {
@@ -554,37 +568,41 @@ class ObjectSystem: IFinePositionable {
     fun createGameObjectWithLight(
         objectType: ObjectType,
         position: Vector3,
-        lightingManager: LightingManager? = null
+        lightingManager: LightingManager? = null,
+        // ADD THIS NEW OPTIONAL PARAMETER
+        existingLightId: Int? = null
     ): GameObject? {
         val modelInstance = createObjectInstance(objectType) ?: return null
         val debugInstance = if (objectType.isInvisible) createDebugInstance(objectType) else null
 
         val objectId = UUID.randomUUID().toString()
-        var associatedLightId: Int? = null
+        var finalAssociatedLightId: Int? = null
 
         // Create light source if the object type has one
         if (objectType.hasLightSource) {
-            val lightPosition = Vector3(position).apply {
-                y += objectType.lightOffsetY
+            // --- THIS IS THE KEY CHANGE ---
+            if (existingLightId != null) {
+                // We are loading, so just use the ID provided.
+                finalAssociatedLightId = existingLightId
+            } else {
+                // We are placing a new object, so create a new light.
+                val lightPosition = Vector3(position).apply { y += objectType.lightOffsetY }
+                val lightSource = createLightSource(
+                    position = lightPosition,
+                    intensity = objectType.lightIntensity,
+                    range = objectType.lightRange,
+                    color = objectType.getLightColor()
+                )
+                lightSource.parentObjectId = objectId
+                finalAssociatedLightId = lightSource.id
+
+                // Add to lighting manager if provided (for live placement)
+                lightingManager?.let { lm ->
+                    val lightInstances = createLightSourceInstances(lightSource)
+                    lm.addLightSource(lightSource, lightInstances)
+                }
             }
-
-            val lightSource = createLightSource(
-                position = lightPosition,
-                intensity = objectType.lightIntensity,
-                range = objectType.lightRange,
-                color = objectType.getLightColor()
-            )
-
-            associatedLightId = lightSource.id
-            objectLightAssociations[objectId] = lightSource.id
-
-            // Add to lighting manager if provided
-            lightingManager?.let { lm ->
-                val lightInstances = createLightSourceInstances(lightSource)
-                lm.addLightSource(lightSource, lightInstances)
-            }
-
-            println("Created ${objectType.displayName} with light source #${lightSource.id}")
+            println("Created ${objectType.displayName} with light source link: #${finalAssociatedLightId}")
         }
 
         return GameObject(
@@ -593,7 +611,7 @@ class ObjectSystem: IFinePositionable {
             objectType = objectType,
             position = position,
             debugInstance = debugInstance,
-            associatedLightId = associatedLightId
+            associatedLightId = finalAssociatedLightId
         )
     }
 

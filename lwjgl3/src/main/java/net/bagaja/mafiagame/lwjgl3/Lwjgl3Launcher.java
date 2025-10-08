@@ -89,7 +89,6 @@ public class Lwjgl3Launcher {
 
 // Automatic/Linear Mode or Open World Mode
 // multiple profiles
-// fire and light source being connected
 // option to check if damage is done by player
 // trigger point changes design when switching mission trigger
 // adding multiple city areas, district 2d polygons
