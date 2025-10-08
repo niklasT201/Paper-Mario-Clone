@@ -88,8 +88,6 @@ public class Lwjgl3Launcher {
 // disablePoliceResponse: Boolean (Allow the player to cause chaos without getting a wanted level).6
 
 // Automatic/Linear Mode or Open World Mode
-// mission loader
-// fast loading mission
 // multiple profiles
 // fire and light source being connected
 // option to check if damage is done by player

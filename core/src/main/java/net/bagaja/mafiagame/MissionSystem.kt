@@ -1563,4 +1563,89 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             println("ERROR saving mission '${missionDef.id}': ${e.message}")
         }
     }
+
+    fun forceStartMission(id: String) {
+        // First, forcefully end any mission that might already be running to ensure a clean state.
+        if (activeMission != null) {
+            forceEndMission()
+        }
+
+        val missionDef = allMissions[id]
+        if (missionDef == null) {
+            println("ERROR: Could not force start mission. ID not found: $id")
+            return
+        }
+
+        game.uiManager.showMissionStartNotification("DEBUG: " + missionDef.title)
+
+        val modifiesInventory = missionDef.eventsOnStart.any {
+            it.type in listOf(GameEventType.CLEAR_INVENTORY, GameEventType.GIVE_WEAPON, GameEventType.FORCE_EQUIP_WEAPON)
+        } || missionDef.modifiers.disableWeaponSwitching
+
+        if (modifiesInventory) {
+            playerInventorySnapshot = game.playerSystem.createStateDataSnapshot()
+        }
+
+        println("--- FORCE STARTING MISSION: ${missionDef.title} ---")
+        activeMission = MissionState(missionDef)
+        activeModifiers = missionDef.modifiers
+
+        missionDef.eventsOnStart.forEach { executeEvent(it) }
+
+        missionDef.objectives.firstOrNull()?.let { firstObjective ->
+            onObjectiveStarted(firstObjective)
+        }
+
+        updateUIForCurrentObjective()
+    }
+
+    fun forceEndMission() {
+        val mission = activeMission ?: return
+        val endedMissionId = mission.definition.id
+
+        println("--- FORCE ENDING MISSION: ${mission.definition.title} ---")
+
+        // Restore player state if it was snapshotted
+        playerInventorySnapshot?.let {
+            game.playerSystem.loadState(it)
+            playerInventorySnapshot = null
+        }
+
+        // Deactivate modifiers
+        activeModifiers?.let {
+            game.playerSystem.physicsComponent.speed = game.playerSystem.basePlayerSpeed
+        }
+        activeModifiers = null
+
+        // Clear all mission-related UI elements
+        game.uiManager.updateEnemiesLeft(-1)
+        game.uiManager.updateMissionObjective("")
+        game.uiManager.updateMissionTimer(-1f)
+        game.uiManager.updateLeaveCarTimer(-1f)
+        game.uiManager.updateReturnToAreaTimer(-1f)
+        game.objectiveArrowSystem.hide()
+
+        // Reset internal timers
+        leaveCarTimer = -1f
+        requiredCarIdForTimer = null
+        objectiveTimerStartDelay = -1f
+        stayInAreaGraceTimer = -1f
+
+        // Clean up any entities spawned specifically for this mission
+        game.sceneManager.cleanupMissionEntities(endedMissionId)
+
+        // Set the active mission to null. CRUCIALLY, we do NOT add it to completedMissionIds.
+        activeMission = null
+
+        game.uiManager.showTemporaryMessage("Mission force-stopped.")
+    }
+
+    fun resetAllMissionProgress() {
+        if (activeMission != null) {
+            forceEndMission()
+        }
+        gameState.completedMissionIds.clear()
+        println("--- ALL MISSION PROGRESS RESET ---")
+        game.uiManager.showTemporaryMessage("All mission progress has been reset.")
+    }
 }

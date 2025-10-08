@@ -133,6 +133,19 @@ class MissionEditorUI(
         buttonsTable.add(editModifiersButton).pad(5f)
         editorDetailsTable.add(buttonsTable).colspan(2).center().padTop(10f).padBottom(15f).row()
 
+        editorDetailsTable.add(Label("--- Debug Controls ---", skin, "title")).colspan(2).center().padTop(15f).row()
+
+        val debugButtonTable = Table()
+        val forceStartButton = TextButton("Force Start", skin)
+        val forceEndButton = TextButton("Force End Current", skin)
+        val resetProgressButton = TextButton("Reset All Progress", skin)
+
+        debugButtonTable.add(forceStartButton).pad(5f)
+        debugButtonTable.add(forceEndButton).pad(5f)
+        debugButtonTable.add(resetProgressButton).pad(5f)
+
+        editorDetailsTable.add(debugButtonTable).colspan(2).center().padBottom(15f).row()
+
         editorDetailsTable.add(Label("--- Events on Start ---", skin, "title")).colspan(2).padTop(15f).row()
         editorDetailsTable.add(ScrollPane(startEventsContainer, skin)).colspan(2).growX().height(100f).row()
         val addStartEventButton = TextButton("Add Start Event", skin)
@@ -252,6 +265,29 @@ class MissionEditorUI(
             }
         })
         closeButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { hide() } })
+
+        forceStartButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                currentMissionDef?.id?.let {
+                    missionSystem.forceStartMission(it)
+                    hide() // Hide the editor so you can see the mission start
+                }
+            }
+        })
+
+        forceEndButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                missionSystem.forceEndMission()
+            }
+        })
+
+        resetProgressButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                missionSystem.resetAllMissionProgress()
+                // Refresh the list to remove any visual "completed" status indicators if you add them later
+                refreshMissionList()
+            }
+        })
     }
 
     private fun initializeMode() {
