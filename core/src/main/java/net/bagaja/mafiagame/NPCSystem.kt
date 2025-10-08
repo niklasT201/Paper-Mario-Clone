@@ -836,6 +836,9 @@ class NPCSystem : IFinePositionable {
             return // A dead NPC should not think.
         }
 
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
+        val behaviorToUse = modifiers?.overrideNpcBehavior ?: npc.behaviorType
+
         if (npc.isInCar) {
             val car = npc.drivingCar!!
 
@@ -957,7 +960,7 @@ class NPCSystem : IFinePositionable {
 
         // Standard Behaviors
         else {
-            when (npc.behaviorType) {
+            when (behaviorToUse) {
                 NPCBehavior.STATIONARY -> {
                     // No movement, facing direction is fixed from placement
                 }

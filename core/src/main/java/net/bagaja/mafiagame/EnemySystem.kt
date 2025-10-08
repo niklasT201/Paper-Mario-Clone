@@ -931,6 +931,9 @@ class EnemySystem : IFinePositionable {
             return
         }
 
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
+        val behaviorToUse = modifiers?.overrideEnemyBehavior ?: enemy.currentBehavior
+
         if (enemy.behaviorType == EnemyBehavior.PATH_FOLLOWER) {
             updatePathFollowerAI(enemy, deltaTime)
             return // Stop other AI logic from running for this enemy
@@ -1023,7 +1026,7 @@ class EnemySystem : IFinePositionable {
         }
 
         // Dispatch to the correct AI routine based on the enemy's CURRENT behavior
-        when (enemy.currentBehavior) {
+        when (behaviorToUse) {
             EnemyBehavior.STATIONARY_SHOOTER -> updateShooterAI(enemy, playerSystem, deltaTime, sceneManager)
             EnemyBehavior.AGGRESSIVE_RUSHER -> updateRusherAI(enemy, playerSystem, deltaTime, sceneManager)
             EnemyBehavior.SKIRMISHER -> updateSkirmisherAI(enemy, playerSystem, deltaTime, sceneManager)

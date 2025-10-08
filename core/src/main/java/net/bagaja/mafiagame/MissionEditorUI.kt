@@ -371,9 +371,19 @@ class MissionEditorUI(
         val outgoingDmg = TextField(mission.modifiers.playerDamageMultiplier.toString(), skin)
         val speedMulti = TextField(mission.modifiers.playerSpeedMultiplier.toString(), skin)
         val infiniteAmmoAll = CheckBox(" Infinite Ammo (All)", skin).apply { isChecked = mission.modifiers.infiniteAmmo }
+        val infiniteAmmoSpecificSelectBox = SelectBox<String>(skin).apply {
+            items = GdxArray(arrayOf("(None)") + WeaponType.entries.map { it.displayName }.toTypedArray())
+            selected = mission.modifiers.infiniteAmmoForWeapon?.displayName ?: "(None)"
+        }
+        playerTable.add(infiniteAmmoAll).colspan(2).left().row()
+        playerTable.add("Infinite Ammo (Specific):").left(); playerTable.add(infiniteAmmoSpecificSelectBox).growX().row()
         val disableSwitch = CheckBox(" Disable Weapon Switching", skin).apply { isChecked = mission.modifiers.disableWeaponSwitching }
         val disablePickups = CheckBox(" Disable Weapon Pickups", skin).apply { isChecked = mission.modifiers.disableWeaponPickups }
         val disableItemPickups = CheckBox(" Disable Item Pickups", skin).apply { isChecked = mission.modifiers.disableItemPickups }
+        val playerOneHitKills = CheckBox(" One-Hit Kills (Player)", skin).apply { isChecked = mission.modifiers.playerHasOneHitKills }
+        val enemyOneHitKills = CheckBox(" One-Hit Kills (Enemies)", skin).apply { isChecked = mission.modifiers.enemiesHaveOneHitKills }
+        playerTable.add(playerOneHitKills).colspan(2).left().row()
+        playerTable.add(enemyOneHitKills).colspan(2).left().row()
 
         playerTable.add(unlimitedHealth).colspan(2).left().row()
         playerTable.add("Incoming Dmg x:"); playerTable.add(incomingDmg).width(60f).left().row()
@@ -397,6 +407,17 @@ class MissionEditorUI(
         // --- World & AI Modifiers ---
         val worldTable = Table(skin)
         worldTable.add(Label("[CYAN]--- World & AI Modifiers ---", skin)).colspan(2).left().padBottom(5f).row()
+
+        val overrideEnemyBehaviorSelectBox = SelectBox<String>(skin).apply {
+            items = GdxArray(arrayOf("(None)") + EnemyBehavior.entries.map { it.displayName }.toTypedArray())
+            selected = mission.modifiers.overrideEnemyBehavior?.displayName ?: "(None)"
+        }
+        val overrideNpcBehaviorSelectBox = SelectBox<String>(skin).apply {
+            items = GdxArray(arrayOf("(None)") + NPCBehavior.entries.map { it.displayName }.toTypedArray())
+            selected = mission.modifiers.overrideNpcBehavior?.displayName ?: "(None)"
+        }
+        worldTable.add("Force Enemy AI:").left(); worldTable.add(overrideEnemyBehaviorSelectBox).growX().row()
+        worldTable.add("Force NPC AI:").left(); worldTable.add(overrideNpcBehaviorSelectBox).growX().row()
         val allHousesLocked = CheckBox(" All Houses are Locked", skin).apply { isChecked = mission.modifiers.allHousesLocked }
         val allHousesUnlocked = CheckBox(" All Houses are Unlocked", skin).apply { isChecked = mission.modifiers.allHousesUnlocked }
         val disableCarSpawners = CheckBox(" Disable Car Spawners", skin).apply { isChecked = mission.modifiers.disableCarSpawners }
@@ -443,6 +464,7 @@ class MissionEditorUI(
                 mission.modifiers.playerDamageMultiplier = outgoingDmg.text.toFloatOrNull() ?: 1.0f
                 mission.modifiers.playerSpeedMultiplier = speedMulti.text.toFloatOrNull() ?: 1.0f
                 mission.modifiers.infiniteAmmo = infiniteAmmoAll.isChecked
+                mission.modifiers.infiniteAmmoForWeapon = WeaponType.entries.find { it.displayName == infiniteAmmoSpecificSelectBox.selected }
                 mission.modifiers.disableWeaponSwitching = disableSwitch.isChecked
                 mission.modifiers.disableWeaponPickups = disablePickups.isChecked
                 mission.modifiers.disableItemPickups = disableItemPickups.isChecked
@@ -459,6 +481,10 @@ class MissionEditorUI(
                 mission.modifiers.increasedEnemySpawns = increasedSpawns.isChecked
                 mission.modifiers.freezeTimeAt = if (freezeTimeCheckbox.isChecked) timeSlider.value else null
                 mission.modifiers.disableNoItemDrops = disableNoItemDrops.isChecked
+                mission.modifiers.overrideEnemyBehavior = EnemyBehavior.entries.find { it.displayName == overrideEnemyBehaviorSelectBox.selected }
+                mission.modifiers.overrideNpcBehavior = NPCBehavior.entries.find { it.displayName == overrideNpcBehaviorSelectBox.selected }
+                mission.modifiers.playerHasOneHitKills = playerOneHitKills.isChecked
+                mission.modifiers.enemiesHaveOneHitKills = enemyOneHitKills.isChecked
 
                 uiManager.showTemporaryMessage("Modifiers updated for '${mission.title}'")
                 dialog.hide()

@@ -77,6 +77,11 @@ class PlayerSystem {
         }
 
         var finalDamage = amount
+
+        if (modifiers?.enemiesHaveOneHitKills == true) {
+            finalDamage = this.maxHealth // Instantly kill the player
+        }
+
         // Apply incoming damage multiplier
         if (modifiers != null) {
             finalDamage *= modifiers.incomingDamageMultiplier
@@ -595,6 +600,13 @@ class PlayerSystem {
             if (enemy.currentState != AIState.DYING && hitBox.intersects(enemy.physics.bounds)) {
                 println("Melee hit on enemy: ${enemy.enemyType.displayName}")
 
+                val modifiers = sceneManager.game.missionSystem.activeModifiers
+                val damageToDeal = if (modifiers?.playerHasOneHitKills == true) {
+                    enemy.health // Deal exactly enough damage to kill
+                } else {
+                    equippedWeapon.damage // Deal normal weapon damage
+                }
+
                 // SHAKE
                 val shakeIntensity = if (equippedWeapon == WeaponType.BASEBALL_BAT) 0.15f else 0.07f
                 val shakeDuration = if (equippedWeapon == WeaponType.BASEBALL_BAT) 0.12f else 0.08f
@@ -605,7 +617,7 @@ class PlayerSystem {
                     spawnBloodEffects(bloodSpawnPosition, sceneManager)
                 }
 
-                if (enemy.takeDamage(equippedWeapon.damage, DamageType.MELEE, sceneManager) && enemy.currentState != AIState.DYING) {
+                if (enemy.takeDamage(damageToDeal, DamageType.MELEE, sceneManager) && enemy.currentState != AIState.DYING) {
                     sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                 }
             }
@@ -620,12 +632,19 @@ class PlayerSystem {
             if (npc.currentState != NPCState.DYING && npc.currentState != NPCState.FLEEING && hitBox.intersects(npc.physics.bounds)) {
                 println("Melee hit on NPC: ${npc.npcType.displayName}")
 
+                val modifiers = sceneManager.game.missionSystem.activeModifiers
+                val damageToDeal = if (modifiers?.playerHasOneHitKills == true) {
+                    npc.health // Deal exactly enough damage to kill
+                } else {
+                    equippedWeapon.damage // Deal normal weapon damage
+                }
+
                 if (Random.nextFloat() < 0.75f) { // 75% chance to bleed
                     val bloodSpawnPosition = npc.physics.position.cpy().add(0f, npc.npcType.height / 2f, 0f)
                     spawnBloodEffects(bloodSpawnPosition, sceneManager)
                 }
 
-                if (npc.takeDamage(equippedWeapon.damage, DamageType.MELEE, sceneManager) && npc.currentState != NPCState.DYING) {
+                if (npc.takeDamage(damageToDeal, DamageType.MELEE, sceneManager) && npc.currentState != NPCState.DYING) {
                     sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                 }
             }
@@ -635,7 +654,15 @@ class PlayerSystem {
         for (car in sceneManager.activeCars) {
             if (hitBox.intersects(car.getBoundingBox())) {
                 println("Melee hit on car: ${car.carType.displayName}")
-                car.takeDamage(equippedWeapon.damage, DamageType.MELEE)
+
+                val modifiers = sceneManager.game.missionSystem.activeModifiers
+                val damageToDeal = if (modifiers?.playerHasOneHitKills == true) {
+                    car.health // Deal exactly enough damage to destroy
+                } else {
+                    equippedWeapon.damage // Deal normal weapon damage
+                }
+
+                car.takeDamage(damageToDeal, DamageType.MELEE)
             }
         }
     }
@@ -643,11 +670,9 @@ class PlayerSystem {
     private fun spawnThrowable() {
         val model = throwableModels[equippedWeapon] ?: return
 
-        // --- START: MODIFIED SECTION ---
         // First, consume one throwable from the reserves.
         val currentAmmo = ammoReserves.getOrDefault(equippedWeapon, 0)
         ammoReserves[equippedWeapon] = (currentAmmo - 1).coerceAtLeast(0)
-        // --- END: MODIFIED SECTION ---
 
         // Throw Physics Calculation
         val minPower = 15f
@@ -702,6 +727,15 @@ class PlayerSystem {
 
     private fun spawnBullet() {
         val modifiers = sceneManager.game.missionSystem.activeModifiers
+
+        if (equippedWeapon != modifiers?.infiniteAmmoForWeapon && modifiers?.infiniteAmmo != true) {
+            if (equippedWeapon.requiresReload) {
+                currentMagazineCount--
+            } else {
+                val currentReserve = ammoReserves.getOrDefault(equippedWeapon, 0)
+                ammoReserves[equippedWeapon] = maxOf(0, currentReserve - 1)
+            }
+        }
 
         // If we don't have infinite ammo for this specific weapon OR for all weapons, consume ammo.
         if (equippedWeapon != modifiers?.infiniteAmmoForWeapon && modifiers?.infiniteAmmo != true) {
@@ -1577,6 +1611,13 @@ class PlayerSystem {
 
                     HitObjectType.ENEMY -> {
                         val enemy = collisionResult.hitObject as GameEnemy
+                        val modifiers = sceneManager.game.missionSystem.activeModifiers
+
+                        val damageToDeal = if (modifiers?.playerHasOneHitKills == true) {
+                            enemy.health // Deal exactly enough damage to kill
+                        } else {
+                            bullet.damage // Deal normal bullet damage
+                        }
 
                         // Use the enemy's center
                         val bloodSpawnPosition = enemy.position.cpy()
@@ -1591,12 +1632,19 @@ class PlayerSystem {
                             spawnBloodEffects(bloodSpawnPosition, sceneManager)
                         }
 
-                        if (enemy.takeDamage(equippedWeapon.damage, DamageType.GENERIC, sceneManager) && enemy.currentState != AIState.DYING) {
+                        if (enemy.takeDamage(damageToDeal, DamageType.GENERIC, sceneManager) && enemy.currentState != AIState.DYING) {
                             sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
                     }
                     HitObjectType.NPC -> {
                         val npc = collisionResult.hitObject as GameNPC
+                        val modifiers = sceneManager.game.missionSystem.activeModifiers
+
+                        val damageToDeal = if (modifiers?.playerHasOneHitKills == true) {
+                            npc.health
+                        } else {
+                            bullet.damage
+                        }
 
                         // Use the NPC's center
                         val bloodSpawnPosition = npc.position.cpy()
@@ -1611,7 +1659,7 @@ class PlayerSystem {
                             spawnBloodEffects(bloodSpawnPosition, sceneManager)
                         }
 
-                        if (npc.takeDamage(equippedWeapon.damage, DamageType.GENERIC, sceneManager) && npc.currentState != NPCState.DYING) {
+                        if (npc.takeDamage(damageToDeal, DamageType.GENERIC, sceneManager) && npc.currentState != NPCState.DYING) {
                             // NPC died, remove it from the scene
                             sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }
@@ -1813,9 +1861,16 @@ class PlayerSystem {
 
                 println("Dynamite effect originating at $explosionOrigin")
 
+                val modifiers = sceneManager.game.missionSystem.activeModifiers
+                // For AoE, we can't get each target's health. So we set a "super high" damage value.
+                val baseDamageToDeal = if (modifiers?.playerHasOneHitKills == true) {
+                    9999f // A number high enough to kill anything instantly
+                } else {
+                    throwable.weaponType.damage // Normal dynamite damage
+                }
+
                 // Area-of-effect damage logic
                 val explosionRadius = 12f
-                val explosionDamage = throwable.weaponType.damage
                 val maxKnockbackForce = 35.0f
                 val upwardLift = 0.7f
 
@@ -1823,7 +1878,7 @@ class PlayerSystem {
                 for (car in sceneManager.activeCars) {
                     val distanceToCar = car.position.dst(validGroundPosition)
                     if (distanceToCar < explosionRadius) {
-                        val actualDamage = calculateFalloffDamage(explosionDamage, distanceToCar, explosionRadius)
+                        val actualDamage = calculateFalloffDamage(baseDamageToDeal, distanceToCar, explosionRadius)
                         car.takeDamage(actualDamage, DamageType.EXPLOSIVE)
                     }
                 }
@@ -1832,7 +1887,7 @@ class PlayerSystem {
                     val distanceToEnemy = enemy.position.dst(validGroundPosition)
                     if (distanceToEnemy < explosionRadius) {
                         // Apply Damage
-                        val actualDamage = calculateFalloffDamage(explosionDamage, distanceToEnemy, explosionRadius)
+                        val actualDamage = calculateFalloffDamage(baseDamageToDeal, distanceToEnemy, explosionRadius)
                         if (enemy.takeDamage(actualDamage, DamageType.EXPLOSIVE, sceneManager) && enemy.currentState != AIState.DYING) {
                             sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
@@ -1852,7 +1907,7 @@ class PlayerSystem {
                     val distanceToNPC = npc.position.dst(validGroundPosition)
                     if (distanceToNPC < explosionRadius) {
                         // Apply Damage
-                        val actualDamage = calculateFalloffDamage(explosionDamage, distanceToNPC, explosionRadius)
+                        val actualDamage = calculateFalloffDamage(baseDamageToDeal, distanceToNPC, explosionRadius)
                         if (npc.takeDamage(actualDamage, DamageType.EXPLOSIVE, sceneManager) && npc.currentState != NPCState.DYING) {
                             sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }
@@ -1870,7 +1925,7 @@ class PlayerSystem {
                 // Damage Player
                 val distanceToPlayerSelf = getPosition().dst(validGroundPosition)
                 if (distanceToPlayerSelf < explosionRadius) {
-                    val actualDamage = calculateFalloffDamage(explosionDamage, distanceToPlayerSelf, explosionRadius)
+                    val actualDamage = calculateFalloffDamage(baseDamageToDeal, distanceToPlayerSelf, explosionRadius)
                     takeDamage(actualDamage)
 
                     // Calculate the knockback strength based on distance
@@ -1897,7 +1952,7 @@ class PlayerSystem {
                     if (obj.objectType.isDestructible) {
                         val distanceToObj = obj.position.dst(validGroundPosition)
                         if (distanceToObj < explosionRadius) {
-                            val actualDamage = calculateFalloffDamage(explosionDamage, distanceToObj, explosionRadius)
+                            val actualDamage = calculateFalloffDamage(baseDamageToDeal, distanceToObj, explosionRadius)
                             if (obj.takeDamage(actualDamage)) {
                                 // Object was destroyed by the explosion.
                                 val replacementType = obj.objectType.destroyedObjectType

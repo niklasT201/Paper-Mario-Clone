@@ -63,6 +63,7 @@ public class Lwjgl3Launcher {
 // south park like animation
 // Persistence & Consequences
 // Save and Load Player Progress
+// fire in rooms and mission not being connected right with its light source
 // save shaders and visual settings
 // npcs outside missions having dialogs, enemies too
 // visual screen for finished mission
@@ -81,7 +82,6 @@ public class Lwjgl3Launcher {
 // Objective Markers
 // drive to location, visual arrow that shows direction
 // SEQUENCE, LOSE_THE_COPS, INFLUENCE_NPC, CAPTURE_TERRITORY
-// Enemy/NPC AI Override, One-Hit Kills, One-Hit Kills, Specific Weapon Infinite Ammo
 // Cutscene System
 // interact with interiors/objectives, cars, characters = give item, lose item, new event will happen
 
@@ -90,6 +90,7 @@ public class Lwjgl3Launcher {
 // Automatic/Linear Mode or Open World Mode
 // multiple profiles
 // option to check if damage is done by player
+// ON_LEAVE_AREA, ON_STAY_IN_AREA_FOR_TIME, ON_TIME_REACHED, ON_DESTROY_CAR, ON_DESTROY_OBJECT, ON_MONEY_BELOW_THRESHOLD, ON_MISSION_FAILED
 // trigger point changes design when switching mission trigger
 // adding multiple city areas, district 2d polygons
 // INTERACT_WITH_OBJECT Logic: Similar to the above, you don't have a generic "interaction" system for objects yet

@@ -188,7 +188,12 @@ data class MissionModifiers(
     var civiliansFleeOnSight: Boolean = false,
     var increasedEnemySpawns: Boolean = false,
     var freezeTimeAt: Float? = null, // A value from 0.0 to 1.0
-    var disablePoliceResponse: Boolean = false // For a future police system
+    var disablePoliceResponse: Boolean = false, // For a future police system
+
+    var overrideEnemyBehavior: EnemyBehavior? = null,
+    var overrideNpcBehavior: NPCBehavior? = null,
+    var playerHasOneHitKills: Boolean = false,
+    var enemiesHaveOneHitKills: Boolean = false,
 )
 
 // --- Events ---
