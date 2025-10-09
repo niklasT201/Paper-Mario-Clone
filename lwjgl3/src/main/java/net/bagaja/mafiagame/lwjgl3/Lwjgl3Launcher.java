@@ -90,7 +90,7 @@ public class Lwjgl3Launcher {
 // Automatic/Linear Mode or Open World Mode
 // multiple profiles
 // option to check if damage is done by player
-// ON_LEAVE_AREA, ON_STAY_IN_AREA_FOR_TIME, ON_TIME_REACHED, ON_DESTROY_CAR, ON_DESTROY_OBJECT, ON_MONEY_BELOW_THRESHOLD, ON_MISSION_FAILED
+// ON_DESTROY_CAR, ON_DESTROY_OBJECT
 // trigger point changes design when switching mission trigger
 // adding multiple city areas, district 2d polygons
 // INTERACT_WITH_OBJECT Logic: Similar to the above, you don't have a generic "interaction" system for objects yet

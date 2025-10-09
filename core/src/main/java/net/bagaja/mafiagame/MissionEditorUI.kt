@@ -689,6 +689,9 @@ class MissionEditorUI(
             TriggerType.ON_ALL_ENEMIES_ELIMINATED -> "All enemies in the scene are eliminated"
             TriggerType.ON_LEAVE_AREA -> "Leave area at (${trigger.areaCenter.x.toInt()}, ${trigger.areaCenter.z.toInt()})"
             TriggerType.ON_STAY_IN_AREA_FOR_TIME -> "Stay in area at (${trigger.areaCenter.x.toInt()}, ${trigger.areaCenter.z.toInt()}) for ${trigger.requiredTimeInArea}s"
+            TriggerType.ON_DESTROY_CAR -> "Destroy Car with ID: ${trigger.targetCarId}"
+            TriggerType.ON_DESTROY_OBJECT -> "Destroy Object with ID: ${trigger.targetNpcId}" // Reusing the NPC ID field
+            TriggerType.ON_MONEY_BELOW_THRESHOLD -> "Player money drops below: $${trigger.moneyThreshold}"
         }
         container.add(Label("$indent$triggerText", skin, "small")).left().row()
 

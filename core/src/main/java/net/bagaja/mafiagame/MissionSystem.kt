@@ -21,6 +21,9 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
     private var stayInAreaGraceTimer = -1f // -1 means timer is not active
     private val GRACE_PERIOD_DURATION = 5.0f
+    private val destroyedCarIdsThisFrame = mutableListOf<String>()
+    private val destroyedObjectIdsThisFrame = mutableListOf<String>()
+    private val moneyTriggerStates = mutableMapOf<String, Boolean>()
 
     fun getSaveData(): MissionProgressData {
         val variablesToSave = ObjectMap<String, Any>()
@@ -258,6 +261,30 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 var shouldStartMission = false
 
                 when (trigger.type) {
+                    TriggerType.ON_DESTROY_CAR -> {
+                        if (destroyedCarIdsThisFrame.contains(trigger.targetCarId)) {
+                            shouldStartMission = true
+                        }
+                    }
+                    TriggerType.ON_DESTROY_OBJECT -> {
+                        // We are reusing targetNpcId for the object ID
+                        if (destroyedObjectIdsThisFrame.contains(trigger.targetNpcId)) {
+                            shouldStartMission = true
+                        }
+                    }
+                    TriggerType.ON_MONEY_BELOW_THRESHOLD -> {
+                        val playerMoney = game.playerSystem.getMoney()
+                        if (playerMoney < trigger.moneyThreshold) {
+                            // Only trigger if we haven't already triggered for this state
+                            if (moneyTriggerStates[missionId] != true) {
+                                shouldStartMission = true
+                                moneyTriggerStates[missionId] = true // Mark as triggered
+                            }
+                        } else {
+                            // If player's money goes back up, reset the trigger state so it can fire again later
+                            moneyTriggerStates[missionId] = false
+                        }
+                    }
                     // This is the new trigger check
                     TriggerType.ON_COLLECT_ITEM -> {
                         val requiredItem = trigger.itemType ?: continue
@@ -266,7 +293,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                             shouldStartMission = true
                         }
                     }
-                    // NEW: Check for the "all enemies eliminated" start trigger
+                    // Check for the "all enemies eliminated" start trigger
                     TriggerType.ON_ALL_ENEMIES_ELIMINATED -> {
                         // This trigger should only fire if there are absolutely no enemies in the active scene.
                         if (game.sceneManager.activeEnemies.isEmpty) {
@@ -285,6 +312,9 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 }
             }
         }
+
+        destroyedCarIdsThisFrame.clear()
+        destroyedObjectIdsThisFrame.clear()
 
         val currentMission = activeMission ?: return
         val objective = currentMission.getCurrentObjective() ?: return
@@ -535,7 +565,16 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         }
     }
 
+    fun reportObjectDestroyed(objectId: String) {
+        destroyedObjectIdsThisFrame.add(objectId)
+        println("MissionSystem: Reported object destroyed: $objectId")
+    }
+
     fun reportCarDestroyed(carId: String) {
+        destroyedCarIdsThisFrame.add(carId) // Add to our new list for start triggers
+        println("MissionSystem: Reported car destroyed: $carId")
+
+        // Keep the old logic for completing objectives
         val objective = activeMission?.getCurrentObjective() ?: return
         val condition = objective.completionCondition
 
@@ -860,7 +899,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             mission.definition.rewards.forEach { grantReward(it) }
 
         } else {
-            println("--- MISSION FAILED: ${mission.definition.title} ---")
+           // println("--- MISSION FAILED: ${mission.definition.title} ---")
             // TODO: Reset any changes made by the mission
         }
         playerInventorySnapshot?.let {
@@ -900,9 +939,34 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
     }
 
     private fun failMission() {
+        // --- NEW LOGIC: CHECK FOR ON_MISSION_FAILED TRIGGERS ---
+        val failedMissionId = activeMission?.definition?.id
+
+        // End the current mission first to clean everything up.
+        // This is important so the new mission can start in a clean state.
+        endMission(completed = false)
+
+        // Now, if a mission actually failed (not just a force-end), check for consequences.
+        if (failedMissionId != null) {
+            // Check all available missions to see if any should be triggered by this failure.
+            for ((missionIdToStart, missionDef) in allMissions) {
+                // Skip missions that are already completed or active (though none should be active here)
+                if (gameState.completedMissionIds.contains(missionIdToStart) || isMissionActive(missionIdToStart)) {
+                    continue
+                }
+
+                val trigger = missionDef.startTrigger
+                if (trigger.type == TriggerType.ON_MISSION_FAILED && trigger.targetNpcId == failedMissionId) {
+                    println("Mission '$failedMissionId' failed, triggering consequence mission '${missionDef.title}'.")
+                    startMission(missionIdToStart)
+                    // We break here to only start one consequence mission per failure.
+                    break
+                }
+            }
+        }
+
         game.uiManager.showTemporaryMessage("Mission Failed!")
         // Use the existing endMission logic to handle cleanup
-        endMission(completed = false)
     }
 
     fun playerExitedCar(carId: String) {

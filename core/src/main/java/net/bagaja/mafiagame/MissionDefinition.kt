@@ -143,7 +143,11 @@ enum class TriggerType {
     ON_ENTER_CAR,
     ON_ALL_ENEMIES_ELIMINATED,
     ON_LEAVE_AREA,
-    ON_STAY_IN_AREA_FOR_TIME
+    ON_STAY_IN_AREA_FOR_TIME,
+    ON_DESTROY_CAR,
+    ON_DESTROY_OBJECT,
+    ON_MONEY_BELOW_THRESHOLD,
+    ON_MISSION_FAILED
 }
 
 data class MissionTrigger(
@@ -159,7 +163,8 @@ data class MissionTrigger(
     var targetHouseId: String? = null,  // For ON_ENTER_HOUSE
     var targetCarId: String? = null,     // For ON_ENTER_CAR
 
-    var requiredTimeInArea: Float = 10f
+    var requiredTimeInArea: Float = 10f,
+    var moneyThreshold: Int = 0
 )
 
 // --- Mission Modifiers (Special Rules) ---

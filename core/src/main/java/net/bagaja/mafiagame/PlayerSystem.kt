@@ -1569,7 +1569,9 @@ class PlayerSystem {
                     HitObjectType.OBJECT -> {
                         val gameObject = collisionResult.hitObject as GameObject
                         if (gameObject.takeDamage(bullet.damage)) {
-                            // Object was destroyed. Check if it should be replaced.
+                            // Object was destroyed. REPORT IT!
+                            sceneManager.game.missionSystem.reportObjectDestroyed(gameObject.id)
+
                             val replacementType = gameObject.objectType.destroyedObjectType
                             if (replacementType != null) {
                                 // 1. Remove the old object's light source (if any)
@@ -1954,7 +1956,9 @@ class PlayerSystem {
                         if (distanceToObj < explosionRadius) {
                             val actualDamage = calculateFalloffDamage(baseDamageToDeal, distanceToObj, explosionRadius)
                             if (obj.takeDamage(actualDamage)) {
-                                // Object was destroyed by the explosion.
+                                // Object was destroyed by the explosion. REPORT IT!
+                                sceneManager.game.missionSystem.reportObjectDestroyed(obj.id)
+
                                 val replacementType = obj.objectType.destroyedObjectType
                                 if (replacementType != null) {
                                     // Replace it

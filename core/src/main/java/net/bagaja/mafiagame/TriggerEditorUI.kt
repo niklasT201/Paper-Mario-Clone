@@ -40,6 +40,8 @@ class TriggerEditorUI(
     private val instructions: Label
     private var stayInAreaTable: Table
     private var requiredTimeField: TextField
+    private val moneySettingsTable: Table
+    private val moneyThresholdField: TextField
 
     init {
         window.setSize(550f, 450f)
@@ -106,7 +108,12 @@ class TriggerEditorUI(
         stayInAreaTable.add(Label("Required Time (sec):", skin)).padRight(10f)
         stayInAreaTable.add(requiredTimeField).width(100f)
 
-        val settingsStack = Stack(areaSettingsTable, npcSettingsTable, itemSettingsTable, houseSettingsTable, enemySettingsTable, carSettingsTable, stayInAreaTable)
+        moneySettingsTable = Table()
+        moneyThresholdField = TextField("0", skin)
+        moneySettingsTable.add(Label("Money Below:", skin)).padRight(10f)
+        moneySettingsTable.add(moneyThresholdField).width(100f)
+
+        val settingsStack = Stack(areaSettingsTable, npcSettingsTable, itemSettingsTable, houseSettingsTable, enemySettingsTable, carSettingsTable, stayInAreaTable, moneySettingsTable)
         contentTable.add(settingsStack).colspan(2).growX().padTop(10f).row()
 
         instructions = Label("L-Click to set position, Scroll to resize.", skin, "small")
@@ -175,6 +182,7 @@ class TriggerEditorUI(
 
         requiredTimeField.text = mission.startTrigger.requiredTimeInArea.toString()
 
+        moneyThresholdField.text = mission.startTrigger.moneyThreshold.toString()
         updateVisibleFields()
     }
 
@@ -208,14 +216,38 @@ class TriggerEditorUI(
         // Show the new time field only for its specific trigger type
         stayInAreaTable.isVisible = (selectedType == TriggerType.ON_STAY_IN_AREA_FOR_TIME)
 
-        // Your existing logic for other tables is correct
+        // NPC settings are only for talking to NPCs.
         npcSettingsTable.isVisible = (selectedType == TriggerType.ON_TALK_TO_NPC)
+
+        // Item settings are only for collecting items.
         itemSettingsTable.isVisible = (selectedType == TriggerType.ON_COLLECT_ITEM)
+
+        // House settings are only for entering a house.
         houseSettingsTable.isVisible = (selectedType == TriggerType.ON_ENTER_HOUSE)
-        enemySettingsTable.isVisible = (selectedType == TriggerType.ON_HURT_ENEMY)
-        carSettingsTable.isVisible = (selectedType == TriggerType.ON_ENTER_CAR)
+
+        // Car settings are now used by two types.
+        carSettingsTable.isVisible = (selectedType == TriggerType.ON_ENTER_CAR ||
+            selectedType == TriggerType.ON_DESTROY_CAR)
+
+        // Money threshold settings are only for the money trigger.
+        moneySettingsTable.isVisible = (selectedType == TriggerType.ON_MONEY_BELOW_THRESHOLD)
 
         // Hide all tables if it's the "all enemies eliminated" trigger
+        val targetIdLabel = enemySettingsTable.children.first() as Label
+        if (selectedType == TriggerType.ON_DESTROY_OBJECT) {
+            targetIdLabel.setText("Target Object ID:")
+            enemySettingsTable.isVisible = true
+        } else if (selectedType == TriggerType.ON_HURT_ENEMY) {
+            targetIdLabel.setText("Target Enemy ID:")
+            enemySettingsTable.isVisible = true
+        } else if (selectedType == TriggerType.ON_MISSION_FAILED) {
+            targetIdLabel.setText("On Fail of Mission ID:")
+            enemySettingsTable.isVisible = true
+        } else {
+            enemySettingsTable.isVisible = false
+        }
+
+        // Hide all specific setting tables if the trigger type doesn't require any.
         if (selectedType == TriggerType.ON_ALL_ENEMIES_ELIMINATED) {
             areaSettingsTable.isVisible = false
             stayInAreaTable.isVisible = false // Also hide the new table
@@ -224,6 +256,7 @@ class TriggerEditorUI(
             houseSettingsTable.isVisible = false
             enemySettingsTable.isVisible = false
             carSettingsTable.isVisible = false
+            moneySettingsTable.isVisible = false
         }
 
         instructions.isVisible = (selectedType == TriggerType.ON_ENTER_AREA ||
