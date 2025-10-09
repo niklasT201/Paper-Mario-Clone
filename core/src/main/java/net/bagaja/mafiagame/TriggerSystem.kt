@@ -31,6 +31,8 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
     // --- State ---
     private val missionTriggers = mutableMapOf<String, VisualMissionTrigger>()
     private val renderableInstances = Array<ModelInstance>()
+    private val playerWasInArea = mutableMapOf<String, Boolean>()
+    private val stayInAreaTimers = mutableMapOf<String, Float>()
 
     var isEditorVisible = false // Controlled by the new UI tool
     var selectedMissionIdForEditing: String? = null
@@ -142,32 +144,92 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
                 continue // Skip the rest of the logic for this trigger
             }
 
-            if (trigger.definition.type == TriggerType.ON_ENTER_AREA) {
-                val center = trigger.definition.areaCenter
-                val radius = trigger.definition.areaRadius
+            // Skip if the mission is outside its available time window.
+            val missionDef = game.missionSystem.getMissionDefinition(missionId) ?: continue // Get the full definition
+            if (missionDef.availableStartTime != null && missionDef.availableEndTime != null) {
+                val currentTimeProgress = game.lightingManager.getDayNightCycle().getDayProgress()
+                val startTime = missionDef.availableStartTime!!
+                val endTime = missionDef.availableEndTime!!
 
-                // Check for mission activation
-                if (playerPos.dst(center) < radius) {
-                    game.missionSystem.startMission(missionId)
+                val isAvailable = if (startTime <= endTime) {
+                    // Normal time window (e.g., 8 AM to 5 PM)
+                    currentTimeProgress in startTime..endTime
+                } else {
+                    // Overnight time window (e.g., 10 PM to 6 AM)
+                    currentTimeProgress >= startTime || currentTimeProgress <= endTime
                 }
 
-                val distanceToVisual = playerPos.dst(center)
-                if (distanceToVisual < VISUAL_ACTIVATION_DISTANCE) {
-                    // Find the ground height to place the visual correctly
-                    var groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
+                if (!isAvailable) {
+                    trigger.isVisible = false // Hide the visual if the mission isn't available now
+                    continue // Skip to the next trigger
+                }
+            }
 
-                    // If no surface was found, default to y=0 to keep the trigger visible on the ground plane.
-                    if (groundY < -500f) {
-                        groundY = 0f
+            when (trigger.definition.type) {
+                TriggerType.ON_ENTER_AREA -> {
+                    val center = trigger.definition.areaCenter
+                    val radius = trigger.definition.areaRadius
+                    if (playerPos.dst(center) < radius) {
+                        game.missionSystem.startMission(missionId)
+                    }
+                }
+
+                TriggerType.ON_LEAVE_AREA -> {
+                    val center = trigger.definition.areaCenter
+                    val radius = trigger.definition.areaRadius
+                    val isCurrentlyInside = playerPos.dst(center) < radius
+                    val wasPreviouslyInside = playerWasInArea.getOrDefault(missionId, isCurrentlyInside)
+
+                    // The trigger fires on the frame the player is no longer inside, but was inside previously.
+                    if (wasPreviouslyInside && !isCurrentlyInside) {
+                        game.missionSystem.startMission(missionId)
                     }
 
-                    // Update the position every frame
-                    trigger.modelInstance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)
-
-                    trigger.isVisible = true
-                } else {
-                    trigger.isVisible = false
+                    // Update the state for the next frame.
+                    playerWasInArea[missionId] = isCurrentlyInside
                 }
+                TriggerType.ON_STAY_IN_AREA_FOR_TIME -> {
+                    val center = trigger.definition.areaCenter
+                    val radius = trigger.definition.areaRadius
+                    val requiredTime = trigger.definition.requiredTimeInArea
+
+                    // Check for mission activation
+                    if (playerPos.dst(center) < radius) {
+                        // Player is inside, increment the timer.
+                        val timer = stayInAreaTimers.getOrDefault(missionId, 0f) + Gdx.graphics.deltaTime
+                        stayInAreaTimers[missionId] = timer
+
+                        // If the timer reaches the required duration, start the mission.
+                        if (timer >= requiredTime) {
+                            game.missionSystem.startMission(missionId)
+                            stayInAreaTimers.remove(missionId) // Reset timer after mission starts
+                        }
+                    } else {
+                        // Player left the area, reset the timer.
+                        stayInAreaTimers[missionId] = 0f
+                    }
+                }
+
+                else -> { /* Other trigger types (like ON_TALK_TO_NPC) are handled elsewhere. */ }
+            }
+
+            val distanceToVisual = playerPos.dst(trigger.definition.areaCenter)
+            if (distanceToVisual < VISUAL_ACTIVATION_DISTANCE) {
+                val center = trigger.definition.areaCenter
+                // Find the ground height to place the visual correctly
+                var groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
+
+                // If no surface was found, default to y=0 to keep the trigger visible on the ground plane.
+                if (groundY < -500f) {
+                    groundY = 0f
+                }
+
+                // Update the position every frame
+                trigger.modelInstance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)
+
+                trigger.isVisible = true
+            } else {
+                trigger.isVisible = false
             }
         }
     }

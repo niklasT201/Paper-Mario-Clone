@@ -38,6 +38,8 @@ class TriggerEditorUI(
     private val enemySettingsTable: Table
     private val carSettingsTable: Table
     private val instructions: Label
+    private var stayInAreaTable: Table
+    private var requiredTimeField: TextField
 
     init {
         window.setSize(550f, 450f)
@@ -99,7 +101,12 @@ class TriggerEditorUI(
         carSettingsTable.add(Label("Target Car ID:", skin)).left().row()
         carSettingsTable.add(targetCarIdField).growX().row()
 
-        val settingsStack = Stack(areaSettingsTable, npcSettingsTable, itemSettingsTable, houseSettingsTable, enemySettingsTable, carSettingsTable)
+        stayInAreaTable = Table()
+        requiredTimeField = TextField("", skin)
+        stayInAreaTable.add(Label("Required Time (sec):", skin)).padRight(10f)
+        stayInAreaTable.add(requiredTimeField).width(100f)
+
+        val settingsStack = Stack(areaSettingsTable, npcSettingsTable, itemSettingsTable, houseSettingsTable, enemySettingsTable, carSettingsTable, stayInAreaTable)
         contentTable.add(settingsStack).colspan(2).growX().padTop(10f).row()
 
         instructions = Label("L-Click to set position, Scroll to resize.", skin, "small")
@@ -166,6 +173,8 @@ class TriggerEditorUI(
         targetHouseIdField.text = mission.startTrigger.targetHouseId ?: ""
         targetCarIdField.text = mission.startTrigger.targetCarId ?: ""
 
+        requiredTimeField.text = mission.startTrigger.requiredTimeInArea.toString()
+
         updateVisibleFields()
     }
 
@@ -173,6 +182,7 @@ class TriggerEditorUI(
         val mission = currentMissionDef ?: return
 
         mission.startTrigger.type = TriggerType.valueOf(triggerTypeSelectBox.selected)
+        mission.startTrigger.requiredTimeInArea = requiredTimeField.text.toFloatOrNull() ?: 10f
         mission.startTrigger.areaRadius = radiusField.text.toFloatOrNull() ?: TriggerSystem.VISUAL_RADIUS
         mission.startTrigger.targetNpcId = targetNpcIdField.text.ifBlank { null }
         mission.startTrigger.dialogId = dialogIdSelectBox.selected
@@ -190,7 +200,15 @@ class TriggerEditorUI(
     private fun updateVisibleFields() {
         val selectedType = try { TriggerType.valueOf(triggerTypeSelectBox.selected) } catch (e: Exception) { TriggerType.ON_ENTER_AREA }
 
-        areaSettingsTable.isVisible = (selectedType == TriggerType.ON_ENTER_AREA)
+        // Area settings are now used by multiple types
+        areaSettingsTable.isVisible = (selectedType == TriggerType.ON_ENTER_AREA ||
+            selectedType == TriggerType.ON_LEAVE_AREA ||
+            selectedType == TriggerType.ON_STAY_IN_AREA_FOR_TIME)
+
+        // Show the new time field only for its specific trigger type
+        stayInAreaTable.isVisible = (selectedType == TriggerType.ON_STAY_IN_AREA_FOR_TIME)
+
+        // Your existing logic for other tables is correct
         npcSettingsTable.isVisible = (selectedType == TriggerType.ON_TALK_TO_NPC)
         itemSettingsTable.isVisible = (selectedType == TriggerType.ON_COLLECT_ITEM)
         houseSettingsTable.isVisible = (selectedType == TriggerType.ON_ENTER_HOUSE)
@@ -200,6 +218,7 @@ class TriggerEditorUI(
         // Hide all tables if it's the "all enemies eliminated" trigger
         if (selectedType == TriggerType.ON_ALL_ENEMIES_ELIMINATED) {
             areaSettingsTable.isVisible = false
+            stayInAreaTable.isVisible = false // Also hide the new table
             npcSettingsTable.isVisible = false
             itemSettingsTable.isVisible = false
             houseSettingsTable.isVisible = false
@@ -207,7 +226,9 @@ class TriggerEditorUI(
             carSettingsTable.isVisible = false
         }
 
-        instructions.isVisible = (selectedType == TriggerType.ON_ENTER_AREA)
+        instructions.isVisible = (selectedType == TriggerType.ON_ENTER_AREA ||
+            selectedType == TriggerType.ON_LEAVE_AREA ||
+            selectedType == TriggerType.ON_STAY_IN_AREA_FOR_TIME)
 
         window.pack()
     }

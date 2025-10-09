@@ -233,10 +233,26 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             for ((missionId, missionDef) in allMissions) {
                 if (gameState.completedMissionIds.contains(missionId)) continue
 
-                val prerequisitesMet = missionDef.prerequisites.all { prerequisiteId ->
-                    gameState.completedMissionIds.contains(prerequisiteId)
-                }
+                val prerequisitesMet = missionDef.prerequisites.all { gameState.completedMissionIds.contains(it) }
                 if (!prerequisitesMet) continue // If not, skip to the next mission.
+
+                if (missionDef.availableStartTime != null && missionDef.availableEndTime != null) {
+                    val currentTimeProgress = game.lightingManager.getDayNightCycle().getDayProgress()
+                    val startTime = missionDef.availableStartTime!!
+                    val endTime = missionDef.availableEndTime!!
+
+                    val isAvailable = if (startTime <= endTime) {
+                        // Normal case: e.g., 08:00 (0.33) to 17:00 (0.71)
+                        currentTimeProgress in startTime..endTime
+                    } else {
+                        // Overnight case: e.g., 22:00 (0.91) to 06:00 (0.25)
+                        currentTimeProgress >= startTime || currentTimeProgress <= endTime
+                    }
+
+                    if (!isAvailable) {
+                        continue // Skip this mission, it's outside its time window.
+                    }
+                }
 
                 val trigger = missionDef.startTrigger
                 var shouldStartMission = false

@@ -40,7 +40,9 @@ data class MissionDefinition(
     val objectives: MutableList<MissionObjective> = mutableListOf(),
     val rewards: MutableList<MissionReward> = mutableListOf(),
     val startTrigger: MissionTrigger = MissionTrigger(),
-    val modifiers: MissionModifiers = MissionModifiers()
+    val modifiers: MissionModifiers = MissionModifiers(),
+    var availableStartTime: Float? = null, // 0.0 (midnight) to 1.0 (end of day)
+    var availableEndTime: Float? = null    // 0.0 to 1.0
 )
 
 // --- Mission State (Runtime Data) ---
@@ -139,7 +141,9 @@ enum class TriggerType {
     ON_ENTER_HOUSE,
     ON_HURT_ENEMY,
     ON_ENTER_CAR,
-    ON_ALL_ENEMIES_ELIMINATED
+    ON_ALL_ENEMIES_ELIMINATED,
+    ON_LEAVE_AREA,
+    ON_STAY_IN_AREA_FOR_TIME
 }
 
 data class MissionTrigger(
@@ -153,7 +157,9 @@ data class MissionTrigger(
     var itemType: ItemType? = null,     // For ON_COLLECT_ITEM
     var itemCount: Int = 1,             // For ON_COLLECT_ITEM
     var targetHouseId: String? = null,  // For ON_ENTER_HOUSE
-    var targetCarId: String? = null     // For ON_ENTER_CAR
+    var targetCarId: String? = null,     // For ON_ENTER_CAR
+
+    var requiredTimeInArea: Float = 10f
 )
 
 // --- Mission Modifiers (Special Rules) ---

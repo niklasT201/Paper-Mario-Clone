@@ -58,6 +58,21 @@ class MissionEditorUI(
     private val areaYField: TextField
     private val areaZField: TextField
 
+    private lateinit var timeRestrictedCheckbox: CheckBox
+    private lateinit var timeSliderTable: Table
+    private lateinit var startTimeSlider: Slider
+    private lateinit var endTimeSlider: Slider
+    private lateinit var startTimeLabel: Label
+    private lateinit var endTimeLabel: Label
+
+    private val tempCycle = DayNightCycle()
+    private fun updateTimeLabels() {
+        tempCycle.setDayProgress(startTimeSlider.value)
+        startTimeLabel.setText("Start: ${tempCycle.getTimeString()}")
+        tempCycle.setDayProgress(endTimeSlider.value)
+        endTimeLabel.setText("End: ${tempCycle.getTimeString()}")
+    }
+
     init {
         window.isMovable = true
         window.isModal = false
@@ -126,6 +141,46 @@ class MissionEditorUI(
         editorDetailsTable.add(Label("Title:", skin)).left(); editorDetailsTable.add(missionTitleField).growX().row()
         editorDetailsTable.add(Label("Description:", skin)).left().top(); editorDetailsTable.add(ScrollPane(missionDescriptionArea, skin)).growX().height(60f).row()
         editorDetailsTable.add(Label("Prerequisites (IDs):", skin)).left(); editorDetailsTable.add(prerequisitesField).growX().row()
+        timeRestrictedCheckbox = CheckBox(" Time Restricted", skin)
+        editorDetailsTable.add(timeRestrictedCheckbox).colspan(2).left().padTop(8f).row()
+
+        timeSliderTable = Table()
+        startTimeSlider = Slider(0f, 1f, 0.01f, false, skin)
+        endTimeSlider = Slider(0f, 1f, 0.01f, false, skin)
+        startTimeLabel = Label("Start: 00:00", skin, "small")
+        endTimeLabel = Label("End: 00:00", skin, "small")
+
+        val tempCycle = DayNightCycle() // Helper to convert progress to time string
+        fun updateTimeLabels() {
+            tempCycle.setDayProgress(startTimeSlider.value)
+            startTimeLabel.setText("Start: ${tempCycle.getTimeString()}")
+            tempCycle.setDayProgress(endTimeSlider.value)
+            endTimeLabel.setText("End: ${tempCycle.getTimeString()}")
+        }
+
+        startTimeSlider.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) = updateTimeLabels()
+        })
+        endTimeSlider.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) = updateTimeLabels()
+        })
+
+        timeSliderTable.add(startTimeLabel).width(100f)
+        timeSliderTable.add(startTimeSlider).growX()
+        timeSliderTable.row()
+        timeSliderTable.add(endTimeLabel).width(100f)
+        timeSliderTable.add(endTimeSlider).growX()
+
+        editorDetailsTable.add(timeSliderTable).colspan(2).fillX().padLeft(20f).row()
+
+        timeRestrictedCheckbox.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                timeSliderTable.isVisible = timeRestrictedCheckbox.isChecked
+                // The main editor window will now keep its size.
+            }
+        })
+        editorDetailsTable.add(Label("Scope:", skin)).left(); editorDetailsTable.add(scopeSelectBox).row()
+
         val buttonsTable = Table()
         val showFlowButton = TextButton("View Mission Flow", skin)
         val editModifiersButton = TextButton("Edit Modifiers", skin)
@@ -327,6 +382,15 @@ class MissionEditorUI(
         missionTitleField.text = mission.title
         missionDescriptionArea.text = mission.description
         prerequisitesField.text = mission.prerequisites.joinToString(", ")
+
+        timeRestrictedCheckbox.isChecked = mission.availableStartTime != null
+        timeSliderTable.isVisible = timeRestrictedCheckbox.isChecked
+        startTimeSlider.value = mission.availableStartTime ?: 0.25f
+        endTimeSlider.value = mission.availableEndTime ?: 0.9f
+
+        // Now you can just call the shared helper function
+        updateTimeLabels()
+
         scopeSelectBox.selected = mission.scope.name
 
         refreshObjectiveWidgets()
@@ -350,6 +414,14 @@ class MissionEditorUI(
         mission.title = missionTitleField.text.ifBlank { "Untitled Mission" }
         mission.description = missionDescriptionArea.text
         mission.prerequisites = prerequisitesField.text.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
+        if (timeRestrictedCheckbox.isChecked) {
+            mission.availableStartTime = startTimeSlider.value
+            mission.availableEndTime = endTimeSlider.value
+        } else {
+            mission.availableStartTime = null
+            mission.availableEndTime = null
+        }
+
         mission.scope = MissionScope.valueOf(scopeSelectBox.selected)
 
         missionSystem.saveMission(mission)
@@ -615,6 +687,8 @@ class MissionEditorUI(
             TriggerType.ON_HURT_ENEMY -> "Hurt Enemy with ID: ${trigger.targetNpcId}"
             TriggerType.ON_ENTER_CAR -> "Enter Car with ID: ${trigger.targetCarId}"
             TriggerType.ON_ALL_ENEMIES_ELIMINATED -> "All enemies in the scene are eliminated"
+            TriggerType.ON_LEAVE_AREA -> "Leave area at (${trigger.areaCenter.x.toInt()}, ${trigger.areaCenter.z.toInt()})"
+            TriggerType.ON_STAY_IN_AREA_FOR_TIME -> "Stay in area at (${trigger.areaCenter.x.toInt()}, ${trigger.areaCenter.z.toInt()}) for ${trigger.requiredTimeInArea}s"
         }
         container.add(Label("$indent$triggerText", skin, "small")).left().row()
 
@@ -1080,7 +1154,6 @@ class MissionEditorUI(
         hasTimerCheckbox.addListener(object: ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 timerTable.isVisible = hasTimerCheckbox.isChecked
-                dialog.pack()
             }
         })
 
