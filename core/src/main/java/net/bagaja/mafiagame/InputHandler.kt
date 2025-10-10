@@ -599,6 +599,12 @@ class InputHandler(
             }
 
             override fun keyDown(keycode: Int): Boolean {
+                // Handle respawn input, which should work even if other UI is active
+                if (keycode == Input.Keys.R && game.playerSystem.isDead()) {
+                    game.playerSystem.respawn()
+                    return true // Consume the input
+                }
+
                 // If the user is typing in a UI text field, DO NOT process any game keybinds.
                 if (uiManager.getStage().keyboardFocus != null) {
                     return false

@@ -938,6 +938,16 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         activeMission = null
     }
 
+    fun failMissionOnPlayerDeath() {
+        if (activeMission == null) {
+            println("Player died, but no mission was active.")
+            return
+        }
+
+        println("Player died during mission '${activeMission?.definition?.title}'. Failing mission.")
+        failMission() // We can reuse your existing failMission logic!
+    }
+
     private fun failMission() {
         // --- NEW LOGIC: CHECK FOR ON_MISSION_FAILED TRIGGERS ---
         val failedMissionId = activeMission?.definition?.id
@@ -964,9 +974,6 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 }
             }
         }
-
-        game.uiManager.showTemporaryMessage("Mission Failed!")
-        // Use the existing endMission logic to handle cleanup
     }
 
     fun playerExitedCar(carId: String) {

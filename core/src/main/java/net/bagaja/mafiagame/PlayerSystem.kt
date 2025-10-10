@@ -66,11 +66,22 @@ class PlayerSystem {
     private var money: Int = 0
     private lateinit var sceneManager: SceneManager
 
+    private var respawnPosition = Vector3(9f, 2f, 9f)
+    private var isDead = false
+
+    fun isDead(): Boolean = isDead
+
     fun takeDamage(amount: Float) {
+        // If the game is in editor mode, completely ignore all incoming damage.
+        if (sceneManager.game.isEditorMode) {
+            return
+        }
+
         // Check for the active mission modifier
         val modifiers = sceneManager.game.missionSystem.activeModifiers
 
         // Check for invincibility first
+        if (isDead) return
         if (modifiers?.setUnlimitedHealth == true) {
             println("Player is invincible due to mission modifier. Damage blocked.")
             return
@@ -78,6 +89,7 @@ class PlayerSystem {
 
         var finalDamage = amount
 
+        // Apply one-hit kill modifier from enemies
         if (modifiers?.enemiesHaveOneHitKills == true) {
             finalDamage = this.maxHealth // Instantly kill the player
         }
@@ -91,6 +103,7 @@ class PlayerSystem {
         }
 
         if (isDriving) return
+
         if (health > 0) {
             health -= finalDamage // Use the final calculated damage
             println("Player took damage! Health is now: ${health.toInt()}")
@@ -98,9 +111,63 @@ class PlayerSystem {
                 health = 0f
                 println("Player has been defeated!")
                 // You can add logic here for player death/respawn
+                startDeathSequence()
             }
         }
     }
+
+    private fun startDeathSequence() {
+        if (isDead || sceneManager.game.isEditorMode) return
+
+        println("--- PLAYER DEATH SEQUENCE INITIATED ---")
+        isDead = true
+
+        state = PlayerState.IDLE
+        throwChargeTime = 0f
+        isReloading = false
+        reloadTimer = 0f
+
+        // 1. Visual Feedback: Apply a strong "Film Noir" or "Black & White" shader effect
+        sceneManager.game.shaderEffectManager.setRoomOverride(ShaderEffect.FILM_NOIR)
+
+        // 2. Gameplay Feedback: Fail the current mission
+        sceneManager.game.missionSystem.failMissionOnPlayerDeath()
+
+        // 3. UI Feedback: Show a "YOU DIED" message
+        sceneManager.game.uiManager.showDeathScreen()
+    }
+    fun respawn() {
+        if (!isDead) return
+
+        println("--- RESPAWNING PLAYER ---")
+
+        // 1. Reset player state
+        health = maxHealth
+        isDead = false
+        isOnFire = false // Extinguish fire on death
+
+        equipWeapon(WeaponType.UNARMED)
+
+        // 2. Reset visuals and UI
+        sceneManager.game.shaderEffectManager.clearRoomOverride()
+        sceneManager.game.uiManager.hideDeathScreen()
+        sceneManager.cameraManager.stopShake()
+        sceneManager.game.uiManager.showMoneyUpdate(getMoney())
+
+        // 3. Move player to respawn position
+        if (sceneManager.currentScene != SceneType.WORLD) {
+            sceneManager.transitionToWorld()
+            // We need to delay the position set until after the transition
+            Gdx.app.postRunnable {
+                setPosition(respawnPosition)
+                sceneManager.cameraManager.resetAndSnapToPlayer(respawnPosition, false)
+            }
+        } else {
+            setPosition(respawnPosition)
+            sceneManager.cameraManager.resetAndSnapToPlayer(respawnPosition, false)
+        }
+    }
+
 
     fun getHealthPercentage(): Float {
         if (maxHealth <= 0) return 0f
@@ -451,6 +518,8 @@ class PlayerSystem {
     }
 
     private fun handleWeaponInput(deltaTime: Float, sceneManager: SceneManager) {
+        if (isDead) return
+
         isHoldingShootButton = Gdx.input.isButtonPressed(Input.Buttons.LEFT) &&
             equippedWeapon.actionType == WeaponActionType.SHOOTING
 
@@ -910,6 +979,8 @@ class PlayerSystem {
     }
 
     fun switchToNextWeapon() {
+        if (isDead) return
+
         if (sceneManager.game.missionSystem.activeModifiers?.disableWeaponSwitching == true) {
             println("Weapon switching is disabled for this mission.")
             return // Exit the function immediately, preventing the switch.
@@ -1114,6 +1185,8 @@ class PlayerSystem {
     }
 
     fun handleMovement(deltaTime: Float, sceneManager: SceneManager, allCars: Array<GameCar>, particleSystem: ParticleSystem): Boolean {
+        if (isDead) return false
+
         return if (isDriving) {
             handleCarMovement(deltaTime, sceneManager, allCars)
         } else {
@@ -1502,7 +1575,7 @@ class PlayerSystem {
         }
 
         // Check for blood pool collision and update the footprint timer
-        if (!isDriving) { // Only check when on foot
+        if (!isDriving && !isDead) { // Only check when on foot
             checkBloodPoolCollision(sceneManager)
             if (bloodyFootprintsTimer > 0f) {
                 bloodyFootprintsTimer -= deltaTime

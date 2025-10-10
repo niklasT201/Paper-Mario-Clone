@@ -105,7 +105,7 @@ class TargetingIndicatorSystem {
             (equippedWeapon.actionType == WeaponActionType.MELEE && equippedWeapon != WeaponType.UNARMED)
 
         // First, check all conditions for the indicator to be visible.
-        if (!isEnabledByUser || !shouldBeVisible) {
+        if (!isEnabledByUser || !shouldBeVisible || playerSystem.isDead()) {
             isVisible = false
             return
         }

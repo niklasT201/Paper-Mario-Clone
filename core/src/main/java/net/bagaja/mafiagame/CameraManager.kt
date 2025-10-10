@@ -17,6 +17,13 @@ class CameraShake {
     private var timer = 0f
     private val offset = Vector3()
 
+    fun reset() {
+        duration = 0f
+        intensity = 0f
+        timer = 0f
+        offset.set(0f, 0f, 0f)
+    }
+
     fun start(duration: Float, intensity: Float) {
         // Calculate the "effective" intensity of the shake that is currently active.
         val progress = if (this.duration > 0f) timer / this.duration else 0f
@@ -121,6 +128,10 @@ class CameraManager {
 
     // State to track what we are following
     private var isFollowingCar = false
+
+    fun stopShake() {
+        cameraShake.reset()
+    }
 
     fun initialize() {
         // Setup 3D camera

@@ -281,6 +281,10 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun handleInteractionInput() {
+        if (playerSystem.isDead()) {
+            return
+        }
+
         // Prevent interaction while a transition is active
         if (sceneManager.isTransitioning()) {
             return

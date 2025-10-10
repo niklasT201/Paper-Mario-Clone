@@ -160,6 +160,9 @@ class UIManager(
     private var isWeaponNotificationActive = false
     private data class WeaponPickupInfo(val weaponType: WeaponType, val ammoCount: Int, var stackCount: Int = 1)
 
+    private lateinit var deathOverlay: Image
+    private lateinit var deathTable: Table
+
     private var currentViolenceLevel = ViolenceLevel.FULL_VIOLENCE
     var currentEditorMode = EditorMode.WORLD
     var selectedMissionForEditing: MissionDefinition? = null
@@ -282,6 +285,60 @@ class UIManager(
         missionEditorUI = MissionEditorUI(skin, stage, game.missionSystem, this)
         triggerEditorUI = TriggerEditorUI(skin, stage, game.missionSystem, game.triggerSystem, game.sceneManager, this)
         dialogueEditorUI = DialogueEditorUI(skin, stage, this, dialogueManager)
+
+        setupDeathScreen()
+    }
+
+    private fun setupDeathScreen() {
+        // 1. Create a semi-transparent red overlay
+        val pixmap = Pixmap(1, 1, Pixmap.Format.RGBA8888)
+        pixmap.setColor(0.5f, 0f, 0f, 0.5f) // Dark red, 50% transparent
+        pixmap.fill()
+        deathOverlay = Image(Texture(pixmap))
+        pixmap.dispose()
+        deathOverlay.setFillParent(true)
+        deathOverlay.isVisible = false
+        stage.addActor(deathOverlay)
+
+        // 2. Create the main table for the text and button
+        deathTable = Table()
+        deathTable.setFillParent(true)
+        deathTable.center()
+        deathTable.isVisible = false
+
+        val titleLabel = Label("YOU DIED", skin, "title")
+        titleLabel.setFontScale(2.5f)
+        titleLabel.color = Color.valueOf("#7D0000") // Dark blood red
+
+        val subtitleLabel = Label("Press [R] to Respawn", skin, "default")
+        subtitleLabel.color = Color.LIGHT_GRAY
+
+        deathTable.add(titleLabel).padBottom(20f).row()
+        deathTable.add(subtitleLabel)
+
+        stage.addActor(deathTable)
+    }
+
+    fun showDeathScreen() {
+        deathOverlay.isVisible = true
+        deathTable.isVisible = true
+
+        deathOverlay.color.a = 0f
+        deathTable.color.a = 0f
+
+        deathOverlay.addAction(Actions.fadeIn(1.5f, Interpolation.fade))
+        deathTable.addAction(Actions.fadeIn(2.0f, Interpolation.fade))
+    }
+
+    fun hideDeathScreen() {
+        deathOverlay.addAction(Actions.sequence(
+            Actions.fadeOut(0.5f),
+            Actions.visible(false)
+        ))
+        deathTable.addAction(Actions.sequence(
+            Actions.fadeOut(0.5f),
+            Actions.visible(false)
+        ))
     }
 
     fun toggleDialogueEditor() {
@@ -1606,7 +1663,7 @@ class UIManager(
         }
 
         // Update HUD visibility and values based on game state
-        val shouldShowHud = !game.isEditorMode && !isPauseMenuVisible()
+        val shouldShowHud = !game.isEditorMode && !isPauseMenuVisible() && !game.playerSystem.isDead()
         wantedPosterHudTable.isVisible = shouldShowHud && currentHudStyle == HudStyle.WANTED_POSTER
         minimalistHudTable.isVisible = shouldShowHud && currentHudStyle == HudStyle.MINIMALIST
 

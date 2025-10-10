@@ -692,6 +692,7 @@ class MissionEditorUI(
             TriggerType.ON_DESTROY_CAR -> "Destroy Car with ID: ${trigger.targetCarId}"
             TriggerType.ON_DESTROY_OBJECT -> "Destroy Object with ID: ${trigger.targetNpcId}" // Reusing the NPC ID field
             TriggerType.ON_MONEY_BELOW_THRESHOLD -> "Player money drops below: $${trigger.moneyThreshold}"
+            TriggerType.ON_MISSION_FAILED -> "Previous mission failed: ${trigger.targetNpcId}" // Reusing the NPC ID field for the mission ID
         }
         container.add(Label("$indent$triggerText", skin, "small")).left().row()
 

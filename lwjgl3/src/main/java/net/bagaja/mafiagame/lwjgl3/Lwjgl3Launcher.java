@@ -67,7 +67,6 @@ public class Lwjgl3Launcher {
 // save shaders and visual settings
 // npcs outside missions having dialogs, enemies too
 // visual screen for finished mission
-// death resets mission
 // nickelodeons having real short films
 // visual that a character wants to talk
 // weather events
