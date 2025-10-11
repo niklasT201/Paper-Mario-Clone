@@ -12,27 +12,28 @@ import net.bagaja.mafiagame.UIManager.Tool
 
 class InputHandler(
     private val game: MafiaGame,
-    private val uiManager: UIManager,
-    private val cameraManager: CameraManager,
-    private val blockSystem: BlockSystem,
-    private val objectSystem: ObjectSystem,
-    private val itemSystem: ItemSystem,
-    private val carSystem: CarSystem,
-    private val houseSystem: HouseSystem,
-    private val backgroundSystem: BackgroundSystem,
-    private val parallaxSystem: ParallaxBackgroundSystem,
-    private val interiorSystem: InteriorSystem,
-    private val enemySystem: EnemySystem,
-    private val npcSystem: NPCSystem,
-    private val particleSystem: ParticleSystem,
-    private val spawnerSystem: SpawnerSystem,
-    private val teleporterSystem: TeleporterSystem,
-    private val sceneManager: SceneManager,
-    private val roomTemplateManager: RoomTemplateManager,
-    private val shaderEffectManager: ShaderEffectManager,
-    private val carPathSystem: CarPathSystem,
-    private val characterPathSystem: CharacterPathSystem
+    private val uiManager: UIManager
 ) {
+    lateinit var cameraManager: CameraManager
+    lateinit var blockSystem: BlockSystem
+    lateinit var objectSystem: ObjectSystem
+    lateinit var itemSystem: ItemSystem
+    lateinit var carSystem: CarSystem
+    lateinit var houseSystem: HouseSystem
+    lateinit var backgroundSystem: BackgroundSystem
+    lateinit var parallaxSystem: ParallaxBackgroundSystem
+    lateinit var interiorSystem: InteriorSystem
+    lateinit var enemySystem: EnemySystem
+    lateinit var npcSystem: NPCSystem
+    lateinit var particleSystem: ParticleSystem
+    lateinit var spawnerSystem: SpawnerSystem
+    lateinit var teleporterSystem: TeleporterSystem
+    lateinit var sceneManager: SceneManager
+    lateinit var roomTemplateManager: RoomTemplateManager
+    lateinit var shaderEffectManager: ShaderEffectManager
+    lateinit var carPathSystem: CarPathSystem
+    lateinit var characterPathSystem: CharacterPathSystem
+
     private var isRightMousePressed = false
     private var isLeftMousePressed = false
     private var lastMouseX = 0f

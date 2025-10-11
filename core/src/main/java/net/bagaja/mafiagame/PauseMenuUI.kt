@@ -32,6 +32,7 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val 
     private lateinit var decorativeElements: Array<Image>
     private var isVisible = false
     private var animationTime = 0f
+    private lateinit var visualSettingsButton: TextButton
 
     fun initialize() {
         createSmokyOverlay()
@@ -68,6 +69,12 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val 
         overlay.setFillParent(true)
         overlay.isVisible = false
         stage.addActor(overlay)
+    }
+
+    fun setSettingsButtonVisibility(visible: Boolean) {
+        if (::visualSettingsButton.isInitialized) {
+            visualSettingsButton.isVisible = visible
+        }
     }
 
     private fun createNewspaperMenu() {
@@ -112,7 +119,7 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val 
         })
         buttonsTable.add(resumeButton).fillX().height(60f).padBottom(10f).row()
 
-        val visualSettingsButton = createVintageButton("👁️ VISUAL SETTINGS 👁️", Color.valueOf("#654321"))
+        visualSettingsButton = createVintageButton("👁️ VISUAL SETTINGS 👁️", Color.valueOf("#654321"))
         visualSettingsButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 uiManager.showVisualSettings()
@@ -124,20 +131,20 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val 
         val saveButton = createVintageButton("💰 SAVE GAME 💰", Color.valueOf("#2F4F2F"))
         saveButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
-                saveLoadSystem.saveGame()
+                saveLoadSystem.saveGame(uiManager.game.currentSaveFileName)
                 hide()
             }
         })
         buttonsTable.add(saveButton).fillX().height(60f).padBottom(10f).row()
 
-        val loadButton = createVintageButton("📂 LOAD GAME 📂", Color.valueOf("#654321"))
-        loadButton.addListener(object : ChangeListener() {
+        // --- NEW BUTTON REPLACES "LOAD GAME" ---
+        val returnToMenuButton = createVintageButton("↩️ RETURN TO MENU ↩️", Color.valueOf("#4682B4")) // Steel Blue
+        returnToMenuButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
-                saveLoadSystem.loadGame()
-                hide()
+                uiManager.game.returnToStartMenu()
             }
         })
-        buttonsTable.add(loadButton).fillX().height(60f).padBottom(10f).row()
+        buttonsTable.add(returnToMenuButton).fillX().height(60f).padBottom(10f).row()
 
         val quitButton = createVintageButton("🚪 QUIT TO DESKTOP 🚪", Color.valueOf("#8B0000"))
         quitButton.addListener(object : ChangeListener() {

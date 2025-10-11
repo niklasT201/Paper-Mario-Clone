@@ -1,6 +1,7 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.files.FileHandle
 import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.math.Vector3
@@ -11,6 +12,10 @@ import com.badlogic.gdx.utils.Array as GdxArray
 import com.badlogic.gdx.utils.ObjectMap
 
 class SaveLoadSystem(private val game: MafiaGame) {
+    companion object {
+        const val EDITOR_SAVE_FILE = "savegame.json"
+        const val PLAYER_SAVES_DIR = ".mafiagame/saves/" // This will be in the user's home directory
+    }
 
     private val json = Json().apply {
         setOutputType(JsonWriter.OutputType.json)
@@ -62,10 +67,34 @@ class SaveLoadSystem(private val game: MafiaGame) {
             }
         })
     }
-    private val saveFile = Gdx.files.local("savegame.json")
 
-    fun saveGame() {
-        println("--- SAVING GAME STATE ---")
+    private fun getPlayerSaveFile(fileName: String): FileHandle {
+        return Gdx.files.external("$PLAYER_SAVES_DIR$fileName")
+    }
+
+    private fun getEditorSaveFile(): FileHandle {
+        return Gdx.files.local(EDITOR_SAVE_FILE)
+    }
+
+    fun listSaveGames(): List<String> {
+        val saveDir = Gdx.files.external(PLAYER_SAVES_DIR)
+        if (!saveDir.exists() || !saveDir.isDirectory) {
+            return emptyList()
+        }
+        return saveDir.list(".json").map { it.name() }
+    }
+
+    fun getMostRecentSave(): String? {
+        val saveDir = Gdx.files.external(PLAYER_SAVES_DIR)
+        if (!saveDir.exists() || !saveDir.isDirectory) {
+            return null
+        }
+        return saveDir.list(".json").maxByOrNull { it.lastModified() }?.name()
+    }
+
+    fun saveGame(fileName: String?) {
+        val saveFile = if (fileName == null) getEditorSaveFile() else getPlayerSaveFile(fileName)
+        println("--- SAVING GAME STATE to ${saveFile.path()} ---")
         try {
             val state = GameSaveState()
             val sm = game.sceneManager
@@ -269,11 +298,15 @@ class SaveLoadSystem(private val game: MafiaGame) {
         }
     }
 
-    fun loadGame() {
+    fun loadGame(fileName: String?): Boolean {
+        val saveFile = if (fileName == null) getEditorSaveFile() else getPlayerSaveFile(fileName)
+
         if (!saveFile.exists()) {
-            println("No save file found."); game.uiManager.showTemporaryMessage("No save file found!"); return
+            println("No save file found at ${saveFile.path()}.");
+            if (fileName != null) game.uiManager.showTemporaryMessage("Save file not found!")
+            return false // Indicate failure
         }
-        println("--- LOADING GAME STATE ---")
+        println("--- LOADING GAME STATE from ${saveFile.path()} ---")
         try {
             val state = json.fromJson(GameSaveState::class.java, saveFile)
             val sm = game.sceneManager
@@ -557,11 +590,12 @@ class SaveLoadSystem(private val game: MafiaGame) {
             // 5. Finalize
             game.cameraManager.resetAndSnapToPlayer(state.playerState.position, false)
             println("--- GAME LOADED SUCCESSFULLY ---")
-            game.uiManager.showTemporaryMessage("Game Loaded")
-
+            if (fileName != null) game.uiManager.showTemporaryMessage("Game Loaded")
+            return true // Indicate success
         } catch (e: Exception) {
             println("--- ERROR LOADING GAME: ${e.message} ---"); e.printStackTrace()
             game.uiManager.showTemporaryMessage("Error: Save file corrupted!")
+            return false // Indicate failure
         }
     }
 
@@ -581,5 +615,100 @@ class SaveLoadSystem(private val game: MafiaGame) {
                 game.objectSystem.removeLightSource(light.id)
             }
         }
+    }
+
+    fun startNewGame(newSaveName: String): Boolean {
+        println("--- STARTING NEW GAME: $newSaveName ---")
+        try {
+            val editorFile = getEditorSaveFile()
+            if (!editorFile.exists()) {
+                println("ERROR: Cannot start new game. Master editor file '${EDITOR_SAVE_FILE}' not found.")
+                return false
+            }
+
+            // 1. Load the master world state from the editor file.
+            val masterState = json.fromJson(GameSaveState::class.java, editorFile)
+
+            // 2. Create a fresh GameSaveState for the new player.
+            val newPlayerState = GameSaveState()
+
+            // 3. Copy ONLY the world-related data from the master file.
+            newPlayerState.worldState = masterState.worldState
+            newPlayerState.carPathState = masterState.carPathState
+            newPlayerState.characterPathState = masterState.characterPathState
+            // PlayerState and MissionState will remain as their default, empty versions.
+
+            // 4. Save this new combined state to the player's new save file.
+            val newPlayerSaveFile = getPlayerSaveFile(newSaveName)
+            newPlayerSaveFile.writeString(json.prettyPrint(newPlayerState), false)
+
+            println("New game '$newSaveName' created successfully.")
+            return true
+        } catch (e: Exception) {
+            println("--- ERROR CREATING NEW GAME: ${e.message} ---"); e.printStackTrace()
+            return false
+        }
+    }
+
+    fun checkForWorldUpdateAndLoad(fileName: String): Boolean {
+        val playerFile = getPlayerSaveFile(fileName)
+        val editorFile = getEditorSaveFile()
+
+        if (!playerFile.exists()) {
+            println("Player save file does not exist.")
+            return false
+        }
+        if (!editorFile.exists()) {
+            println("Editor master file does not exist. Cannot check for updates.")
+            // Proceed with normal load
+            return loadGame(fileName)
+        }
+
+        // Check if the editor file has been modified more recently than the player file
+        if (editorFile.lastModified() > playerFile.lastModified()) {
+            println("World update detected! Merging world data from '${editorFile.name()}' into '${playerFile.name()}'.")
+            try {
+                // 1. Load the player's current progress
+                val playerStateData = json.fromJson(GameSaveState::class.java, playerFile)
+                val playerProgress = playerStateData.playerState
+                val missionProgress = playerStateData.missionState
+
+                // 2. Load the new world data from the editor file
+                val masterStateData = json.fromJson(GameSaveState::class.java, editorFile)
+                val newWorld = masterStateData.worldState
+                val newCarPaths = masterStateData.carPathState
+                val newCharPaths = masterStateData.characterPathState
+
+                // Check if the player's old position is still valid in the new world.
+                // This is a simplified check. A real game might need more complex validation.
+                val playerOldPos = playerProgress.position
+                val blockAtOldPos = newWorld.blocks.find { b -> b.position.dst(playerOldPos) < game.blockSize / 2f }
+                if (blockAtOldPos != null && blockAtOldPos.blockType.hasCollision) {
+                    println("WARNING: Player's saved position is now inside a solid block in the new world. Resetting player to default spawn.")
+                    playerProgress.position.set(9f, 2f, 9f) // Reset to a known safe spot
+                }
+
+                // 3. Create a new, merged state
+                val mergedState = GameSaveState(
+                    playerState = playerProgress,
+                    missionState = missionProgress,
+                    worldState = newWorld,
+                    carPathState = newCarPaths,
+                    characterPathState = newCharPaths
+                )
+
+                // 4. Overwrite the player's save file with the merged data
+                playerFile.writeString(json.prettyPrint(mergedState), false)
+                println("Merge complete. Player progress has been preserved with the updated world.")
+
+            } catch (e: Exception) {
+                println("--- ERROR during world update merge: ${e.message} ---"); e.printStackTrace()
+                // If merge fails, try to load the old save anyway.
+                return loadGame(fileName)
+            }
+        }
+
+        // Now, load the (potentially newly merged) save file.
+        return loadGame(fileName)
     }
 }

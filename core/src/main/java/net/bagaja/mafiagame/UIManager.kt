@@ -53,23 +53,24 @@ data class HudInfoElement(val key: HudInfoKey, val actor: Actor, var isVisible: 
 
 class UIManager(
     val game: MafiaGame,
-    private val blockSystem: BlockSystem,
-    private val objectSystem: ObjectSystem,
-    private val itemSystem: ItemSystem,
-    private val carSystem: CarSystem,
-    private val houseSystem: HouseSystem,
-    private val backgroundSystem: BackgroundSystem,
-    private val parallaxSystem: ParallaxBackgroundSystem,
-    private val roomTemplateManager: RoomTemplateManager,
-    private val interiorSystem: InteriorSystem,
-    private val lightingManager: LightingManager,
-    private val shaderEffectManager: ShaderEffectManager,
-    private val enemySystem: EnemySystem,
-    private val npcSystem: NPCSystem,
-    private val particleSystem: ParticleSystem,
-    private val spawnerSystem: SpawnerSystem,
-    private val dialogueManager: DialogueManager
+    var shaderEffectManager: ShaderEffectManager
 ) {
+    lateinit var blockSystem: BlockSystem
+    lateinit var objectSystem: ObjectSystem
+    lateinit var itemSystem: ItemSystem
+    lateinit var carSystem: CarSystem
+    lateinit var houseSystem: HouseSystem
+    lateinit var backgroundSystem: BackgroundSystem
+    lateinit var parallaxSystem: ParallaxBackgroundSystem
+    lateinit var roomTemplateManager: RoomTemplateManager
+    lateinit var interiorSystem: InteriorSystem
+    lateinit var lightingManager: LightingManager
+    lateinit var enemySystem: EnemySystem
+    lateinit var npcSystem: NPCSystem
+    lateinit var particleSystem: ParticleSystem
+    lateinit var spawnerSystem: SpawnerSystem
+    lateinit var dialogueManager: DialogueManager
+
     private lateinit var stage: Stage
     lateinit var skin: Skin
     private lateinit var layoutBuilder: UILayoutBuilder
@@ -114,6 +115,9 @@ class UIManager(
     private lateinit var healthBarEmptyTexture: Texture
     private lateinit var healthBarFullTexture: Texture
 
+    private lateinit var startMenuTable: Table
+    private lateinit var startMenuOverlay: Image
+    private lateinit var loadingScreenTable: Table
     private var currentHudStyle = HudStyle.MINIMALIST
 
     // HUD Tables
@@ -192,101 +196,241 @@ class UIManager(
 
     lateinit var dialogSystem: DialogSystem
 
-    fun initialize() {
+    fun initializeUI() {
         stage = Stage(ScreenViewport())
         skin = UISkinFactory.createSkin() // Use the factory
-        characterInventoryUI = CharacterInventoryUI(skin, stage, itemSystem)
         layoutBuilder = UILayoutBuilder(skin) // Create the builder
 
         dialogSystem = DialogSystem()
         dialogSystem.initialize(stage, skin)
 
-        // Setup main UI
-        setupDynamicHud()
-        setupMainUI()
+        // Initialize UIs that can exist without a game world
+        createStartMenu()
+        setupLoadingScreen()
+        setupMessageLabels()
+        setupMissionNotification()
         setupLetterboxUI()
         setupCinematicBarsUI()
-        setupGameHUD() // This function will now build BOTH HUDs
-        setupMissionNotification()
-        setupMessageLabels()
-
-        // Initialize all your selection UIs
-        blockSelectionUI = BlockSelectionUI(blockSystem, skin, stage)
-        blockSelectionUI.initialize()
-
-        // Initialize object selection UI
-        objectSelectionUI = ObjectSelectionUI(objectSystem, skin, stage)
-        objectSelectionUI.initialize()
-
-        // Initialize item selection UI
-        itemSelectionUI = ItemSelectionUI(itemSystem, skin, stage)
-        itemSelectionUI.initialize()
-
-        // Initialize car selection UI
-        carSelectionUI = CarSelectionUI(skin, stage, carSystem, enemySystem, npcSystem)
-        carSelectionUI.initialize()
-
-        // Initialize light selection UI
-        lightSourceUI = LightSourceUI(skin, stage)
-        lightSourceUI.initialize()
-
-        // Initialize house selection UI
-        houseSelectionUI = HouseSelectionUI(houseSystem, roomTemplateManager, skin, stage)
-        houseSelectionUI.initialize()
-
-        // Initialize background selection UI
-        backgroundSelectionUI = BackgroundSelectionUI(backgroundSystem, skin, stage)
-        backgroundSelectionUI.initialize()
-
-        // Initialize parallax selection UI
-        parallaxSelectionUI = ParallaxSelectionUI(parallaxSystem, skin, stage)
-        parallaxSelectionUI.initialize()
-
-        // Initialize interior selection UI
-        interiorSelectionUI = InteriorSelectionUI(interiorSystem, skin, stage)
-        interiorSelectionUI.initialize()
-
-        skyCustomizationUI = SkyCustomizationUI(skin, stage, lightingManager)
-        skyCustomizationUI.initialize()
-
-        enemySelectionUI = EnemySelectionUI(enemySystem, skin, stage)
-        enemySelectionUI.initialize()
-
-        npcSelectionUI = NPCSelectionUI(npcSystem, skin, stage)
-        npcSelectionUI.initialize()
-
-        particleSelectionUI = ParticleSelectionUI(particleSystem, skin, stage)
-        particleSelectionUI.initialize()
-
-        spawnerUI = SpawnerUI(skin, stage, spawnerSystem::removeSpawner, this)
-
-        shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager)
-        shaderEffectUI.initialize()
-
-        enemyDebugUI = EnemyDebugUI(skin, stage)
-
-        visualSettingsUI = VisualSettingsUI(
-            skin,
-            game.cameraManager,
-            this,
-            game.targetingIndicatorSystem,
-            game.trajectorySystem,
-            game.meleeRangeIndicatorSystem,
-            game.playerSystem
-        )
+        setupDeathScreen()
 
         pauseMenuUI = PauseMenuUI(skin, stage, this, game.saveLoadSystem)
         pauseMenuUI.initialize()
 
-        // Set initial visibility for the main UI panel
-        mainTable.isVisible = isUIVisible && game.isEditorMode
+        // Set the stage as the input processor
+        Gdx.input.inputProcessor = stage
+    }
 
-        // Initialize Editor UIs
+    /**
+     * This new method initializes UI elements that REQUIRE the game systems to be loaded.
+     */
+    fun initializeWorldDependent() {
+        // Initialize all your selection UIs
+        characterInventoryUI = CharacterInventoryUI(skin, stage, itemSystem)
+        blockSelectionUI = BlockSelectionUI(blockSystem, skin, stage); blockSelectionUI.initialize()
+        objectSelectionUI = ObjectSelectionUI(objectSystem, skin, stage); objectSelectionUI.initialize()
+        itemSelectionUI = ItemSelectionUI(itemSystem, skin, stage); itemSelectionUI.initialize()
+        carSelectionUI = CarSelectionUI(skin, stage, carSystem, enemySystem, npcSystem); carSelectionUI.initialize()
+        houseSelectionUI = HouseSelectionUI(houseSystem, roomTemplateManager, skin, stage); houseSelectionUI.initialize()
+        backgroundSelectionUI = BackgroundSelectionUI(backgroundSystem, skin, stage); backgroundSelectionUI.initialize()
+        parallaxSelectionUI = ParallaxSelectionUI(parallaxSystem, skin, stage); parallaxSelectionUI.initialize()
+        interiorSelectionUI = InteriorSelectionUI(interiorSystem, skin, stage); interiorSelectionUI.initialize()
+        enemySelectionUI = EnemySelectionUI(enemySystem, skin, stage); enemySelectionUI.initialize()
+        npcSelectionUI = NPCSelectionUI(npcSystem, skin, stage); npcSelectionUI.initialize()
+        particleSelectionUI = ParticleSelectionUI(particleSystem, skin, stage); particleSelectionUI.initialize()
+        spawnerUI = SpawnerUI(skin, stage, spawnerSystem::removeSpawner, this)
         missionEditorUI = MissionEditorUI(skin, stage, game.missionSystem, this)
         triggerEditorUI = TriggerEditorUI(skin, stage, game.missionSystem, game.triggerSystem, game.sceneManager, this)
         dialogueEditorUI = DialogueEditorUI(skin, stage, this, dialogueManager)
+        lightSourceUI = LightSourceUI(skin, stage); lightSourceUI.initialize()
+        skyCustomizationUI = SkyCustomizationUI(skin, stage, lightingManager); skyCustomizationUI.initialize()
+        shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager); shaderEffectUI.initialize()
+        visualSettingsUI = VisualSettingsUI(skin, game.cameraManager, this, game.targetingIndicatorSystem, game.trajectorySystem, game.meleeRangeIndicatorSystem, game.playerSystem)
+        enemyDebugUI = EnemyDebugUI(skin, stage)
 
-        setupDeathScreen()
+        // Setup main UI
+        setupMainUI()
+        setupGameHUD()
+        setupDynamicHud()
+
+        // Set initial visibility for the main UI panel
+        mainTable.isVisible = isUIVisible && game.isEditorMode
+    }
+
+    private fun createStartMenu() {
+        // Smoky Overlay
+        val pixmap = Pixmap(1, 1, Pixmap.Format.RGBA8888)
+        pixmap.setColor(0.05f, 0.05f, 0.08f, 1f)
+        pixmap.fill()
+        startMenuOverlay = Image(Texture(pixmap))
+        pixmap.dispose()
+        startMenuOverlay.setFillParent(true)
+        startMenuOverlay.isVisible = false
+        stage.addActor(startMenuOverlay)
+
+        // Main Menu Table
+        startMenuTable = Table()
+        startMenuTable.setFillParent(true)
+        startMenuTable.center()
+        startMenuTable.isVisible = false
+        stage.addActor(startMenuTable)
+
+        // Title
+        val titleLabel = Label("MAFIA GAME", skin, "title")
+        titleLabel.setFontScale(2.5f)
+        titleLabel.color = Color.valueOf("#EAEAEA")
+        startMenuTable.add(titleLabel).padBottom(50f).row()
+
+        // Button Container
+        val buttonsTable = Table()
+        buttonsTable.defaults().pad(10f).width(300f).height(50f)
+
+        // --- BUTTONS ---
+        val startGameButton = TextButton("Start Game", skin)
+        val newGameButton = TextButton("New Game", skin)
+        val loadGameButton = TextButton("Load Game", skin)
+        val settingsButton = TextButton("Settings", skin)
+        val exitButton = TextButton("Exit", skin)
+
+        buttonsTable.add(startGameButton).row()
+        buttonsTable.add(newGameButton).row()
+        buttonsTable.add(loadGameButton).row()
+        buttonsTable.add(settingsButton).row() // And here
+        buttonsTable.add(exitButton).row()
+
+        startMenuTable.add(buttonsTable)
+
+        // --- BUTTON LISTENERS ---
+        startGameButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                val mostRecent = game.saveLoadSystem.getMostRecentSave()
+                if (mostRecent != null) {
+                    game.startGame(mostRecent)
+                } else {
+                    // No saves exist, act like "New Game"
+                    showNewGameDialog()
+                }
+            }
+        })
+
+
+        newGameButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                showNewGameDialog()
+            }
+        })
+
+        loadGameButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                showLoadGameDialog()
+            }
+        })
+
+        settingsButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                showTemporaryMessage("Settings will be available from the in-game pause menu.")
+            }
+        })
+
+        exitButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                Gdx.app.exit()
+            }
+        })
+    }
+
+    private fun showNewGameDialog() {
+        val dialog = Dialog("Start a New Game", skin, "dialog")
+        val nameField = TextField("", skin)
+        nameField.messageText = "Enter save name..."
+
+        dialog.contentTable.add(Label("Save File Name:", skin)).pad(10f)
+        dialog.contentTable.add(nameField).width(250f).pad(10f)
+
+        val startButton = TextButton("Start", skin)
+        dialog.button(startButton)
+        dialog.button("Cancel")
+
+        startButton.addListener(object: ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                val name = nameField.text.trim()
+                if (name.isNotBlank() && name.matches(Regex("^[a-zA-Z0-9_-]+$"))) {
+                    game.startNewGame("$name.json")
+                } else {
+                    showTemporaryMessage("Invalid name. Use only letters, numbers, -, _")
+                }
+            }
+        })
+        dialog.show(stage)
+        stage.keyboardFocus = nameField
+    }
+
+    private fun showLoadGameDialog() {
+        val dialog = Dialog("Load Game", skin, "dialog")
+        val saveFiles = game.saveLoadSystem.listSaveGames()
+
+        if (saveFiles.isEmpty()) {
+            dialog.text("No save files found.")
+        } else {
+            val list = List<String>(skin)
+            list.setItems(*saveFiles.toTypedArray())
+            val scrollPane = ScrollPane(list, skin)
+            scrollPane.fadeScrollBars = false
+            dialog.contentTable.add(scrollPane).width(350f).height(200f)
+
+            val loadButton = TextButton("Load Selected", skin)
+            dialog.button(loadButton)
+            loadButton.addListener(object: ChangeListener() {
+                override fun changed(event: ChangeEvent?, actor: Actor?) {
+                    list.selected?.let { game.startGame(it) }
+                }
+            })
+        }
+        dialog.button("Cancel")
+        dialog.show(stage)
+    }
+
+    fun showStartMenu() {
+        loadingScreenTable.isVisible = false
+        startMenuOverlay.isVisible = true
+        startMenuTable.isVisible = true
+        startMenuTable.toFront()
+
+        // Animate in
+        startMenuOverlay.color.a = 0f
+        startMenuOverlay.addAction(Actions.fadeIn(0.5f))
+        startMenuTable.color.a = 0f
+        startMenuTable.addAction(Actions.sequence(Actions.delay(0.2f), Actions.fadeIn(0.5f)))
+    }
+
+    fun hideStartMenu() {
+        hideLoadingScreen() // Add this call
+        startMenuOverlay.addAction(Actions.sequence(Actions.fadeOut(0.3f), Actions.visible(false)))
+        startMenuTable.addAction(Actions.sequence(Actions.fadeOut(0.3f), Actions.visible(false)))
+    }
+
+    private fun setupLoadingScreen() {
+        loadingScreenTable = Table()
+        loadingScreenTable.setFillParent(true)
+        loadingScreenTable.center()
+
+        val loadingLabel = Label("LOADING...", skin, "title")
+        loadingLabel.setFontScale(1.5f)
+        loadingScreenTable.add(loadingLabel)
+        loadingScreenTable.isVisible = false // Start hidden
+        stage.addActor(loadingScreenTable)
+    }
+
+    fun renderLoadingScreen() {
+        if (!loadingScreenTable.isVisible) {
+            loadingScreenTable.isVisible = true
+            loadingScreenTable.toFront()
+        }
+    }
+
+    fun hideLoadingScreen() {
+        if (loadingScreenTable.isVisible) {
+            loadingScreenTable.isVisible = false
+        }
     }
 
     private fun setupDeathScreen() {
@@ -1321,8 +1465,33 @@ class UIManager(
         }
     }
 
+    fun hidePauseMenu() {
+        if (::pauseMenuUI.isInitialized && pauseMenuUI.isVisible()) {
+            pauseMenuUI.hide()
+        }
+        if (::visualSettingsUI.isInitialized && visualSettingsUI.isVisible()) {
+            visualSettingsUI.hide()
+        }
+    }
+
+    fun hideAllGameHUDs() {
+        wantedPosterHudTable.isVisible = false
+        minimalistHudTable.isVisible = false
+
+        // Clear all elements from the dynamic HUD (top-right info)
+        dynamicHudElements.forEach { it.isVisible = false }
+        refreshDynamicHudTable()
+    }
+
     // Menu and settings methods stay the same
     fun showVisualSettings() {
+        // First, check if the visual settings UI has been initialized.
+        if (!::visualSettingsUI.isInitialized) {
+            // If not, it means we are in the start menu. Show a message and do nothing.
+            showTemporaryMessage("Settings can only be accessed while in-game.")
+            return
+        }
+
         pauseMenuUI.hideInstantly()
         visualSettingsUI.show(stage)
     }
@@ -1336,11 +1505,22 @@ class UIManager(
         if (pauseMenuUI.isVisible()) {
             pauseMenuUI.hide()
         } else {
+            val showSettings = (game.currentGameMode == GameMode.IN_GAME)
+            pauseMenuUI.setSettingsButtonVisibility(showSettings)
             pauseMenuUI.show()
         }
     }
 
-    fun isPauseMenuVisible(): Boolean = pauseMenuUI.isVisible() || visualSettingsUI.isVisible()
+    fun isPauseMenuVisible(): Boolean {
+        // Check if visualSettingsUI has been created before accessing it.
+        val isVisualSettingsVisible = if (::visualSettingsUI.isInitialized) visualSettingsUI.isVisible() else false
+
+        // pauseMenuUI is always initialized, so it's safe to check.
+        val isPauseVisible = if (::pauseMenuUI.isInitialized) pauseMenuUI.isVisible() else false
+
+        return isPauseVisible || isVisualSettingsVisible
+    }
+
     fun returnToPauseMenu() {
         visualSettingsUI.hide()
         pauseMenuUI.show()
@@ -1662,94 +1842,103 @@ class UIManager(
             persistentMessageLabel.isVisible = false
         }
 
-        // Update HUD visibility and values based on game state
-        val shouldShowHud = !game.isEditorMode && !isPauseMenuVisible() && !game.playerSystem.isDead()
-        wantedPosterHudTable.isVisible = shouldShowHud && currentHudStyle == HudStyle.WANTED_POSTER
-        minimalistHudTable.isVisible = shouldShowHud && currentHudStyle == HudStyle.MINIMALIST
+        // --- Guard Clause for all IN_GAME UI updates ---
+        if (game.currentGameMode == GameMode.IN_GAME) {
+            // Update HUD visibility and values based on game state
+            val shouldShowHud = !game.isEditorMode && !isPauseMenuVisible() && !game.playerSystem.isDead()
+            wantedPosterHudTable.isVisible = shouldShowHud && currentHudStyle == HudStyle.WANTED_POSTER
+            minimalistHudTable.isVisible = shouldShowHud && currentHudStyle == HudStyle.MINIMALIST
 
-        if (shouldShowHud) {
-            // Update health bar value every frame
-            healthBar.value = game.playerSystem.getHealthPercentage()
+            if (shouldShowHud) {
+                // Update health bar value every frame
+                healthBar.value = game.playerSystem.getHealthPercentage()
 
-            if (game.playerSystem.equippedWeapon != lastEquippedWeapon) {
-                updateWeaponIcon() // This updates the main icon
-                lastEquippedWeapon = game.playerSystem.equippedWeapon
+                if (game.playerSystem.equippedWeapon != lastEquippedWeapon) {
+                    updateWeaponIcon() // This updates the main icon
+                    lastEquippedWeapon = game.playerSystem.equippedWeapon
+                }
+
+                // Ammo and Reloading UI Logic
+                val isReloading = game.playerSystem.isReloading()
+                val magCount = game.playerSystem.getCurrentMagazineCount()
+                val weapon = game.playerSystem.equippedWeapon
+                val needsReload = weapon.requiresReload && magCount == 0 && !isReloading
+
+                // Update blink timer (blinks about 2.5 times per second)
+                blinkTimer = (blinkTimer + Gdx.graphics.deltaTime * 2f) % 1f
+
+                // Reset colors and visibility to their default state each frame
+                magazineAmmoLabel.color = Color.valueOf("#F5F1E8")
+                ammoLabelMinimalist.color = Color.WHITE
+                weaponIconImageMinimalist.isVisible = true
+                reloadIndicatorPoster.isVisible = false
+
+                if (isReloading) {
+                    val isBlinkOn = blinkTimer < 0.5f
+                    // Minimalist HUD: Blink weapon icon
+                    weaponIconImageMinimalist.isVisible = isBlinkOn
+                    // Poster HUD: Blink [R] indicator
+                    reloadIndicatorPoster.isVisible = isBlinkOn
+                } else if (needsReload) {
+                    // Set ammo counters to red to indicate "Please Reload"
+                    magazineAmmoLabel.color = Color.RED
+                    ammoLabelMinimalist.color = Color.RED
+                }
+
+                when (weapon.actionType) {
+                    WeaponActionType.SHOOTING -> {
+                        // Poster HUD
+                        ammoUiContainer.isVisible = true
+                        throwableCountLabelPoster.parent.isVisible = false // Hide the single count label
+                        val reserveCount = game.playerSystem.getCurrentReserveAmmo()
+                        magazineAmmoLabel.setText(magCount.toString().padStart(2, '0'))
+                        reserveAmmoLabel.setText("/${reserveCount.toString().padStart(2, '0')}")
+
+                        // Minimalist HUD
+                        val totalAmmo = magCount + reserveCount
+                        ammoLabelMinimalist.setText(totalAmmo.toString())
+                        ammoLabelMinimalist.isVisible = true
+                    }
+                    WeaponActionType.THROWABLE -> {
+                        // Poster HUD
+                        ammoUiContainer.isVisible = false // Hide the bar UI
+                        throwableCountLabelPoster.parent.isVisible = true // Show the single count label
+                        val totalCount = game.playerSystem.getCurrentReserveAmmo()
+                        throwableCountLabelPoster.setText(totalCount.toString())
+
+                        // Minimalist HUD
+                        ammoLabelMinimalist.setText(totalCount.toString())
+                        ammoLabelMinimalist.isVisible = true
+                    }
+                    else -> { // Melee
+                        // Hide ammo display for both HUDs
+                        ammoUiContainer.isVisible = false
+                        throwableCountLabelPoster.parent.isVisible = false
+                        ammoLabelMinimalist.isVisible = false
+                    }
+                }
+
+                // Update Minimalist Health
+                healthBarMinimalist.value = game.playerSystem.getHealthPercentage()
+                val currentHealth = game.playerSystem.getHealth().toInt()
+                val maxHealth = game.playerSystem.getMaxHealth().toInt()
+                healthLabelMinimalist.setText("$currentHealth/$maxHealth")
+
+                // Update Minimalist Icon
+                weaponIconImageMinimalist.drawable = weaponIconImage.drawable // Reuse the same drawable
             }
 
-            // --- POSTER & MINIMALIST HUD AMMO LOGIC ---
-            val isReloading = game.playerSystem.isReloading()
-            val magCount = game.playerSystem.getCurrentMagazineCount()
-            val weapon = game.playerSystem.equippedWeapon
-            val needsReload = weapon.requiresReload && magCount == 0 && !isReloading
-
-            // Update blink timer (blinks about 2.5 times per second)
-            blinkTimer = (blinkTimer + Gdx.graphics.deltaTime * 2f) % 1f
-
-            // Reset colors and visibility to their default state each frame
-            magazineAmmoLabel.color = Color.valueOf("#F5F1E8")
-            ammoLabelMinimalist.color = Color.WHITE
-            weaponIconImageMinimalist.isVisible = true
-            reloadIndicatorPoster.isVisible = false
-
-            if (isReloading) {
-                val isBlinkOn = blinkTimer < 0.5f
-                // Minimalist HUD: Blink weapon icon
-                weaponIconImageMinimalist.isVisible = isBlinkOn
-                // Poster HUD: Blink [R] indicator
-                reloadIndicatorPoster.isVisible = isBlinkOn
-            } else if (needsReload) {
-                // Set ammo counters to red to indicate "Please Reload"
-                magazineAmmoLabel.color = Color.RED
-                ammoLabelMinimalist.color = Color.RED
-            }
-
-            when (weapon.actionType) {
-                WeaponActionType.SHOOTING -> {
-                    // Poster HUD
-                    ammoUiContainer.isVisible = true
-                    throwableCountLabelPoster.parent.isVisible = false // Hide the single count label
-                    val reserveCount = game.playerSystem.getCurrentReserveAmmo()
-                    magazineAmmoLabel.setText(magCount.toString().padStart(2, '0'))
-                    reserveAmmoLabel.setText("/${reserveCount.toString().padStart(2, '0')}")
-
-                    // Minimalist HUD
-                    val totalAmmo = magCount + reserveCount
-                    ammoLabelMinimalist.setText(totalAmmo.toString())
-                    ammoLabelMinimalist.isVisible = true
-                }
-                WeaponActionType.THROWABLE -> {
-                    // Poster HUD
-                    ammoUiContainer.isVisible = false // Hide the bar UI
-                    throwableCountLabelPoster.parent.isVisible = true // Show the single count label
-                    val totalCount = game.playerSystem.getCurrentReserveAmmo()
-                    throwableCountLabelPoster.setText(totalCount.toString())
-
-                    // Minimalist HUD
-                    ammoLabelMinimalist.setText(totalCount.toString())
-                    ammoLabelMinimalist.isVisible = true
-                }
-                else -> { // Melee
-                    // Hide ammo display for both HUDs
-                    ammoUiContainer.isVisible = false
-                    throwableCountLabelPoster.parent.isVisible = false
-                    ammoLabelMinimalist.isVisible = false
-                }
-            }
-
-            // Update Minimalist Health
-            healthBarMinimalist.value = game.playerSystem.getHealthPercentage()
-            val currentHealth = game.playerSystem.getHealth().toInt()
-            val maxHealth = game.playerSystem.getMaxHealth().toInt()
-            healthLabelMinimalist.setText("$currentHealth/$maxHealth")
-
-            // Update Minimalist Icon
-            weaponIconImageMinimalist.drawable = weaponIconImage.drawable // Reuse the same drawable
+            // --- Editor/Debug UI Updates (only when IN_GAME) ---
+            if (::skyCustomizationUI.isInitialized) skyCustomizationUI.update()
+            if (::shaderEffectUI.isInitialized) shaderEffectUI.update()
+            if (::enemyDebugUI.isInitialized) enemyDebugUI.act(Gdx.graphics.deltaTime)
         }
 
-        pauseMenuUI.update(Gdx.graphics.deltaTime)
-        skyCustomizationUI.update()
-        shaderEffectUI.update()
-        enemyDebugUI.act(Gdx.graphics.deltaTime)
+        // --- UI that can update in ANY state (Menu or In-Game) ---
+        if (::pauseMenuUI.isInitialized) {
+            pauseMenuUI.update(Gdx.graphics.deltaTime)
+        }
+
         stage.act(Gdx.graphics.deltaTime)
         stage.draw()
     }
@@ -1761,41 +1950,36 @@ class UIManager(
     }
 
     fun dispose() {
-        if (::wantedPosterTexture.isInitialized) {
-            wantedPosterTexture.dispose()
-        }
-        if(::moneyStackTexture.isInitialized) {
-            moneyStackTexture.dispose()
-        }
-        blockSelectionUI.dispose()
-        objectSelectionUI.dispose()
-        itemSelectionUI.dispose()
-        carSelectionUI.dispose()
-        houseSelectionUI.dispose()
-        backgroundSelectionUI.dispose()
-        parallaxSelectionUI.dispose()
-        interiorSelectionUI.dispose()
-        lightSourceUI.dispose()
-        skyCustomizationUI.dispose()
-        shaderEffectUI.dispose()
-        particleSelectionUI.dispose()
-        pauseMenuUI.dispose()
-        enemyDebugUI.dispose()
-        if (::fistTexture.isInitialized) {
-            fistTexture.dispose()
-        }
-        if (::weaponUiTexture.isInitialized) {
-            weaponUiTexture.dispose()
-        }
-        if (::healthBarEmptyTexture.isInitialized) {
-            healthBarEmptyTexture.dispose()
-        }
-        if (::healthBarFullTexture.isInitialized) {
-            healthBarFullTexture.dispose()
-        }
+        // --- SAFE DISPOSING BLOCK ---
+        // Only dispose of UI elements if they have been initialized.
+        // This is crucial for when the game is closed from the start menu.
+
+        if (::wantedPosterTexture.isInitialized) wantedPosterTexture.dispose()
+        if (::moneyStackTexture.isInitialized) moneyStackTexture.dispose()
+        if (::fistTexture.isInitialized) fistTexture.dispose()
+        if (::weaponUiTexture.isInitialized) weaponUiTexture.dispose()
+        if (::healthBarEmptyTexture.isInitialized) healthBarEmptyTexture.dispose()
+        if (::healthBarFullTexture.isInitialized) healthBarFullTexture.dispose()
+
+        if (::blockSelectionUI.isInitialized) blockSelectionUI.dispose()
+        if (::objectSelectionUI.isInitialized) objectSelectionUI.dispose()
+        if (::itemSelectionUI.isInitialized) itemSelectionUI.dispose()
+        if (::carSelectionUI.isInitialized) carSelectionUI.dispose()
+        if (::houseSelectionUI.isInitialized) houseSelectionUI.dispose()
+        if (::backgroundSelectionUI.isInitialized) backgroundSelectionUI.dispose()
+        if (::parallaxSelectionUI.isInitialized) parallaxSelectionUI.dispose()
+        if (::interiorSelectionUI.isInitialized) interiorSelectionUI.dispose()
+        if (::lightSourceUI.isInitialized) lightSourceUI.dispose()
+        if (::skyCustomizationUI.isInitialized) skyCustomizationUI.dispose()
+        if (::shaderEffectUI.isInitialized) shaderEffectUI.dispose()
+        if (::particleSelectionUI.isInitialized) particleSelectionUI.dispose()
+        if (::pauseMenuUI.isInitialized) pauseMenuUI.dispose()
+        if (::enemyDebugUI.isInitialized) enemyDebugUI.dispose()
+        if (::dialogueEditorUI.isInitialized) dialogueEditorUI.dispose()
+        if (::characterInventoryUI.isInitialized) characterInventoryUI.dispose()
+
+        // These are always safe because they are created in initializeUI()
         dialogSystem.dispose()
-        dialogueEditorUI.dispose()
-        characterInventoryUI.dispose()
         stage.dispose()
         skin.dispose()
     }

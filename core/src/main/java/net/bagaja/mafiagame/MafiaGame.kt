@@ -12,8 +12,17 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.utils.Array
 
+enum class GameMode {
+    START_MENU,
+    LOADING,
+    IN_GAME
+}
+
 class MafiaGame : ApplicationAdapter() {
     var isEditorMode = true
+    var currentSaveFileName: String? = null
+    var currentGameMode = GameMode.IN_GAME
+    private var initialSystemsLoaded = false
     var isInspectModeEnabled = false
     val renderDistanceInChunks = 2
     private lateinit var modelBatch: ModelBatch
@@ -92,8 +101,37 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var objectiveArrowSystem: ObjectiveArrowSystem
 
     override fun create() {
+        // --- Part 1: Initialize Core Systems ---
         dialogueManager = DialogueManager()
-        setupGraphics()
+        setupGraphics() // This initializes cameraManager and lightingManager
+        shaderEffectManager = ShaderEffectManager()
+        shaderEffectManager.initialize()
+        saveLoadSystem = SaveLoadSystem(this)
+
+        // UIManager creation
+        uiManager = UIManager(this, shaderEffectManager)
+        uiManager.initializeUI()
+
+        // --- NEW: Create InputHandler early with minimal dependencies ---
+        inputHandler = InputHandler(this, uiManager)
+
+        // --- Part 2: Decide Game Mode ---
+        if (isEditorMode) {
+            println("Editor mode detected. Starting game directly.")
+            loadAllGameSystems() // This will now also assign dependencies to uiManager and inputHandler
+            saveLoadSystem.loadGame(null)
+            currentGameMode = GameMode.IN_GAME
+        } else {
+            println("Player mode detected. Showing start menu.")
+            currentGameMode = GameMode.START_MENU
+            uiManager.showStartMenu()
+        }
+    }
+
+    private fun loadAllGameSystems() {
+        if (initialSystemsLoaded) return
+        println("Loading all game systems...")
+
         raycastSystem = RaycastSystem(blockSize)
         carPathSystem = CarPathSystem()
         characterPathSystem = CharacterPathSystem()
@@ -117,7 +155,6 @@ class MafiaGame : ApplicationAdapter() {
         roomTemplateManager = RoomTemplateManager()
         transitionSystem = TransitionSystem()
         playerSystem = PlayerSystem()
-        shaderEffectManager = ShaderEffectManager()
         spawnerSystem = SpawnerSystem(particleSystem, itemSystem)
         highlightSystem = HighlightSystem(this, blockSize)
         targetingIndicatorSystem = TargetingIndicatorSystem()
@@ -125,7 +162,6 @@ class MafiaGame : ApplicationAdapter() {
         trajectorySystem = TrajectorySystem()
         blockDebugRenderer = BlockDebugRenderer()
 
-        saveLoadSystem = SaveLoadSystem(this)
         missionSystem = MissionSystem(this, dialogueManager)
         triggerSystem = TriggerSystem(this)
 
@@ -141,23 +177,47 @@ class MafiaGame : ApplicationAdapter() {
         pathfindingSystem = PathfindingSystem(sceneManager, blockSize, playerSystem.playerSize)
         characterPhysicsSystem = CharacterPhysicsSystem(sceneManager)
 
-        uiManager = UIManager(
-            this, blockSystem, objectSystem, itemSystem, carSystem, houseSystem,
-            backgroundSystem, parallaxBackgroundSystem, roomTemplateManager, interiorSystem,
-            lightingManager, shaderEffectManager, enemySystem, npcSystem, particleSystem, spawnerSystem, dialogueManager
-        )
+        // --- DEPENDENCY INJECTION FOR UIManager ---
+        uiManager.blockSystem = blockSystem
+        uiManager.objectSystem = objectSystem
+        uiManager.itemSystem = itemSystem
+        uiManager.carSystem = carSystem
+        uiManager.houseSystem = houseSystem
+        uiManager.backgroundSystem = backgroundSystem
+        uiManager.parallaxSystem = parallaxBackgroundSystem
+        uiManager.roomTemplateManager = roomTemplateManager
+        uiManager.interiorSystem = interiorSystem
+        uiManager.lightingManager = lightingManager
+        uiManager.enemySystem = enemySystem
+        uiManager.npcSystem = npcSystem
+        uiManager.particleSystem = particleSystem
+        uiManager.spawnerSystem = spawnerSystem
+        uiManager.dialogueManager = dialogueManager
 
         teleporterSystem = TeleporterSystem(objectSystem, uiManager)
 
-        inputHandler = InputHandler(
-            this, uiManager, cameraManager, blockSystem, objectSystem, itemSystem,
-            carSystem, houseSystem, backgroundSystem, parallaxBackgroundSystem, interiorSystem,
-            enemySystem, npcSystem, particleSystem, spawnerSystem, teleporterSystem,
-            sceneManager, roomTemplateManager, shaderEffectManager, carPathSystem,
-            characterPathSystem
-        )
+        // --- DEPENDENCY INJECTION FOR InputHandler ---
+        inputHandler.cameraManager = cameraManager
+        inputHandler.blockSystem = blockSystem
+        inputHandler.objectSystem = objectSystem
+        inputHandler.itemSystem = itemSystem
+        inputHandler.carSystem = carSystem
+        inputHandler.houseSystem = houseSystem
+        inputHandler.backgroundSystem = backgroundSystem
+        inputHandler.parallaxSystem = parallaxBackgroundSystem
+        inputHandler.interiorSystem = interiorSystem
+        inputHandler.enemySystem = enemySystem
+        inputHandler.npcSystem = npcSystem
+        inputHandler.particleSystem = particleSystem
+        inputHandler.spawnerSystem = spawnerSystem
+        inputHandler.teleporterSystem = teleporterSystem
+        inputHandler.sceneManager = sceneManager
+        inputHandler.roomTemplateManager = roomTemplateManager
+        inputHandler.shaderEffectManager = shaderEffectManager
+        inputHandler.carPathSystem = carPathSystem
+        inputHandler.characterPathSystem = characterPathSystem
 
-       sceneManager.raycastSystem = this.raycastSystem
+        sceneManager.raycastSystem = this.raycastSystem
         sceneManager.teleporterSystem = this.teleporterSystem
 
         carPathSystem.sceneManager = sceneManager
@@ -209,18 +269,99 @@ class MafiaGame : ApplicationAdapter() {
         npcSystem.initialize(blockSize, characterPhysicsSystem)
         roomTemplateManager.initialize()
         playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem, footprintSystem, characterPhysicsSystem, sceneManager)
-        shaderEffectManager.initialize()
 
         // Initialize managers that depend on initialized systems
         transitionSystem.create(cameraManager.findUiCamera())
-
-        uiManager.initialize()
+        uiManager.initializeWorldDependent() // Initialize world-related UI
         inputHandler.initialize()
 
         // Pass the initial world data to the SceneManager
         sceneManager.initializeWorld(
             Array(), Array(), Array(), Array(), Array(), Array(), Array()
         )
+        initialSystemsLoaded = true
+        println("All game systems loaded.")
+    }
+
+    fun startGame(saveName: String) {
+        // Hide the menu and show a "loading" state
+        uiManager.hideStartMenu()
+        currentGameMode = GameMode.LOADING
+        // Tell the UIManager to start showing the loading screen
+        uiManager.renderLoadingScreen()
+
+        // This ensures the game systems are loaded only once.
+        if (!initialSystemsLoaded) {
+            loadAllGameSystems()
+            inputHandler.initialize() // Fully initialize input handler now that systems exist
+        }
+
+        Gdx.app.postRunnable {
+            val success = saveLoadSystem.checkForWorldUpdateAndLoad(saveName)
+            if (success) {
+                this.currentSaveFileName = saveName
+                currentGameMode = GameMode.IN_GAME
+                uiManager.hideLoadingScreen()
+            } else {
+                // If loading failed (e.g., file corrupted), go back to the menu
+                currentGameMode = GameMode.START_MENU
+                uiManager.showStartMenu()
+                uiManager.hideLoadingScreen()
+                uiManager.showTemporaryMessage("Error: Could not load save file.")
+            }
+        }
+    }
+
+    /**
+     * This is called from the UI to create a new game.
+     */
+    fun startNewGame(saveName: String) {
+        uiManager.hideStartMenu()
+        currentGameMode = GameMode.LOADING
+        uiManager.renderLoadingScreen()
+
+        if (!initialSystemsLoaded) {
+            loadAllGameSystems()
+            inputHandler.initialize()
+        }
+
+        Gdx.app.postRunnable {
+            val success = saveLoadSystem.startNewGame(saveName)
+            if (success) {
+                startGame(saveName)
+            } else {
+                currentGameMode = GameMode.START_MENU
+                uiManager.showStartMenu()
+                uiManager.hideLoadingScreen()
+                uiManager.showTemporaryMessage("Error: Could not create new game.")
+            }
+        }
+    }
+
+    fun returnToStartMenu() {
+        // Safety check to prevent running this if we're already in the menu
+        if (currentGameMode != GameMode.IN_GAME) return
+
+        println("Returning to Start Menu...")
+
+        // 1. Unload the current game world and reset active systems
+        sceneManager.clearActiveSceneForLoad()
+        missionSystem.activeMission = null
+        missionSystem.activeModifiers = null
+        currentSaveFileName = null // Forget which save was loaded
+
+        // 2. Hide all in-game specific UI elements
+        uiManager.hideAllGameHUDs()
+        uiManager.hidePauseMenu() // This will hide the pause menu and visual settings
+
+        // 3. Reset the cursor so it's visible and usable in the menu
+        Gdx.input.isCursorCatched = false
+
+        // 4. Change the game state back to the start menu
+        currentGameMode = GameMode.START_MENU
+
+        // 5. Show the start menu UI
+        uiManager.showStartMenu()
     }
 
     private fun setupGraphics() {
@@ -662,310 +803,338 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     override fun render() {
-        updateCursorVisibility()
-        // Begin capturing the frame for post-processing
-        shaderEffectManager.beginCapture()
+        when (currentGameMode) {
+            GameMode.START_MENU, GameMode.LOADING -> {
+                // In menu or loading state, just clear the screen and render UI
+                Gdx.gl.glViewport(0, 0, Gdx.graphics.width, Gdx.graphics.height)
+                Gdx.gl.glClearColor(0.1f, 0.1f, 0.15f, 1f)
+                Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
 
-        // Clear screen
-        Gdx.gl.glViewport(0, 0, Gdx.graphics.width, Gdx.graphics.height)
-
-        // Check if we are in an interior
-        val currentSceneType = sceneManager.currentScene
-        val isInInterior = currentSceneType == SceneType.HOUSE_INTERIOR || currentSceneType == SceneType.TRANSITIONING_TO_WORLD
-
-        // If in an interior, use a black background
-        val clearColor = if (isInInterior) {
-            Color.BLACK
-        } else {
-            // Get current sky color for clearing
-            lightingManager.getCurrentSkyColor()
-        }
-        Gdx.gl.glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a)
-        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
-
-        val isPaused = uiManager.isPauseMenuVisible() || uiManager.isDialogActive()
-        if (!isPaused) {
-            // Get delta time for this frame
-            val deltaTime = Gdx.graphics.deltaTime
-            val timeMultiplier = if (inputHandler.isTimeSpeedUpActive()) 200f else 1f
-
-            val isSinCityEffect = shaderEffectManager.isEffectsEnabled &&
-                shaderEffectManager.getCurrentEffect() == ShaderEffect.SIN_CITY
-            lightingManager.setGrayscaleMode(isSinCityEffect)
-
-            sceneManager.update(deltaTime)
-            missionSystem.update(deltaTime)
-            objectiveArrowSystem.update()
-
-            triggerSystem.update()
-            transitionSystem.update(deltaTime)
-
-            // Update lighting manager
-            lightingManager.update(deltaTime, cameraManager.camera.position, timeMultiplier)
-
-            val expiredLightIds = lightingManager.collectAndClearExpiredLights()
-            if (expiredLightIds.isNotEmpty()) {
-                expiredLightIds.forEach { id ->
-                    // Also remove it from the object system so it doesn't leave a ghost object
-                    objectSystem.removeLightSource(id)
+                // Render UI (start menu or a "Loading..." screen)
+                if (currentGameMode == GameMode.LOADING) {
+                    uiManager.renderLoadingScreen()
                 }
+                uiManager.render()
+                return
             }
 
-            // Update input handler for continuous actions
-            inputHandler.update(deltaTime)
+            GameMode.IN_GAME -> {
 
-            // Handle player input
-            handlePlayerInput()
-            if (isEditorMode) {
-                carPathSystem.update(cameraManager.camera)
-                characterPathSystem.update(cameraManager.camera)
-            }
-            particleSystem.update(deltaTime)
-            spawnerSystem.update(deltaTime, sceneManager.activeSpawners, playerSystem.getPosition())
-            val expiredFires = fireSystem.update(Gdx.graphics.deltaTime, playerSystem, particleSystem, sceneManager)
-            if (expiredFires.isNotEmpty()) {
-                for (fireToRemove in expiredFires) {
-                    sceneManager.activeObjects.removeValue(fireToRemove.gameObject, true)
-                    fireSystem.removeFire(fireToRemove, objectSystem, lightingManager)
+                updateCursorVisibility()
+                // Begin capturing the frame for post-processing
+                shaderEffectManager.beginCapture()
+
+                // Clear screen
+                Gdx.gl.glViewport(0, 0, Gdx.graphics.width, Gdx.graphics.height)
+
+                // Check if we are in an interior
+                val currentSceneType = sceneManager.currentScene
+                val isInInterior =
+                    currentSceneType == SceneType.HOUSE_INTERIOR || currentSceneType == SceneType.TRANSITIONING_TO_WORLD
+
+                // If in an interior, use a black background
+                val clearColor = if (isInInterior) {
+                    Color.BLACK
+                } else {
+                    // Get current sky color for clearing
+                    lightingManager.getCurrentSkyColor()
                 }
-            }
 
-            if (!isEditorMode) {
-                trajectorySystem.update(playerSystem, sceneManager)
-            }
+                Gdx.gl.glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a)
+                Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
 
-            playerSystem.update(deltaTime, sceneManager)
-            enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
-            npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
-            bloodPoolSystem.update(deltaTime, sceneManager.activeBloodPools)
-            footprintSystem.update(deltaTime, sceneManager.activeFootprints)
+                val isPaused = uiManager.isPauseMenuVisible() || uiManager.isDialogActive()
 
-            // Handle car destruction and removals
-            carSystem.update(deltaTime, sceneManager)
+                if (!isPaused) {
+                    // Get delta time for this frame
+                    val deltaTime = Gdx.graphics.deltaTime
+                    val timeMultiplier = if (inputHandler.isTimeSpeedUpActive()) 200f else 1f
 
-            // Update the lock indicator based on player, car, and house positions
-            lockIndicatorSystem.update(playerSystem.getPosition(), playerSystem.isDriving, sceneManager.activeCars, sceneManager.activeHouses)
+                    val isSinCityEffect = shaderEffectManager.isEffectsEnabled &&
+                        shaderEffectManager.getCurrentEffect() == ShaderEffect.SIN_CITY
+                    lightingManager.setGrayscaleMode(isSinCityEffect)
 
-            // Update item system (animations, collisions, etc.)
-            itemSystem.update(deltaTime, cameraManager.camera, playerSystem, sceneManager)
+                    sceneManager.update(deltaTime)
+                    missionSystem.update(deltaTime)
+                    objectiveArrowSystem.update()
 
-            sceneManager.activeChunkManager.processDirtyChunks()
-        }
+                    triggerSystem.update()
+                    transitionSystem.update(deltaTime)
 
-        // Update highlight system
-        if (isEditorMode && !isPaused) {
-            highlightSystem.update(
-                cameraManager,
-                uiManager,
-                blockSystem,
-                sceneManager.activeChunkManager.getAllBlocks(),
-                sceneManager.activeObjects,
-                sceneManager.activeSpawners,
-                sceneManager.activeCars,
-                sceneManager.activeHouses,
-                backgroundSystem,
-                parallaxBackgroundSystem,
-                sceneManager.activeItems,
-                objectSystem,
-                raycastSystem,
-                sceneManager.activeInteriors,
-                interiorSystem,
-                sceneManager.activeEnemies,
-                sceneManager.activeNPCs,
-                particleSystem
-            )
-        } else if (!isEditorMode && !isPaused) {
-            // When not in editor mode, update the new targeting indicator instead
-            targetingIndicatorSystem.update(
-                cameraManager,
-                playerSystem,
-                sceneManager,
-                raycastSystem
-            )
-            // Update the new melee indicator
-            meleeRangeIndicatorSystem.update(playerSystem, sceneManager)
-        }
+                    // Update lighting manager
+                    lightingManager.update(deltaTime, cameraManager.camera.position, timeMultiplier)
 
-        //shaderProvider.setEnvironment(environment)
-        //println("MafiaGame.render: Passing environment to provider, hash: ${environment.hashCode()}")
+                    val expiredLightIds = lightingManager.collectAndClearExpiredLights()
+                    if (expiredLightIds.isNotEmpty()) {
+                        expiredLightIds.forEach { id ->
+                            // Also remove it from the object system so it doesn't leave a ghost object
+                            objectSystem.removeLightSource(id)
+                        }
+                    }
 
-        parallaxBackgroundSystem.update(cameraManager.camera.position)
-        //occlusionSystem.update(cameraManager.camera, playerSystem.getPosition(), sceneManager.activeBlocks)
+                    // Update input handler for continuous actions
+                    inputHandler.update(deltaTime)
 
-        val environment = lightingManager.getEnvironment()
+                    // Handle player input
+                    handlePlayerInput()
+                    if (isEditorMode) {
+                        carPathSystem.update(cameraManager.camera)
+                        characterPathSystem.update(cameraManager.camera)
+                    }
+                    particleSystem.update(deltaTime)
+                    spawnerSystem.update(deltaTime, sceneManager.activeSpawners, playerSystem.getPosition())
+                    val expiredFires = fireSystem.update(Gdx.graphics.deltaTime, playerSystem, particleSystem, sceneManager)
+                    if (expiredFires.isNotEmpty()) {
+                        for (fireToRemove in expiredFires) {
+                            sceneManager.activeObjects.removeValue(fireToRemove.gameObject, true)
+                            fireSystem.removeFire(fireToRemove, objectSystem, lightingManager)
+                        }
+                    }
 
-        // Render 3D scene
-        modelBatch.begin(cameraManager.camera)
+                    if (!isEditorMode) {
+                        trajectorySystem.update(playerSystem, sceneManager)
+                    }
 
-        // Only render the sky and sun when we are in the outside world scene.
-        if (!isInInterior) {
-            // Render sky FIRST
-            lightingManager.renderSky(modelBatch, cameraManager.camera)
+                    playerSystem.update(deltaTime, sceneManager)
+                    enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
+                    npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
+                    bloodPoolSystem.update(deltaTime, sceneManager.activeBloodPools)
+                    footprintSystem.update(deltaTime, sceneManager.activeFootprints)
 
-            // Render sun
-            lightingManager.renderSun(modelBatch, cameraManager.camera)
-        }
+                    // Handle car destruction and removals
+                    carSystem.update(deltaTime, sceneManager)
 
-        // Render parallax backgrounds
-        parallaxBackgroundSystem.render(modelBatch, cameraManager.camera, environment)
+                    // Update the lock indicator based on player, car, and house positions
+                    lockIndicatorSystem.update(playerSystem.getPosition(), playerSystem.isDriving, sceneManager.activeCars, sceneManager.activeHouses)
 
-        objectiveArrowSystem.render(cameraManager.camera, environment)
+                    // Update item system (animations, collisions, etc.)
+                    itemSystem.update(deltaTime, cameraManager.camera, playerSystem, sceneManager)
 
-        // Render all blocks
-        sceneManager.activeChunkManager.render(modelBatch, environment, cameraManager.camera)
-
-        // Render all objects
-        for (gameObject in sceneManager.activeObjects) {
-            if (gameObject.objectType != ObjectType.FIRE_SPREAD) {
-                gameObject.getRenderInstance(objectSystem.debugMode)?.let {
-                    modelBatch.render(it, environment)
+                    sceneManager.activeChunkManager.processDirtyChunks()
                 }
-            }
-        }
 
-        for (gameObject in sceneManager.activeMissionPreviewObjects) { // NEW
-            gameObject.getRenderInstance(objectSystem.debugMode)?.let {
-                modelBatch.render(it, environment)
-            }
-        }
-
-        for (spawner in sceneManager.activeSpawners) {
-            spawner.gameObject.getRenderInstance(objectSystem.debugMode)?.let {
-                modelBatch.render(it, environment)
-            }
-        }
-
-        // Render light sources
-        if (isEditorMode) {
-            // Render light source debug visuals
-            lightingManager.renderLightInstances(modelBatch, environment, objectSystem.debugMode)
-            lightingManager.renderLightAreas(modelBatch)
-
-            // Render house entry point debug visuals
-            houseSystem.renderEntryPoints(modelBatch, environment, objectSystem)
-
-            // Render teleporter pad debug visuals
-            for (teleporter in teleporterSystem.activeTeleporters) {
-                teleporter.gameObject.getRenderInstance(objectSystem.debugMode)?.let {
-                    modelBatch.render(it, environment)
+                // Update highlight system
+                if (isEditorMode && !isPaused) {
+                    highlightSystem.update(
+                        cameraManager,
+                        uiManager,
+                        blockSystem,
+                        sceneManager.activeChunkManager.getAllBlocks(),
+                        sceneManager.activeObjects,
+                        sceneManager.activeSpawners,
+                        sceneManager.activeCars,
+                        sceneManager.activeHouses,
+                        backgroundSystem,
+                        parallaxBackgroundSystem,
+                        sceneManager.activeItems,
+                        objectSystem,
+                        raycastSystem,
+                        sceneManager.activeInteriors,
+                        interiorSystem,
+                        sceneManager.activeEnemies,
+                        sceneManager.activeNPCs,
+                        particleSystem
+                    )
+                } else if (!isEditorMode && !isPaused) {
+                    // When not in editor mode, update the new targeting indicator instead
+                    targetingIndicatorSystem.update(
+                        cameraManager,
+                        playerSystem,
+                        sceneManager,
+                        raycastSystem
+                    )
+                    // Update the new melee indicator
+                    meleeRangeIndicatorSystem.update(playerSystem, sceneManager)
                 }
+
+                //shaderProvider.setEnvironment(environment)
+                //println("MafiaGame.render: Passing environment to provider, hash: ${environment.hashCode()}")
+
+                parallaxBackgroundSystem.update(cameraManager.camera.position)
+                //occlusionSystem.update(cameraManager.camera, playerSystem.getPosition(), sceneManager.activeBlocks)
+
+                val environment = lightingManager.getEnvironment()
+
+                // Render 3D scene
+                modelBatch.begin(cameraManager.camera)
+
+                // Only render the sky and sun when we are in the outside world scene.
+                if (!isInInterior) {
+                    // Render sky FIRST
+                    lightingManager.renderSky(modelBatch, cameraManager.camera)
+
+                    // Render sun
+                    lightingManager.renderSun(modelBatch, cameraManager.camera)
+                }
+
+                // Render parallax backgrounds
+                parallaxBackgroundSystem.render(modelBatch, cameraManager.camera, environment)
+
+                objectiveArrowSystem.render(cameraManager.camera, environment)
+
+                // Render all blocks
+                sceneManager.activeChunkManager.render(modelBatch, environment, cameraManager.camera)
+
+                // Render all objects
+                for (gameObject in sceneManager.activeObjects) {
+                    if (gameObject.objectType != ObjectType.FIRE_SPREAD) {
+                        gameObject.getRenderInstance(objectSystem.debugMode)?.let {
+                            modelBatch.render(it, environment)
+                        }
+                    }
+                }
+
+                for (gameObject in sceneManager.activeMissionPreviewObjects) { // NEW
+                    gameObject.getRenderInstance(objectSystem.debugMode)?.let {
+                        modelBatch.render(it, environment)
+                    }
+                }
+
+                for (spawner in sceneManager.activeSpawners) {
+                    spawner.gameObject.getRenderInstance(objectSystem.debugMode)?.let {
+                        modelBatch.render(it, environment)
+                    }
+                }
+
+                // Render light sources
+                if (isEditorMode) {
+                    // Render light source debug visuals
+                    lightingManager.renderLightInstances(modelBatch, environment, objectSystem.debugMode)
+                    lightingManager.renderLightAreas(modelBatch)
+
+                    // Render house entry point debug visuals
+                    houseSystem.renderEntryPoints(modelBatch, environment, objectSystem)
+
+                    // Render teleporter pad debug visuals
+                    for (teleporter in teleporterSystem.activeTeleporters) {
+                        teleporter.gameObject.getRenderInstance(objectSystem.debugMode)?.let {
+                            modelBatch.render(it, environment)
+                        }
+                    }
+                }
+
+                for (house in sceneManager.activeHouses) {
+                    modelBatch.render(house.modelInstance, environment)
+                }
+
+                for (house in sceneManager.activeMissionPreviewHouses) {
+                    modelBatch.render(house.modelInstance, environment)
+                }
+
+                // Render backgrounds
+                for (background in backgroundSystem.getBackgrounds()) {
+                    modelBatch.render(background.modelInstance, environment)
+                }
+
+                for (interior in sceneManager.activeInteriors) {
+                    // Render 3D models and new floor objects
+                    if (interior.interiorType.is3D || interior.interiorType.isFloorObject) {
+                        modelBatch.render(interior.instance, environment) // This will only render the 3D ones
+                    }
+                }
+
+                if (isEditorMode) {
+                    // Render background preview
+                    backgroundSystem.renderPreview(modelBatch, cameraManager.camera, environment)
+                }
+
+                // Render cars first as they are mostly opaque
+                carSystem.render(cameraManager.camera, environment, sceneManager.activeCars)
+                carSystem.render(cameraManager.camera, environment, sceneManager.activeMissionPreviewCars)
+
+                lockIndicatorSystem.render(cameraManager.camera, environment)
+
+                // Render effects that should appear BEHIND characters
+                fireSystem.render(cameraManager.camera, environment)
+
+                // Render Blood Pool
+                bloodPoolSystem.render(cameraManager.camera, environment, sceneManager.activeBloodPools)
+
+                footprintSystem.render(cameraManager.camera, environment, sceneManager.activeFootprints)
+                boneSystem.render(cameraManager.camera, environment, sceneManager.activeBones)
+
+                // Render all potentially transparent billboards AFTER the fire
+                playerSystem.render(cameraManager.camera, environment)
+
+                enemySystem.renderEnemies(cameraManager.camera, environment, sceneManager.activeEnemies)
+                enemySystem.renderEnemies(cameraManager.camera, environment, sceneManager.activeMissionPreviewEnemies)
+                npcSystem.renderNPCs(cameraManager.camera, environment, sceneManager.activeNPCs)
+
+                npcSystem.renderNPCs(cameraManager.camera, environment, sceneManager.activeMissionPreviewNPCs)
+                particleSystem.render(cameraManager.camera, environment)
+
+                // Render items
+                itemSystem.render(cameraManager.camera, environment)
+
+                itemSystem.render(cameraManager.camera, environment, sceneManager.activeMissionPreviewItems)
+
+                if (!isEditorMode) {
+                    trajectorySystem.render(cameraManager.camera, environment)
+                }
+
+                modelBatch.end()
+
+                if (isEditorMode) {
+                    carPathSystem.render(cameraManager.camera)
+                    characterPathSystem.render(cameraManager.camera)
+                }
+
+                teleporterSystem.renderNameplates(cameraManager.camera, playerSystem)
+                triggerSystem.render(cameraManager.camera, lightingManager.getEnvironment())
+                interiorSystem.renderBillboards(cameraManager.camera, environment, sceneManager.activeInteriors)
+
+                if (isEditorMode) {
+                    // Render highlight using HighlightSystem
+                    highlightSystem.render(modelBatch, cameraManager.camera, environment)
+
+                    if (interiorSystem.isPreviewActive()) {
+                        interiorSystem.billboardModelBatch.begin(cameraManager.camera)
+                        interiorSystem.renderPreview(interiorSystem.billboardModelBatch, environment)
+                        interiorSystem.billboardModelBatch.end()
+                    }
+
+                    // Render block collision wireframes if enabled
+                    if (showBlockCollisionOutlines) {
+                        blockDebugRenderer.render(cameraManager.camera, environment, sceneManager.activeChunkManager.getAllBlocks())
+                    }
+
+                    if (showInvisibleBlockOutlines) {
+                        highlightSystem.renderInvisibleBlockOutlines(
+                            modelBatch,
+                            environment,
+                            cameraManager.camera,
+                            sceneManager.activeChunkManager.getAllBlocks()
+                        )
+                    }
+                } else {
+                    // When not in editor mode, render the targeting indicator
+                    targetingIndicatorSystem.render(cameraManager.camera, environment)
+                    meleeRangeIndicatorSystem.render(cameraManager.camera, environment)
+                }
+
+                // Transition to 2D UI Rendering
+                Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
+                Gdx.gl.glDepthMask(false)
+                Gdx.gl.glDisable(GL20.GL_CULL_FACE)
+                Gdx.gl.glEnable(GL20.GL_BLEND)
+                Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+
+                // Render UI using UIManager
+                uiManager.updateFps()
+
+                uiManager.render()
+
+                // Render the transition animation ON TOP of everything else.
+                transitionSystem.render()
+
+                // End capture and apply post-processing effects
+                shaderEffectManager.endCaptureAndRender()
+                Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
+                Gdx.gl.glDepthMask(true) // Allow writing to the depth buffer
+                Gdx.gl.glDisable(GL20.GL_BLEND)
+                Gdx.gl.glEnable(GL20.GL_CULL_FACE)
             }
         }
-
-        for (house in sceneManager.activeHouses) {
-            modelBatch.render(house.modelInstance, environment)
-        }
-
-        for (house in sceneManager.activeMissionPreviewHouses) {
-            modelBatch.render(house.modelInstance, environment)
-        }
-
-        // Render backgrounds
-        for (background in backgroundSystem.getBackgrounds()) {
-            modelBatch.render(background.modelInstance, environment)
-        }
-
-        for (interior in sceneManager.activeInteriors) {
-            // Render 3D models and new floor objects
-            if (interior.interiorType.is3D || interior.interiorType.isFloorObject) {
-                modelBatch.render(interior.instance, environment) // This will only render the 3D ones
-            }
-        }
-
-        if (isEditorMode) {
-            // Render background preview
-            backgroundSystem.renderPreview(modelBatch, cameraManager.camera, environment)
-        }
-
-        // Render cars first as they are mostly opaque
-        carSystem.render(cameraManager.camera, environment, sceneManager.activeCars)
-        carSystem.render(cameraManager.camera, environment, sceneManager.activeMissionPreviewCars)
-        lockIndicatorSystem.render(cameraManager.camera, environment)
-
-        // Render effects that should appear BEHIND characters
-        fireSystem.render(cameraManager.camera, environment)
-
-        // Render Blood Pool
-        bloodPoolSystem.render(cameraManager.camera, environment, sceneManager.activeBloodPools)
-        footprintSystem.render(cameraManager.camera, environment, sceneManager.activeFootprints)
-        boneSystem.render(cameraManager.camera, environment, sceneManager.activeBones)
-
-        // Render all potentially transparent billboards AFTER the fire
-        playerSystem.render(cameraManager.camera, environment)
-        enemySystem.renderEnemies(cameraManager.camera, environment, sceneManager.activeEnemies)
-        enemySystem.renderEnemies(cameraManager.camera, environment, sceneManager.activeMissionPreviewEnemies)
-        npcSystem.renderNPCs(cameraManager.camera, environment, sceneManager.activeNPCs)
-        npcSystem.renderNPCs(cameraManager.camera, environment, sceneManager.activeMissionPreviewNPCs)
-        particleSystem.render(cameraManager.camera, environment)
-
-        // Render items
-        itemSystem.render(cameraManager.camera, environment)
-        itemSystem.render(cameraManager.camera, environment, sceneManager.activeMissionPreviewItems)
-
-        if (!isEditorMode) {
-            trajectorySystem.render(cameraManager.camera, environment)
-        }
-
-        modelBatch.end()
-
-        if (isEditorMode) {
-            carPathSystem.render(cameraManager.camera)
-            characterPathSystem.render(cameraManager.camera)
-        }
-
-        teleporterSystem.renderNameplates(cameraManager.camera, playerSystem)
-        triggerSystem.render(cameraManager.camera, lightingManager.getEnvironment())
-        interiorSystem.renderBillboards(cameraManager.camera, environment, sceneManager.activeInteriors)
-
-        if (isEditorMode) {
-            // Render highlight using HighlightSystem
-            highlightSystem.render(modelBatch, cameraManager.camera, environment)
-
-            if (interiorSystem.isPreviewActive()) {
-                interiorSystem.billboardModelBatch.begin(cameraManager.camera)
-                interiorSystem.renderPreview(interiorSystem.billboardModelBatch, environment)
-                interiorSystem.billboardModelBatch.end()
-            }
-
-            // Render block collision wireframes if enabled
-            if (showBlockCollisionOutlines) {
-                blockDebugRenderer.render(cameraManager.camera, environment, sceneManager.activeChunkManager.getAllBlocks())
-            }
-
-            if (showInvisibleBlockOutlines) {
-                highlightSystem.renderInvisibleBlockOutlines(
-                    modelBatch,
-                    environment,
-                    cameraManager.camera,
-                    sceneManager.activeChunkManager.getAllBlocks()
-                )
-            }
-        } else {
-            // When not in editor mode, render the targeting indicator
-            targetingIndicatorSystem.render(cameraManager.camera, environment)
-            meleeRangeIndicatorSystem.render(cameraManager.camera, environment)
-        }
-
-        // Transition to 2D UI Rendering
-        Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
-        Gdx.gl.glDepthMask(false)
-        Gdx.gl.glDisable(GL20.GL_CULL_FACE)
-        Gdx.gl.glEnable(GL20.GL_BLEND)
-        Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
-
-        // Render UI using UIManager
-        uiManager.updateFps()
-        uiManager.render()
-
-        // Render the transition animation ON TOP of everything else.
-        transitionSystem.render()
-
-        // End capture and apply post-processing effects
-        shaderEffectManager.endCaptureAndRender()
-        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
-        Gdx.gl.glDepthMask(true) // Allow writing to the depth buffer
-        Gdx.gl.glDisable(GL20.GL_BLEND)
-        Gdx.gl.glEnable(GL20.GL_CULL_FACE)
     }
 
     override fun resize(width: Int, height: Int) {
@@ -982,42 +1151,44 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     override fun dispose() {
-        modelBatch.dispose()
-        spriteBatch.dispose()
-        blockSystem.dispose()
-        objectSystem.dispose()
-        itemSystem.dispose()
-        carSystem.dispose()
-        playerSystem.dispose()
-        houseSystem.dispose()
-        backgroundSystem.dispose()
-        highlightSystem.dispose()
-        targetingIndicatorSystem.dispose()
-        meleeRangeIndicatorSystem.dispose()
-        lockIndicatorSystem.dispose()
-        lightingManager.dispose()
-        parallaxBackgroundSystem.dispose()
-        interiorSystem.dispose()
-        transitionSystem.dispose()
-        enemySystem.dispose()
-        npcSystem.dispose()
-        particleSystem.dispose()
-        fireSystem.dispose()
-        bloodPoolSystem.dispose()
-        footprintSystem.dispose()
-        boneSystem.dispose()
-        objectiveArrowSystem.dispose()
-        triggerSystem.dispose()
-        carPathSystem.dispose()
-        characterPathSystem.dispose()
+        if (::modelBatch.isInitialized) modelBatch.dispose()
+        if (::spriteBatch.isInitialized) spriteBatch.dispose()
+        if (::blockSystem.isInitialized) blockSystem.dispose()
+        if (::objectSystem.isInitialized) objectSystem.dispose()
+        if (::itemSystem.isInitialized) itemSystem.dispose()
+        if (::carSystem.isInitialized) carSystem.dispose()
+        if (::playerSystem.isInitialized) playerSystem.dispose()
+        if (::houseSystem.isInitialized) houseSystem.dispose()
+        if (::backgroundSystem.isInitialized) backgroundSystem.dispose()
+        if (::highlightSystem.isInitialized) highlightSystem.dispose()
+        if (::targetingIndicatorSystem.isInitialized) targetingIndicatorSystem.dispose()
+        if (::meleeRangeIndicatorSystem.isInitialized) meleeRangeIndicatorSystem.dispose()
+        if (::lockIndicatorSystem.isInitialized) lockIndicatorSystem.dispose()
+        if (::lightingManager.isInitialized) lightingManager.dispose()
+        if (::parallaxBackgroundSystem.isInitialized) parallaxBackgroundSystem.dispose()
+        if (::interiorSystem.isInitialized) interiorSystem.dispose()
+        if (::transitionSystem.isInitialized) transitionSystem.dispose()
+        if (::enemySystem.isInitialized) enemySystem.dispose()
+        if (::npcSystem.isInitialized) npcSystem.dispose()
+        if (::particleSystem.isInitialized) particleSystem.dispose()
+        if (::fireSystem.isInitialized) fireSystem.dispose()
+        if (::bloodPoolSystem.isInitialized) bloodPoolSystem.dispose()
+        if (::footprintSystem.isInitialized) footprintSystem.dispose()
+        if (::boneSystem.isInitialized) boneSystem.dispose()
+        if (::objectiveArrowSystem.isInitialized) objectiveArrowSystem.dispose()
+        if (::triggerSystem.isInitialized) triggerSystem.dispose()
+        if (::carPathSystem.isInitialized) carPathSystem.dispose()
+        if (::characterPathSystem.isInitialized) characterPathSystem.dispose()
 
         // Dispose shader effect manager
-        shaderEffectManager.dispose()
+        if (::shaderEffectManager.isInitialized) shaderEffectManager.dispose()
 
         // Dispose UIManager
-        teleporterSystem.dispose()
-        trajectorySystem.dispose()
-        blockDebugRenderer.dispose()
+        if (::teleporterSystem.isInitialized) teleporterSystem.dispose()
+        if (::trajectorySystem.isInitialized) trajectorySystem.dispose()
+        if (::blockDebugRenderer.isInitialized) blockDebugRenderer.dispose()
+
+        // UIManager is always initialized, so it's safe to dispose.
         uiManager.dispose()
     }
 }

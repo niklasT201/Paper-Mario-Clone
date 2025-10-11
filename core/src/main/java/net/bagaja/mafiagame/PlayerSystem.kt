@@ -136,6 +136,7 @@ class PlayerSystem {
         // 3. UI Feedback: Show a "YOU DIED" message
         sceneManager.game.uiManager.showDeathScreen()
     }
+
     fun respawn() {
         if (!isDead) return
 
