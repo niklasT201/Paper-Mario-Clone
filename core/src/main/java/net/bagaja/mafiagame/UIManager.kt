@@ -119,6 +119,9 @@ class UIManager(
     private lateinit var startMenuOverlay: Image
     private lateinit var loadingScreenTable: Table
     private var currentHudStyle = HudStyle.MINIMALIST
+    private lateinit var loadGameTable: Table
+    private lateinit var saveFileIconTexture: Texture
+    private var saveFileIconLoaded = false
 
     // HUD Tables
     private lateinit var wantedPosterHudTable: Table
@@ -206,6 +209,7 @@ class UIManager(
 
         // Initialize UIs that can exist without a game world
         createStartMenu()
+        createLoadGameScreen()
         setupLoadingScreen()
         setupMessageLabels()
         setupMissionNotification()
@@ -321,7 +325,7 @@ class UIManager(
 
         loadGameButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
-                showLoadGameDialog()
+                showLoadGameScreen()
             }
         })
 
@@ -431,6 +435,160 @@ class UIManager(
         if (loadingScreenTable.isVisible) {
             loadingScreenTable.isVisible = false
         }
+    }
+
+    private fun createLoadGameScreen() {
+        // --- Load the save file icon, with a fallback ---
+        try {
+            saveFileIconTexture = Texture(Gdx.files.internal("gui/save_icon.png"))
+            saveFileIconLoaded = true
+        } catch (e: Exception) {
+            println("WARNING: Could not load 'gui/save_icon.png'. Creating fallback icon.")
+            val pixmap = Pixmap(64, 64, Pixmap.Format.RGBA8888)
+            // Draw a floppy disk icon
+            pixmap.setColor(Color.valueOf("#a0a0b0")) // Gray
+            pixmap.fillRectangle(5, 5, 54, 54)
+            pixmap.setColor(Color.valueOf("#d0d0e0")) // Light Gray
+            pixmap.fillRectangle(15, 40, 34, 18)
+            pixmap.setColor(Color.valueOf("#505060")) // Dark Gray
+            pixmap.fillRectangle(5, 5, 54, 15)
+            pixmap.fillRectangle(28, 6, 8, 14)
+            saveFileIconTexture = Texture(pixmap)
+            pixmap.dispose()
+            saveFileIconLoaded = false // Technically loaded, but it's the fallback
+        }
+
+        // --- Create the main table for the load screen ---
+        loadGameTable = Table()
+        loadGameTable.setFillParent(true)
+        loadGameTable.center()
+        loadGameTable.isVisible = false
+        stage.addActor(loadGameTable)
+
+        val titleLabel = Label("LOAD GAME", skin, "title")
+        titleLabel.setFontScale(2.0f)
+        titleLabel.color = Color.valueOf("#EAEAEA")
+        loadGameTable.add(titleLabel).padBottom(40f).row()
+
+        // Placeholder for the list, will be populated later
+        val listContainer = Table()
+        loadGameTable.add(listContainer).grow().row()
+
+        val backButton = TextButton("Back", skin)
+        loadGameTable.add(backButton).padTop(30f).width(200f).height(50f)
+
+        backButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                hideLoadGameScreen(showStartMenu = true)
+            }
+        })
+    }
+
+    private fun createSaveFileRowWidget(saveName: String): Table {
+        val rowTable = Table()
+        // Create a semi-transparent, dark background for the row
+        val bgPixmap = Pixmap(1, 1, Pixmap.Format.RGBA8888)
+        bgPixmap.setColor(0.15f, 0.15f, 0.2f, 0.7f)
+        bgPixmap.fill()
+        rowTable.background = TextureRegionDrawable(Texture(bgPixmap))
+        bgPixmap.dispose()
+
+        rowTable.pad(10f)
+
+        // 1. Icon
+        val icon = Image(saveFileIconTexture)
+        icon.setScaling(Scaling.fit)
+        rowTable.add(icon).size(48f).padRight(15f)
+
+        // 2. Save Name Label
+        val nameLabel = Label(saveName.removeSuffix(".json"), skin, "default")
+        nameLabel.setFontScale(1.2f)
+        rowTable.add(nameLabel).expandX().left()
+
+        // 3. Load Button
+        val loadButton = TextButton("Load", skin)
+        rowTable.add(loadButton).width(100f).height(40f)
+
+        // Add a hover effect to the row
+        rowTable.addListener(object: ClickListener() {
+            override fun enter(event: InputEvent?, x: Float, y: Float, pointer: Int, fromActor: Actor?) {
+                // On hover, tint the background slightly lighter
+                val hoverPixmap = Pixmap(1, 1, Pixmap.Format.RGBA8888)
+                hoverPixmap.setColor(0.25f, 0.25f, 0.3f, 0.8f)
+                hoverPixmap.fill()
+                rowTable.background = TextureRegionDrawable(Texture(hoverPixmap))
+                hoverPixmap.dispose()
+            }
+
+            override fun exit(event: InputEvent?, x: Float, y: Float, pointer: Int, toActor: Actor?) {
+                // On exit, revert to the original background
+                val normalPixmap = Pixmap(1, 1, Pixmap.Format.RGBA8888)
+                normalPixmap.setColor(0.15f, 0.15f, 0.2f, 0.7f)
+                normalPixmap.fill()
+                rowTable.background = TextureRegionDrawable(Texture(normalPixmap))
+                normalPixmap.dispose()
+            }
+        })
+
+        loadButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                game.startGame(saveName)
+            }
+        })
+
+        return rowTable
+    }
+
+    fun showLoadGameScreen() {
+        // 1. Hide the main menu with a fade-out animation
+        startMenuTable.addAction(Actions.sequence(
+            Actions.fadeOut(0.3f, Interpolation.fade),
+            Actions.visible(false)
+        ))
+
+        // 2. Get the list of save files
+        val saveFiles = game.saveLoadSystem.listSaveGames()
+
+        // 3. Find the container in our loadGameTable to put the list into
+        val listContainer = loadGameTable.children[1] as Table // The second child is our placeholder
+        listContainer.clear() // Clear any old list items
+
+        if (saveFiles.isEmpty()) {
+            listContainer.add(Label("No saved games found.", skin))
+        } else {
+            val saveListTable = Table()
+            saveListTable.defaults().pad(5f).width(600f) // Set width for all rows
+
+            // Create a styled widget for each save file
+            saveFiles.sortedDescending().forEach { saveName ->
+                saveListTable.add(createSaveFileRowWidget(saveName)).row()
+            }
+
+            val scrollPane = ScrollPane(saveListTable, skin)
+            scrollPane.fadeScrollBars = false
+            listContainer.add(scrollPane).width(620f).height(400f)
+        }
+
+        // 4. Show and fade in the load game screen after a short delay
+        loadGameTable.isVisible = true
+        loadGameTable.color.a = 0f
+        loadGameTable.addAction(Actions.sequence(
+            Actions.delay(0.3f), // Wait for the main menu to fade out
+            Actions.fadeIn(0.4f, Interpolation.fade)
+        ))
+    }
+
+    fun hideLoadGameScreen(showStartMenu: Boolean) {
+        loadGameTable.addAction(Actions.sequence(
+            Actions.fadeOut(0.3f, Interpolation.fade),
+            Actions.visible(false),
+            Actions.run {
+                if (showStartMenu) {
+                    // After this screen is hidden, show the start menu again
+                    this@UIManager.showStartMenu()
+                }
+            }
+        ))
     }
 
     private fun setupDeathScreen() {

@@ -19,7 +19,7 @@ enum class GameMode {
 }
 
 class MafiaGame : ApplicationAdapter() {
-    var isEditorMode = true
+    var isEditorMode = false
     var currentSaveFileName: String? = null
     var currentGameMode = GameMode.IN_GAME
     private var initialSystemsLoaded = false
