@@ -12,7 +12,11 @@ import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.Disposable
 import kotlin.math.sin
 
-
+/**
+ * Manages the logic and visualization of mission triggers and objectives.
+ * This system is responsible for starting missions based on player actions
+ * and rendering visual indicators for available missions and active objectives.
+ */
 class TriggerSystem(private val game: MafiaGame) : Disposable {
 
     // --- Rendering Components ---
@@ -25,6 +29,9 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
     private var dialogIconModel: Model? = null
     private var highlightCircleInstance: ModelInstance? = null
     private var dialogIconInstance: ModelInstance? = null
+    // --- NEW: Dedicated model for item highlights ---
+    private var itemHighlightCircleModel: Model? = null
+    private var itemHighlightCircleInstance: ModelInstance? = null
 
     // --- Textures ---
     private var highlightCircleTexture: Texture? = null
@@ -41,6 +48,7 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
     // --- Configuration ---
     companion object {
         const val VISUAL_RADIUS = 2.5f
+        private const val ITEM_HIGHLIGHT_RADIUS = 1.25f
         private const val VISUAL_ACTIVATION_DISTANCE = 60f
         private const val GROUND_OFFSET = 0.08f
 
@@ -49,15 +57,14 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
         private const val DIALOG_ICON_HEIGHT = 1.5f
 
         // --- Animation Constants ---
-        private const val BOBBING_SPEED = 4f    // How fast the icon moves up and down
+        private const val BOBBING_SPEED = 4f // How fast the icon moves up and down
         private const val BOBBING_HEIGHT = 0.15f // How high the icon moves from its base position
     }
 
     fun initialize() {
         refreshTriggers() // Load all missions from the mission system
 
-        // --- Initialize Shaders and Batches ---
-        modelBatch = ModelBatch() // For flat-on-the-ground circles
+        modelBatch = ModelBatch()
         billboardShaderProvider = BillboardShaderProvider().apply {
             setBillboardLightingStrength(0.9f)
             setMinLightLevel(0.4f)
@@ -76,17 +83,28 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
                 BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
                 IntAttribute.createCullFace(GL20.GL_NONE)
             )
-            val size = VISUAL_RADIUS * 2
+
+            // --- Create LARGE, SCALABLE Area Highlight Model ---
+            val areaSize = VISUAL_RADIUS * 2
             highlightCircleModel = modelBuilder.createRect(
-                -size / 2f, 0f, size / 2f, -size / 2f, 0f, -size / 2f,
-                size / 2f, 0f, -size / 2f, size / 2f, 0f, size / 2f,
-                0f, 1f, 0f, // Normal pointing up
-                circleMaterial,
+                -areaSize / 2f, 0f, areaSize / 2f, -areaSize / 2f, 0f, -areaSize / 2f,
+                areaSize / 2f, 0f, -areaSize / 2f, areaSize / 2f, 0f, areaSize / 2f,
+                0f, 1f, 0f, circleMaterial,
                 (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
             )
             highlightCircleInstance = ModelInstance(highlightCircleModel).apply { userData = "effect" }
+
+            val itemSize = ITEM_HIGHLIGHT_RADIUS * 2
+            itemHighlightCircleModel = modelBuilder.createRect(
+                -itemSize / 2f, 0f, itemSize / 2f, -itemSize / 2f, 0f, -itemSize / 2f,
+                itemSize / 2f, 0f, -itemSize / 2f, itemSize / 2f, 0f, itemSize / 2f,
+                0f, 1f, 0f, circleMaterial,
+                (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
+            )
+            itemHighlightCircleInstance = ModelInstance(itemHighlightCircleModel).apply { userData = "effect" }
+
         } catch (e: Exception) {
-            println("ERROR: Could not load 'gui/highlight_circle_trans.png'. Trigger highlight circles will be invisible.")
+            println("ERROR: Could not load 'gui/highlight_circle_trans.png'. Highlight circles will be invisible.")
         }
 
         // --- Load Dialog Icon Texture and Create Model ---
@@ -177,9 +195,6 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
         }
     }
 
-    /**
-     * Finds and queues all visible mission START triggers for rendering.
-     */
     private fun renderStartTriggers(renderables: Array<ModelInstance>, billboards: Array<ModelInstance>, bobOffset: Float) {
         val playerPos = game.playerSystem.getPosition()
         val currentSceneId = game.sceneManager.getCurrentSceneId()
@@ -188,11 +203,8 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
             val trigger = missionDef.startTrigger
 
             // --- Visibility Checks ---
-            if (!trigger.showVisuals) continue
-            if (trigger.sceneId != currentSceneId) continue
-            if (game.missionSystem.isMissionActive(missionId) || game.missionSystem.isMissionCompleted(missionId)) continue
-            val prerequisitesMet = missionDef.prerequisites.all { game.missionSystem.isMissionCompleted(it) }
-            if (!prerequisitesMet) continue
+            if (!trigger.showVisuals || trigger.sceneId != currentSceneId || game.missionSystem.isMissionActive(missionId) || game.missionSystem.isMissionCompleted(missionId)) continue
+            if (!missionDef.prerequisites.all { game.missionSystem.isMissionCompleted(it) }) continue
             if (playerPos.dst(trigger.areaCenter) > VISUAL_ACTIVATION_DISTANCE && trigger.type != TriggerType.ON_TALK_TO_NPC) continue
 
             // --- Render Visual Based on Type ---
@@ -201,11 +213,7 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
                     highlightCircleInstance?.let { instance ->
                         val center = trigger.areaCenter
                         var groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
-
-                        if (groundY < -500f) {
-                            groundY = 0f
-                        }
-
+                        if (groundY < -500f) groundY = 0f
                         instance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)
                         // Reset scale to default in case it was changed by an objective
                         instance.transform.scale(1f, 1f, 1f)
@@ -227,13 +235,8 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
         }
     }
 
-    /**
-     * Finds and queues the visual marker for the currently active mission objective.
-     */
     private fun renderActiveObjectiveMarkers(renderables: Array<ModelInstance>, billboards: Array<ModelInstance>, bobOffset: Float) {
-        val activeMission = game.missionSystem.activeMission ?: return
-        val objective = activeMission.getCurrentObjective() ?: return
-
+        val objective = game.missionSystem.activeMission?.getCurrentObjective() ?: return
         if (!objective.showVisuals) return
 
         val condition = objective.completionCondition
@@ -246,11 +249,7 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
                 highlightCircleInstance?.let { instance ->
                     val center = condition.areaCenter ?: return
                     var groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
-
-                    if (groundY < -500f) {
-                        groundY = 0f
-                    }
-
+                    if (groundY < -500f) groundY = 0f
                     instance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)
                     // Scale the visual to match the objective's functional radius
                     val scale = (condition.areaRadius ?: VISUAL_RADIUS) / VISUAL_RADIUS
@@ -269,18 +268,14 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
                 }
             }
             ConditionType.COLLECT_SPECIFIC_ITEM -> {
-                highlightCircleInstance?.let { instance ->
+                itemHighlightCircleInstance?.let { instance ->
                     val item = game.sceneManager.activeItems.find { it.id == condition.itemId }
                     if (item != null) {
                         val itemPos = item.position.cpy()
                         var groundY = game.sceneManager.findHighestSupportY(itemPos.x, itemPos.z, itemPos.y, 0.1f, game.blockSize)
-
-                        if (groundY < -500f) {
-                            groundY = 0f
-                        }
+                        if (groundY < -500f) groundY = 0f
 
                         instance.transform.setToTranslation(itemPos.x, groundY + GROUND_OFFSET, itemPos.z)
-                        instance.transform.scale(1f, 1f, 1f) // Reset scale
                         renderables.add(instance)
                     }
                 }
@@ -327,5 +322,6 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
         dialogIconTexture?.dispose()
         highlightCircleModel?.dispose()
         dialogIconModel?.dispose()
+        itemHighlightCircleModel?.dispose()
     }
 }

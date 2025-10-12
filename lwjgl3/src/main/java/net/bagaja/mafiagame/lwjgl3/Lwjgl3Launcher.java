@@ -87,6 +87,7 @@ public class Lwjgl3Launcher {
 // disablePoliceResponse: Boolean (Allow the player to cause chaos without getting a wanted level).6
 
 // Automatic/Linear Mode or Open World Mode
+// fire light fitting to size
 // multiple profiles
 // option to check if damage is done by player
 // ON_DESTROY_CAR, ON_DESTROY_OBJECT
@@ -104,6 +105,9 @@ public class Lwjgl3Launcher {
 
 // fbx-conv house.obj house.g3dj
 // fbx-conv -f house.obj house.g3dj
+
+// more like brainstorming question.
+//lets say i a have an item, for example a book png, and i want a shader ONLY for this book. maybe a shiny shader that this item/2d billboard looks shiny, would it be possible to create a shader ONLY EXCLUSIVE for this as currently i have shaders when i remember it right, that it works so that the shader for example looks for everything on pngs that is red, shaders knows, Ah okay here is red, and makes it gray. this would mean for my book shader, it would make things i dont want shiny as they have the same color like my book png
 
 // can you help me with my kotlin 3d game? as you maybe see, i have multiple not editor mode uis like huds, start screen, pause menu, visual settings ui and so on. and now my problem, i noticed that when i press the return button on pause menu, and i should move back to start screen, nothing of the start screen shows up, just the background, nothing more, and this looks like when i start the game and one second before the start screen shows up, there is this placeholder background that has nothing on it, and then it shows the start screen, and the screen that pops up when pressing the return button looks exactly the same. so my thought is that the start screen maybe never loads right. this brings me my big point. Can you overhaul the whole ui, that is only meant for player mode, so pause menu, visual settings, start screen, loading screen, and i think that should be it. in game things like hud, money label and so on work pretty well and have no problem, but the uis for start, loading, visual and pause are really bad working. they look okay for now, but how they are loaded, connected and called is really really bad.
 
