@@ -1344,7 +1344,8 @@ class MissionEditorUI(
             checkTargetInsteadCheckbox.isVisible = (selectedType == ConditionType.ENTER_AREA)
 
             targetIdTable.isVisible = selectedType in listOf(
-                ConditionType.ELIMINATE_TARGET, ConditionType.TALK_TO_NPC,
+                ConditionType.ELIMINATE_TARGET, ConditionType.PLAYER_ELIMINATE_TARGET,
+                ConditionType.TALK_TO_NPC,
                 ConditionType.INTERACT_WITH_OBJECT, ConditionType.DESTROY_CAR,
                 ConditionType.BURN_DOWN_HOUSE, ConditionType.DESTROY_OBJECT,
                 ConditionType.DRIVE_TO_LOCATION, ConditionType.MAINTAIN_DISTANCE

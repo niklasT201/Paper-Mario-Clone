@@ -687,7 +687,7 @@ class PlayerSystem {
                     spawnBloodEffects(bloodSpawnPosition, sceneManager)
                 }
 
-                if (enemy.takeDamage(damageToDeal, DamageType.MELEE, sceneManager) && enemy.currentState != AIState.DYING) {
+                if (enemy.takeDamage(damageToDeal, DamageType.MELEE, sceneManager, this) && enemy.currentState != AIState.DYING) {
                     sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                 }
             }
@@ -1708,7 +1708,7 @@ class PlayerSystem {
                             spawnBloodEffects(bloodSpawnPosition, sceneManager)
                         }
 
-                        if (enemy.takeDamage(damageToDeal, DamageType.GENERIC, sceneManager) && enemy.currentState != AIState.DYING) {
+                        if (enemy.takeDamage(damageToDeal, DamageType.GENERIC, sceneManager, this) && enemy.currentState != AIState.DYING) {
                             sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
                     }
@@ -1964,7 +1964,7 @@ class PlayerSystem {
                     if (distanceToEnemy < explosionRadius) {
                         // Apply Damage
                         val actualDamage = calculateFalloffDamage(baseDamageToDeal, distanceToEnemy, explosionRadius)
-                        if (enemy.takeDamage(actualDamage, DamageType.EXPLOSIVE, sceneManager) && enemy.currentState != AIState.DYING) {
+                        if (enemy.takeDamage(actualDamage, DamageType.EXPLOSIVE, sceneManager, this) && enemy.currentState != AIState.DYING) {
                             sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
 

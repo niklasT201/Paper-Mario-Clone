@@ -154,7 +154,7 @@ data class GameEnemy(
         const val BLOOD_DRIP_INTERVAL = 0.7f
     }
 
-    fun takeDamage(damage: Float, type: DamageType, sceneManager: SceneManager): Boolean {
+    fun takeDamage(damage: Float, type: DamageType, sceneManager: SceneManager, attacker: Any? = null): Boolean {
         if (isInCar) return false
 
         if (health <= 0) return false // Already dead, don't process more damage
@@ -192,8 +192,10 @@ data class GameEnemy(
 
         if (health <= 0) {
             lastDamageType = type
+            sceneManager.game.missionSystem.reportKill(this, attacker)
         }
-        println("${this.enemyType.displayName} took $damage $type damage. HP remaining: ${this.health.coerceAtLeast(0f)}")
+
+        println("${enemyType.displayName} took $damage $type damage. HP remaining: ${health.coerceAtLeast(0f)}")
         return health <= 0
     }
 }

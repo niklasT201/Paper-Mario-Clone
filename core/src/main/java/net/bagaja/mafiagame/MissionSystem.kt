@@ -591,6 +591,27 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         }
     }
 
+    fun reportKill(target: Any, attacker: Any?) {
+        // We only care about kills made by the player
+        if (attacker !is PlayerSystem) return
+
+        val objective = activeMission?.getCurrentObjective() ?: return
+        val condition = objective.completionCondition
+
+        val targetId = when (target) {
+            is GameEnemy -> target.id
+            is GameNPC -> target.id
+            else -> return // Not a valid target
+        }
+
+        // Check if the current objective is to have the player eliminate this specific target
+        if (condition.type == ConditionType.PLAYER_ELIMINATE_TARGET && condition.targetId == targetId) {
+            println("Player has successfully eliminated mission target: $targetId")
+            // Set a flag in our mission variables to mark this as complete
+            activeMission?.missionVariables?.set("player_killed_$targetId", true)
+        }
+    }
+
     private fun isObjectiveComplete(objective: MissionObjective, state: MissionState): Boolean {
         val condition = objective.completionCondition
         when (condition.type) {
@@ -628,7 +649,11 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 val targetExists = game.sceneManager.activeEnemies.any { it.id == condition.targetId }
                 return !targetExists
             }
-
+            ConditionType.PLAYER_ELIMINATE_TARGET -> {
+                val targetId = condition.targetId ?: return false
+                // The objective is complete if our flag has been set to true by reportKill()
+                return state.missionVariables["player_killed_$targetId"] == true
+            }
             ConditionType.ELIMINATE_ALL_ENEMIES -> {
                // 1. Get the list of enemy IDs we are supposed to be tracking for this objective.
                 val variable = state.missionVariables["enemies_to_eliminate"]

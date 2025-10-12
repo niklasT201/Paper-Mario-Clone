@@ -88,6 +88,7 @@ data class MissionReward(
 enum class ConditionType {
     ENTER_AREA,
     ELIMINATE_TARGET,
+    PLAYER_ELIMINATE_TARGET,
     ELIMINATE_ALL_ENEMIES,
     DESTROY_CAR,
     BURN_DOWN_HOUSE,

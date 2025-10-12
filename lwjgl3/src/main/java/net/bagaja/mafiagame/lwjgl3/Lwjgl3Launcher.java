@@ -71,14 +71,12 @@ public class Lwjgl3Launcher {
 // visual that a character wants to talk
 // weather events
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
-// more options for starting a mission
 // mission trigger not visible during other missions
 // pulling out characters from vehicles
 // add event button automatically adds new event without saving button press
 // new events: PLAY_SOUND
 // fixing enemy reloading bug
 // fixing flickering character image
-// Objective Markers
 // drive to location, visual arrow that shows direction
 // SEQUENCE, LOSE_THE_COPS, INFLUENCE_NPC, CAPTURE_TERRITORY
 // Cutscene System
@@ -87,10 +85,7 @@ public class Lwjgl3Launcher {
 // disablePoliceResponse: Boolean (Allow the player to cause chaos without getting a wanted level).6
 
 // Automatic/Linear Mode or Open World Mode
-// multiple profiles
-// option to check if damage is done by player
 // ON_DESTROY_CAR, ON_DESTROY_OBJECT
-// trigger point changes design when switching mission trigger
 // adding multiple city areas, district 2d polygons
 // INTERACT_WITH_OBJECT Logic: Similar to the above, you don't have a generic "interaction" system for objects yet
 // Advanced Rewards: The logic for GIVE_AMMO and GIVE_ITEM is in place, but things like UNLOCK_CAR_SPAWN would require a "garage" or "player property" system.
