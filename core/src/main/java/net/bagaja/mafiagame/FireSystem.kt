@@ -44,7 +44,8 @@ data class GameFire(
     var hasSpawnedFireSpot: Boolean = false
     var spreadTimer: Float = 2.0f
 
-    fun update(deltaTime: Float, particleSystem: ParticleSystem) {
+    // --- MODIFIED ---: The update method now accepts the LightingManager
+    fun update(deltaTime: Float, particleSystem: ParticleSystem, lightingManager: LightingManager) {
         if (fadesOut && lifetime > 0) {
             lifetime -= deltaTime
         }
@@ -74,6 +75,24 @@ data class GameFire(
         // Apply scale to the visual model
         gameObject.modelInstance.transform.setToTranslation(gameObject.position)
         gameObject.modelInstance.transform.scale(currentScale, currentScale, currentScale)
+
+        // --- NEW LOGIC: DYNAMIC LIGHT UPDATE ---
+        gameObject.associatedLightId?.let { lightId ->
+            lightingManager.getLightSources()[lightId]?.let { lightSource ->
+                // Calculate the ratio of the current size to its starting size
+                if (initialScale > 0.01f) {
+                    val scaleRatio = (currentScale / initialScale).coerceIn(0f, 2f) // Coerce to prevent insane values
+
+                    // Update intensity and range based on the scale ratio
+                    lightSource.intensity = gameObject.objectType.lightIntensity * scaleRatio
+                    lightSource.range = gameObject.objectType.lightRange * scaleRatio
+
+                    // IMPORTANT: Push the changes to the renderable point light
+                    lightSource.updatePointLight()
+                }
+            }
+        }
+        // --- END OF NEW LOGIC ---
 
         animationSystem.update(deltaTime)
 
@@ -233,7 +252,7 @@ class FireSystem {
 
         while(iterator.hasNext()) {
             val fire = iterator.next()
-            fire.update(deltaTime, particleSystem)
+            fire.update(deltaTime, particleSystem, sceneManager.game.lightingManager)
 
             if (fire.canSpread && !fire.isBeingExtinguished) {
                 fire.spreadTimer -= deltaTime

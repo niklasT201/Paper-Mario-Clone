@@ -87,7 +87,6 @@ public class Lwjgl3Launcher {
 // disablePoliceResponse: Boolean (Allow the player to cause chaos without getting a wanted level).6
 
 // Automatic/Linear Mode or Open World Mode
-// fire light fitting to size
 // multiple profiles
 // option to check if damage is done by player
 // ON_DESTROY_CAR, ON_DESTROY_OBJECT
