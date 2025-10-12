@@ -216,9 +216,15 @@ class TriggerEditorUI(
         val selectedType = try { TriggerType.valueOf(triggerTypeSelectBox.selected) } catch (e: Exception) { TriggerType.ON_ENTER_AREA }
 
         // Area settings are now used by multiple types
-        areaSettingsTable.isVisible = (selectedType == TriggerType.ON_ENTER_AREA ||
-            selectedType == TriggerType.ON_LEAVE_AREA ||
-            selectedType == TriggerType.ON_STAY_IN_AREA_FOR_TIME)
+        val isAreaBased = selectedType in listOf(
+            TriggerType.ON_ENTER_AREA,
+            TriggerType.ON_LEAVE_AREA,
+            TriggerType.ON_STAY_IN_AREA_FOR_TIME
+        )
+
+        // Show/hide the radius field and placement instructions based on the type.
+        areaSettingsTable.isVisible = isAreaBased
+        instructions.isVisible = isAreaBased
 
         // Show the new time field only for its specific trigger type
         stayInAreaTable.isVisible = (selectedType == TriggerType.ON_STAY_IN_AREA_FOR_TIME)

@@ -174,33 +174,47 @@ class InputHandler(
                                 Tool.NPC -> npcSystem.handlePlaceAction(ray)
                                 Tool.PARTICLE -> particleSystem.handlePlaceAction(ray)
                                 Tool.TRIGGER -> {
+                                    val missionId = game.triggerSystem.selectedMissionIdForEditing
+                                    if (missionId == null) {
+                                        uiManager.showTemporaryMessage("Select a mission to edit in the Mission Editor (F7).")
+                                        return true
+                                    }
+                                    val mission = game.missionSystem.getMissionDefinition(missionId) ?: return true
+                                    val triggerType = mission.startTrigger.type
+
+                                    // 1. Check if the current trigger type actually needs an area.
+                                    val isAreaBased = triggerType in listOf(
+                                        TriggerType.ON_ENTER_AREA,
+                                        TriggerType.ON_LEAVE_AREA,
+                                        TriggerType.ON_STAY_IN_AREA_FOR_TIME
+                                    )
+
+                                    // 2. If it doesn't need an area, inform the user and do nothing.
+                                    if (!isAreaBased) {
+                                        uiManager.showTemporaryMessage("This trigger type does not need a location.")
+                                        return true // Consume the click but don't place anything.
+                                    }
+
+                                    // 3. If it IS an area-based trigger, perform the placement logic.
                                     val intersection = Vector3()
                                     if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-                                        game.triggerSystem.selectedMissionIdForEditing?.let { missionId ->
-                                            val mission = game.missionSystem.getMissionDefinition(missionId)
-                                            if (mission != null) {
-                                                // Update the mission's trigger data
-                                                mission.startTrigger.areaCenter.set(intersection)
-
-                                                // Check which scene we are in and assign the correct ID
-                                                if (game.sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
-                                                    val currentHouseId = game.sceneManager.getCurrentHouse()?.id
-                                                    if (currentHouseId != null) {
-                                                        mission.startTrigger.sceneId = currentHouseId
-                                                        uiManager.updatePlacementInfo("Set trigger for '${mission.title}' in this room.")
-                                                    } else {
-                                                        uiManager.updatePlacementInfo("ERROR: Could not get current house ID!")
-                                                    }
-                                                } else {
-                                                    mission.startTrigger.sceneId = "WORLD"
-                                                    uiManager.updatePlacementInfo("Set trigger for '${mission.title}' in the world.")
-                                                }
-
-                                                // Save the mission file with the new trigger position and sceneId
-                                                game.missionSystem.saveMission(mission)
+                                        // Update the mission's trigger data
+                                        mission.startTrigger.areaCenter.set(intersection)
+                                        if (game.sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+                                            val currentHouseId = game.sceneManager.getCurrentHouse()?.id
+                                            if (currentHouseId != null) {
+                                                mission.startTrigger.sceneId = currentHouseId
+                                                uiManager.updatePlacementInfo("Set trigger for '${mission.title}' in this room.")
                                             }
+                                        } else {
+                                            mission.startTrigger.sceneId = "WORLD"
+                                            uiManager.updatePlacementInfo("Set trigger for '${mission.title}' in the world.")
                                         }
+
+                                        // Save the mission file with the new trigger position and sceneId
+                                        game.missionSystem.saveMission(mission)
                                     }
+                                    return true // Return true as the action is handled.
                                 }
                             }
                             // Reset timer and track position for continuous placement
@@ -1092,105 +1106,107 @@ class InputHandler(
             return
         }
 
-        continuousActionTimer += deltaTime
-        continuousFineTimer += deltaTime
+        if (game.isEditorMode) {
+            continuousActionTimer += deltaTime
+            continuousFineTimer += deltaTime
 
-        // Handle continuous block placement
-        if (isLeftMousePressed && continuousActionTimer >= continuousActionDelay) {
-            val currentMouseX = Gdx.input.x
-            val currentMouseY = Gdx.input.y
+            // Handle continuous block placement
+            if (isLeftMousePressed && continuousActionTimer >= continuousActionDelay) {
+                val currentMouseX = Gdx.input.x
+                val currentMouseY = Gdx.input.y
 
-            // Only place if mouse has moved or enough time has passed
-            if (currentMouseX != lastPlacementX || currentMouseY != lastPlacementY) {
-                val ray = cameraManager.camera.getPickRay(currentMouseX.toFloat(), currentMouseY.toFloat())
-                when (uiManager.selectedTool) {
-                    Tool.BLOCK -> blockSystem.handlePlaceAction(ray)
-                    Tool.PLAYER -> game.playerSystem.placePlayer(ray, sceneManager)
-                    Tool.OBJECT -> objectSystem.handlePlaceAction(ray, objectSystem.currentSelectedObject)
-                    Tool.ITEM -> itemSystem.handlePlaceAction(ray)
-                    Tool.CAR -> {
-                        if (isPlacingCarPath) {
-                            carPathSystem.handlePlaceAction(ray)
-                        } else {
-                            carSystem.handlePlaceAction(ray)
+                // Only place if mouse has moved or enough time has passed
+                if (currentMouseX != lastPlacementX || currentMouseY != lastPlacementY) {
+                    val ray = cameraManager.camera.getPickRay(currentMouseX.toFloat(), currentMouseY.toFloat())
+                    when (uiManager.selectedTool) {
+                        Tool.BLOCK -> blockSystem.handlePlaceAction(ray)
+                        Tool.PLAYER -> game.playerSystem.placePlayer(ray, sceneManager)
+                        Tool.OBJECT -> objectSystem.handlePlaceAction(ray, objectSystem.currentSelectedObject)
+                        Tool.ITEM -> itemSystem.handlePlaceAction(ray)
+                        Tool.CAR -> {
+                            if (isPlacingCarPath) {
+                                carPathSystem.handlePlaceAction(ray)
+                            } else {
+                                carSystem.handlePlaceAction(ray)
+                            }
                         }
-                    }
-                    Tool.HOUSE -> houseSystem.handlePlaceAction(ray)
-                    Tool.BACKGROUND -> backgroundSystem.handlePlaceAction(ray)
-                    Tool.PARALLAX -> parallaxSystem.handlePlaceAction(ray)
-                    Tool.INTERIOR -> interiorSystem.handlePlaceAction(ray)
-                    Tool.ENEMY -> enemySystem.handlePlaceAction(ray)
-                    Tool.NPC -> npcSystem.handlePlaceAction(ray)
-                    Tool.PARTICLE -> particleSystem.handlePlaceAction(ray)
-                    Tool.TRIGGER -> {
-                        val intersection = Vector3()
-                        if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
-                            game.triggerSystem.selectedMissionIdForEditing?.let { missionId ->
-                                val mission = game.missionSystem.getMissionDefinition(missionId)
-                                if (mission != null) {
-                                    mission.startTrigger.areaCenter.set(intersection)
-                                    game.missionSystem.saveMission(mission)
-                                    uiManager.updatePlacementInfo("Set trigger for '${mission.title}'")
+                        Tool.HOUSE -> houseSystem.handlePlaceAction(ray)
+                        Tool.BACKGROUND -> backgroundSystem.handlePlaceAction(ray)
+                        Tool.PARALLAX -> parallaxSystem.handlePlaceAction(ray)
+                        Tool.INTERIOR -> interiorSystem.handlePlaceAction(ray)
+                        Tool.ENEMY -> enemySystem.handlePlaceAction(ray)
+                        Tool.NPC -> npcSystem.handlePlaceAction(ray)
+                        Tool.PARTICLE -> particleSystem.handlePlaceAction(ray)
+                        Tool.TRIGGER -> {
+                            val intersection = Vector3()
+                            if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+                                game.triggerSystem.selectedMissionIdForEditing?.let { missionId ->
+                                    val mission = game.missionSystem.getMissionDefinition(missionId)
+                                    if (mission != null) {
+                                        mission.startTrigger.areaCenter.set(intersection)
+                                        game.missionSystem.saveMission(mission)
+                                        uiManager.updatePlacementInfo("Set trigger for '${mission.title}'")
+                                    }
                                 }
                             }
                         }
                     }
-                }
-                lastPlacementX = currentMouseX
-                lastPlacementY = currentMouseY
-                continuousActionTimer = 0f
-            }
-        }
-
-        // Handle continuous block removal
-        if (isRightMousePressed && isBlockBeingRemoved() && continuousActionTimer >= continuousActionDelay) {
-            val currentMouseX = Gdx.input.x
-            val currentMouseY = Gdx.input.y
-
-            // Only remove if mouse has moved or enough time has passed
-            if (currentMouseX != lastRemovalX || currentMouseY != lastRemovalY) {
-                val ray = cameraManager.camera.getPickRay(currentMouseX.toFloat(), currentMouseY.toFloat())
-                var removed = false
-                when (uiManager.selectedTool) {
-                    Tool.BLOCK -> removed = blockSystem.handleRemoveAction(ray)
-                    Tool.OBJECT -> removed = objectSystem.handleRemoveAction(ray)
-                    Tool.ITEM -> removed = itemSystem.handleRemoveAction(ray)
-                    Tool.CAR -> removed = carSystem.handleRemoveAction(ray)
-                    Tool.HOUSE -> removed = houseSystem.handleRemoveAction(ray)
-                    Tool.BACKGROUND -> removed = backgroundSystem.handleRemoveAction(ray)
-                    Tool.PARALLAX -> removed = parallaxSystem.handleRemoveAction(ray)
-                    Tool.INTERIOR -> removed = interiorSystem.handleRemoveAction(ray)
-                    Tool.ENEMY -> removed = enemySystem.handleRemoveAction(ray)
-                    Tool.NPC -> removed = npcSystem.handleRemoveAction(ray)
-                    Tool.TRIGGER -> removed = game.triggerSystem.removeTriggerForSelectedMission()
-                    Tool.PLAYER, Tool.PARTICLE -> { /* No removal action */ }
-                }
-
-                if (removed) {
-                    lastRemovalX = currentMouseX
-                    lastRemovalY = currentMouseY
+                    lastPlacementX = currentMouseX
+                    lastPlacementY = currentMouseY
                     continuousActionTimer = 0f
                 }
             }
-        }
 
-        // Handle continuous fine positioning
-        if (continuousFineTimer >= continuousFineDelay) {
-            var deltaX = 0f
-            var deltaY = 0f
-            var deltaZ = 0f
+            // Handle continuous block removal
+            if (isRightMousePressed && isBlockBeingRemoved() && continuousActionTimer >= continuousActionDelay) {
+                val currentMouseX = Gdx.input.x
+                val currentMouseY = Gdx.input.y
 
-            if (leftPressed) deltaX -= getCurrentFineStep()
-            if (rightPressed) deltaX += getCurrentFineStep()
-            if (downPressed) deltaZ += getCurrentFineStep()
-            if (upPressed) deltaZ -= getCurrentFineStep()
-            if (pageDownPressed) deltaY -= getCurrentFineStep()
-            if (pageUpPressed) deltaY += getCurrentFineStep()
+                // Only remove if mouse has moved or enough time has passed
+                if (currentMouseX != lastRemovalX || currentMouseY != lastRemovalY) {
+                    val ray = cameraManager.camera.getPickRay(currentMouseX.toFloat(), currentMouseY.toFloat())
+                    var removed = false
+                    when (uiManager.selectedTool) {
+                        Tool.BLOCK -> removed = blockSystem.handleRemoveAction(ray)
+                        Tool.OBJECT -> removed = objectSystem.handleRemoveAction(ray)
+                        Tool.ITEM -> removed = itemSystem.handleRemoveAction(ray)
+                        Tool.CAR -> removed = carSystem.handleRemoveAction(ray)
+                        Tool.HOUSE -> removed = houseSystem.handleRemoveAction(ray)
+                        Tool.BACKGROUND -> removed = backgroundSystem.handleRemoveAction(ray)
+                        Tool.PARALLAX -> removed = parallaxSystem.handleRemoveAction(ray)
+                        Tool.INTERIOR -> removed = interiorSystem.handleRemoveAction(ray)
+                        Tool.ENEMY -> removed = enemySystem.handleRemoveAction(ray)
+                        Tool.NPC -> removed = npcSystem.handleRemoveAction(ray)
+                        Tool.TRIGGER -> removed = game.triggerSystem.removeTriggerForSelectedMission()
+                        Tool.PLAYER, Tool.PARTICLE -> { /* No removal action */ }
+                    }
 
-            // Only call if there's actual movement
-            if (deltaX != 0f || deltaY != 0f || deltaZ != 0f) {
-                game.handleFinePosMove(deltaX, deltaY, deltaZ)
-                continuousFineTimer = 0f
+                    if (removed) {
+                        lastRemovalX = currentMouseX
+                        lastRemovalY = currentMouseY
+                        continuousActionTimer = 0f
+                    }
+                }
+            }
+
+            // Handle continuous fine positioning
+            if (continuousFineTimer >= continuousFineDelay) {
+                var deltaX = 0f
+                var deltaY = 0f
+                var deltaZ = 0f
+
+                if (leftPressed) deltaX -= getCurrentFineStep()
+                if (rightPressed) deltaX += getCurrentFineStep()
+                if (downPressed) deltaZ += getCurrentFineStep()
+                if (upPressed) deltaZ -= getCurrentFineStep()
+                if (pageDownPressed) deltaY -= getCurrentFineStep()
+                if (pageUpPressed) deltaY += getCurrentFineStep()
+
+                // Only call if there's actual movement
+                if (deltaX != 0f || deltaY != 0f || deltaZ != 0f) {
+                    game.handleFinePosMove(deltaX, deltaY, deltaZ)
+                    continuousFineTimer = 0f
+                }
             }
         }
     }

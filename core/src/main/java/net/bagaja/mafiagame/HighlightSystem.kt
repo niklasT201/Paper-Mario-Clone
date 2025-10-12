@@ -634,6 +634,25 @@ class HighlightSystem(private val game: MafiaGame, private val blockSize: Float)
     }
 
     private fun updateTriggerHighlight(ray: Ray) {
+       // 1. Get the mission being edited from the UIManager
+        val missionId = game.uiManager.selectedMissionForEditing?.id ?: run { hideHighlight(); return }
+        val mission = game.missionSystem.getMissionDefinition(missionId) ?: run { hideHighlight(); return }
+        val triggerType = mission.startTrigger.type
+
+        // 2. Check if this trigger type requires a visual area placement
+        val isAreaBased = triggerType in listOf(
+            TriggerType.ON_ENTER_AREA,
+            TriggerType.ON_LEAVE_AREA,
+            TriggerType.ON_STAY_IN_AREA_FOR_TIME
+        )
+
+        // 3. If it's not an area-based trigger, hide the highlight and stop.
+        if (!isAreaBased) {
+            hideHighlight()
+            return
+        }
+
+        // 4. If it IS an area-based trigger, show the placement highlight as before.
         updateHighlightSize(Vector3(2f, 0.5f, 2f))
 
         // Check for intersection with the ground plane
