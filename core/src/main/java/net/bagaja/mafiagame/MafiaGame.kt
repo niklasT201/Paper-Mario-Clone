@@ -19,7 +19,7 @@ enum class GameMode {
 }
 
 class MafiaGame : ApplicationAdapter() {
-    var isEditorMode = false
+    var isEditorMode = true
     var currentSaveFileName: String? = null
     var currentGameMode = GameMode.IN_GAME
     private var initialSystemsLoaded = false
@@ -249,7 +249,7 @@ class MafiaGame : ApplicationAdapter() {
 
         objectiveArrowSystem.initialize()
         missionSystem.initialize()
-        triggerSystem.initialize(missionSystem.getAllMissionDefinitions())
+        triggerSystem.initialize()
 
         particleSystem.initialize(blockSize)
         blockSystem.initialize(blockSize)

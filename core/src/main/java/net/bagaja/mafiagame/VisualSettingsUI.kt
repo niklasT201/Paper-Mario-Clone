@@ -33,6 +33,7 @@ class VisualSettingsUI(
     private lateinit var overlay: Image
     private var isVisible = false
 
+    lateinit var backButton: TextButton
     private val fullscreenCheckbox: CheckBox
     private val letterboxCheckbox: CheckBox
     private val cinematicBarsCheckbox: CheckBox
@@ -158,7 +159,7 @@ class VisualSettingsUI(
         newspaperTable.add(settingsTable).width(380f).padBottom(25f).row()
 
         // Back button with vintage styling
-        val backButton = createVintageButton("⬅ RETURN TO PAUSE MENU ⬅", Color.valueOf("#8B0000"))
+        backButton = createVintageButton("⬅ RETURN TO PAUSE MENU ⬅", Color.valueOf("#8B0000"))
         newspaperTable.add(backButton).width(320f).height(50f).row()
 
         // Bottom art deco decoration

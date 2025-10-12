@@ -1121,6 +1121,11 @@ class MissionEditorUI(
             selected = existingObjective?.completionCondition?.type?.name ?: ConditionType.ENTER_AREA.name
         }
 
+        // NEW: Checkbox for objective visuals
+        val showVisualsCheckbox = CheckBox(" Show Visual Indicator", skin).apply {
+            isChecked = existingObjective?.showVisuals ?: true
+        }
+
         // --- Timer UI elements ---
         val hasTimerCheckbox = CheckBox(" Enable Timer", skin).apply {
             isChecked = existingObjective?.hasTimer ?: false
@@ -1254,6 +1259,7 @@ class MissionEditorUI(
 
         settingsTable.add(Label("Description:", skin)); settingsTable.add(descField).width(300f).row()
         settingsTable.add(Label("Condition Type:", skin)); settingsTable.add(typeSelect).row()
+        settingsTable.add(showVisualsCheckbox).colspan(2).left().padTop(5f).row() // NEW: Add checkbox to layout
         settingsTable.add(hasTimerCheckbox).colspan(2).left().padTop(5f).row()
         settingsTable.add(timerTable).colspan(2).left().row()
         settingsTable.add(showCounterCheckbox).colspan(2).left().padTop(5f).row()
@@ -1420,6 +1426,7 @@ class MissionEditorUI(
                     completionCondition = newCondition,
                     hasTimer = hasTimerCheckbox.isChecked,
                     timerDuration = timerDurationField.text.toFloatOrNull() ?: 60f,
+                    showVisuals = showVisualsCheckbox.isChecked, // NEW: Save the visual state
                     showEnemiesLeftCounter = showCounterCheckbox.isChecked
                 ) ?: MissionObjective(
                     description = descField.text.ifBlank { "New Objective" },
@@ -1427,6 +1434,7 @@ class MissionEditorUI(
                     eventsOnStart = eventsOnStart,
                     hasTimer = hasTimerCheckbox.isChecked,
                     timerDuration = timerDurationField.text.toFloatOrNull() ?: 60f,
+                    showVisuals = showVisualsCheckbox.isChecked, // NEW: Save the visual state
                     showEnemiesLeftCounter = showCounterCheckbox.isChecked
                 )
 

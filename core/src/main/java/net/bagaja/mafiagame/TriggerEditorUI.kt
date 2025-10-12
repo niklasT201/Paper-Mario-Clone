@@ -42,6 +42,7 @@ class TriggerEditorUI(
     private var requiredTimeField: TextField
     private val moneySettingsTable: Table
     private val moneyThresholdField: TextField
+    private val showVisualsCheckbox: CheckBox
 
     init {
         window.setSize(550f, 450f)
@@ -62,6 +63,9 @@ class TriggerEditorUI(
         triggerTypeSelectBox.items = GdxArray(TriggerType.entries.map { it.name }.toTypedArray())
         contentTable.add(Label("Trigger Type:", skin)).padRight(10f).padTop(10f)
         contentTable.add(triggerTypeSelectBox).growX().row()
+
+        showVisualsCheckbox = CheckBox(" Show Visual Indicator", skin)
+        contentTable.add(showVisualsCheckbox).colspan(2).left().padTop(10f).row()
 
         // --- Dynamic Settings Panels ---
         areaSettingsTable = Table()
@@ -183,6 +187,8 @@ class TriggerEditorUI(
         requiredTimeField.text = mission.startTrigger.requiredTimeInArea.toString()
 
         moneyThresholdField.text = mission.startTrigger.moneyThreshold.toString()
+
+        showVisualsCheckbox.isChecked = mission.startTrigger.showVisuals // NEW: Load state
         updateVisibleFields()
     }
 
@@ -199,6 +205,7 @@ class TriggerEditorUI(
         mission.startTrigger.itemCount = itemCountField.text.toIntOrNull() ?: 1
         mission.startTrigger.targetHouseId = targetHouseIdField.text.ifBlank { null }
         mission.startTrigger.targetCarId = targetCarIdField.text.ifBlank { null }
+        mission.startTrigger.showVisuals = showVisualsCheckbox.isChecked // NEW: Save state
 
         missionSystem.saveMission(mission)
         uiManager.showTemporaryMessage("Trigger for '${mission.title}' saved.")

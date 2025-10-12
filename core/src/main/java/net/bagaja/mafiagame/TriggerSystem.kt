@@ -4,233 +4,261 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.*
 import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
-import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.Disposable
-import net.bagaja.mafiagame.MafiaGame
 
-data class VisualMissionTrigger(
-    val definition: MissionTrigger,
-    val modelInstance: ModelInstance,
-    var isVisible: Boolean = false
-)
 
 class TriggerSystem(private val game: MafiaGame) : Disposable {
 
     // --- Rendering Components ---
     private lateinit var modelBatch: ModelBatch
-    private lateinit var shaderProvider: BillboardShaderProvider
-    private lateinit var triggerTexture: Texture
-    private val modelBuilder = ModelBuilder()
-    private val models = mutableMapOf<Float, Model>()
+    private lateinit var billboardModelBatch: ModelBatch
+    private lateinit var billboardShaderProvider: BillboardShaderProvider
+
+    // --- Models & Instances ---
+    private var highlightCircleModel: Model? = null
+    private var dialogIconModel: Model? = null
+    private var highlightCircleInstance: ModelInstance? = null
+    private var dialogIconInstance: ModelInstance? = null
+
+    // --- Textures ---
+    private var highlightCircleTexture: Texture? = null
+    private var dialogIconTexture: Texture? = null
 
     // --- State ---
-    private val missionTriggers = mutableMapOf<String, VisualMissionTrigger>()
-    private val renderableInstances = Array<ModelInstance>()
-    private val playerWasInArea = mutableMapOf<String, Boolean>()
-    private val stayInAreaTimers = mutableMapOf<String, Float>()
-
-    var isEditorVisible = false // Controlled by the new UI tool
+    private val allMissions = mutableMapOf<String, MissionDefinition>()
     var selectedMissionIdForEditing: String? = null
+    var isEditorVisible = false // Controlled by the Trigger tool in the UI
 
     // --- Configuration ---
     companion object {
         const val VISUAL_RADIUS = 2.5f
-        private const val VISUAL_ACTIVATION_DISTANCE = 40f
+        private const val VISUAL_ACTIVATION_DISTANCE = 60f
         private const val GROUND_OFFSET = 0.08f
+
+        private const val NPC_ICON_Y_OFFSET = 0.75f
+        private const val DIALOG_ICON_WIDTH = 1.5f
+        private const val DIALOG_ICON_HEIGHT = 1.5f
     }
 
-    fun initialize(allMissions: Map<String, MissionDefinition>) {
-        shaderProvider = BillboardShaderProvider().apply {
+    fun initialize() {
+        refreshTriggers() // Load all missions from the mission system
+
+        // --- Initialize Shaders and Batches ---
+        modelBatch = ModelBatch() // For flat-on-the-ground circles
+        billboardShaderProvider = BillboardShaderProvider().apply {
             setBillboardLightingStrength(0.9f)
             setMinLightLevel(0.4f)
         }
-        modelBatch = ModelBatch(shaderProvider)
+        billboardModelBatch = ModelBatch(billboardShaderProvider) // For camera-facing billboards
 
+        val modelBuilder = ModelBuilder()
+
+        // --- Load Highlight Circle Texture and Create Model ---
         try {
-            triggerTexture = Texture(Gdx.files.local("assets/gui/highlight_circle_trans.png"))
-            triggerTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
+            highlightCircleTexture = Texture(Gdx.files.internal("gui/highlight_circle_trans.png")).apply {
+                setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
+            }
+            val circleMaterial = Material(
+                TextureAttribute.createDiffuse(highlightCircleTexture),
+                BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
+                IntAttribute.createCullFace(GL20.GL_NONE)
+            )
+            val size = VISUAL_RADIUS * 2
+            highlightCircleModel = modelBuilder.createRect(
+                -size / 2f, 0f, size / 2f, -size / 2f, 0f, -size / 2f,
+                size / 2f, 0f, -size / 2f, size / 2f, 0f, size / 2f,
+                0f, 1f, 0f, // Normal pointing up
+                circleMaterial,
+                (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
+            )
+            highlightCircleInstance = ModelInstance(highlightCircleModel).apply { userData = "effect" }
         } catch (e: Exception) {
-            println("ERROR: Could not load 'gui/highlight_circle_trans.png'. Trigger visuals will be invisible.")
-            return
+            println("ERROR: Could not load 'gui/highlight_circle_trans.png'. Trigger highlight circles will be invisible.")
         }
 
-        // Iterate through all loaded missions and create visual triggers for them
-        for ((missionId, missionDef) in allMissions) {
-            if (missionDef.startTrigger.type == TriggerType.ON_ENTER_AREA) {
-                addTrigger(missionId, missionDef.startTrigger)
+        // --- Load Dialog Icon Texture and Create Model ---
+        try {
+            dialogIconTexture = Texture(Gdx.files.internal("gui/dialog_box.png")).apply {
+                setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
             }
+            val iconMaterial = Material(
+                TextureAttribute.createDiffuse(dialogIconTexture),
+                BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
+                IntAttribute.createCullFace(GL20.GL_NONE)
+            )
+            dialogIconModel = modelBuilder.createRect(
+                -DIALOG_ICON_WIDTH / 2f, -DIALOG_ICON_HEIGHT / 2f, 0f,
+                DIALOG_ICON_WIDTH / 2f, -DIALOG_ICON_HEIGHT / 2f, 0f,
+                DIALOG_ICON_WIDTH / 2f, DIALOG_ICON_HEIGHT / 2f, 0f,
+                -DIALOG_ICON_WIDTH / 2f, DIALOG_ICON_HEIGHT / 2f, 0f,
+                0f, 0f, 1f, // Normal facing forward
+                iconMaterial,
+                (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
+            )
+            dialogIconInstance = ModelInstance(dialogIconModel).apply { userData = "character" }
+        } catch (e: Exception) {
+            println("ERROR: Could not load 'gui/dialog_box.png'. Dialog icons will be invisible.")
         }
     }
 
     fun refreshTriggers() {
         println("Refreshing mission triggers...")
-        // Clear out the old visual triggers
-        missionTriggers.clear()
-
-        // Get the most up-to-date list of all missions from the MissionSystem
-        val allMissions = game.missionSystem.getAllMissionDefinitions()
-
-        // Re-build the visual triggers, just like we do in initialize()
-        for ((missionId, missionDef) in allMissions) {
-            if (missionDef.startTrigger.type == TriggerType.ON_ENTER_AREA) {
-                addTrigger(missionId, missionDef.startTrigger)
-            }
-        }
-        println("Triggers refreshed. Total active triggers: ${missionTriggers.size}")
-    }
-
-    private fun addTrigger(missionId: String, definition: MissionTrigger) {
-        val radius = definition.areaRadius ?: return
-        val model = getOrCreateModelForRadius(radius)
-        val instance = ModelInstance(model)
-        instance.userData = "effect"
-
-        val visualTrigger = VisualMissionTrigger(definition, instance)
-        missionTriggers[missionId] = visualTrigger
-    }
-
-    private fun getOrCreateModelForRadius(radius: Float): Model {
-        // We now use a constant visual radius (VISUAL_RADIUS) as the key,
-        // so we only ever create ONE model for all triggers.
-        return models.getOrPut(VISUAL_RADIUS) {
-            println("Creating new trigger model for visual radius: $VISUAL_RADIUS")
-            val modelBuilder = ModelBuilder()
-            val material = Material(
-                TextureAttribute.createDiffuse(triggerTexture),
-                BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
-                IntAttribute.createCullFace(GL20.GL_NONE)
-            )
-            // Use the constant VISUAL_RADIUS to build the rectangle, NOT the functional 'radius' parameter.
-            val size = VISUAL_RADIUS * 2
-            modelBuilder.createRect(
-                -size / 2f, 0f,  size / 2f,
-                -size / 2f, 0f, -size / 2f,
-                size / 2f, 0f, -size / 2f,
-                size / 2f, 0f,  size / 2f,
-                0f, 1f, 0f, // Normal pointing straight up
-                material,
-                (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
-            )
-        }
+        allMissions.clear()
+        allMissions.putAll(game.missionSystem.getAllMissionDefinitions())
+        println("Triggers refreshed. Total missions tracked: ${allMissions.size}")
     }
 
     fun update() {
         val playerPos = game.playerSystem.getPosition()
+        val currentSceneId = game.sceneManager.getCurrentSceneId()
 
-        // Determine the ID of the currently active scene
-        val currentSceneId = if (game.sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
-            game.sceneManager.getCurrentHouse()?.id
-        } else {
-            "WORLD"
+        for ((missionId, missionDef) in allMissions) {
+            if (game.missionSystem.isMissionActive(missionId) || game.missionSystem.isMissionCompleted(missionId)) continue
+            val prerequisitesMet = missionDef.prerequisites.all { game.missionSystem.isMissionCompleted(it) }
+            if (!prerequisitesMet) continue
+
+            val trigger = missionDef.startTrigger
+            if (trigger.sceneId != currentSceneId) continue
+
+            if (trigger.type == TriggerType.ON_ENTER_AREA && playerPos.dst(trigger.areaCenter) < trigger.areaRadius) {
+                game.missionSystem.startMission(missionId)
+                break // Start only one mission per frame
+            }
         }
-        // If we're in an interior but can't get the ID, do nothing to be safe.
-        if (currentSceneId == null) return
+    }
 
-        for ((missionId, trigger) in missionTriggers) {
-            // Check if the trigger belongs to the current scene
-            if (trigger.definition.sceneId != currentSceneId) {
-                trigger.isVisible = false // Ensure triggers from other scenes are hidden
-                continue // Skip this trigger entirely
-            }
+    fun render(camera: Camera, environment: Environment) {
+        val renderables = Array<ModelInstance>()
+        val billboards = Array<ModelInstance>()
 
-            // Skip triggers for missions that are already completed
-            if (game.missionSystem.isMissionActive(missionId) || game.missionSystem.isMissionCompleted(missionId)) {
-                trigger.isVisible = false
-                continue // Skip the rest of the logic for this trigger
-            }
+        // Populate the lists with visuals that need to be drawn this frame
+        renderStartTriggers(renderables, billboards)
+        renderActiveObjectiveMarkers(renderables, billboards)
 
-            // Skip if the mission is outside its available time window.
-            val missionDef = game.missionSystem.getMissionDefinition(missionId) ?: continue // Get the full definition
-            if (missionDef.availableStartTime != null && missionDef.availableEndTime != null) {
-                val currentTimeProgress = game.lightingManager.getDayNightCycle().getDayProgress()
-                val startTime = missionDef.availableStartTime!!
-                val endTime = missionDef.availableEndTime!!
+        // --- Render Ground-Based Visuals (Highlight Circles) ---
+        if (renderables.size > 0) {
+            Gdx.gl.glEnable(GL20.GL_BLEND)
+            Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
+            Gdx.gl.glDepthMask(false) // Prevent visual artifacts with transparent objects
 
-                val isAvailable = if (startTime <= endTime) {
-                    // Normal time window (e.g., 8 AM to 5 PM)
-                    currentTimeProgress in startTime..endTime
-                } else {
-                    // Overnight time window (e.g., 10 PM to 6 AM)
-                    currentTimeProgress >= startTime || currentTimeProgress <= endTime
-                }
+            modelBatch.begin(camera)
+            modelBatch.render(renderables, environment)
+            modelBatch.end()
 
-                if (!isAvailable) {
-                    trigger.isVisible = false // Hide the visual if the mission isn't available now
-                    continue // Skip to the next trigger
-                }
-            }
+            Gdx.gl.glDepthMask(true)
+            Gdx.gl.glDisable(GL20.GL_BLEND)
+        }
 
-            when (trigger.definition.type) {
+        // --- Render Billboard Visuals (Dialog Icons) ---
+        if (billboards.size > 0) {
+            billboardShaderProvider.setEnvironment(environment)
+            billboardModelBatch.begin(camera)
+            billboardModelBatch.render(billboards, environment)
+            billboardModelBatch.end()
+        }
+    }
+
+    /**
+     * Finds and queues all visible mission START triggers for rendering.
+     */
+    private fun renderStartTriggers(renderables: Array<ModelInstance>, billboards: Array<ModelInstance>) {
+        val playerPos = game.playerSystem.getPosition()
+        val currentSceneId = game.sceneManager.getCurrentSceneId()
+
+        for ((missionId, missionDef) in allMissions) {
+            val trigger = missionDef.startTrigger
+
+            // --- Visibility Checks ---
+            if (!trigger.showVisuals) continue
+            if (trigger.sceneId != currentSceneId) continue
+            if (game.missionSystem.isMissionActive(missionId) || game.missionSystem.isMissionCompleted(missionId)) continue
+            val prerequisitesMet = missionDef.prerequisites.all { game.missionSystem.isMissionCompleted(it) }
+            if (!prerequisitesMet) continue
+            if (playerPos.dst(trigger.areaCenter) > VISUAL_ACTIVATION_DISTANCE && trigger.type != TriggerType.ON_TALK_TO_NPC) continue
+
+            // --- Render Visual Based on Type ---
+            when (trigger.type) {
                 TriggerType.ON_ENTER_AREA -> {
-                    val center = trigger.definition.areaCenter
-                    val radius = trigger.definition.areaRadius
-                    if (playerPos.dst(center) < radius) {
-                        game.missionSystem.startMission(missionId)
+                    highlightCircleInstance?.let { instance ->
+                        val center = trigger.areaCenter
+                        val groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
+                        instance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)
+                        // Reset scale to default in case it was changed by an objective
+                        instance.transform.scale(1f, 1f, 1f)
+                        renderables.add(instance)
                     }
                 }
-
-                TriggerType.ON_LEAVE_AREA -> {
-                    val center = trigger.definition.areaCenter
-                    val radius = trigger.definition.areaRadius
-                    val isCurrentlyInside = playerPos.dst(center) < radius
-                    val wasPreviouslyInside = playerWasInArea.getOrDefault(missionId, isCurrentlyInside)
-
-                    // The trigger fires on the frame the player is no longer inside, but was inside previously.
-                    if (wasPreviouslyInside && !isCurrentlyInside) {
-                        game.missionSystem.startMission(missionId)
-                    }
-
-                    // Update the state for the next frame.
-                    playerWasInArea[missionId] = isCurrentlyInside
-                }
-                TriggerType.ON_STAY_IN_AREA_FOR_TIME -> {
-                    val center = trigger.definition.areaCenter
-                    val radius = trigger.definition.areaRadius
-                    val requiredTime = trigger.definition.requiredTimeInArea
-
-                    // Check for mission activation
-                    if (playerPos.dst(center) < radius) {
-                        // Player is inside, increment the timer.
-                        val timer = stayInAreaTimers.getOrDefault(missionId, 0f) + Gdx.graphics.deltaTime
-                        stayInAreaTimers[missionId] = timer
-
-                        // If the timer reaches the required duration, start the mission.
-                        if (timer >= requiredTime) {
-                            game.missionSystem.startMission(missionId)
-                            stayInAreaTimers.remove(missionId) // Reset timer after mission starts
+                TriggerType.ON_TALK_TO_NPC -> {
+                    dialogIconInstance?.let { instance ->
+                        val npc = game.sceneManager.activeNPCs.find { it.id == trigger.targetNpcId }
+                        if (npc != null && playerPos.dst(npc.position) < VISUAL_ACTIVATION_DISTANCE) {
+                            // --- FIX ---: Use half the height to position from the center to the top.
+                            val iconPos = npc.position.cpy().add(0f, (npc.npcType.height / 2f) + NPC_ICON_Y_OFFSET, 0f)
+                            instance.transform.setToTranslation(iconPos)
+                            billboards.add(instance)
                         }
-                    } else {
-                        // Player left the area, reset the timer.
-                        stayInAreaTimers[missionId] = 0f
                     }
                 }
-
-                else -> { /* Other trigger types (like ON_TALK_TO_NPC) are handled elsewhere. */ }
+                else -> { /* Other trigger types have no standard visual */ }
             }
+        }
+    }
 
-            val distanceToVisual = playerPos.dst(trigger.definition.areaCenter)
-            if (distanceToVisual < VISUAL_ACTIVATION_DISTANCE) {
-                val center = trigger.definition.areaCenter
-                // Find the ground height to place the visual correctly
-                var groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
+    /**
+     * Finds and queues the visual marker for the currently active mission objective.
+     */
+    private fun renderActiveObjectiveMarkers(renderables: Array<ModelInstance>, billboards: Array<ModelInstance>) {
+        val activeMission = game.missionSystem.activeMission ?: return
+        val objective = activeMission.getCurrentObjective() ?: return
 
-                // If no surface was found, default to y=0 to keep the trigger visible on the ground plane.
-                if (groundY < -500f) {
-                    groundY = 0f
+        if (!objective.showVisuals) return
+
+        val condition = objective.completionCondition
+        val currentSceneId = game.sceneManager.getCurrentSceneId()
+
+        if (condition.sceneId != null && condition.sceneId != currentSceneId) return
+
+        when (condition.type) {
+            ConditionType.ENTER_AREA, ConditionType.DRIVE_TO_LOCATION, ConditionType.STAY_IN_AREA -> {
+                highlightCircleInstance?.let { instance ->
+                    val center = condition.areaCenter ?: return
+                    val groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
+                    instance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)
+                    // Scale the visual to match the objective's functional radius
+                    val scale = (condition.areaRadius ?: VISUAL_RADIUS) / VISUAL_RADIUS
+                    instance.transform.scale(scale, 1f, scale)
+                    renderables.add(instance)
                 }
-
-                // Update the position every frame
-                trigger.modelInstance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)
-
-                trigger.isVisible = true
-            } else {
-                trigger.isVisible = false
             }
+            ConditionType.TALK_TO_NPC -> {
+                dialogIconInstance?.let { instance ->
+                    val npc = game.sceneManager.activeNPCs.find { it.id == condition.targetId }
+                    if (npc != null) {
+                        // --- FIX ---: Use half the height to position from the center to the top.
+                        val iconPos = npc.position.cpy().add(0f, (npc.npcType.height / 2f) + NPC_ICON_Y_OFFSET, 0f)
+                        instance.transform.setToTranslation(iconPos)
+                        billboards.add(instance)
+                    }
+                }
+            }
+            ConditionType.COLLECT_SPECIFIC_ITEM -> {
+                highlightCircleInstance?.let { instance ->
+                    val item = game.sceneManager.activeItems.find { it.id == condition.itemId }
+                    if (item != null) {
+                        val groundPos = item.position.cpy()
+                        groundPos.y = game.sceneManager.findHighestSupportY(groundPos.x, groundPos.z, groundPos.y, 0.1f, game.blockSize)
+                        instance.transform.setToTranslation(groundPos.x, groundPos.y + GROUND_OFFSET, groundPos.z)
+                        instance.transform.scale(1f, 1f, 1f) // Reset scale
+                        renderables.add(instance)
+                    }
+                }
+            }
+            else -> { /* No visual for this objective type */ }
         }
     }
 
@@ -247,79 +275,30 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
 
         // Save the mission file with the now-reset trigger
         game.missionSystem.saveMission(mission)
+        game.uiManager.updatePlacementInfo("Reset trigger for '${mission.title}'")
 
-        game.uiManager.updatePlacementInfo("Removed/Reset trigger for '${mission.title}'")
-
-        return true // Indicate that an action was successfully performed
+        return true// Indicate that an action was successfully performed
     }
 
     fun findMissionForNpc(npcId: String): MissionDefinition? {
-        // Search through all loaded missions
-        for ((missionId, missionDef) in game.missionSystem.getAllMissionDefinitions()) {
+        return allMissions.values.find { missionDef ->
+
+            // Search through all loaded missions
             val trigger = missionDef.startTrigger
-
-            // Check three conditions:
-            if (trigger.type == TriggerType.ON_TALK_TO_NPC &&
+            trigger.type == TriggerType.ON_TALK_TO_NPC &&
                 trigger.targetNpcId == npcId &&
-                !game.missionSystem.isMissionCompleted(missionId) &&
-                !game.missionSystem.isMissionActive(missionId)
-            ) {
-                // We found a match!
-                return missionDef
-            }
-        }
-        // No mission was found for this NPC
-        return null
-    }
-
-    fun render(camera: Camera, environment: Environment) {
-        renderableInstances.clear()
-
-        // Determine the ID of the currently active scene
-        val currentSceneId = if (game.sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
-            game.sceneManager.getCurrentHouse()?.id
-        } else {
-            "WORLD"
-        }
-
-        for (trigger in missionTriggers.values) {
-            // RENDER RULE 1: Gameplay triggers that are visible AND in the current scene
-            if (trigger.isVisible && trigger.definition.sceneId == currentSceneId) {
-                renderableInstances.add(trigger.modelInstance)
-            }
-        }
-
-        // RENDER RULE 2: Editor visual for the selected trigger, but ONLY if it's in the current scene
-        if (isEditorVisible) {
-            selectedMissionIdForEditing?.let { missionId ->
-                missionTriggers[missionId]?.let { visualTrigger ->
-                    // Check if the trigger being edited belongs to the current scene
-                    if (visualTrigger.definition.sceneId == currentSceneId) {
-                        val center = visualTrigger.definition.areaCenter
-                        val groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
-                        visualTrigger.modelInstance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)
-
-                        // Add it to the render list if it's not already there
-                        if (!renderableInstances.contains(visualTrigger.modelInstance, true)) {
-                            renderableInstances.add(visualTrigger.modelInstance)
-                        }
-                    }
-                }
-            }
-        }
-
-        if (renderableInstances.size > 0) {
-            shaderProvider.setEnvironment(environment)
-            modelBatch.begin(camera)
-            modelBatch.render(renderableInstances, environment)
-            modelBatch.end()
+                !game.missionSystem.isMissionCompleted(missionDef.id) &&
+                !game.missionSystem.isMissionActive(missionDef.id)
         }
     }
 
     override fun dispose() {
         modelBatch.dispose()
-        shaderProvider.dispose()
-        triggerTexture.dispose()
-        models.values.forEach { it.dispose() }
+        billboardModelBatch.dispose()
+        billboardShaderProvider.dispose()
+        highlightCircleTexture?.dispose()
+        dialogIconTexture?.dispose()
+        highlightCircleModel?.dispose()
+        dialogIconModel?.dispose()
     }
 }

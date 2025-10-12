@@ -70,7 +70,8 @@ data class MissionObjective(
     val eventsOnStart: MutableList<GameEvent> = mutableListOf(),
     val hasTimer: Boolean = false,
     val timerDuration: Float = 60f,
-    val showEnemiesLeftCounter: Boolean = false
+    val showEnemiesLeftCounter: Boolean = false,
+    var showVisuals: Boolean = true
 )
 
 data class MissionReward(
@@ -116,6 +117,7 @@ enum class MaintainDistanceCompletionAction(val displayName: String) {
 
 data class CompletionCondition(
     val type: ConditionType = ConditionType.ENTER_AREA,
+    val sceneId: String? = null,
     val areaCenter: Vector3? = if (type == ConditionType.ENTER_AREA) Vector3() else null,
     val areaRadius: Float? = if (type == ConditionType.ENTER_AREA) 10f else null,
     val stayInAreaMode: StayInAreaMode? = null,
@@ -164,7 +166,8 @@ data class MissionTrigger(
     var targetCarId: String? = null,     // For ON_ENTER_CAR
 
     var requiredTimeInArea: Float = 10f,
-    var moneyThreshold: Int = 0
+    var moneyThreshold: Int = 0,
+    var showVisuals: Boolean = true // NEW: Add checkbox for trigger visuals
 )
 
 // --- Mission Modifiers (Special Rules) ---
