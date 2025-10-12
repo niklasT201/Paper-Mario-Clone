@@ -10,6 +10,7 @@ import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.Disposable
+import kotlin.math.sin
 
 
 class TriggerSystem(private val game: MafiaGame) : Disposable {
@@ -34,6 +35,9 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
     var selectedMissionIdForEditing: String? = null
     var isEditorVisible = false // Controlled by the Trigger tool in the UI
 
+    // --- Animation State ---
+    private var bobbingTimer = 0f
+
     // --- Configuration ---
     companion object {
         const val VISUAL_RADIUS = 2.5f
@@ -43,6 +47,10 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
         private const val NPC_ICON_Y_OFFSET = 0.75f
         private const val DIALOG_ICON_WIDTH = 1.5f
         private const val DIALOG_ICON_HEIGHT = 1.5f
+
+        // --- Animation Constants ---
+        private const val BOBBING_SPEED = 4f    // How fast the icon moves up and down
+        private const val BOBBING_HEIGHT = 0.15f // How high the icon moves from its base position
     }
 
     fun initialize() {
@@ -114,6 +122,9 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
     }
 
     fun update() {
+        // Update the animation timer every frame.
+        bobbingTimer += Gdx.graphics.deltaTime
+
         val playerPos = game.playerSystem.getPosition()
         val currentSceneId = game.sceneManager.getCurrentSceneId()
 
@@ -136,9 +147,12 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
         val renderables = Array<ModelInstance>()
         val billboards = Array<ModelInstance>()
 
+        // Calculate the bobbing offset once per frame.
+        val bobOffset = sin(bobbingTimer * BOBBING_SPEED) * BOBBING_HEIGHT
+
         // Populate the lists with visuals that need to be drawn this frame
-        renderStartTriggers(renderables, billboards)
-        renderActiveObjectiveMarkers(renderables, billboards)
+        renderStartTriggers(renderables, billboards, bobOffset)
+        renderActiveObjectiveMarkers(renderables, billboards, bobOffset)
 
         // --- Render Ground-Based Visuals (Highlight Circles) ---
         if (renderables.size > 0) {
@@ -166,7 +180,7 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
     /**
      * Finds and queues all visible mission START triggers for rendering.
      */
-    private fun renderStartTriggers(renderables: Array<ModelInstance>, billboards: Array<ModelInstance>) {
+    private fun renderStartTriggers(renderables: Array<ModelInstance>, billboards: Array<ModelInstance>, bobOffset: Float) {
         val playerPos = game.playerSystem.getPosition()
         val currentSceneId = game.sceneManager.getCurrentSceneId()
 
@@ -186,7 +200,12 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
                 TriggerType.ON_ENTER_AREA -> {
                     highlightCircleInstance?.let { instance ->
                         val center = trigger.areaCenter
-                        val groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
+                        var groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
+
+                        if (groundY < -500f) {
+                            groundY = 0f
+                        }
+
                         instance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)
                         // Reset scale to default in case it was changed by an objective
                         instance.transform.scale(1f, 1f, 1f)
@@ -197,8 +216,7 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
                     dialogIconInstance?.let { instance ->
                         val npc = game.sceneManager.activeNPCs.find { it.id == trigger.targetNpcId }
                         if (npc != null && playerPos.dst(npc.position) < VISUAL_ACTIVATION_DISTANCE) {
-                            // --- FIX ---: Use half the height to position from the center to the top.
-                            val iconPos = npc.position.cpy().add(0f, (npc.npcType.height / 2f) + NPC_ICON_Y_OFFSET, 0f)
+                            val iconPos = npc.position.cpy().add(0f, (npc.npcType.height / 2f) + NPC_ICON_Y_OFFSET + bobOffset, 0f)
                             instance.transform.setToTranslation(iconPos)
                             billboards.add(instance)
                         }
@@ -212,7 +230,7 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
     /**
      * Finds and queues the visual marker for the currently active mission objective.
      */
-    private fun renderActiveObjectiveMarkers(renderables: Array<ModelInstance>, billboards: Array<ModelInstance>) {
+    private fun renderActiveObjectiveMarkers(renderables: Array<ModelInstance>, billboards: Array<ModelInstance>, bobOffset: Float) {
         val activeMission = game.missionSystem.activeMission ?: return
         val objective = activeMission.getCurrentObjective() ?: return
 
@@ -227,7 +245,12 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
             ConditionType.ENTER_AREA, ConditionType.DRIVE_TO_LOCATION, ConditionType.STAY_IN_AREA -> {
                 highlightCircleInstance?.let { instance ->
                     val center = condition.areaCenter ?: return
-                    val groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
+                    var groundY = game.sceneManager.findHighestSupportY(center.x, center.z, center.y, 0.1f, game.blockSize)
+
+                    if (groundY < -500f) {
+                        groundY = 0f
+                    }
+
                     instance.transform.setToTranslation(center.x, groundY + GROUND_OFFSET, center.z)
                     // Scale the visual to match the objective's functional radius
                     val scale = (condition.areaRadius ?: VISUAL_RADIUS) / VISUAL_RADIUS
@@ -239,8 +262,7 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
                 dialogIconInstance?.let { instance ->
                     val npc = game.sceneManager.activeNPCs.find { it.id == condition.targetId }
                     if (npc != null) {
-                        // --- FIX ---: Use half the height to position from the center to the top.
-                        val iconPos = npc.position.cpy().add(0f, (npc.npcType.height / 2f) + NPC_ICON_Y_OFFSET, 0f)
+                        val iconPos = npc.position.cpy().add(0f, (npc.npcType.height / 2f) + NPC_ICON_Y_OFFSET + bobOffset, 0f)
                         instance.transform.setToTranslation(iconPos)
                         billboards.add(instance)
                     }
@@ -250,9 +272,14 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
                 highlightCircleInstance?.let { instance ->
                     val item = game.sceneManager.activeItems.find { it.id == condition.itemId }
                     if (item != null) {
-                        val groundPos = item.position.cpy()
-                        groundPos.y = game.sceneManager.findHighestSupportY(groundPos.x, groundPos.z, groundPos.y, 0.1f, game.blockSize)
-                        instance.transform.setToTranslation(groundPos.x, groundPos.y + GROUND_OFFSET, groundPos.z)
+                        val itemPos = item.position.cpy()
+                        var groundY = game.sceneManager.findHighestSupportY(itemPos.x, itemPos.z, itemPos.y, 0.1f, game.blockSize)
+
+                        if (groundY < -500f) {
+                            groundY = 0f
+                        }
+
+                        instance.transform.setToTranslation(itemPos.x, groundY + GROUND_OFFSET, itemPos.z)
                         instance.transform.scale(1f, 1f, 1f) // Reset scale
                         renderables.add(instance)
                     }
