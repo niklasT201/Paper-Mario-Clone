@@ -203,8 +203,9 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
             val trigger = missionDef.startTrigger
 
             // --- Visibility Checks ---
-            if (!trigger.showVisuals || trigger.sceneId != currentSceneId || game.missionSystem.isMissionActive(missionId) || game.missionSystem.isMissionCompleted(missionId)) continue
-            if (!missionDef.prerequisites.all { game.missionSystem.isMissionCompleted(it) }) continue
+            if (!trigger.showVisuals || game.missionSystem.activeMission != null || trigger.sceneId != currentSceneId || game.missionSystem.isMissionCompleted(missionId)) continue
+            val prerequisitesMet = missionDef.prerequisites.all { game.missionSystem.isMissionCompleted(it) }
+            if (!prerequisitesMet) continue
             if (playerPos.dst(trigger.areaCenter) > VISUAL_ACTIVATION_DISTANCE && trigger.type != TriggerType.ON_TALK_TO_NPC) continue
 
             // --- Render Visual Based on Type ---

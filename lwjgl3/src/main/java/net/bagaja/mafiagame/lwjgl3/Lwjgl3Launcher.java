@@ -71,7 +71,6 @@ public class Lwjgl3Launcher {
 // visual that a character wants to talk
 // weather events
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
-// mission trigger not visible during other missions
 // pulling out characters from vehicles
 // add event button automatically adds new event without saving button press
 // new events: PLAY_SOUND
