@@ -92,7 +92,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var teleporterSystem: TeleporterSystem
     lateinit var fireSystem: FireSystem
     private lateinit var bloodPoolSystem: BloodPoolSystem
-    private lateinit var footprintSystem: FootprintSystem
+    lateinit var footprintSystem: FootprintSystem
     private lateinit var boneSystem: BoneSystem
     lateinit var trajectorySystem: TrajectorySystem
     private lateinit var blockDebugRenderer: BlockDebugRenderer

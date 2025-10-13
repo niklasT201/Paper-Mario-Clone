@@ -92,7 +92,9 @@ class BoneSystem {
      * The main function to call on enemy/NPC death. Handles all randomization.
      */
     fun spawnBones(deathPosition: Vector3, facingRotationY: Float, sceneManager: SceneManager) {
-        if (sceneManager.game.uiManager.getViolenceLevel() != ViolenceLevel.FULL_VIOLENCE) {
+        val violenceLevel = sceneManager.game.uiManager.getViolenceLevel() // <<< GET VIOLENCE LEVEL
+
+        if (violenceLevel != ViolenceLevel.FULL_VIOLENCE && violenceLevel != ViolenceLevel.ULTRA_VIOLENCE) {
             return
         }
 
@@ -100,13 +102,18 @@ class BoneSystem {
         val bonesToSpawn = mutableListOf<GameBone>()
         val layingBoneTypes = listOf(BoneType.BONE_ONE, BoneType.BONE_TWO, BoneType.BROKEN_BONE)
 
-        // Rule: 60% chance to spawn one skull
-        if (Random.nextFloat() < 0.6f) {
+        // Rule: 60% chance for a skull in Full, 100% in Ultra
+        if (Random.nextFloat() < 0.6f || violenceLevel == ViolenceLevel.ULTRA_VIOLENCE) {
             createBone(BoneType.SKULL, groundY, deathPosition, facingRotationY)?.let { bonesToSpawn.add(it) }
         }
 
         // Rule: Spawn 0 to 3 additional laying bones
-        val boneCount = Random.nextInt(0, 4)
+        val boneCount = if (violenceLevel == ViolenceLevel.ULTRA_VIOLENCE) {
+            Random.nextInt(1, 4) // Spawn 1 to 3 additional bones
+        } else {
+            Random.nextInt(0, 4) // Original: Spawn 0 to 3
+        }
+
         for (i in 0 until boneCount) {
             val randomBoneType = layingBoneTypes.random()
             createBone(randomBoneType, groundY, deathPosition)?.let { bonesToSpawn.add(it) }

@@ -7,6 +7,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.math.Matrix4
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
@@ -174,7 +175,13 @@ data class GameEnemy(
         health -= damage
         // The type of the killing blow is what matters most.
         if (health > 0 && (type == DamageType.GENERIC || type == DamageType.MELEE)) {
-            this.bleedTimer = BLEED_DURATION
+            // Set a longer bleed duration for ULTRA_VIOLENCE mode
+            val violenceLevel = sceneManager.game.uiManager.getViolenceLevel()
+            this.bleedTimer = if (violenceLevel == ViolenceLevel.ULTRA_VIOLENCE) {
+                BLEED_DURATION * 2.5f // Bleed for 2.5 seconds in ultra mode
+            } else {
+                BLEED_DURATION // Normal 1 second bleed
+            }
         }
 
         // Check if the enemy should try to flee in a car
@@ -215,6 +222,7 @@ class EnemySystem : IFinePositionable {
     var currentEnemyTypeIndex = 0
     var currentBehaviorIndex = 0
 
+    private val BLEED_DAMAGE_PER_SECOND = 5f
     private val BEHAVIOR_REEVALUATION_INTERVAL = 2.0f
     private val FIRE_FLEE_DISTANCE = 15f
     private val SHOOTER_IDEAL_DISTANCE = 15f
@@ -598,14 +606,39 @@ class EnemySystem : IFinePositionable {
             if (enemy.bleedTimer > 0f) {
                 enemy.bleedTimer -= deltaTime
 
+                if (sceneManager.game.uiManager.getViolenceLevel() == ViolenceLevel.ULTRA_VIOLENCE) {
+                    val damageThisFrame = BLEED_DAMAGE_PER_SECOND * deltaTime
+                    if (enemy.takeDamage(damageThisFrame, DamageType.GENERIC, sceneManager) && enemy.currentState != AIState.DYING) {
+                        sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
+                    }
+                }
+
                 // Check if the enemy is moving and it's time to spawn a drip
                 if (enemy.physics.isMoving) {
                     enemy.bloodDripSpawnTimer -= deltaTime
                     if (enemy.bloodDripSpawnTimer <= 0f) {
-                        enemy.bloodDripSpawnTimer = GameEnemy.BLOOD_DRIP_INTERVAL
 
-                        // Spawn a drip at the enemy's position with a slight random offset
-                        if (sceneManager.game.uiManager.getViolenceLevel() != ViolenceLevel.NO_VIOLENCE) {
+                        val violenceLevel = sceneManager.game.uiManager.getViolenceLevel()
+
+                        if (violenceLevel == ViolenceLevel.ULTRA_VIOLENCE) {
+                            // In ULTRA mode, leave a trail on the ground
+                            enemy.bloodDripSpawnTimer = 0.25f // Spawn a ground decal frequently
+                            val groundY = sceneManager.findHighestSupportY(enemy.position.x, enemy.position.z, enemy.position.y, 0.1f, blockSize)
+                            val trailPosition = Vector3(enemy.position.x, groundY, enemy.position.z)
+                            sceneManager.game.footprintSystem.spawnBloodTrail(trailPosition, sceneManager)
+
+                            // Also have a smaller chance to spawn the vertical drip particle
+                            if (Random.nextFloat() < 0.25f) { // 25% chance for a vertical drip
+                                val spawnPosition = enemy.physics.position.cpy().add(
+                                    (Random.nextFloat() - 0.5f) * 1f,
+                                    (Random.nextFloat() - 0.5f) * 2f,
+                                    (Random.nextFloat() - 0.5f) * 1f
+                                )
+                                sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BLOOD_DRIP, spawnPosition)
+                            }
+
+                        } else {
+                            enemy.bloodDripSpawnTimer = GameEnemy.BLOOD_DRIP_INTERVAL
                             val spawnPosition = enemy.physics.position.cpy().add(
                                 (Random.nextFloat() - 0.5f) * 1f,
                                 (Random.nextFloat() - 0.5f) * 2f,
@@ -1293,8 +1326,23 @@ class EnemySystem : IFinePositionable {
         val bulletModel = sceneManager.game.playerSystem.bulletModels[enemy.equippedWeapon.bulletTexturePath] ?: return
 
         // 1. Determine direction ONLY on the X-axis (left or right)
+        val baseSpreadAngle = when (enemy.equippedWeapon) {
+            WeaponType.REVOLVER, WeaponType.LIGHT_REVOLVER, WeaponType.SMALLER_REVOLVER -> 3.0f // Revolvers are fairly accurate
+            WeaponType.TOMMY_GUN, WeaponType.LIGHT_TOMMY_GUN -> 6.0f // Submachine guns have more spread
+            WeaponType.MACHINE_GUN -> 8.0f // Machine guns are even less accurate
+            WeaponType.SHOTGUN, WeaponType.LIGHT_SHOTGUN, WeaponType.SMALL_SHOTGUN -> 12.0f // Shotguns have a wide spread
+            else -> 4.0f // Default for any other gun
+        }
+
+        // 2. Generate a random angle within the spread cone.
+        val randomSpread = (Random.nextFloat() - 0.5f) * baseSpreadAngle
+
+        // 3. Create a rotation matrix for the random deviation. We rotate around the Z-axis (up/down in 2D view).
+        val spreadRotation = Matrix4().setToRotation(Vector3.Y, randomSpread)
+
         val directionX = if (enemy.physics.facingRotationY == 0f) 1f else -1f
-        val direction = Vector3(directionX, 0f, 0f)
+        val baseDirection = Vector3(directionX, 0f, 0f)
+        val finalDirection = baseDirection.cpy().mul(spreadRotation)
 
         // 2. Calculate velocity based on this new horizontal direction
         val muzzleOffsetX = directionX * (enemy.enemyType.width * 0.55f) // Closer than the bullet spawn
@@ -1306,16 +1354,17 @@ class EnemySystem : IFinePositionable {
         )
 
         // 2. Calculate the bullet's spawn position
-        val bulletSpawnPos = muzzlePosition.cpy().mulAdd(direction, 1.0f)
+        val bulletSpawnPos = muzzlePosition.cpy().mulAdd(finalDirection, 1.0f)
         // 3. Calculate the spawn position based on the horizontal direction
-        val velocity = direction.cpy().scl(enemy.equippedWeapon.bulletSpeed)
+        val velocity = finalDirection.cpy().scl(enemy.equippedWeapon.bulletSpeed)
+        val bulletRotation = if (directionX < 0) 180f else 0f
 
         val bullet = Bullet(
             position = bulletSpawnPos,
             velocity = velocity,
             modelInstance = ModelInstance(bulletModel),
             lifetime = enemy.equippedWeapon.bulletLifetime,
-            rotationY = if (direction.x < 0) 180f else 0f,
+            rotationY = bulletRotation,
             owner = enemy,
             damage = enemy.equippedWeapon.damage
         )

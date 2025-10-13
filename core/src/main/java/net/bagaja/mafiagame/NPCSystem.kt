@@ -208,7 +208,12 @@ data class GameNPC(
 
         // If not dead and was shot or hit with melee, start bleeding
         if (health > 0 && (type == DamageType.GENERIC || type == DamageType.MELEE)) {
-            this.bleedTimer = BLEED_DURATION
+            val violenceLevel = sceneManager.game.uiManager.getViolenceLevel()
+            this.bleedTimer = if (violenceLevel == ViolenceLevel.ULTRA_VIOLENCE) {
+                BLEED_DURATION * 2.5f // Bleed for 2.5 seconds in ultra mode
+            } else {
+                BLEED_DURATION // Normal 1 second bleed
+            }
         }
 
         // The type of the killing blow is what matters.
@@ -279,6 +284,7 @@ class NPCSystem : IFinePositionable {
     private lateinit var billboardShaderProvider: BillboardShaderProvider
     private val renderableInstances = Array<ModelInstance>()
     private val fleeDuration = 5.0f
+    private val BLEED_DAMAGE_PER_SECOND = 5f
 
     var currentSelectedNPCType = NPCType.FRED_THE_HERMIT
         private set
@@ -615,13 +621,37 @@ class NPCSystem : IFinePositionable {
                 npc.bleedTimer -= deltaTime
 
                 // Check if the NPC is moving and it's time to spawn a drip
+                if (sceneManager.game.uiManager.getViolenceLevel() == ViolenceLevel.ULTRA_VIOLENCE) {
+                    val damageThisFrame = BLEED_DAMAGE_PER_SECOND * deltaTime
+                    if (npc.takeDamage(damageThisFrame, DamageType.GENERIC, sceneManager) && npc.currentState != NPCState.DYING) {
+                        sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
+                    }
+                }
+
                 if (npc.physics.isMoving) {
                     npc.bloodDripSpawnTimer -= deltaTime
                     if (npc.bloodDripSpawnTimer <= 0f) {
-                        npc.bloodDripSpawnTimer = GameNPC.BLOOD_DRIP_INTERVAL
 
-                        // Spawn a drip at the NPC's position with a slight random offset
-                        if (sceneManager.game.uiManager.getViolenceLevel() != ViolenceLevel.NO_VIOLENCE) {
+                        val violenceLevel = sceneManager.game.uiManager.getViolenceLevel()
+
+                        if (violenceLevel == ViolenceLevel.ULTRA_VIOLENCE) {
+                            npc.bloodDripSpawnTimer = 0.25f
+                            val groundY = sceneManager.findHighestSupportY(npc.position.x, npc.position.z, npc.position.y, 0.1f, blockSize)
+                            val trailPosition = Vector3(npc.position.x, groundY, npc.position.z)
+                            sceneManager.game.footprintSystem.spawnBloodTrail(trailPosition, sceneManager)
+
+                            if (Random.nextFloat() < 0.25f) {
+                                val spawnPosition = npc.physics.position.cpy().add(
+                                    (Random.nextFloat() - 0.5f) * 1f,
+                                    (Random.nextFloat() - 0.5f) * 2f,
+                                    (Random.nextFloat() - 0.5f) * 1f
+                                )
+                                sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.BLOOD_DRIP, spawnPosition)
+                            }
+                        } else {
+                            npc.bloodDripSpawnTimer = GameNPC.BLOOD_DRIP_INTERVAL
+
+                            // Spawn a drip at the NPC's position with a slight random offset
                             val spawnPosition = npc.physics.position.cpy().add(
                                 (Random.nextFloat() - 0.5f) * 1f,
                                 (Random.nextFloat() - 0.5f) * 2f,

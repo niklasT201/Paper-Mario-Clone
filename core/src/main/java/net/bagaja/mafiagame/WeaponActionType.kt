@@ -81,7 +81,7 @@ enum class WeaponType(
         displayName = "Knife",
         actionType = WeaponActionType.MELEE,
         fireRatePerSecond = 2.0f,
-        damage = 40f,
+        damage = 25f, // High damage, short range
         meleeRange = 4.5f,
         magazineSize = 0,
         requiresReload = false,
@@ -94,7 +94,7 @@ enum class WeaponType(
         displayName = "Baseball Bat",
         actionType = WeaponActionType.MELEE,
         fireRatePerSecond = 1.5f,
-        damage = 30f,
+        damage = 35f, // Slower but higher damage and longer range than knife
         meleeRange = 7.0f,
         magazineSize = 0,
         requiresReload = false,
@@ -137,7 +137,7 @@ enum class WeaponType(
         displayName = "Revolver",
         actionType = WeaponActionType.SHOOTING,
         fireRatePerSecond = 2f,
-        damage = 35f,
+        damage = 40f, // High damage, slow fire rate
         meleeRange = 0f,
         magazineSize = 6,
         requiresReload = true,
@@ -152,7 +152,7 @@ enum class WeaponType(
         displayName = "Light Revolver",
         actionType = WeaponActionType.SHOOTING,
         fireRatePerSecond = 2.5f,
-        damage = 30f,
+        damage = 35f, // Faster, less damage
         meleeRange = 0f,
         magazineSize = 6,
         requiresReload = true,
@@ -167,7 +167,7 @@ enum class WeaponType(
         displayName = "Smaller Revolver",
         actionType = WeaponActionType.SHOOTING,
         fireRatePerSecond = 3f,
-        damage = 25f,
+        damage = 28f, // Weakest but fastest revolver
         meleeRange = 0f,
         magazineSize = 5,
         requiresReload = true,
@@ -182,7 +182,7 @@ enum class WeaponType(
         displayName = "Shotgun",
         actionType = WeaponActionType.SHOOTING,
         fireRatePerSecond = 1f,
-        damage = 80f,
+        damage = 90f, // Massive close-range damage, but slow
         meleeRange = 0f,
         magazineSize = 3,
         requiresReload = true,
@@ -197,11 +197,11 @@ enum class WeaponType(
         displayName = "Light Shotgun",
         actionType = WeaponActionType.SHOOTING,
         fireRatePerSecond = 1.2f,
-        damage = 30f,
+        damage = 75f,
         meleeRange = 0f,
-        magazineSize = 0,
-        requiresReload = false,
-        reloadTime = 0.0f,
+        magazineSize = 5, // A more reasonable magazine for a "light" version
+        requiresReload = true,
+        reloadTime = 2.0f,
         allowsMovementWhileShooting = false,
         playerPoseTexturePath = "textures/player/weapons/shotgun/player_light_shotgun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
@@ -212,11 +212,11 @@ enum class WeaponType(
         displayName = "Small Shotgun",
         actionType = WeaponActionType.SHOOTING,
         fireRatePerSecond = 1.5f,
-        damage = 15f,
+        damage = 55f, // Sawed-off style: fast, wide spread, lower damage
         meleeRange = 0f,
-        magazineSize = 0,
-        requiresReload = false,
-        reloadTime = 0.0f,
+        magazineSize = 2,
+        requiresReload = true,
+        reloadTime = 1.8f,
         allowsMovementWhileShooting = true, // Light weapon
         playerPoseTexturePath = "textures/player/weapons/shotgun/player_small_shotgun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
@@ -226,10 +226,10 @@ enum class WeaponType(
     MACHINE_GUN(
         displayName = "Machine Gun",
         actionType = WeaponActionType.SHOOTING,
-        fireRatePerSecond = 12f,
-        damage = 18f,
+        fireRatePerSecond = 8f, // Slower than a Tommy Gun, more deliberate
+        damage = 22f, // Higher damage per bullet (176 DPS)
         meleeRange = 0f,
-        magazineSize = 100, // Very large magazine
+        magazineSize = 100,
         requiresReload = true,
         reloadTime = 3.5f,
         allowsMovementWhileShooting = false, // Heavy weapon
@@ -242,7 +242,7 @@ enum class WeaponType(
         displayName = "Molotov",
         actionType = WeaponActionType.THROWABLE,
         fireRatePerSecond = 0.5f,
-        damage = 50f,
+        damage = 10f,
         meleeRange = 0f,
         magazineSize = 0,
         requiresReload = false,
@@ -255,7 +255,7 @@ enum class WeaponType(
         displayName = "Dynamite",
         actionType = WeaponActionType.THROWABLE,
         fireRatePerSecond = 0.5f,
-        damage = 100f,
+        damage = 150f,
         meleeRange = 0f,
         magazineSize = 0,
         requiresReload = false,

@@ -13,6 +13,7 @@ import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
 import java.util.*
+import kotlin.random.Random
 
 // Data class to hold the state of a single footprint instance
 data class GameFootprint(
@@ -35,6 +36,7 @@ class FootprintSystem {
     private lateinit var modelBatch: ModelBatch
     private val renderableInstances = Array<ModelInstance>()
     private lateinit var shaderProvider: BillboardShaderProvider
+    private lateinit var bloodPrintTexture: Texture
 
     companion object {
         const val FOOTPRINT_LIFETIME = 8.0f // Footprints last for 12 seconds
@@ -53,6 +55,10 @@ class FootprintSystem {
         try {
             // Load the texture
             footprintTexture = Texture(Gdx.files.internal("textures/particles/bloody_shoeprints.png"), true).apply {
+                setFilter(Texture.TextureFilter.MipMapLinearLinear, Texture.TextureFilter.Linear)
+            }
+
+            bloodPrintTexture = Texture(Gdx.files.internal("textures/particles/blood_pool/blood_pool_one.png"), true).apply {
                 setFilter(Texture.TextureFilter.MipMapLinearLinear, Texture.TextureFilter.Linear)
             }
 
@@ -100,6 +106,43 @@ class FootprintSystem {
         newFootprint.instance.transform.setToTranslation(newFootprint.position)
         newFootprint.instance.transform.rotate(Vector3.Y, rotation)
         newFootprint.instance.transform.scale(1f, 1f, 1f) // 1x1 unit size
+
+        sceneManager.activeFootprints.add(newFootprint)
+    }
+
+    fun spawnBloodTrail(position: Vector3, sceneManager: SceneManager) {
+        if (sceneManager.game.uiManager.getViolenceLevel() == ViolenceLevel.NO_VIOLENCE) {
+            return
+        }
+
+        if (!::footprintModel.isInitialized || !::bloodPrintTexture.isInitialized) return
+
+        // Create a new material using the blood texture
+        val material = Material(
+            TextureAttribute.createDiffuse(bloodPrintTexture),
+            BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
+            IntAttribute.createCullFace(GL20.GL_NONE)
+        )
+        // Create a unique instance with this material
+        val instance = ModelInstance(footprintModel)
+        instance.materials.first().set(material)
+        instance.userData = "effect"
+
+        val blendingAttribute = instance.materials.first().get(BlendingAttribute.Type) as BlendingAttribute
+
+        val newFootprint = GameFootprint(
+            instance = instance,
+            position = position.cpy().add(0f, 0.06f, 0f),
+            lifetime = FOOTPRINT_LIFETIME * 1.5f, // Blood stains last longer
+            initialLifetime = FOOTPRINT_LIFETIME * 1.5f,
+            blendingAttribute = blendingAttribute
+        )
+
+        // Random rotation and much smaller scale for a "drip" look
+        newFootprint.instance.transform.setToTranslation(newFootprint.position)
+        newFootprint.instance.transform.rotate(Vector3.Y, Random.nextFloat() * 360f)
+        val scale = Random.nextFloat() * 0.4f + 0.3f // Random small scale (0.3 to 0.7)
+        newFootprint.instance.transform.scale(scale, 1f, scale)
 
         sceneManager.activeFootprints.add(newFootprint)
     }

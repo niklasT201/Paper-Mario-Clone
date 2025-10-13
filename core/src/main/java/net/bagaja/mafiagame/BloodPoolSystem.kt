@@ -77,7 +77,8 @@ class BloodPoolSystem {
     }
 
     fun addPool(deathPosition: Vector3, sceneManager: SceneManager) {
-        if (sceneManager.game.uiManager.getViolenceLevel() != ViolenceLevel.FULL_VIOLENCE) {
+        val violenceLevel = sceneManager.game.uiManager.getViolenceLevel()
+        if (violenceLevel != ViolenceLevel.FULL_VIOLENCE && violenceLevel != ViolenceLevel.ULTRA_VIOLENCE) {
             return
         }
 

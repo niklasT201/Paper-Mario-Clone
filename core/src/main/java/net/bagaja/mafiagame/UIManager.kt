@@ -37,7 +37,8 @@ enum class HudStyle(val displayName: String) {
 enum class ViolenceLevel(val displayName: String) {
     NO_VIOLENCE("Off"),
     REDUCED_VIOLENCE("Reduced"),
-    FULL_VIOLENCE("Full")
+    FULL_VIOLENCE("Full"),
+    ULTRA_VIOLENCE("ULTRA VIOLENCE")
 }
 
 enum class HudInfoKey(val order: Int) {

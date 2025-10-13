@@ -69,8 +69,20 @@ public class Lwjgl3Launcher {
 // visual screen for finished mission
 // nickelodeons having real short films
 // visual that a character wants to talk
+// check if blood drips are spawned right in ultra mode
 // weather events
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
+// loot in barrels
+// enemy cover up ai
+// minimap for open world mode
+// Civilian npc that just follows paths. They should flee from gunfire and call the police if they see a crime
+// The Law & Wanted Level
+// first a beat cop, then patrol cars, then roadblocks, and finally tougher "Federal Agents" with tommy guns. Heat slowly decreases over time if you stay out of sight.
+// player can buy businesses (speakeasies, illegal casinos, protection rackets) that generate passive income
+// silent takedowns (melee from behind) and the ability to hide bodies
+// dead enemy flying behind players back
+// shotgun blast at close range could send an enemy flying backward realistically.
+// explosion would send multiple bodies flying in different directions.
 // pulling out characters from vehicles
 // add event button automatically adds new event without saving button press
 // new events: PLAY_SOUND

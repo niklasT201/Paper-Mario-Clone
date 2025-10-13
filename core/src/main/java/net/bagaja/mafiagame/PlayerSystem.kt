@@ -682,8 +682,10 @@ class PlayerSystem {
                 val shakeDuration = if (equippedWeapon == WeaponType.BASEBALL_BAT) 0.12f else 0.08f
                 sceneManager.cameraManager.startShake(shakeDuration, shakeIntensity)
 
-                if (Random.nextFloat() < 0.75f) { // 75% chance to bleed
-                    val bloodSpawnPosition = enemy.position.cpy().add(0f, enemy.enemyType.height / 2f, 0f)
+                val bloodSpawnPosition = enemy.position.cpy().add(0f, enemy.enemyType.height / 2f, 0f)
+                val violenceLevel = sceneManager.game.uiManager.getViolenceLevel()
+
+                if (violenceLevel == ViolenceLevel.ULTRA_VIOLENCE || Random.nextFloat() < 0.75f) {
                     spawnBloodEffects(bloodSpawnPosition, sceneManager)
                 }
 
@@ -709,8 +711,10 @@ class PlayerSystem {
                     equippedWeapon.damage // Deal normal weapon damage
                 }
 
-                if (Random.nextFloat() < 0.75f) { // 75% chance to bleed
-                    val bloodSpawnPosition = npc.physics.position.cpy().add(0f, npc.npcType.height / 2f, 0f)
+                val bloodSpawnPosition = npc.physics.position.cpy()
+                val violenceLevel = sceneManager.game.uiManager.getViolenceLevel()
+
+                if (violenceLevel == ViolenceLevel.ULTRA_VIOLENCE || Random.nextFloat() < 0.75f) { // 75% chance to bleed
                     spawnBloodEffects(bloodSpawnPosition, sceneManager)
                 }
 
@@ -1697,6 +1701,7 @@ class PlayerSystem {
 
                         // Use the enemy's center
                         val bloodSpawnPosition = enemy.position.cpy()
+                        val violenceLevel = sceneManager.game.uiManager.getViolenceLevel()
 
                         // small random offset to make it look less robotic
                         val offsetX = (Random.nextFloat() - 0.5f) * (enemy.enemyType.width * 0.4f)
@@ -1704,7 +1709,7 @@ class PlayerSystem {
                         bloodSpawnPosition.add(offsetX, offsetY, 0f) // No Z offset for 2D characters
 
                         // 50% chance to spawn blood effects
-                        if (Random.nextFloat() < 0.5f) {
+                        if (violenceLevel == ViolenceLevel.ULTRA_VIOLENCE || Random.nextFloat() < 0.5f) {
                             spawnBloodEffects(bloodSpawnPosition, sceneManager)
                         }
 
@@ -1731,7 +1736,9 @@ class PlayerSystem {
                         bloodSpawnPosition.add(offsetX, offsetY, 0f)
 
                         // 50% chance to spawn blood effects
-                        if (Random.nextFloat() < 0.5f) {
+                        val violenceLevel = sceneManager.game.uiManager.getViolenceLevel()
+
+                        if (violenceLevel == ViolenceLevel.ULTRA_VIOLENCE || Random.nextFloat() < 0.5f) {
                             spawnBloodEffects(bloodSpawnPosition, sceneManager)
                         }
 
