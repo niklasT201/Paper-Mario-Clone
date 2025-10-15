@@ -7,17 +7,25 @@ import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
+import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
 import com.badlogic.gdx.utils.Scaling
 
+data class DialogChoice(
+    val text: String,
+    val onSelect: () -> Unit
+)
+
 data class DialogLine(
     val speaker: String,
     val text: String,
-    val speakerTexturePath: String? = null
+    val speakerTexturePath: String? = null,
+    val choices: List<DialogChoice>? = null
 )
 
 data class DialogSequence(val lines: List<DialogLine>, val onComplete: (() -> Unit)? = null)
@@ -34,6 +42,7 @@ class DialogSystem {
     private lateinit var layoutCell: Cell<Table>
     private lateinit var speakerLabel: Label
     private lateinit var textLabel: Label
+    private lateinit var textLabelCell: Cell<Label>
     private lateinit var continuePrompt: Label
 
     // --- State Management ---
@@ -45,6 +54,10 @@ class DialogSystem {
 
     // --- Caching ---
     private val textureCache = mutableMapOf<String, Texture>()
+
+    private lateinit var choicesContainer: HorizontalGroup
+    private var isAwaitingChoice: Boolean = false
+    private var isCancelled: Boolean = false
 
     // --- Configuration ---
     companion object {
@@ -123,8 +136,15 @@ class DialogSystem {
         val promptContainer = Container(continuePrompt).padRight(15f).padBottom(10f)
         promptContainer.align(Align.bottomRight)
 
+        choicesContainer = HorizontalGroup()
+        choicesContainer.space(15f)
+        choicesContainer.align(Align.right)
+
+        // Add the choices container below the text label
         innerContentTable.add(speakerTable).left().padBottom(15f).row()
-        innerContentTable.add(textLabel).expand().fill().left().row()
+        textLabelCell = innerContentTable.add(textLabel).expand().fill().left()
+        innerContentTable.row()
+        innerContentTable.add(choicesContainer).expandX().right().padTop(15f).row()
 
         dialogContentTable.add(innerContentTable).expand().fill()
         dialogContentTable.stack(Table(), promptContainer)
@@ -150,6 +170,8 @@ class DialogSystem {
             return
         }
         activeSequence = sequence
+        isCancelled = false
+        isAwaitingChoice = false // Reset choice state
         currentLineIndex = 0
         isLineComplete = false
         textRevealProgress = 0f
@@ -182,7 +204,9 @@ class DialogSystem {
     }
 
     fun handleInput() {
-        // If the line is fully displayed, the next key press advances the dialog
+        // --- MODIFICATION: Don't advance if waiting for a choice ---
+        if (isAwaitingChoice) return
+
         if (isLineComplete) {
             currentLineIndex++
             displayCurrentLine()
@@ -193,6 +217,7 @@ class DialogSystem {
     }
 
     fun skipAll() {
+        isCancelled = true
         endDialog()
     }
 
@@ -232,6 +257,29 @@ class DialogSystem {
             portraitCell.padRight(NPC_PORTRAIT_OVERLAP)
             portraitCell.padBottom(0f) // Reset padding for NPCs to keep them at the baseline
             speakerPortraitImage.setScaling(Scaling.fit)
+        }
+
+        choicesContainer.clear() // Clear old buttons
+
+        if (line.choices.isNullOrEmpty()) {
+            isAwaitingChoice = false
+            textLabelCell.padBottom(0f)
+        } else {
+            isAwaitingChoice = true
+            continuePrompt.isVisible = false // Hide the '▼' prompt when choices are shown
+            continuePrompt.clearActions()
+            textLabelCell.padBottom(20f)
+
+            line.choices.forEach { choice ->
+                val button = TextButton(choice.text, skin)
+                button.addListener(object : ChangeListener() {
+                    override fun changed(event: ChangeEvent?, actor: Actor?) {
+                        // When a choice is made, execute its action and then end the dialog
+                        choice.onSelect()
+                    }
+                })
+                choicesContainer.addActor(button)
+            }
         }
         mainContainer.invalidate() // Tell the layout to recalculate itself with the new padding
 
@@ -283,10 +331,14 @@ class DialogSystem {
     private fun finishCurrentLine() {
         val sequence = activeSequence ?: return
         val line = sequence.lines.getOrNull(currentLineIndex) ?: return
+
         textRevealProgress = line.text.length.toFloat()
         textLabel.setText(line.text)
         isLineComplete = true
-        showContinuePrompt()
+
+        if (line.choices.isNullOrEmpty()) {
+            showContinuePrompt()
+        }
     }
 
     private fun showContinuePrompt() {
@@ -306,12 +358,19 @@ class DialogSystem {
         mainContainer.addAction(Actions.sequence(
             Actions.fadeOut(0.3f, Interpolation.fade),
             Actions.run {
-                mainContainer.isVisible = false // Hide instead of remove to keep it in the stage
-                sequence.onComplete?.invoke()
+                mainContainer.isVisible = false
+
+                // --- ADD THIS CHECK ---
+                // Only call onComplete if the dialog wasn't cancelled by the user.
+                if (!isCancelled) {
+                    sequence.onComplete?.invoke()
+                }
+
                 // Reset state
                 activeSequence = null
                 currentLineIndex = 0
                 isLineComplete = false
+                isCancelled = false // Reset for the next dialog
             }
         ))
     }

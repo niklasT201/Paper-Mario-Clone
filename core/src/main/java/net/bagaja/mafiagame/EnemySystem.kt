@@ -70,7 +70,9 @@ data class GameEnemy(
     var assignedPathId: String? = null,
     @Transient var currentPathNode: CharacterPathNode? = null,
     var missionId: String? = null,
-    var standaloneDialog: StandaloneDialog? = null
+    var standaloneDialog: StandaloneDialog? = null,
+    var standaloneDialogCompleted: Boolean = false,
+    var scheduledForDespawn: Boolean = false
 ) {
     fun isInteractive(): Boolean {
         return standaloneDialog?.outcome?.type != DialogOutcomeType.NONE
@@ -535,6 +537,12 @@ class EnemySystem : IFinePositionable {
 
         while (iterator.hasNext()) {
             val enemy = iterator.next()
+
+            if (enemy.scheduledForDespawn && enemy.physics.position.dst2(playerPos) > 4900f) { // 70 units
+                iterator.remove()
+                println("Despawned Enemy ${enemy.id} as per post-dialog behavior.")
+                continue // Skip the rest of the update for this despawned enemy
+            }
 
             val isObjectiveTarget = sceneManager.game.missionSystem.activeMission?.getCurrentObjective()?.completionCondition?.targetId == enemy.id
             if (playerSystem.isDriving && !enemy.isInCar && !isObjectiveTarget) {

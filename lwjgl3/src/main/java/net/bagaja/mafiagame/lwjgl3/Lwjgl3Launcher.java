@@ -74,6 +74,9 @@ public class Lwjgl3Launcher {
 // loot in barrels
 // enemy cover up ai
 // minimap for open world mode
+// images for items you sell/buy/switch
+// updating weapon collection system
+// improving dialog design when choose buttons are visible
 // Civilian npc that just follows paths. They should flee from gunfire and call the police if they see a crime
 // The Law & Wanted Level
 // first a beat cop, then patrol cars, then roadblocks, and finally tougher "Federal Agents" with tommy guns. Heat slowly decreases over time if you stay out of sight.

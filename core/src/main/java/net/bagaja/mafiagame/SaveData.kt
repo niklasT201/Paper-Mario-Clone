@@ -133,7 +133,8 @@ data class EnemyData(
     var currentState: AIState = AIState.IDLE,
     var currentMagazineCount: Int = 0,
     var provocationLevel: Float = 0f,
-    var standaloneDialog: StandaloneDialog? = null
+    var standaloneDialog: StandaloneDialog? = null,
+    var standaloneDialogCompleted: Boolean = false
 )
 
 data class NpcData(
@@ -149,7 +150,8 @@ data class NpcData(
     var isHonest: Boolean = true,
     var canCollectItems: Boolean = true,
     var pathFollowingStyle: PathFollowingStyle = PathFollowingStyle.CONTINUOUS,
-    var standaloneDialog: StandaloneDialog? = null
+    var standaloneDialog: StandaloneDialog? = null,
+    var standaloneDialogCompleted: Boolean = false
 )
 
 data class ItemData(

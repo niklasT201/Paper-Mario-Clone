@@ -27,6 +27,23 @@ enum class RewardType {
     UPGRADE_SPAWNER_WEAPON
 }
 
+enum class PostDialogBehavior(val displayName: String) {
+    REPEATABLE("Repeat (Can get item again)"),
+    REPEATABLE_NO_REWARD("Repeat (No more rewards)"),
+    ONE_TIME_HIDE_ICON("One-Time (Hide icon after)"),
+    ONE_TIME_DESPAWN("One-Time (Character despawns)")
+}
+
+data class StandaloneDialog(
+    val dialogId: String,
+    val outcome: DialogOutcome = DialogOutcome(),
+    val postBehavior: PostDialogBehavior = PostDialogBehavior.REPEATABLE // Default behavior
+) {
+    fun isInteractive(): Boolean {
+        return outcome.type != DialogOutcomeType.NONE
+    }
+}
+
 // --- Core Mission Definition ---
 
 data class MissionDefinition(

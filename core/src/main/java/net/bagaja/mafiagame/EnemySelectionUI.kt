@@ -82,6 +82,8 @@ class EnemySelectionUI(
     private lateinit var buyItemSelectBox: SelectBox<String>
     private lateinit var buyPriceField: TextField
 
+    private lateinit var postBehaviorSelectBox: SelectBox<String>
+
     private data class EnemySelectionItem(
         val container: Table, val iconImage: Image, val nameLabel: Label, val statsLabel: Label,
         val background: Drawable, val selectedBackground: Drawable, val enemyType: EnemyType
@@ -275,6 +277,11 @@ class EnemySelectionUI(
         interactionTable.add(Label("Outcome:", skin)).padRight(10f).padTop(8f)
         interactionTable.add(outcomeTypeSelectBox).growX().row()
 
+        postBehaviorSelectBox = SelectBox(skin)
+        postBehaviorSelectBox.items = GdxArray(PostDialogBehavior.entries.map { it.displayName }.toTypedArray())
+        interactionTable.add(Label("After Dialog:", skin)).padRight(10f).padTop(8f)
+        interactionTable.add(postBehaviorSelectBox).growX().row()
+
         val itemTypeNames = GdxArray(ItemType.entries.map { it.displayName }.toTypedArray())
         giveItemTable = Table()
         giveItemSelectBox = SelectBox(skin); giveItemSelectBox.items = itemTypeNames
@@ -386,6 +393,7 @@ class EnemySelectionUI(
         val customHealth = customHealthField.text.toFloatOrNull() ?: enemyType.baseHealth
         val minHealth = minHealthField.text.toFloatOrNull() ?: (enemyType.baseHealth * 0.8f)
         val maxHealth = maxHealthField.text.toFloatOrNull() ?: (enemyType.baseHealth * 1.2f)
+        val selectedPostBehavior = PostDialogBehavior.entries.find { it.displayName == postBehaviorSelectBox.selected } ?: PostDialogBehavior.REPEATABLE
 
         val weaponPolicy = WeaponCollectionPolicy.entries.find { it.displayName == weaponPolicySelectBox.selected } ?: WeaponCollectionPolicy.CANNOT_COLLECT
 
@@ -423,7 +431,7 @@ class EnemySelectionUI(
                 )
                 else -> DialogOutcome(type = DialogOutcomeType.NONE)
             }
-            standaloneDialog = StandaloneDialog(selectedDialogId, outcome)
+            standaloneDialog = StandaloneDialog(selectedDialogId, outcome, selectedPostBehavior)
         }
 
         return EnemySpawnConfig(

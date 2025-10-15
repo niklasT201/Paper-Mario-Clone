@@ -422,17 +422,76 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun startStandaloneDialog(character: Any, dialogInfo: StandaloneDialog) {
-        val dialogSequence = dialogueManager.getDialogue(dialogInfo.dialogId)
+        var dialogSequence = dialogueManager.getDialogue(dialogInfo.dialogId)
         if (dialogSequence == null) {
             println("ERROR: Character has standalone dialog '${dialogInfo.dialogId}', but it was not found.")
             return
         }
 
-        // Create a new DialogSequence with our custom onComplete callback
+        // Add confirmation choices for transactions
+        val outcome = dialogInfo.outcome
+        if (outcome.type in listOf(DialogOutcomeType.SELL_ITEM_TO_PLAYER, DialogOutcomeType.BUY_ITEM_FROM_PLAYER, DialogOutcomeType.TRADE_ITEM)) {
+            val originalLines = dialogSequence.lines.toMutableList()
+            val confirmationLineText = when (outcome.type) {
+                DialogOutcomeType.SELL_ITEM_TO_PLAYER -> "What do you say?"
+                DialogOutcomeType.BUY_ITEM_FROM_PLAYER -> "Is that a deal?"
+                DialogOutcomeType.TRADE_ITEM -> "Do we have a deal?"
+                else -> "..."
+            }
+            val confirmationChoices = listOf(
+                DialogChoice("Deal") {
+                    executeDialogOutcome(outcome)
+                    uiManager.dialogSystem.skipAll()
+                },
+                DialogChoice("Cancel") {
+                    uiManager.dialogSystem.skipAll()
+                }
+            )
+            val lastSpeaker = originalLines.lastOrNull()?.speaker ?: "System"
+            val confirmationLine = DialogLine(lastSpeaker, confirmationLineText, null, confirmationChoices)
+            originalLines.add(confirmationLine)
+            dialogSequence = dialogSequence.copy(lines = originalLines)
+        }
+
         val sequenceWithCallback = dialogSequence.copy(
             onComplete = {
-                println("Standalone dialog finished. Executing outcome: ${dialogInfo.outcome.type}")
-                executeDialogOutcome(dialogInfo.outcome)
+                println("Standalone dialog finished. Behavior: ${dialogInfo.postBehavior}")
+
+                when (dialogInfo.postBehavior) {
+                    PostDialogBehavior.REPEATABLE -> {
+                        // Do nothing, it will just repeat next time.
+                    }
+                    PostDialogBehavior.REPEATABLE_NO_REWARD,
+                    PostDialogBehavior.ONE_TIME_HIDE_ICON -> {
+                        when (character) {
+                            is GameEnemy -> character.standaloneDialogCompleted = true
+                            is GameNPC -> character.standaloneDialogCompleted = true
+                        }
+                    }
+                    PostDialogBehavior.ONE_TIME_DESPAWN -> {
+                        when (character) {
+                            is GameEnemy -> {
+                                character.standaloneDialogCompleted = true
+                                character.scheduledForDespawn = true
+                            }
+                            is GameNPC -> {
+                                character.standaloneDialogCompleted = true
+                                character.scheduledForDespawn = true // <-- THE FIX IS HERE
+                            }
+                        }
+                    }
+                }
+
+                // Only execute the outcome if the behavior isn't "Repeatable with No Reward" AND it hasn't been completed before
+                val shouldGiveReward = when (character) {
+                    is GameEnemy -> !(dialogInfo.postBehavior == PostDialogBehavior.REPEATABLE_NO_REWARD && character.standaloneDialogCompleted)
+                    is GameNPC -> !(dialogInfo.postBehavior == PostDialogBehavior.REPEATABLE_NO_REWARD && character.standaloneDialogCompleted)
+                    else -> true
+                }
+
+                if (shouldGiveReward) {
+                    executeDialogOutcome(dialogInfo.outcome)
+                }
             }
         )
 
@@ -449,7 +508,6 @@ class MafiaGame : ApplicationAdapter() {
                     val weapon = outcome.itemToGive.correspondingWeapon
                     val ammo = outcome.ammoToGive ?: weapon.magazineSize
                     playerSystem.addWeaponToInventory(weapon, ammo)
-                    uiManager.showTemporaryMessage("You received ${outcome.itemToGive.displayName}!")
                 }
             }
             DialogOutcomeType.SELL_ITEM_TO_PLAYER -> {
@@ -565,7 +623,7 @@ class MafiaGame : ApplicationAdapter() {
                         if (missionSystem.checkTalkToNpcObjective(closestNpc.id)) {
                             return
                         }
-                        if (closestNpc.standaloneDialog != null) {
+                        if (closestNpc.standaloneDialog != null && !closestNpc.standaloneDialogCompleted) {
                             startStandaloneDialog(closestNpc, closestNpc.standaloneDialog!!)
                             return
                         }
@@ -576,7 +634,7 @@ class MafiaGame : ApplicationAdapter() {
                     // --- Check for Enemy interaction ---
                     val closestEnemy = sceneManager.activeEnemies.minByOrNull { it.position.dst2(playerPos) }
                     if (closestEnemy != null && playerPos.dst(closestEnemy.position) < 5f && closestEnemy.currentState == AIState.IDLE) {
-                        if (closestEnemy.standaloneDialog != null) {
+                        if (closestEnemy.standaloneDialog != null && !closestEnemy.standaloneDialogCompleted) {
                             startStandaloneDialog(closestEnemy, closestEnemy.standaloneDialog!!)
                             return
                         }
@@ -858,7 +916,7 @@ class MafiaGame : ApplicationAdapter() {
 
 
     private fun updateCursorVisibility() {
-        val shouldCatchCursor = !isEditorMode && !uiManager.isPauseMenuVisible() && !uiManager.isInventoryVisible()
+        val shouldCatchCursor = !isEditorMode && !uiManager.isPauseMenuVisible() && !uiManager.isDialogActive()
 
         // if the current state doesn't match what it should be.
         if (Gdx.input.isCursorCatched != shouldCatchCursor) {

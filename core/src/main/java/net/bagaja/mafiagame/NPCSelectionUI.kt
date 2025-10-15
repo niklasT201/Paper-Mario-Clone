@@ -62,6 +62,8 @@ class NPCSelectionUI(
     private lateinit var buyItemSelectBox: SelectBox<String>
     private lateinit var buyPriceField: TextField
 
+    private lateinit var postBehaviorSelectBox: SelectBox<String>
+
     private data class NPCSelectionItem(
         val container: Table,
         val nameLabel: Label,
@@ -194,6 +196,11 @@ class NPCSelectionUI(
         interactionTable.add(Label("Outcome:", skin)).padRight(10f).padTop(8f)
         interactionTable.add(outcomeTypeSelectBox).growX().row()
 
+        postBehaviorSelectBox = SelectBox(skin)
+        postBehaviorSelectBox.items = GdxArray(PostDialogBehavior.entries.map { it.displayName }.toTypedArray())
+        interactionTable.add(Label("After Dialog:", skin)).padRight(10f).padTop(8f)
+        interactionTable.add(postBehaviorSelectBox).growX().row()
+
         val itemTypeNames = GdxArray(ItemType.entries.map { it.displayName }.toTypedArray())
 
         // Create individual tables for each outcome type
@@ -276,6 +283,7 @@ class NPCSelectionUI(
         val pathId = pathIdField.text.ifBlank { null }
         var standaloneDialog: StandaloneDialog? = null
         val selectedDialogId = dialogIdSelectBox.selected
+        val selectedPostBehavior = PostDialogBehavior.entries.find { it.displayName == postBehaviorSelectBox.selected } ?: PostDialogBehavior.REPEATABLE
         if (selectedDialogId != null && selectedDialogId != "(None)") {
             val outcomeType = DialogOutcomeType.entries.find { it.displayName == outcomeTypeSelectBox.selected } ?: DialogOutcomeType.NONE
             val outcome = when (outcomeType) {
@@ -285,7 +293,7 @@ class NPCSelectionUI(
                 DialogOutcomeType.TRADE_ITEM -> DialogOutcome(type = outcomeType, requiredItem = ItemType.entries.find { it.displayName == tradeRequiredItemSelectBox.selected }, itemToGive = ItemType.entries.find { it.displayName == tradeRewardItemSelectBox.selected }, ammoToGive = tradeRewardAmmoField.text.toIntOrNull())
                 else -> DialogOutcome(type = DialogOutcomeType.NONE)
             }
-            standaloneDialog = StandaloneDialog(selectedDialogId, outcome)
+            standaloneDialog = StandaloneDialog(selectedDialogId, outcome, selectedPostBehavior)
         }
         return NPCSpawnConfig(
             npcType = npcSystem.currentSelectedNPCType,

@@ -134,7 +134,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     ObjectMap<WeaponType, Int>().apply { e.weapons.forEach { (w, a) -> put(w, a) } },
                     e.equippedWeapon,
                     e.currentState, e.currentMagazineCount, e.provocationLevel,
-                    e.standaloneDialog
+                    e.standaloneDialog,
+                    e.standaloneDialogCompleted
                 ))
             }
             sm.activeNPCs.filter { it.missionId == null }.forEach { n ->
@@ -147,7 +148,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     n.isHonest,
                     n.canCollectItems,
                     n.pathFollowingStyle,
-                    n.standaloneDialog
+                    n.standaloneDialog,
+                    n.standaloneDialogCompleted
                 ))
             }
             sm.activeItems.filter { it.missionId == null }.forEach { i -> world.items.add(ItemData(i.id, i.itemType, i.position, i.ammo, i.value)) }
@@ -370,6 +372,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     it.assignedPathId = data.assignedPathId
                     it.pathFollowingStyle = data.pathFollowingStyle
 
+                    it.standaloneDialogCompleted = data.standaloneDialogCompleted
                     sm.activeNPCs.add(it)
                     npcMap[it.id] = it
                 }

@@ -929,7 +929,7 @@ class PlayerSystem {
         if (!weapons.contains(weaponType)) {
             weapons.add(weaponType)
         }
-        addAmmo(weaponType, ammo)
+        addAmmoToReserves(weaponType, ammo)
     }
 
     fun hasWeapon(weaponType: WeaponType): Boolean {
@@ -969,8 +969,6 @@ class PlayerSystem {
         // Add the ammo from the picked-up item to reserves
         if (ammoToGive != null && ammoToGive > 0) {
             addAmmoToReserves(weaponType, ammoToGive)
-        } else if (weaponType.actionType == WeaponActionType.MELEE && weaponType != WeaponType.UNARMED) {
-            sceneManager.game.uiManager.queueWeaponPickupNotification(weaponType, 1)
         }
 
         println("Player equipped: ${weaponType.displayName}. Magazine loaded with $currentMagazineCount rounds.")

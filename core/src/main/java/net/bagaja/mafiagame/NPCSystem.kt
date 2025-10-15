@@ -37,15 +37,6 @@ data class DialogOutcome(
     val requiredItem: ItemType? = null
 )
 
-data class StandaloneDialog(
-    val dialogId: String,
-    val outcome: DialogOutcome = DialogOutcome()
-) {
-    fun isInteractive(): Boolean {
-        return outcome.type != DialogOutcomeType.NONE
-    }
-}
-
 enum class DamageReaction {
     FLEE,       // Runs away when damaged
     FIGHT_BACK  // Becomes hostile when damaged
@@ -132,7 +123,9 @@ data class GameNPC(
     @Transient var pathfindingState: PathfindingSubState = PathfindingSubState.MOVING,
     @Transient var subStateTimer: Float = 0f,
     var missionId: String? = null,
-    var standaloneDialog: StandaloneDialog? = null
+    var standaloneDialog: StandaloneDialog? = null,
+    var standaloneDialogCompleted: Boolean = false,
+    var scheduledForDespawn: Boolean = false
 ) {
     var isOnFire: Boolean = false
     var onFireTimer: Float = 0f
@@ -579,6 +572,12 @@ class NPCSystem : IFinePositionable {
 
         while(iterator.hasNext()) {
             val npc = iterator.next()
+
+            if (npc.scheduledForDespawn && npc.position.dst2(playerPos) > 4900f) { // 70 units
+                iterator.remove()
+                println("Despawned NPC ${npc.id} as per post-dialog behavior.")
+                continue // Skip the rest of the update for this despawned NPC
+            }
 
             val isObjectiveTarget = sceneManager.game.missionSystem.activeMission?.getCurrentObjective()?.completionCondition?.targetId == npc.id
             if (playerSystem.isDriving && !npc.isInCar && !isObjectiveTarget) {

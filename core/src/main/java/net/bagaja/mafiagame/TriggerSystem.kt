@@ -196,11 +196,15 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
         val playerPos = game.playerSystem.getPosition()
         if (game.missionSystem.activeMission != null) return
 
-        // --- Check NPCs ---
+        // Check NPCs
         for (npc in game.sceneManager.activeNPCs) {
             val dialog = npc.standaloneDialog ?: continue
+
+            if (npc.standaloneDialogCompleted && dialog.postBehavior != PostDialogBehavior.REPEATABLE) continue
+
             if (playerPos.dst(npc.position) > VISUAL_ACTIVATION_DISTANCE) continue
-            if (findMissionForNpc(npc.id) != null) continue
+            val missionForThisNpc = findMissionForNpc(npc.id)
+            if (missionForThisNpc != null) continue
 
             val modelToUse = if (dialog.isInteractive()) exclamationIconModel else questionIconModel
             modelToUse?.let { model ->
@@ -211,9 +215,12 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
             }
         }
 
-        // --- Check Enemies ---
+        // Check Enemies
         for (enemy in game.sceneManager.activeEnemies) {
             val dialog = enemy.standaloneDialog ?: continue
+
+            if (enemy.standaloneDialogCompleted && dialog.postBehavior != PostDialogBehavior.REPEATABLE) continue
+
             if (enemy.currentState != AIState.IDLE) continue
             if (playerPos.dst(enemy.position) > VISUAL_ACTIVATION_DISTANCE) continue
 
