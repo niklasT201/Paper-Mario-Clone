@@ -1,6 +1,7 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
+import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
@@ -9,6 +10,7 @@ import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.InputEvent
+import com.badlogic.gdx.scenes.scene2d.InputListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
@@ -95,6 +97,25 @@ class EnemySelectionUI(
         enemySelectionTable.setVisible(false)
     }
 
+    private fun addUnfocusListeners(textField: TextField) {
+        // Listener to unfocus when the user presses Enter
+        textField.setTextFieldListener { _, key ->
+            if (key == '\r' || key == '\n') {
+                stage.unfocusAll()
+            }
+        }
+        // Listener to unfocus when the user presses Escape
+        textField.addListener(object : InputListener() {
+            override fun keyDown(event: InputEvent?, keycode: Int): Boolean {
+                if (keycode == Input.Keys.ESCAPE) {
+                    stage.unfocusAll()
+                    return true // Mark the event as handled
+                }
+                return false
+            }
+        })
+    }
+
     private fun setupEnemySelectionUI() {
         // 1. Root Table Setup
         enemySelectionTable = Table()
@@ -167,6 +188,7 @@ class EnemySelectionUI(
 
         pathIdTable = Table()
         pathIdField = TextField("", skin).apply { messageText = "Paste Path Start Node ID" }
+        addUnfocusListeners(pathIdField) // <-- APPLY FIX
         pathIdTable.add(Label("Path Start ID:", skin)).padRight(10f)
         pathIdTable.add(pathIdField).width(250f)
         settingsContainer.add(pathIdTable).row()
@@ -185,9 +207,9 @@ class EnemySelectionUI(
         configTable.add(Label("Health:", skin)).left().padRight(10f)
         configTable.add(healthSettingSelectBox).width(150f).left().row()
 
-        customHealthField = TextField("", skin)
-        minHealthField = TextField("", skin)
-        maxHealthField = TextField("", skin)
+        customHealthField = TextField("", skin); addUnfocusListeners(customHealthField)
+        minHealthField = TextField("", skin); addUnfocusListeners(minHealthField)
+        maxHealthField = TextField("", skin); addUnfocusListeners(maxHealthField)
 
         val customHealthRow = Table()
         customHealthRow.add(Label("Custom HP:", skin)).padRight(10f)
@@ -223,7 +245,7 @@ class EnemySelectionUI(
         ammoModeSelectBox = SelectBox(skin)
         ammoModeSelectBox.items = ammoModeNames
         val setAmmoRow = Table()
-        setAmmoField = TextField("", skin)
+        setAmmoField = TextField("", skin); addUnfocusListeners(setAmmoField)
         setAmmoRow.add(Label("Ammo:", skin)).padRight(10f)
         setAmmoRow.add(ammoModeSelectBox).padRight(10f)
         setAmmoRow.add(setAmmoField).width(60f)
@@ -235,7 +257,7 @@ class EnemySelectionUI(
         canCollectItemsCheckbox.isChecked = true
         configTable.add(canCollectItemsCheckbox).colspan(2).left().padTop(5f).row()
 
-        enemyInitialMoneyField = TextField("0", skin)
+        enemyInitialMoneyField = TextField("0", skin); addUnfocusListeners(enemyInitialMoneyField)
         configTable.add(Label("Initial Money:", skin)).left().padTop(5f)
         configTable.add(enemyInitialMoneyField).width(80f).left().row()
 
@@ -256,26 +278,26 @@ class EnemySelectionUI(
         val itemTypeNames = GdxArray(ItemType.entries.map { it.displayName }.toTypedArray())
         giveItemTable = Table()
         giveItemSelectBox = SelectBox(skin); giveItemSelectBox.items = itemTypeNames
-        giveAmmoField = TextField("", skin).apply { messageText = "Default" }
+        giveAmmoField = TextField("", skin).apply { messageText = "Default" }; addUnfocusListeners(giveAmmoField)
         giveItemTable.add(Label("Item to Give:", skin)).padRight(10f); giveItemTable.add(giveItemSelectBox).row()
         giveItemTable.add(Label("Ammo:", skin)).padRight(10f); giveItemTable.add(giveAmmoField).width(80f).row()
         sellItemTable = Table()
         sellItemSelectBox = SelectBox(skin); sellItemSelectBox.items = itemTypeNames
-        sellAmmoField = TextField("", skin).apply { messageText = "Default" }
-        sellPriceField = TextField("", skin).apply { messageText = "e.g., 100" }
+        sellAmmoField = TextField("", skin).apply { messageText = "Default" }; addUnfocusListeners(sellAmmoField)
+        sellPriceField = TextField("", skin).apply { messageText = "e.g., 100" }; addUnfocusListeners(sellPriceField)
         sellItemTable.add(Label("Item to Sell:", skin)).padRight(10f); sellItemTable.add(sellItemSelectBox).row()
         sellItemTable.add(Label("Ammo:", skin)).padRight(10f); sellItemTable.add(sellAmmoField).width(80f).row()
         sellItemTable.add(Label("Price:", skin)).padRight(10f); sellItemTable.add(sellPriceField).width(80f).row()
         tradeItemTable = Table()
         tradeRequiredItemSelectBox = SelectBox(skin); tradeRequiredItemSelectBox.items = itemTypeNames
         tradeRewardItemSelectBox = SelectBox(skin); tradeRewardItemSelectBox.items = itemTypeNames
-        tradeRewardAmmoField = TextField("", skin).apply { messageText = "Default" }
+        tradeRewardAmmoField = TextField("", skin).apply { messageText = "Default" }; addUnfocusListeners(tradeRewardAmmoField)
         tradeItemTable.add(Label("Player Gives:", skin)).padRight(10f); tradeItemTable.add(tradeRequiredItemSelectBox).row()
         tradeItemTable.add(Label("Player Gets:", skin)).padRight(10f); tradeItemTable.add(tradeRewardItemSelectBox).row()
         tradeItemTable.add(Label("Reward Ammo:", skin)).padRight(10f); tradeItemTable.add(tradeRewardAmmoField).width(80f).row()
         buyItemTable = Table()
         buyItemSelectBox = SelectBox(skin); buyItemSelectBox.items = itemTypeNames
-        buyPriceField = TextField("", skin).apply { messageText = "e.g., 50" }
+        buyPriceField = TextField("", skin).apply { messageText = "e.g., 50" }; addUnfocusListeners(buyPriceField)
         buyItemTable.add(Label("Item to Buy:", skin)).padRight(10f); buyItemTable.add(buyItemSelectBox).row()
         buyItemTable.add(Label("Price:", skin)).padRight(10f); buyItemTable.add(buyPriceField).width(80f).row()
 

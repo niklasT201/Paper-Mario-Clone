@@ -66,6 +66,7 @@ public class Lwjgl3Launcher {
 // fire in rooms and mission not being connected right with its light source
 // save shaders and visual settings
 // visual screen for finished mission
+// enemy/npc with dialog can give items in a loop, or again and again
 // nickelodeons having real short films
 // check if blood drips are spawned right in ultra mode
 // weather events
