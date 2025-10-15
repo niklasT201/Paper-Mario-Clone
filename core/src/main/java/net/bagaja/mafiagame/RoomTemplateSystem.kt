@@ -103,6 +103,7 @@ data class RoomElement(
     val isOneWay: Boolean = false,
     val isMissionOnly: Boolean = false,
     val missionId: String? = null,
+    val standaloneDialog: StandaloneDialog? = null
 )
 
 enum class RoomElementType {

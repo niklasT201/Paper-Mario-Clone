@@ -1193,7 +1193,9 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         ammoSpawnMode = event.ammoSpawnMode ?: AmmoSpawnMode.FIXED,
                         setAmmoValue = event.setAmmoValue ?: 30,
                         weaponCollectionPolicy = event.weaponCollectionPolicy ?: WeaponCollectionPolicy.CANNOT_COLLECT,
-                        canCollectItems = event.canCollectItems ?: true
+                        canCollectItems = event.canCollectItems ?: true,
+                        enemyInitialMoney = event.enemyInitialMoney ?: 0,
+                        standaloneDialog = event.standaloneDialog
                     )
                     game.enemySystem.createEnemy(config)?.let { newEnemy ->
                         newEnemy.missionId = missionId
@@ -1210,7 +1212,8 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         behavior = event.npcBehavior ?: NPCBehavior.STATIONARY,
                         position = event.spawnPosition,
                         id = event.targetId,
-                        pathFollowingStyle = event.pathFollowingStyle ?: PathFollowingStyle.CONTINUOUS
+                        pathFollowingStyle = event.pathFollowingStyle ?: PathFollowingStyle.CONTINUOUS,
+                        standaloneDialog = event.standaloneDialog
                     )
                     game.npcSystem.createNPC(config, event.npcRotation ?: 0f)?.let { newNpc ->
                         newNpc.missionId = missionId

@@ -29,18 +29,21 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
     private var dialogIconModel: Model? = null
     private var highlightCircleInstance: ModelInstance? = null
     private var dialogIconInstance: ModelInstance? = null
-    // --- NEW: Dedicated model for item highlights ---
     private var itemHighlightCircleModel: Model? = null
     private var itemHighlightCircleInstance: ModelInstance? = null
+    private var questionIconModel: Model? = null
+    private var exclamationIconModel: Model? = null
 
     // --- Textures ---
     private var highlightCircleTexture: Texture? = null
     private var dialogIconTexture: Texture? = null
+    private var questionIconTexture: Texture? = null
+    private var exclamationIconTexture: Texture? = null
 
     // --- State ---
     private val allMissions = mutableMapOf<String, MissionDefinition>()
     var selectedMissionIdForEditing: String? = null
-    var isEditorVisible = false // Controlled by the Trigger tool in the UI
+    var isEditorVisible = false
 
     // --- Animation State ---
     private var bobbingTimer = 0f
@@ -56,9 +59,8 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
         private const val DIALOG_ICON_WIDTH = 1.5f
         private const val DIALOG_ICON_HEIGHT = 1.5f
 
-        // --- Animation Constants ---
-        private const val BOBBING_SPEED = 4f // How fast the icon moves up and down
-        private const val BOBBING_HEIGHT = 0.15f // How high the icon moves from its base position
+        private const val BOBBING_SPEED = 4f
+        private const val BOBBING_HEIGHT = 0.15f
     }
 
     fun initialize() {
@@ -86,21 +88,11 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
 
             // --- Create LARGE, SCALABLE Area Highlight Model ---
             val areaSize = VISUAL_RADIUS * 2
-            highlightCircleModel = modelBuilder.createRect(
-                -areaSize / 2f, 0f, areaSize / 2f, -areaSize / 2f, 0f, -areaSize / 2f,
-                areaSize / 2f, 0f, -areaSize / 2f, areaSize / 2f, 0f, areaSize / 2f,
-                0f, 1f, 0f, circleMaterial,
-                (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
-            )
+            highlightCircleModel = modelBuilder.createRect(-areaSize / 2f, 0f, areaSize / 2f, -areaSize / 2f, 0f, -areaSize / 2f, areaSize / 2f, 0f, -areaSize / 2f, areaSize / 2f, 0f, areaSize / 2f, 0f, 1f, 0f, circleMaterial, (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong())
             highlightCircleInstance = ModelInstance(highlightCircleModel).apply { userData = "effect" }
 
             val itemSize = ITEM_HIGHLIGHT_RADIUS * 2
-            itemHighlightCircleModel = modelBuilder.createRect(
-                -itemSize / 2f, 0f, itemSize / 2f, -itemSize / 2f, 0f, -itemSize / 2f,
-                itemSize / 2f, 0f, -itemSize / 2f, itemSize / 2f, 0f, itemSize / 2f,
-                0f, 1f, 0f, circleMaterial,
-                (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
-            )
+            itemHighlightCircleModel = modelBuilder.createRect(-itemSize / 2f, 0f, itemSize / 2f, -itemSize / 2f, 0f, -itemSize / 2f, itemSize / 2f, 0f, -itemSize / 2f, itemSize / 2f, 0f, itemSize / 2f, 0f, 1f, 0f, circleMaterial, (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong())
             itemHighlightCircleInstance = ModelInstance(itemHighlightCircleModel).apply { userData = "effect" }
 
         } catch (e: Exception) {
@@ -109,26 +101,30 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
 
         // --- Load Dialog Icon Texture and Create Model ---
         try {
-            dialogIconTexture = Texture(Gdx.files.internal("gui/dialog_box.png")).apply {
-                setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
-            }
-            val iconMaterial = Material(
-                TextureAttribute.createDiffuse(dialogIconTexture),
-                BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
-                IntAttribute.createCullFace(GL20.GL_NONE)
-            )
-            dialogIconModel = modelBuilder.createRect(
-                -DIALOG_ICON_WIDTH / 2f, -DIALOG_ICON_HEIGHT / 2f, 0f,
-                DIALOG_ICON_WIDTH / 2f, -DIALOG_ICON_HEIGHT / 2f, 0f,
-                DIALOG_ICON_WIDTH / 2f, DIALOG_ICON_HEIGHT / 2f, 0f,
-                -DIALOG_ICON_WIDTH / 2f, DIALOG_ICON_HEIGHT / 2f, 0f,
-                0f, 0f, 1f, // Normal facing forward
-                iconMaterial,
-                (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
-            )
+            dialogIconTexture = Texture(Gdx.files.internal("gui/dialog_box.png")).apply { setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear) }
+            val iconMaterial = Material(TextureAttribute.createDiffuse(dialogIconTexture), BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA), IntAttribute.createCullFace(GL20.GL_NONE))
+            dialogIconModel = modelBuilder.createRect(-DIALOG_ICON_WIDTH / 2f, -DIALOG_ICON_HEIGHT / 2f, 0f, DIALOG_ICON_WIDTH / 2f, -DIALOG_ICON_HEIGHT / 2f, 0f, DIALOG_ICON_WIDTH / 2f, DIALOG_ICON_HEIGHT / 2f, 0f, -DIALOG_ICON_WIDTH / 2f, DIALOG_ICON_HEIGHT / 2f, 0f, 0f, 0f, 1f, iconMaterial, (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong())
             dialogIconInstance = ModelInstance(dialogIconModel).apply { userData = "character" }
         } catch (e: Exception) {
             println("ERROR: Could not load 'gui/dialog_box.png'. Dialog icons will be invisible.")
+        }
+
+        try {
+            questionIconTexture = Texture(Gdx.files.internal("gui/question_mark.png")).apply { setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear) }
+            val qMaterial = Material(TextureAttribute.createDiffuse(questionIconTexture), BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA), IntAttribute.createCullFace(GL20.GL_NONE))
+            questionIconModel = modelBuilder.createRect(-DIALOG_ICON_WIDTH / 2f, -DIALOG_ICON_HEIGHT / 2f, 0f, DIALOG_ICON_WIDTH / 2f, -DIALOG_ICON_HEIGHT / 2f, 0f, DIALOG_ICON_WIDTH / 2f, DIALOG_ICON_HEIGHT / 2f, 0f, -DIALOG_ICON_WIDTH / 2f, DIALOG_ICON_HEIGHT / 2f, 0f, 0f, 0f, 1f, qMaterial, (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong())
+            // No instance is created here anymore
+        } catch (e: Exception) {
+            println("ERROR: Could not load 'gui/question_mark.png'.")
+        }
+
+        try {
+            exclamationIconTexture = Texture(Gdx.files.internal("gui/exclamation_mark.png")).apply { setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear) }
+            val eMaterial = Material(TextureAttribute.createDiffuse(exclamationIconTexture), BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA), IntAttribute.createCullFace(GL20.GL_NONE))
+            exclamationIconModel = modelBuilder.createRect(-DIALOG_ICON_WIDTH / 2f, -DIALOG_ICON_HEIGHT / 2f, 0f, DIALOG_ICON_WIDTH / 2f, -DIALOG_ICON_HEIGHT / 2f, 0f, DIALOG_ICON_WIDTH / 2f, DIALOG_ICON_HEIGHT / 2f, 0f, -DIALOG_ICON_WIDTH / 2f, DIALOG_ICON_HEIGHT / 2f, 0f, 0f, 0f, 1f, eMaterial, (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong())
+            // No instance is created here anymore
+        } catch (e: Exception) {
+            println("ERROR: Could not load 'gui/exclamation_mark.png'.")
         }
     }
 
@@ -170,6 +166,7 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
 
         // Populate the lists with visuals that need to be drawn this frame
         renderStartTriggers(renderables, billboards, bobOffset)
+        renderStandaloneDialogTriggers(billboards, bobOffset)
         renderActiveObjectiveMarkers(renderables, billboards, bobOffset)
 
         // --- Render Ground-Based Visuals (Highlight Circles) ---
@@ -192,6 +189,41 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
             billboardModelBatch.begin(camera)
             billboardModelBatch.render(billboards, environment)
             billboardModelBatch.end()
+        }
+    }
+
+    private fun renderStandaloneDialogTriggers(billboards: Array<ModelInstance>, bobOffset: Float) {
+        val playerPos = game.playerSystem.getPosition()
+        if (game.missionSystem.activeMission != null) return
+
+        // --- Check NPCs ---
+        for (npc in game.sceneManager.activeNPCs) {
+            val dialog = npc.standaloneDialog ?: continue
+            if (playerPos.dst(npc.position) > VISUAL_ACTIVATION_DISTANCE) continue
+            if (findMissionForNpc(npc.id) != null) continue
+
+            val modelToUse = if (dialog.isInteractive()) exclamationIconModel else questionIconModel
+            modelToUse?.let { model ->
+                val iconInstance = ModelInstance(model).apply { userData = "character" }
+                val iconPos = npc.position.cpy().add(0f, (npc.npcType.height / 2f) + NPC_ICON_Y_OFFSET + bobOffset, 0f)
+                iconInstance.transform.setToTranslation(iconPos)
+                billboards.add(iconInstance)
+            }
+        }
+
+        // --- Check Enemies ---
+        for (enemy in game.sceneManager.activeEnemies) {
+            val dialog = enemy.standaloneDialog ?: continue
+            if (enemy.currentState != AIState.IDLE) continue
+            if (playerPos.dst(enemy.position) > VISUAL_ACTIVATION_DISTANCE) continue
+
+            val modelToUse = if (dialog.isInteractive()) exclamationIconModel else questionIconModel
+            modelToUse?.let { model ->
+                val iconInstance = ModelInstance(model).apply { userData = "character" }
+                val iconPos = enemy.position.cpy().add(0f, (enemy.enemyType.height / 2f) + NPC_ICON_Y_OFFSET + bobOffset, 0f)
+                iconInstance.transform.setToTranslation(iconPos)
+                billboards.add(iconInstance)
+            }
         }
     }
 
@@ -324,5 +356,9 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
         highlightCircleModel?.dispose()
         dialogIconModel?.dispose()
         itemHighlightCircleModel?.dispose()
+        questionIconTexture?.dispose()
+        exclamationIconTexture?.dispose()
+        questionIconModel?.dispose()
+        exclamationIconModel?.dispose()
     }
 }

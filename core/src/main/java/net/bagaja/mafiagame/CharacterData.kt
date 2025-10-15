@@ -31,10 +31,12 @@ data class EnemySpawnConfig(
     val initialWeapon: WeaponType = WeaponType.UNARMED,
     val ammoSpawnMode: AmmoSpawnMode = AmmoSpawnMode.FIXED, // Uses weapon's default
     val setAmmoValue: Int = 30, // Custom ammo amount
+    val enemyInitialMoney: Int = 0,
 
     val weaponCollectionPolicy: WeaponCollectionPolicy = WeaponCollectionPolicy.CANNOT_COLLECT,
     val canCollectItems: Boolean = true,
-    val assignedPathId: String? = null
+    val assignedPathId: String? = null,
+    val standaloneDialog: StandaloneDialog? = null
 )
 
 data class NPCSpawnConfig(
@@ -45,5 +47,6 @@ data class NPCSpawnConfig(
     val isHonest: Boolean = true,
     val canCollectItems: Boolean = true,
     val pathFollowingStyle: PathFollowingStyle = PathFollowingStyle.CONTINUOUS,
-    val assignedPathId: String? = null
+    val assignedPathId: String? = null,
+    val standaloneDialog: StandaloneDialog? = null // <-- NEW PROPERTY
 )

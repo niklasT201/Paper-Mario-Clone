@@ -421,6 +421,79 @@ class MafiaGame : ApplicationAdapter() {
         }
     }
 
+    private fun startStandaloneDialog(character: Any, dialogInfo: StandaloneDialog) {
+        val dialogSequence = dialogueManager.getDialogue(dialogInfo.dialogId)
+        if (dialogSequence == null) {
+            println("ERROR: Character has standalone dialog '${dialogInfo.dialogId}', but it was not found.")
+            return
+        }
+
+        // Create a new DialogSequence with our custom onComplete callback
+        val sequenceWithCallback = dialogSequence.copy(
+            onComplete = {
+                println("Standalone dialog finished. Executing outcome: ${dialogInfo.outcome.type}")
+                executeDialogOutcome(dialogInfo.outcome)
+            }
+        )
+
+        uiManager.dialogSystem.startDialog(sequenceWithCallback)
+    }
+
+    private fun executeDialogOutcome(outcome: DialogOutcome) {
+        when (outcome.type) {
+            DialogOutcomeType.NONE -> {
+                // Nothing to do, the conversation is over.
+            }
+            DialogOutcomeType.GIVE_ITEM -> {
+                if (outcome.itemToGive?.correspondingWeapon != null) {
+                    val weapon = outcome.itemToGive.correspondingWeapon
+                    val ammo = outcome.ammoToGive ?: weapon.magazineSize
+                    playerSystem.addWeaponToInventory(weapon, ammo)
+                    uiManager.showTemporaryMessage("You received ${outcome.itemToGive.displayName}!")
+                }
+            }
+            DialogOutcomeType.SELL_ITEM_TO_PLAYER -> {
+                if (outcome.itemToGive != null && outcome.price != null && outcome.itemToGive.correspondingWeapon != null) {
+                    if (playerSystem.getMoney() >= outcome.price) {
+                        playerSystem.addMoney(-outcome.price)
+                        val weapon = outcome.itemToGive.correspondingWeapon
+                        val ammo = outcome.ammoToGive ?: weapon.magazineSize
+                        playerSystem.addWeaponToInventory(weapon, ammo)
+                        uiManager.showTemporaryMessage("You bought ${outcome.itemToGive.displayName} for $${outcome.price}.")
+                    } else {
+                        uiManager.showTemporaryMessage("You don't have enough money.")
+                    }
+                }
+            }
+            DialogOutcomeType.BUY_ITEM_FROM_PLAYER -> {
+                if (outcome.requiredItem != null && outcome.price != null && outcome.requiredItem.correspondingWeapon != null) {
+                    val requiredWeapon = outcome.requiredItem.correspondingWeapon
+                    if (playerSystem.hasWeapon(requiredWeapon)) {
+                        playerSystem.removeWeaponFromInventory(requiredWeapon)
+                        playerSystem.addMoney(outcome.price)
+                        uiManager.showTemporaryMessage("You sold ${outcome.requiredItem.displayName} for $${outcome.price}.")
+                    } else {
+                        uiManager.showTemporaryMessage("You don't have a ${outcome.requiredItem.displayName} to sell.")
+                    }
+                }
+            }
+            DialogOutcomeType.TRADE_ITEM -> {
+                if (outcome.requiredItem != null && outcome.itemToGive != null && outcome.requiredItem.correspondingWeapon != null && outcome.itemToGive.correspondingWeapon != null) {
+                    val requiredWeapon = outcome.requiredItem.correspondingWeapon
+                    if (playerSystem.hasWeapon(requiredWeapon)) {
+                        playerSystem.removeWeaponFromInventory(requiredWeapon)
+                        val rewardWeapon = outcome.itemToGive.correspondingWeapon
+                        val rewardAmmo = outcome.ammoToGive ?: rewardWeapon.magazineSize
+                        playerSystem.addWeaponToInventory(rewardWeapon, rewardAmmo)
+                        uiManager.showTemporaryMessage("You traded ${outcome.requiredItem.displayName} for ${outcome.itemToGive.displayName}.")
+                    } else {
+                        uiManager.showTemporaryMessage("You don't have the required item: ${outcome.requiredItem.displayName}.")
+                    }
+                }
+            }
+        }
+    }
+
     private fun handleInteractionInput() {
         if (playerSystem.isDead()) {
             return
@@ -482,23 +555,30 @@ class MafiaGame : ApplicationAdapter() {
                         val missionToStart = triggerSystem.findMissionForNpc(closestNpc.id)
 
                         if (missionToStart != null) {
-                            println("Player is near NPC '${closestNpc.npcType.displayName}' who is a trigger for mission '${missionToStart.title}'.")
-
                             if (!missionToStart.startTrigger.dialogId.isNullOrBlank()) {
                                 missionSystem.startMissionDialog(missionToStart)
                             } else {
                                 missionSystem.startMission(missionToStart.id)
                             }
                             return // Interaction handled, stop here.
-                        } else {
-                            // If no new mission starts, check if this NPC completes an ACTIVE objective
-                            val missionSystem = missionSystem
-                            if (missionSystem.checkTalkToNpcObjective(closestNpc.id)) {
-                                println("Player talked to '${closestNpc.npcType.displayName}' and completed an objective.")
-                                return // Interaction handled
-                            } else {
-                                println("Player is near NPC '${closestNpc.npcType.displayName}', but they have nothing to say right now.")
-                            }
+                        }
+                        if (missionSystem.checkTalkToNpcObjective(closestNpc.id)) {
+                            return
+                        }
+                        if (closestNpc.standaloneDialog != null) {
+                            startStandaloneDialog(closestNpc, closestNpc.standaloneDialog!!)
+                            return
+                        }
+                        // If no new mission starts, check if this NPC completes an ACTIVE objective
+                        println("Player is near NPC '${closestNpc.npcType.displayName}', but they have nothing to say right now.")
+                    }
+
+                    // --- Check for Enemy interaction ---
+                    val closestEnemy = sceneManager.activeEnemies.minByOrNull { it.position.dst2(playerPos) }
+                    if (closestEnemy != null && playerPos.dst(closestEnemy.position) < 5f && closestEnemy.currentState == AIState.IDLE) {
+                        if (closestEnemy.standaloneDialog != null) {
+                            startStandaloneDialog(closestEnemy, closestEnemy.standaloneDialog!!)
+                            return
                         }
                     }
 
@@ -538,13 +618,11 @@ class MafiaGame : ApplicationAdapter() {
                             val customEntryPoint = sceneManager.activeEntryPoints.find { it.id == closestHouse.entryPointId }
                             if (customEntryPoint != null) {
                                 entryPointPosition = customEntryPoint.position
-                                entryRadius = 3.5f // Smaller radius for precise custom points
-                                println("Checking against custom entry point: ${customEntryPoint.id}")
+                                entryRadius = 3.5f
                             } else {
                                 // Fallback if ID is invalid (shouldn't happen)
                                 entryPointPosition = closestHouse.position.cpy().add(closestHouse.houseType.doorOffset)
                                 entryRadius = 5f
-                                println("Warning: House has invalid entryPointId. Using default offset.")
                             }
                         } else {
                             // This house uses the DEFAULT hard-coded entry point
@@ -555,14 +633,8 @@ class MafiaGame : ApplicationAdapter() {
 
                         // Check the 2D distance on the ground plane.
                         if (playerPos.dst(entryPointPosition) < entryRadius) {
-                            // Success! The player is close enough horizontally.
-                            println("Player is close enough to the entry point. Entering house...")
                             sceneManager.transitionToInterior(closestHouse)
-                        } else {
-                            println("Not close enough to the entry point.")
                         }
-                    } else {
-                        println("No houses in the scene.")
                     }
                 }
                 SceneType.HOUSE_INTERIOR -> {
@@ -601,13 +673,6 @@ class MafiaGame : ApplicationAdapter() {
                     if (isPlayerNearDoor(playerPos, exitDoor)) {
                         println("Player is at the designated exit. Leaving...")
                         sceneManager.transitionToWorld()
-                    } else {
-                        val distance = playerPos.dst(exitDoor.position)
-                        println("You are not close enough to the designated exit door. Distance: $distance")
-
-                        // Debug: Print door position and player position
-                        println("Door position: ${exitDoor.position}")
-                        println("Player position: $playerPos")
                     }
                 }
                 else -> {}
@@ -615,7 +680,6 @@ class MafiaGame : ApplicationAdapter() {
             if (!playerSystem.isDriving) { // Don't switch weapons if driving
                 playerSystem.switchToNextWeapon()
             }
-            // --- END OF NEW BLOCK ---
         }
     }
 

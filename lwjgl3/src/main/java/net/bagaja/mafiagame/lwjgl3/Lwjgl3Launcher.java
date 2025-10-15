@@ -65,10 +65,8 @@ public class Lwjgl3Launcher {
 // Save and Load Player Progress
 // fire in rooms and mission not being connected right with its light source
 // save shaders and visual settings
-// npcs outside missions having dialogs, enemies too
 // visual screen for finished mission
 // nickelodeons having real short films
-// visual that a character wants to talk
 // check if blood drips are spawned right in ultra mode
 // weather events
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon

@@ -933,6 +933,7 @@ class PlayerSystem {
     }
 
     fun hasWeapon(weaponType: WeaponType): Boolean {
+        if (weaponType == WeaponType.UNARMED) return true // Player always has fists
         return weapons.contains(weaponType)
     }
 
@@ -975,8 +976,13 @@ class PlayerSystem {
         println("Player equipped: ${weaponType.displayName}. Magazine loaded with $currentMagazineCount rounds.")
     }
 
-    private fun removeWeaponFromInventory(weaponType: WeaponType) {
+    fun removeWeaponFromInventory(weaponType: WeaponType) {
         if (weaponType == WeaponType.UNARMED) return // Cannot remove fists
+
+        // If the weapon being removed is currently equipped, switch to unarmed first
+        if (equippedWeapon == weaponType) {
+            equipWeapon(WeaponType.UNARMED)
+        }
 
         weapons.remove(weaponType)
         ammoReserves.remove(weaponType)

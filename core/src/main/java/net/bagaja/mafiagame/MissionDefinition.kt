@@ -260,12 +260,16 @@ data class GameEvent(
     val setAmmoValue: Int? = null,
     val weaponCollectionPolicy: WeaponCollectionPolicy? = null,
     val canCollectItems: Boolean? = null,
+    val enemyInitialMoney: Int? = null,
 
     // NPC-specific
     val npcType: NPCType? = null,
     val npcBehavior: NPCBehavior? = null,
     val npcRotation: Float? = null,
     val pathFollowingStyle: PathFollowingStyle? = null,
+
+    // Standalone Dialog for both Enemy and NPC
+    val standaloneDialog: StandaloneDialog? = null,
 
     // Car-specific (Already complete)
     val carType: CarType? = null,

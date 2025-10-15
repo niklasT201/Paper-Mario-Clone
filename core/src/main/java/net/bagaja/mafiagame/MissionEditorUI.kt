@@ -794,6 +794,8 @@ class MissionEditorUI(
         val enemySetAmmoField = TextField(existingEvent?.setAmmoValue?.toString() ?: "30", skin)
         val enemyWeaponCollectionPolicySelectBox = SelectBox<String>(skin).apply { items = GdxArray(WeaponCollectionPolicy.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.weaponCollectionPolicy?.displayName }
         val enemyCanCollectItemsCheckbox = CheckBox(" Can Collect Items", skin).apply { isChecked = existingEvent?.canCollectItems ?: true }
+        val enemyInitialMoneyField = TextField(existingEvent?.enemyInitialMoney?.toString() ?: "0", skin)
+
         val npcTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(NPCType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.npcType?.displayName }
         val npcBehaviorSelectBox = SelectBox<String>(skin).apply { items = GdxArray(NPCBehavior.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.npcBehavior?.displayName }
         val npcRotationField = TextField(existingEvent?.npcRotation?.toString() ?: "0", skin)
@@ -831,7 +833,6 @@ class MissionEditorUI(
         // --- Layout Tables ---
         val targetIdTable = Table(skin).apply { add("Target/Spawn ID:"); add(targetIdField).growX() }
         val posTable = Table(skin).apply { add("Spawn Pos X:"); add(posXField).width(60f); add("Y:"); add(posYField).width(60f); add("Z:"); add(posZField).width(60f) }
-
         val enemyCustomHpRow = Table(skin).apply { add("Custom HP:"); add(enemyCustomHealthField).width(80f) }
         val enemyRandomTbl = Table(skin).apply { add("Min:"); add(enemyMinHealthField).width(60f); add("Max:").padLeft(10f); add(enemyMaxHealthField).width(60f) }
         val enemySettingsTable = Table(skin).apply {
@@ -847,6 +848,7 @@ class MissionEditorUI(
             val ammoRow = Table(skin); ammoRow.add("Ammo Mode:"); ammoRow.add(enemyAmmoModeSelectBox); ammoRow.add("Set Ammo:").padLeft(10f); ammoRow.add(enemySetAmmoField).width(80f); add(ammoRow).colspan(2).left().row()
             add("Pickup Policy:"); add(enemyWeaponCollectionPolicySelectBox).growX().row()
             add(enemyCanCollectItemsCheckbox).colspan(2).left().row()
+            add(Label("Initial Money:", skin)).left(); add(enemyInitialMoneyField).width(80f).left().row()
         }
         val npcSettingsTable = Table(skin).apply {
             add("NPC Type:"); add(npcTypeSelect).growX().row()
@@ -898,6 +900,49 @@ class MissionEditorUI(
             add("Ammo Amount:"); add(ammoAmountField).width(80f).left().row()
         }
 
+        // --- ENEMY DIALOG UI (created once) ---
+        val enemyInteractionTable = Table(skin).apply { add(Label("--- Standalone Interaction ---", skin, "title")).colspan(2).center().padTop(10f).row() }
+        val enemyDialogIds = GdxArray<String>().apply { add("(None)"); addAll(*missionSystem.getAllDialogueIds().toTypedArray()) }
+        val enemyDialogIdSelectBox = SelectBox<String>(skin).apply { items = enemyDialogIds; selected = existingEvent?.standaloneDialog?.dialogId ?: "(None)" }
+        enemyInteractionTable.add(Label("Dialog ID:", skin)).padRight(10f); enemyInteractionTable.add(enemyDialogIdSelectBox).growX().row()
+        val enemyOutcomeTypeSelectBox = SelectBox<String>(skin).apply { items = GdxArray(DialogOutcomeType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.standaloneDialog?.outcome?.type?.displayName ?: DialogOutcomeType.NONE.displayName }
+        enemyInteractionTable.add(Label("Outcome:", skin)).padRight(10f).padTop(8f); enemyInteractionTable.add(enemyOutcomeTypeSelectBox).growX().row()
+        val enemyItemTypeNames = GdxArray(ItemType.entries.map { it.displayName }.toTypedArray())
+        val enemyGiveItemTable = Table(); val enemySellItemTable = Table(); val enemyTradeItemTable = Table(); val enemyBuyItemTable = Table()
+        val enemyGiveItemSelectBox = SelectBox<String>(skin).apply { items = enemyItemTypeNames; selected = existingEvent?.standaloneDialog?.outcome?.itemToGive?.displayName }; val enemyGiveAmmoField = TextField(existingEvent?.standaloneDialog?.outcome?.ammoToGive?.toString() ?: "", skin).apply { messageText = "Default" }
+        enemyGiveItemTable.add(Label("Item to Give:", skin)).padRight(10f); enemyGiveItemTable.add(enemyGiveItemSelectBox).row(); enemyGiveItemTable.add(Label("Ammo:", skin)).padRight(10f); enemyGiveItemTable.add(enemyGiveAmmoField).width(80f).row()
+        val enemySellItemSelectBox = SelectBox<String>(skin).apply { items = enemyItemTypeNames; selected = existingEvent?.standaloneDialog?.outcome?.itemToGive?.displayName }; val enemySellAmmoField = TextField(existingEvent?.standaloneDialog?.outcome?.ammoToGive?.toString() ?: "", skin).apply { messageText = "Default" }; val enemySellPriceField = TextField(existingEvent?.standaloneDialog?.outcome?.price?.toString() ?: "", skin).apply { messageText = "e.g., 100" }
+        enemySellItemTable.add(Label("Item to Sell:", skin)).padRight(10f); enemySellItemTable.add(enemySellItemSelectBox).row(); enemySellItemTable.add(Label("Ammo:", skin)).padRight(10f); enemySellItemTable.add(enemySellAmmoField).width(80f).row(); enemySellItemTable.add(Label("Price:", skin)).padRight(10f); enemySellItemTable.add(enemySellPriceField).width(80f).row()
+        val enemyTradeRequiredItemSelectBox = SelectBox<String>(skin).apply { items = enemyItemTypeNames; selected = existingEvent?.standaloneDialog?.outcome?.requiredItem?.displayName }; val enemyTradeRewardItemSelectBox = SelectBox<String>(skin).apply { items = enemyItemTypeNames; selected = existingEvent?.standaloneDialog?.outcome?.itemToGive?.displayName }; val enemyTradeRewardAmmoField = TextField(existingEvent?.standaloneDialog?.outcome?.ammoToGive?.toString() ?: "", skin).apply { messageText = "Default" }
+        enemyTradeItemTable.add(Label("Player Gives:", skin)).padRight(10f); enemyTradeItemTable.add(enemyTradeRequiredItemSelectBox).row(); enemyTradeItemTable.add(Label("Player Gets:", skin)).padRight(10f); enemyTradeItemTable.add(enemyTradeRewardItemSelectBox).row(); enemyTradeItemTable.add(Label("Reward Ammo:", skin)).padRight(10f); enemyTradeItemTable.add(enemyTradeRewardAmmoField).width(80f).row()
+        val enemyBuyItemSelectBox = SelectBox<String>(skin).apply { items = enemyItemTypeNames; selected = existingEvent?.standaloneDialog?.outcome?.requiredItem?.displayName }; val enemyBuyPriceField = TextField(existingEvent?.standaloneDialog?.outcome?.price?.toString() ?: "", skin).apply { messageText = "e.g., 50" }
+        enemyBuyItemTable.add(Label("Item to Buy:", skin)).padRight(10f); enemyBuyItemTable.add(enemyBuyItemSelectBox).row(); enemyBuyItemTable.add(Label("Price:", skin)).padRight(10f); enemyBuyItemTable.add(enemyBuyPriceField).width(80f).row()
+        val enemyOutcomeSettingsStack = Stack(enemyGiveItemTable, enemySellItemTable, enemyTradeItemTable, enemyBuyItemTable, Table())
+        enemyInteractionTable.add(enemyOutcomeSettingsStack).colspan(2).padTop(10f).row()
+        enemySettingsTable.add(enemyInteractionTable).colspan(2).padTop(10f).row()
+
+        // --- NPC DIALOG UI (created separately) ---
+        val npcInteractionTable = Table(skin).apply { add(Label("--- Standalone Interaction ---", skin, "title")).colspan(2).center().padTop(10f).row() }
+        val npcDialogIds = GdxArray<String>().apply { add("(None)"); addAll(*missionSystem.getAllDialogueIds().toTypedArray()) }
+        val npcDialogIdSelectBox = SelectBox<String>(skin).apply { items = npcDialogIds; selected = existingEvent?.standaloneDialog?.dialogId ?: "(None)" }
+        npcInteractionTable.add(Label("Dialog ID:", skin)).padRight(10f); npcInteractionTable.add(npcDialogIdSelectBox).growX().row()
+        val npcOutcomeTypeSelectBox = SelectBox<String>(skin).apply { items = GdxArray(DialogOutcomeType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.standaloneDialog?.outcome?.type?.displayName ?: DialogOutcomeType.NONE.displayName }
+        npcInteractionTable.add(Label("Outcome:", skin)).padRight(10f).padTop(8f); npcInteractionTable.add(npcOutcomeTypeSelectBox).growX().row()
+        val npcItemTypeNames = GdxArray(ItemType.entries.map { it.displayName }.toTypedArray())
+        val npcGiveItemTable = Table(); val npcSellItemTable = Table(); val npcTradeItemTable = Table(); val npcBuyItemTable = Table()
+        val npcGiveItemSelectBox = SelectBox<String>(skin).apply { items = npcItemTypeNames; selected = existingEvent?.standaloneDialog?.outcome?.itemToGive?.displayName }; val npcGiveAmmoField = TextField(existingEvent?.standaloneDialog?.outcome?.ammoToGive?.toString() ?: "", skin).apply { messageText = "Default" }
+        npcGiveItemTable.add(Label("Item to Give:", skin)).padRight(10f); npcGiveItemTable.add(npcGiveItemSelectBox).row(); npcGiveItemTable.add(Label("Ammo:", skin)).padRight(10f); npcGiveItemTable.add(npcGiveAmmoField).width(80f).row()
+        val npcSellItemSelectBox = SelectBox<String>(skin).apply { items = npcItemTypeNames; selected = existingEvent?.standaloneDialog?.outcome?.itemToGive?.displayName }; val npcSellAmmoField = TextField(existingEvent?.standaloneDialog?.outcome?.ammoToGive?.toString() ?: "", skin).apply { messageText = "Default" }; val npcSellPriceField = TextField(existingEvent?.standaloneDialog?.outcome?.price?.toString() ?: "", skin).apply { messageText = "e.g., 100" }
+        npcSellItemTable.add(Label("Item to Sell:", skin)).padRight(10f); npcSellItemTable.add(npcSellItemSelectBox).row(); npcSellItemTable.add(Label("Ammo:", skin)).padRight(10f); npcSellItemTable.add(npcSellAmmoField).width(80f).row(); npcSellItemTable.add(Label("Price:", skin)).padRight(10f); npcSellItemTable.add(npcSellPriceField).width(80f).row()
+        val npcTradeRequiredItemSelectBox = SelectBox<String>(skin).apply { items = npcItemTypeNames; selected = existingEvent?.standaloneDialog?.outcome?.requiredItem?.displayName }; val npcTradeRewardItemSelectBox = SelectBox<String>(skin).apply { items = npcItemTypeNames; selected = existingEvent?.standaloneDialog?.outcome?.itemToGive?.displayName }; val npcTradeRewardAmmoField = TextField(existingEvent?.standaloneDialog?.outcome?.ammoToGive?.toString() ?: "", skin).apply { messageText = "Default" }
+        npcTradeItemTable.add(Label("Player Gives:", skin)).padRight(10f); npcTradeItemTable.add(npcTradeRequiredItemSelectBox).row(); npcTradeItemTable.add(Label("Player Gets:", skin)).padRight(10f); npcTradeItemTable.add(npcTradeRewardItemSelectBox).row(); npcTradeItemTable.add(Label("Reward Ammo:", skin)).padRight(10f); npcTradeItemTable.add(npcTradeRewardAmmoField).width(80f).row()
+        val npcBuyItemSelectBox = SelectBox<String>(skin).apply { items = npcItemTypeNames; selected = existingEvent?.standaloneDialog?.outcome?.requiredItem?.displayName }; val npcBuyPriceField = TextField(existingEvent?.standaloneDialog?.outcome?.price?.toString() ?: "", skin).apply { messageText = "e.g., 50" }
+        npcBuyItemTable.add(Label("Item to Buy:", skin)).padRight(10f); npcBuyItemTable.add(npcBuyItemSelectBox).row(); npcBuyItemTable.add(Label("Price:", skin)).padRight(10f); npcBuyItemTable.add(npcBuyPriceField).width(80f).row()
+        val npcOutcomeSettingsStack = Stack(npcGiveItemTable, npcSellItemTable, npcTradeItemTable, npcBuyItemTable, Table())
+        npcInteractionTable.add(npcOutcomeSettingsStack).colspan(2).padTop(10f).row()
+        npcSettingsTable.add(npcInteractionTable).colspan(2).padTop(10f).row()
+
+
         val settingsStack = Stack(enemySettingsTable, npcSettingsTable, carSettingsTable, itemSettingsTable, moneySettingsTable, houseSettingsTable, objectSettingsTable, blockSettingsTable, dialogSettingsTable, weaponSettingsTable)
 
         content.add("Event Type:"); content.add(typeSelect).row()
@@ -934,6 +979,20 @@ class MissionEditorUI(
             carNpcDriverRow.isVisible = carDriverTypeSelect.selected == "NPC"
             itemValueRow.isVisible = ItemType.entries.find { it.displayName == itemTypeSelect.selected } == ItemType.MONEY_STACK
 
+            // Visibility for dialog panels
+            enemyInteractionTable.isVisible = type == GameEventType.SPAWN_ENEMY
+            npcInteractionTable.isVisible = type == GameEventType.SPAWN_NPC
+            val enemyOutcomeType = DialogOutcomeType.entries.find { it.displayName == enemyOutcomeTypeSelectBox.selected }
+            enemyGiveItemTable.isVisible = enemyOutcomeType == DialogOutcomeType.GIVE_ITEM
+            enemySellItemTable.isVisible = enemyOutcomeType == DialogOutcomeType.SELL_ITEM_TO_PLAYER
+            enemyTradeItemTable.isVisible = enemyOutcomeType == DialogOutcomeType.TRADE_ITEM
+            enemyBuyItemTable.isVisible = enemyOutcomeType == DialogOutcomeType.BUY_ITEM_FROM_PLAYER
+            val npcOutcomeType = DialogOutcomeType.entries.find { it.displayName == npcOutcomeTypeSelectBox.selected }
+            npcGiveItemTable.isVisible = npcOutcomeType == DialogOutcomeType.GIVE_ITEM
+            npcSellItemTable.isVisible = npcOutcomeType == DialogOutcomeType.SELL_ITEM_TO_PLAYER
+            npcTradeItemTable.isVisible = npcOutcomeType == DialogOutcomeType.TRADE_ITEM
+            npcBuyItemTable.isVisible = npcOutcomeType == DialogOutcomeType.BUY_ITEM_FROM_PLAYER
+
             dialog.pack()
         }
 
@@ -942,6 +1001,9 @@ class MissionEditorUI(
         enemyHealthSettingSelectBox.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields() })
         carDriverTypeSelect.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields() })
         itemTypeSelect.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields() })
+        enemyOutcomeTypeSelectBox.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields() })
+        npcOutcomeTypeSelectBox.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = updateVisibleFields() })
+
 
         dialog.button("Save").addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
@@ -952,6 +1014,24 @@ class MissionEditorUI(
                     targetId = targetIdField.text.ifBlank { null },
                     spawnPosition = Vector3(posXField.text.toFloatOrNull() ?: 0f, posYField.text.toFloatOrNull() ?: 0f, posZField.text.toFloatOrNull() ?: 0f)
                 )
+
+                var dialogInfo: StandaloneDialog? = null
+                if (eventType == GameEventType.SPAWN_ENEMY || eventType == GameEventType.SPAWN_NPC) {
+                    val dialogId = if(eventType == GameEventType.SPAWN_ENEMY) enemyDialogIdSelectBox.selected else npcDialogIdSelectBox.selected
+                    if (dialogId != null && dialogId != "(None)") {
+                        val outcomeTypeStr = if (eventType == GameEventType.SPAWN_ENEMY) enemyOutcomeTypeSelectBox.selected else npcOutcomeTypeSelectBox.selected
+                        val outcomeType = DialogOutcomeType.entries.find { it.displayName == outcomeTypeStr } ?: DialogOutcomeType.NONE
+                        val outcome = when (outcomeType) {
+                            DialogOutcomeType.GIVE_ITEM -> DialogOutcome(type = outcomeType, itemToGive = ItemType.entries.find { it.displayName == (if(eventType == GameEventType.SPAWN_ENEMY) enemyGiveItemSelectBox.selected else npcGiveItemSelectBox.selected) }, ammoToGive = (if(eventType == GameEventType.SPAWN_ENEMY) enemyGiveAmmoField.text.toIntOrNull() else npcGiveAmmoField.text.toIntOrNull()))
+                            DialogOutcomeType.SELL_ITEM_TO_PLAYER -> DialogOutcome(type = outcomeType, itemToGive = ItemType.entries.find { it.displayName == (if(eventType == GameEventType.SPAWN_ENEMY) enemySellItemSelectBox.selected else npcSellItemSelectBox.selected) }, ammoToGive = (if(eventType == GameEventType.SPAWN_ENEMY) enemySellAmmoField.text.toIntOrNull() else npcSellAmmoField.text.toIntOrNull()), price = (if(eventType == GameEventType.SPAWN_ENEMY) enemySellPriceField.text.toIntOrNull() else npcSellPriceField.text.toIntOrNull()))
+                            DialogOutcomeType.BUY_ITEM_FROM_PLAYER -> DialogOutcome(type = outcomeType, requiredItem = ItemType.entries.find { it.displayName == (if(eventType == GameEventType.SPAWN_ENEMY) enemyBuyItemSelectBox.selected else npcBuyItemSelectBox.selected) }, price = (if(eventType == GameEventType.SPAWN_ENEMY) enemyBuyPriceField.text.toIntOrNull() else npcBuyPriceField.text.toIntOrNull()))
+                            DialogOutcomeType.TRADE_ITEM -> DialogOutcome(type = outcomeType, requiredItem = ItemType.entries.find { it.displayName == (if(eventType == GameEventType.SPAWN_ENEMY) enemyTradeRequiredItemSelectBox.selected else npcTradeRequiredItemSelectBox.selected) }, itemToGive = ItemType.entries.find { it.displayName == (if(eventType == GameEventType.SPAWN_ENEMY) enemyTradeRewardItemSelectBox.selected else npcTradeRewardItemSelectBox.selected) }, ammoToGive = (if(eventType == GameEventType.SPAWN_ENEMY) enemyTradeRewardAmmoField.text.toIntOrNull() else npcTradeRewardAmmoField.text.toIntOrNull()))
+                            else -> DialogOutcome(type = DialogOutcomeType.NONE)
+                        }
+                        dialogInfo = StandaloneDialog(dialogId, outcome)
+                    }
+                }
+
                 val finalEvent = when (eventType) {
                     GameEventType.SPAWN_ENEMY -> baseEvent.copy(
                         enemyType = EnemyType.entries.find { it.displayName == enemyTypeSelect.selected },
@@ -965,13 +1045,16 @@ class MissionEditorUI(
                         ammoSpawnMode = AmmoSpawnMode.valueOf(enemyAmmoModeSelectBox.selected),
                         setAmmoValue = enemySetAmmoField.text.toIntOrNull(),
                         weaponCollectionPolicy = WeaponCollectionPolicy.entries.find { it.displayName == enemyWeaponCollectionPolicySelectBox.selected },
-                        canCollectItems = enemyCanCollectItemsCheckbox.isChecked
+                        canCollectItems = enemyCanCollectItemsCheckbox.isChecked,
+                        enemyInitialMoney = enemyInitialMoneyField.text.toIntOrNull(),
+                        standaloneDialog = dialogInfo
                     )
                     GameEventType.SPAWN_NPC -> baseEvent.copy(
                         npcType = NPCType.entries.find { it.displayName == npcTypeSelect.selected },
                         npcBehavior = NPCBehavior.entries.find { it.displayName == npcBehaviorSelectBox.selected },
                         npcRotation = npcRotationField.text.toFloatOrNull() ?: 0f,
-                        pathFollowingStyle = PathFollowingStyle.entries.find { it.displayName == npcPathFollowingStyleSelectBox.selected }
+                        pathFollowingStyle = PathFollowingStyle.entries.find { it.displayName == npcPathFollowingStyleSelectBox.selected },
+                        standaloneDialog = dialogInfo
                     )
                     GameEventType.SPAWN_CAR -> baseEvent.copy(
                         carType = CarType.entries.find { it.displayName == carTypeSelect.selected },

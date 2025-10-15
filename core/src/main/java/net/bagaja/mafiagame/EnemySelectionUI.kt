@@ -7,20 +7,23 @@ import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
-import java.awt.SystemColor.window
+import com.badlogic.gdx.utils.Array as GdxArray
 
 class EnemySelectionUI(
     private val enemySystem: EnemySystem,
     private val skin: Skin,
-    private val stage: Stage
+    private val stage: Stage,
+    private val dialogueManager: DialogueManager // NEW: Dependency
 ) {
     private lateinit var enemySelectionTable: Table
     private lateinit var enemyTypeItems: MutableList<EnemySelectionItem>
@@ -48,6 +51,34 @@ class EnemySelectionUI(
 
     private lateinit var pathIdField: TextField
     private lateinit var pathIdTable: Table
+
+    // NEW: Dialog UI properties
+    private lateinit var dialogIdSelectBox: SelectBox<String>
+    private lateinit var outcomeTypeSelectBox: SelectBox<String>
+    private lateinit var giveItemTable: Table
+    private lateinit var sellItemTable: Table
+    private lateinit var tradeItemTable: Table
+    private lateinit var buyItemTable: Table
+    private lateinit var outcomeSettingsStack: Stack
+    private lateinit var enemyInitialMoneyField: TextField
+
+    // GIVE
+    private lateinit var giveItemSelectBox: SelectBox<String>
+    private lateinit var giveAmmoField: TextField
+
+    // SELL
+    private lateinit var sellItemSelectBox: SelectBox<String>
+    private lateinit var sellAmmoField: TextField
+    private lateinit var sellPriceField: TextField
+
+    // TRADE
+    private lateinit var tradeRequiredItemSelectBox: SelectBox<String>
+    private lateinit var tradeRewardItemSelectBox: SelectBox<String>
+    private lateinit var tradeRewardAmmoField: TextField
+
+    // BUY
+    private lateinit var buyItemSelectBox: SelectBox<String>
+    private lateinit var buyPriceField: TextField
 
     private data class EnemySelectionItem(
         val container: Table, val iconImage: Image, val nameLabel: Label, val statsLabel: Label,
@@ -131,21 +162,24 @@ class EnemySelectionUI(
         topSelectionContainer.add(tacticsColumn).top()
         mainContainer.add(topSelectionContainer).padBottom(25f).row()
 
+        val settingsContainer = Table()
+        settingsContainer.defaults().padTop(10f)
+
         pathIdTable = Table()
         pathIdField = TextField("", skin).apply { messageText = "Paste Path Start Node ID" }
         pathIdTable.add(Label("Path Start ID:", skin)).padRight(10f)
         pathIdTable.add(pathIdField).width(250f)
-        mainContainer.add(pathIdTable).padBottom(15f).row()
+        settingsContainer.add(pathIdTable).row()
 
         // 4. Bottom Section for Detailed Configuration
         val configTitle = Label("Placement Settings", skin, "title")
-        mainContainer.add(configTitle).padTop(15f).padBottom(15f).row()
+        settingsContainer.add(configTitle).padTop(15f).padBottom(15f).row()
 
         val configTable = Table()
 
         // Health Settings
         healthFieldsTable = Table() // This table will hold the dynamic text fields
-        val healthSettingNames = com.badlogic.gdx.utils.Array(HealthSetting.entries.map { it.displayName }.toTypedArray())
+        val healthSettingNames = GdxArray(HealthSetting.entries.map { it.displayName }.toTypedArray())
         healthSettingSelectBox = SelectBox(skin)
         healthSettingSelectBox.items = healthSettingNames
         configTable.add(Label("Health:", skin)).left().padRight(10f)
@@ -170,14 +204,14 @@ class EnemySelectionUI(
         configTable.add(healthFieldsTable).colspan(2).left().padTop(5f).row()
 
         // Weapon & Item Settings
-        val weaponPolicyNames = com.badlogic.gdx.utils.Array(WeaponCollectionPolicy.entries.map { it.displayName }.toTypedArray())
+        val weaponPolicyNames = GdxArray(WeaponCollectionPolicy.entries.map { it.displayName }.toTypedArray())
         weaponPolicySelectBox = SelectBox(skin)
         weaponPolicySelectBox.items = weaponPolicyNames
         configTable.add(Label("Weapon Pickup:", skin)).left().padTop(10f).padRight(10f)
         configTable.add(weaponPolicySelectBox).width(200f).left().row()
 
         // Initial Weapon Selection
-        val weaponNames = com.badlogic.gdx.utils.Array(WeaponType.entries.map { it.displayName }.toTypedArray())
+        val weaponNames = GdxArray(WeaponType.entries.map { it.displayName }.toTypedArray())
         initialWeaponSelectBox = SelectBox(skin)
         initialWeaponSelectBox.items = weaponNames
         configTable.add(Label("Start Weapon:", skin)).left().padTop(5f).padRight(10f)
@@ -185,7 +219,7 @@ class EnemySelectionUI(
 
         // Ammo Settings
         ammoFieldsTable = Table()
-        val ammoModeNames = com.badlogic.gdx.utils.Array(AmmoSpawnMode.entries.filter { it != AmmoSpawnMode.RANDOM }.map { it.name }.toTypedArray())
+        val ammoModeNames = GdxArray(AmmoSpawnMode.entries.filter { it != AmmoSpawnMode.RANDOM }.map { it.name }.toTypedArray())
         ammoModeSelectBox = SelectBox(skin)
         ammoModeSelectBox.items = ammoModeNames
         val setAmmoRow = Table()
@@ -201,7 +235,58 @@ class EnemySelectionUI(
         canCollectItemsCheckbox.isChecked = true
         configTable.add(canCollectItemsCheckbox).colspan(2).left().padTop(5f).row()
 
-        mainContainer.add(configTable).padBottom(15f).row()
+        enemyInitialMoneyField = TextField("0", skin)
+        configTable.add(Label("Initial Money:", skin)).left().padTop(5f)
+        configTable.add(enemyInitialMoneyField).width(80f).left().row()
+
+        settingsContainer.add(configTable).row()
+
+        val interactionTitle = Label("Standalone Interaction", skin, "title")
+        settingsContainer.add(interactionTitle).padTop(15f).padBottom(15f).row()
+        val interactionTable = Table()
+        interactionTable.defaults().left().pad(2f)
+        dialogIdSelectBox = SelectBox(skin)
+        interactionTable.add(Label("Dialog ID:", skin)).padRight(10f)
+        interactionTable.add(dialogIdSelectBox).growX().row()
+        outcomeTypeSelectBox = SelectBox(skin)
+        outcomeTypeSelectBox.items = GdxArray(DialogOutcomeType.entries.map { it.displayName }.toTypedArray())
+        interactionTable.add(Label("Outcome:", skin)).padRight(10f).padTop(8f)
+        interactionTable.add(outcomeTypeSelectBox).growX().row()
+
+        val itemTypeNames = GdxArray(ItemType.entries.map { it.displayName }.toTypedArray())
+        giveItemTable = Table()
+        giveItemSelectBox = SelectBox(skin); giveItemSelectBox.items = itemTypeNames
+        giveAmmoField = TextField("", skin).apply { messageText = "Default" }
+        giveItemTable.add(Label("Item to Give:", skin)).padRight(10f); giveItemTable.add(giveItemSelectBox).row()
+        giveItemTable.add(Label("Ammo:", skin)).padRight(10f); giveItemTable.add(giveAmmoField).width(80f).row()
+        sellItemTable = Table()
+        sellItemSelectBox = SelectBox(skin); sellItemSelectBox.items = itemTypeNames
+        sellAmmoField = TextField("", skin).apply { messageText = "Default" }
+        sellPriceField = TextField("", skin).apply { messageText = "e.g., 100" }
+        sellItemTable.add(Label("Item to Sell:", skin)).padRight(10f); sellItemTable.add(sellItemSelectBox).row()
+        sellItemTable.add(Label("Ammo:", skin)).padRight(10f); sellItemTable.add(sellAmmoField).width(80f).row()
+        sellItemTable.add(Label("Price:", skin)).padRight(10f); sellItemTable.add(sellPriceField).width(80f).row()
+        tradeItemTable = Table()
+        tradeRequiredItemSelectBox = SelectBox(skin); tradeRequiredItemSelectBox.items = itemTypeNames
+        tradeRewardItemSelectBox = SelectBox(skin); tradeRewardItemSelectBox.items = itemTypeNames
+        tradeRewardAmmoField = TextField("", skin).apply { messageText = "Default" }
+        tradeItemTable.add(Label("Player Gives:", skin)).padRight(10f); tradeItemTable.add(tradeRequiredItemSelectBox).row()
+        tradeItemTable.add(Label("Player Gets:", skin)).padRight(10f); tradeItemTable.add(tradeRewardItemSelectBox).row()
+        tradeItemTable.add(Label("Reward Ammo:", skin)).padRight(10f); tradeItemTable.add(tradeRewardAmmoField).width(80f).row()
+        buyItemTable = Table()
+        buyItemSelectBox = SelectBox(skin); buyItemSelectBox.items = itemTypeNames
+        buyPriceField = TextField("", skin).apply { messageText = "e.g., 50" }
+        buyItemTable.add(Label("Item to Buy:", skin)).padRight(10f); buyItemTable.add(buyItemSelectBox).row()
+        buyItemTable.add(Label("Price:", skin)).padRight(10f); buyItemTable.add(buyPriceField).width(80f).row()
+
+        outcomeSettingsStack = Stack(giveItemTable, sellItemTable, tradeItemTable, buyItemTable, Table())
+        interactionTable.add(outcomeSettingsStack).colspan(2).padTop(10f).row()
+        settingsContainer.add(interactionTable).row()
+
+        val settingsScrollPane = ScrollPane(settingsContainer, skin)
+        settingsScrollPane.setScrollingDisabled(true, false) // Disable horizontal, enable vertical
+        settingsScrollPane.fadeScrollBars = false
+        mainContainer.add(settingsScrollPane).growX().height(350f).row()
 
         // 5. Instructions Label
         val instructionLabel = Label("Hold [Y] | Wheel: Archetype | Shift+Wheel: Tactic | Ctrl+Wheel: Fallback", skin)
@@ -212,32 +297,45 @@ class EnemySelectionUI(
         stage.addActor(enemySelectionTable)
 
         // 7. Add Listeners to control dynamic UI
-        healthSettingSelectBox.addListener {
-            updateHealthFieldVisibility()
-            true
-        }
-        initialWeaponSelectBox.addListener {
-            updateAmmoUIVisibility()
-            true
-        }
-        ammoModeSelectBox.addListener {
-            updateAmmoUIVisibility()
-            true
-        }
+        healthSettingSelectBox.addListener { updateHealthFieldVisibility(); true }
+        initialWeaponSelectBox.addListener { updateAmmoUIVisibility(); true }
+        ammoModeSelectBox.addListener { updateAmmoUIVisibility(); true }
+        outcomeTypeSelectBox.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { updateOutcomeFieldsVisibility() } })
 
-        // Set initial visibility of dynamic fields
         updateHealthFieldVisibility()
         updateAmmoUIVisibility()
+        updateOutcomeFieldsVisibility()
 
         primaryTacticItems.forEach { item ->
             item.container.addListener(object : ClickListener() {
                 override fun clicked(event: InputEvent?, x: Float, y: Float) {
                     primaryTacticIndex = primaryBehaviors.indexOf(item.behavior)
                     enemySystem.currentSelectedBehavior = item.behavior
-                    update() // This will now also update the visibility of the path ID field
+                    update()
                 }
             })
         }
+    }
+
+    private fun populateDialogIds() {
+        val currentSelection = dialogIdSelectBox.selected
+        val dialogIds = GdxArray<String>()
+        dialogIds.add("(None)")
+        // FIX: Convert Kotlin List to vararg for addAll
+        dialogIds.addAll(*dialogueManager.getAllDialogueIds().toTypedArray())
+        dialogIdSelectBox.items = dialogIds
+        // Try to preserve the selection
+        if (dialogIds.contains(currentSelection, false)) {
+            dialogIdSelectBox.selected = currentSelection
+        }
+    }
+
+    private fun updateOutcomeFieldsVisibility() {
+        val selectedType = DialogOutcomeType.entries.find { it.displayName == outcomeTypeSelectBox.selected }
+        giveItemTable.isVisible = selectedType == DialogOutcomeType.GIVE_ITEM
+        sellItemTable.isVisible = selectedType == DialogOutcomeType.SELL_ITEM_TO_PLAYER
+        tradeItemTable.isVisible = selectedType == DialogOutcomeType.TRADE_ITEM
+        buyItemTable.isVisible = selectedType == DialogOutcomeType.BUY_ITEM_FROM_PLAYER
     }
 
     private fun updateHealthFieldVisibility() {
@@ -256,11 +354,8 @@ class EnemySelectionUI(
             val selectedMode = AmmoSpawnMode.valueOf(ammoModeSelectBox.selected)
             setAmmoField.isVisible = selectedMode == AmmoSpawnMode.SET
         }
-
-        // REMOVE THIS LINE: window.pack()
     }
 
-    // NEW METHOD to get the full configuration from the UI
     fun getSpawnConfig(position: Vector3): EnemySpawnConfig {
         val enemyType = EnemyType.entries[enemySystem.currentEnemyTypeIndex]
         val behavior = primaryBehaviors[primaryTacticIndex]
@@ -277,6 +372,38 @@ class EnemySelectionUI(
         val setAmmo = setAmmoField.text.toIntOrNull() ?: 30
         val pathId = pathIdField.text.ifBlank { null }
 
+        var standaloneDialog: StandaloneDialog? = null
+        val selectedDialogId = dialogIdSelectBox.selected
+        if (selectedDialogId != null && selectedDialogId != "(None)") {
+            val outcomeType = DialogOutcomeType.entries.find { it.displayName == outcomeTypeSelectBox.selected } ?: DialogOutcomeType.NONE
+            val outcome = when (outcomeType) {
+                DialogOutcomeType.GIVE_ITEM -> DialogOutcome(
+                    type = outcomeType,
+                    itemToGive = ItemType.entries.find { it.displayName == giveItemSelectBox.selected },
+                    ammoToGive = giveAmmoField.text.toIntOrNull()
+                )
+                DialogOutcomeType.SELL_ITEM_TO_PLAYER -> DialogOutcome(
+                    type = outcomeType,
+                    itemToGive = ItemType.entries.find { it.displayName == sellItemSelectBox.selected },
+                    ammoToGive = sellAmmoField.text.toIntOrNull(),
+                    price = sellPriceField.text.toIntOrNull()
+                )
+                DialogOutcomeType.BUY_ITEM_FROM_PLAYER -> DialogOutcome(
+                    type = outcomeType,
+                    requiredItem = ItemType.entries.find { it.displayName == buyItemSelectBox.selected },
+                    price = buyPriceField.text.toIntOrNull()
+                )
+                DialogOutcomeType.TRADE_ITEM -> DialogOutcome(
+                    type = outcomeType,
+                    requiredItem = ItemType.entries.find { it.displayName == tradeRequiredItemSelectBox.selected },
+                    itemToGive = ItemType.entries.find { it.displayName == tradeRewardItemSelectBox.selected },
+                    ammoToGive = tradeRewardAmmoField.text.toIntOrNull()
+                )
+                else -> DialogOutcome(type = DialogOutcomeType.NONE)
+            }
+            standaloneDialog = StandaloneDialog(selectedDialogId, outcome)
+        }
+
         return EnemySpawnConfig(
             enemyType = enemyType,
             behavior = behavior,
@@ -290,7 +417,9 @@ class EnemySelectionUI(
             assignedPathId = pathId,
             initialWeapon = initialWeapon,
             ammoSpawnMode = ammoMode,
-            setAmmoValue = setAmmo
+            setAmmoValue = setAmmo,
+            enemyInitialMoney = enemyInitialMoneyField.text.toIntOrNull() ?: 0,
+            standaloneDialog = standaloneDialog
         )
     }
 
@@ -534,11 +663,13 @@ class EnemySelectionUI(
     }
 
     fun show() {
-        enemySelectionTable.setVisible(true)
+        populateDialogIds()
+        enemySelectionTable.isVisible = true
     }
 
     fun hide() {
-        enemySelectionTable.setVisible(false)
+        enemySelectionTable.isVisible = false
+        stage.unfocusAll()
     }
 
     fun dispose() {

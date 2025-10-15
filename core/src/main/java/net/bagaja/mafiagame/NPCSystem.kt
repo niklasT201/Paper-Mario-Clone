@@ -18,6 +18,34 @@ import kotlin.math.max
 import kotlin.math.sin
 import kotlin.random.Random
 
+enum class DialogOutcomeType(val displayName: String) {
+    NONE("None (Conversation Only)"),
+    GIVE_ITEM("Give Item to Player"),
+    TRADE_ITEM("Trade (Player gives X, gets Y)"),
+    SELL_ITEM_TO_PLAYER("Sell Item to Player"),
+    BUY_ITEM_FROM_PLAYER("Buy Item from Player")
+}
+
+data class DialogOutcome(
+    val type: DialogOutcomeType = DialogOutcomeType.NONE,
+    // For GIVE, SELL, and TRADE (reward part)
+    val itemToGive: ItemType? = null,
+    val ammoToGive: Int? = null,
+    // For BUY and SELL
+    val price: Int? = null,
+    // For TRADE and BUY
+    val requiredItem: ItemType? = null
+)
+
+data class StandaloneDialog(
+    val dialogId: String,
+    val outcome: DialogOutcome = DialogOutcome()
+) {
+    fun isInteractive(): Boolean {
+        return outcome.type != DialogOutcomeType.NONE
+    }
+}
+
 enum class DamageReaction {
     FLEE,       // Runs away when damaged
     FIGHT_BACK  // Becomes hostile when damaged
@@ -103,7 +131,8 @@ data class GameNPC(
     var pathFollowingStyle: PathFollowingStyle = PathFollowingStyle.CONTINUOUS,
     @Transient var pathfindingState: PathfindingSubState = PathfindingSubState.MOVING,
     @Transient var subStateTimer: Float = 0f,
-    var missionId: String? = null
+    var missionId: String? = null,
+    var standaloneDialog: StandaloneDialog? = null
 ) {
     var isOnFire: Boolean = false
     var onFireTimer: Float = 0f
@@ -480,7 +509,8 @@ class NPCSystem : IFinePositionable {
             canCollectItems = config.canCollectItems,
             isHonest = config.isHonest,
             pathFollowingStyle = config.pathFollowingStyle,
-            assignedPathId = config.assignedPathId
+            assignedPathId = config.assignedPathId,
+            standaloneDialog = config.standaloneDialog
         )
 
         newNpc.physics = PhysicsComponent(

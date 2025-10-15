@@ -69,8 +69,13 @@ data class GameEnemy(
     @Transient var continuousShootingTimer: Float = 0f,
     var assignedPathId: String? = null,
     @Transient var currentPathNode: CharacterPathNode? = null,
-    var missionId: String? = null
+    var missionId: String? = null,
+    var standaloneDialog: StandaloneDialog? = null
 ) {
+    fun isInteractive(): Boolean {
+        return standaloneDialog?.outcome?.type != DialogOutcomeType.NONE
+    }
+
     var currentBehavior: EnemyBehavior = behaviorType
     var provocationLevel: Float = 0f
 
@@ -441,7 +446,8 @@ class EnemySystem : IFinePositionable {
             weaponCollectionPolicy = config.weaponCollectionPolicy,
             canCollectItems = config.canCollectItems,
             equippedWeapon = config.initialWeapon,
-            assignedPathId = config.assignedPathId
+            assignedPathId = config.assignedPathId,
+            standaloneDialog = config.standaloneDialog
         )
         // Set current behavior from the config
         enemy.currentBehavior = config.behavior
@@ -460,6 +466,12 @@ class EnemySystem : IFinePositionable {
         val ammoToLoad = minOf(enemy.weapons.getOrDefault(enemy.equippedWeapon, 0), enemy.equippedWeapon.magazineSize)
         enemy.currentMagazineCount = ammoToLoad
         enemy.weapons[enemy.equippedWeapon] = enemy.weapons.getOrDefault(enemy.equippedWeapon, 0) - ammoToLoad
+
+        if (config.enemyInitialMoney > 0) {
+            val moneyItem = sceneManager.game.itemSystem.createItem(Vector3.Zero, ItemType.MONEY_STACK)!!
+            moneyItem.value = config.enemyInitialMoney
+            enemy.inventory.add(moneyItem)
+        }
 
         // Set texture based on equipped weapon
         updateEnemyTexture(enemy)

@@ -1190,7 +1190,9 @@ class SceneManager(
                             ammoSpawnMode = element.ammoSpawnMode ?: AmmoSpawnMode.FIXED,
                             setAmmoValue = element.setAmmoValue ?: 30,
                             weaponCollectionPolicy = element.weaponCollectionPolicy ?: WeaponCollectionPolicy.CANNOT_COLLECT,
-                            canCollectItems = element.canCollectItems ?: true
+                            canCollectItems = element.canCollectItems ?: true,
+                            enemyInitialMoney = element.enemyInitialMoney ?: 0,
+                            standaloneDialog = element.standaloneDialog
                         )
                         enemySystem.createEnemy(config)?.let { gameEnemy ->
                             // Add initial money if it was saved in the template
@@ -1212,7 +1214,8 @@ class SceneManager(
                             id = element.targetId,
                             isHonest = element.npcIsHonest ?: true, // Provide defaults
                             canCollectItems = element.npcCanCollectItems ?: true,
-                            pathFollowingStyle = element.pathFollowingStyle ?: PathFollowingStyle.CONTINUOUS
+                            pathFollowingStyle = element.pathFollowingStyle ?: PathFollowingStyle.CONTINUOUS,
+                            standaloneDialog = element.standaloneDialog
                         )
                         npcSystem.createNPC(config, element.npcRotation)?.let { gameNPC ->
                             // Load the NPC's starting inventory from the template
@@ -1501,7 +1504,8 @@ class SceneManager(
                 setAmmoValue = enemy.weapons.getOrDefault(enemy.equippedWeapon, 0) + enemy.currentMagazineCount,
                 weaponCollectionPolicy = enemy.weaponCollectionPolicy,
                 canCollectItems = enemy.canCollectItems,
-                enemyInitialMoney = startingMoney
+                enemyInitialMoney = startingMoney,
+                standaloneDialog = enemy.standaloneDialog
             ))
         }
 
@@ -1522,7 +1526,8 @@ class SceneManager(
                 targetId = npc.id,
                 npcIsHonest = npc.isHonest,
                 npcCanCollectItems = npc.canCollectItems,
-                npcInventory = inventoryData
+                npcInventory = inventoryData,
+                standaloneDialog = npc.standaloneDialog
             ))
         }
 

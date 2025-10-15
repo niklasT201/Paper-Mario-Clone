@@ -132,7 +132,8 @@ data class EnemyData(
     var equippedWeapon: WeaponType = WeaponType.UNARMED,
     var currentState: AIState = AIState.IDLE,
     var currentMagazineCount: Int = 0,
-    var provocationLevel: Float = 0f
+    var provocationLevel: Float = 0f,
+    var standaloneDialog: StandaloneDialog? = null
 )
 
 data class NpcData(
@@ -147,7 +148,8 @@ data class NpcData(
     var inventory: GdxArray<ItemData> = GdxArray(),
     var isHonest: Boolean = true,
     var canCollectItems: Boolean = true,
-    var pathFollowingStyle: PathFollowingStyle = PathFollowingStyle.CONTINUOUS
+    var pathFollowingStyle: PathFollowingStyle = PathFollowingStyle.CONTINUOUS,
+    var standaloneDialog: StandaloneDialog? = null
 )
 
 data class ItemData(

@@ -133,7 +133,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     GdxArray(e.inventory.map { i -> ItemData(i.id, i.itemType, i.position, i.ammo, i.value) }.toTypedArray()),
                     ObjectMap<WeaponType, Int>().apply { e.weapons.forEach { (w, a) -> put(w, a) } },
                     e.equippedWeapon,
-                    e.currentState, e.currentMagazineCount, e.provocationLevel
+                    e.currentState, e.currentMagazineCount, e.provocationLevel,
+                    e.standaloneDialog
                 ))
             }
             sm.activeNPCs.filter { it.missionId == null }.forEach { n ->
@@ -145,7 +146,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     GdxArray(n.inventory.map { i -> ItemData(i.id, i.itemType, i.position, i.ammo, i.value) }.toTypedArray()),
                     n.isHonest,
                     n.canCollectItems,
-                    n.pathFollowingStyle
+                    n.pathFollowingStyle,
+                    n.standaloneDialog
                 ))
             }
             sm.activeItems.filter { it.missionId == null }.forEach { i -> world.items.add(ItemData(i.id, i.itemType, i.position, i.ammo, i.value)) }
@@ -327,7 +329,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     enemyType = data.enemyType,
                     behavior = data.behaviorType,
                     position = data.position,
-                    assignedPathId = data.assignedPathId
+                    assignedPathId = data.assignedPathId,
+                    standaloneDialog = data.standaloneDialog
                 )
                 game.enemySystem.createEnemy(config)?.let {
                     it.health = data.health
@@ -354,7 +357,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     isHonest = data.isHonest,
                     canCollectItems = data.canCollectItems,
                     pathFollowingStyle = data.pathFollowingStyle,
-                    assignedPathId = data.assignedPathId
+                    assignedPathId = data.assignedPathId,
+                    standaloneDialog = data.standaloneDialog
                 )
                 game.npcSystem.createNPC(config)?.let {
                     it.health = data.health
