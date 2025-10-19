@@ -193,6 +193,7 @@ class MafiaGame : ApplicationAdapter() {
         uiManager.particleSystem = particleSystem
         uiManager.spawnerSystem = spawnerSystem
         uiManager.dialogueManager = dialogueManager
+        uiManager.dialogSystem.itemSystem = itemSystem
 
         teleporterSystem = TeleporterSystem(objectSystem, uiManager)
 
@@ -422,40 +423,66 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     private fun startStandaloneDialog(character: Any, dialogInfo: StandaloneDialog) {
-        var dialogSequence = dialogueManager.getDialogue(dialogInfo.dialogId)
+        val hasBeenCompleted = when (character) {
+            is GameEnemy -> character.standaloneDialogCompleted
+            is GameNPC -> character.standaloneDialogCompleted
+            else -> false
+        }
+
+        val dialogIdToUse = if (hasBeenCompleted && dialogInfo.postBehavior == PostDialogBehavior.REPEATABLE_NO_REWARD && dialogInfo.alternativeDialogId != null) {
+            println("Character has completed this dialog. Using alternative: ${dialogInfo.alternativeDialogId}")
+            dialogInfo.alternativeDialogId
+        } else {
+            dialogInfo.dialogId
+        }
+
+        var dialogSequence = dialogueManager.getDialogue(dialogIdToUse)
         if (dialogSequence == null) {
-            println("ERROR: Character has standalone dialog '${dialogInfo.dialogId}', but it was not found.")
+            println("ERROR: Character has standalone dialog '$dialogIdToUse', but it was not found.")
             return
         }
 
         // Add confirmation choices for transactions
         val outcome = dialogInfo.outcome
         if (outcome.type in listOf(DialogOutcomeType.SELL_ITEM_TO_PLAYER, DialogOutcomeType.BUY_ITEM_FROM_PLAYER, DialogOutcomeType.TRADE_ITEM)) {
-            val originalLines = dialogSequence.lines.toMutableList()
-            val confirmationLineText = when (outcome.type) {
-                DialogOutcomeType.SELL_ITEM_TO_PLAYER -> "What do you say?"
-                DialogOutcomeType.BUY_ITEM_FROM_PLAYER -> "Is that a deal?"
-                DialogOutcomeType.TRADE_ITEM -> "Do we have a deal?"
-                else -> "..."
-            }
-            val confirmationChoices = listOf(
-                DialogChoice("Deal") {
-                    executeDialogOutcome(outcome)
-                    uiManager.dialogSystem.skipAll()
-                },
-                DialogChoice("Cancel") {
-                    uiManager.dialogSystem.skipAll()
+            // Only add confirmation choices if the dialog has NOT been completed.
+            if (!hasBeenCompleted) {
+                val originalLines = dialogSequence.lines.toMutableList()
+                val confirmationLineText = when (outcome.type) {
+                    DialogOutcomeType.SELL_ITEM_TO_PLAYER -> "What do you say?"
+                    DialogOutcomeType.BUY_ITEM_FROM_PLAYER -> "Is that a deal?"
+                    DialogOutcomeType.TRADE_ITEM -> "Do we have a deal?"
+                    else -> "..."
                 }
-            )
-            val lastSpeaker = originalLines.lastOrNull()?.speaker ?: "System"
-            val confirmationLine = DialogLine(lastSpeaker, confirmationLineText, null, confirmationChoices)
-            originalLines.add(confirmationLine)
-            dialogSequence = dialogSequence.copy(lines = originalLines)
+                val confirmationChoices = listOf(
+                    DialogChoice("Deal") {
+                        executeDialogOutcome(character, outcome)
+                        uiManager.dialogSystem.skipAll()
+                    },
+                    DialogChoice("Cancel") {
+                        uiManager.dialogSystem.skipAll()
+                    }
+                )
+                val lastSpeaker = originalLines.lastOrNull()?.speaker ?: "System"
+                val confirmationLine = DialogLine(lastSpeaker, confirmationLineText, null, confirmationChoices)
+                originalLines.add(confirmationLine)
+                dialogSequence = dialogSequence.copy(lines = originalLines)
+            }
         }
 
         val sequenceWithCallback = dialogSequence.copy(
             onComplete = {
                 println("Standalone dialog finished. Behavior: ${dialogInfo.postBehavior}")
+
+                val shouldGiveReward = when (character) {
+                    is GameEnemy -> !character.standaloneDialogCompleted
+                    is GameNPC -> !character.standaloneDialogCompleted
+                    else -> true // Failsafe for other types
+                }
+
+                if (shouldGiveReward && outcome.type !in listOf(DialogOutcomeType.SELL_ITEM_TO_PLAYER, DialogOutcomeType.BUY_ITEM_FROM_PLAYER, DialogOutcomeType.TRADE_ITEM)) {
+                    executeDialogOutcome(character, dialogInfo.outcome)
+                }
 
                 when (dialogInfo.postBehavior) {
                     PostDialogBehavior.REPEATABLE -> {
@@ -476,38 +503,40 @@ class MafiaGame : ApplicationAdapter() {
                             }
                             is GameNPC -> {
                                 character.standaloneDialogCompleted = true
-                                character.scheduledForDespawn = true // <-- THE FIX IS HERE
+                                character.scheduledForDespawn = true
                             }
                         }
                     }
                 }
-
-                // Only execute the outcome if the behavior isn't "Repeatable with No Reward" AND it hasn't been completed before
-                val shouldGiveReward = when (character) {
-                    is GameEnemy -> !(dialogInfo.postBehavior == PostDialogBehavior.REPEATABLE_NO_REWARD && character.standaloneDialogCompleted)
-                    is GameNPC -> !(dialogInfo.postBehavior == PostDialogBehavior.REPEATABLE_NO_REWARD && character.standaloneDialogCompleted)
-                    else -> true
-                }
-
-                if (shouldGiveReward) {
-                    executeDialogOutcome(dialogInfo.outcome)
-                }
             }
         )
 
-        uiManager.dialogSystem.startDialog(sequenceWithCallback)
+        uiManager.dialogSystem.startDialog(sequenceWithCallback, dialogInfo.outcome)
     }
 
-    private fun executeDialogOutcome(outcome: DialogOutcome) {
+    private fun executeDialogOutcome(character: Any?, outcome: DialogOutcome) {
         when (outcome.type) {
             DialogOutcomeType.NONE -> {
                 // Nothing to do, the conversation is over.
             }
             DialogOutcomeType.GIVE_ITEM -> {
-                if (outcome.itemToGive?.correspondingWeapon != null) {
-                    val weapon = outcome.itemToGive.correspondingWeapon
-                    val ammo = outcome.ammoToGive ?: weapon.magazineSize
-                    playerSystem.addWeaponToInventory(weapon, ammo)
+                if (outcome.itemToGive != null) {
+                    if (outcome.itemToGive.correspondingWeapon != null) {
+                        val weapon = outcome.itemToGive.correspondingWeapon
+                        val countOrAmmo = if (weapon.actionType == WeaponActionType.SHOOTING) {
+                            outcome.ammoToGive ?: weapon.magazineSize
+                        } else {
+                            1
+                        }
+                        playerSystem.addWeaponToInventory(weapon, countOrAmmo)
+                    } else {
+                        if (outcome.itemToGive == ItemType.MONEY_STACK) {
+                            val amount = outcome.ammoToGive ?: outcome.itemToGive.value
+                            playerSystem.addMoney(amount)
+                        } else {
+                            println("Player received item: ${outcome.itemToGive.displayName}")
+                        }
+                    }
                 }
             }
             DialogOutcomeType.SELL_ITEM_TO_PLAYER -> {
@@ -515,8 +544,12 @@ class MafiaGame : ApplicationAdapter() {
                     if (playerSystem.getMoney() >= outcome.price) {
                         playerSystem.addMoney(-outcome.price)
                         val weapon = outcome.itemToGive.correspondingWeapon
-                        val ammo = outcome.ammoToGive ?: weapon.magazineSize
-                        playerSystem.addWeaponToInventory(weapon, ammo)
+                        val countOrAmmo = if (weapon.actionType == WeaponActionType.SHOOTING) {
+                            outcome.ammoToGive ?: weapon.magazineSize
+                        } else {
+                            1
+                        }
+                        playerSystem.addWeaponToInventory(weapon, countOrAmmo)
                         uiManager.showTemporaryMessage("You bought ${outcome.itemToGive.displayName} for $${outcome.price}.")
                     } else {
                         uiManager.showTemporaryMessage("You don't have enough money.")
@@ -529,6 +562,15 @@ class MafiaGame : ApplicationAdapter() {
                     if (playerSystem.hasWeapon(requiredWeapon)) {
                         playerSystem.removeWeaponFromInventory(requiredWeapon)
                         playerSystem.addMoney(outcome.price)
+
+                        if (character is GameEnemy) {
+                            val currentAmmo = character.weapons.getOrDefault(requiredWeapon, 0)
+                            val ammoToGain = requiredWeapon.magazineSize // Give them a full magazine for it
+                            character.weapons[requiredWeapon] = currentAmmo + ammoToGain
+                            println("${character.enemyType.displayName} now has a ${requiredWeapon.displayName} in their inventory.")
+                        }
+                        // You could add a similar 'else if (character is GameNPC)' block here if you add a weapon inventory to GameNPC
+
                         uiManager.showTemporaryMessage("You sold ${outcome.requiredItem.displayName} for $${outcome.price}.")
                     } else {
                         uiManager.showTemporaryMessage("You don't have a ${outcome.requiredItem.displayName} to sell.")
@@ -540,6 +582,15 @@ class MafiaGame : ApplicationAdapter() {
                     val requiredWeapon = outcome.requiredItem.correspondingWeapon
                     if (playerSystem.hasWeapon(requiredWeapon)) {
                         playerSystem.removeWeaponFromInventory(requiredWeapon)
+
+                        if (character is GameEnemy) {
+                            val currentAmmo = character.weapons.getOrDefault(requiredWeapon, 0)
+                            val ammoToGain = requiredWeapon.magazineSize
+                            character.weapons[requiredWeapon] = currentAmmo + ammoToGain
+                            println("${character.enemyType.displayName} received your ${requiredWeapon.displayName} in the trade.")
+                        }
+                        // You could add a similar 'else if (character is GameNPC)' block here
+
                         val rewardWeapon = outcome.itemToGive.correspondingWeapon
                         val rewardAmmo = outcome.ammoToGive ?: rewardWeapon.magazineSize
                         playerSystem.addWeaponToInventory(rewardWeapon, rewardAmmo)
@@ -623,20 +674,29 @@ class MafiaGame : ApplicationAdapter() {
                         if (missionSystem.checkTalkToNpcObjective(closestNpc.id)) {
                             return
                         }
-                        if (closestNpc.standaloneDialog != null && !closestNpc.standaloneDialogCompleted) {
-                            startStandaloneDialog(closestNpc, closestNpc.standaloneDialog!!)
-                            return
+                        val npcDialog = closestNpc.standaloneDialog
+                        if (npcDialog != null) {
+                            val allowInteraction = !closestNpc.standaloneDialogCompleted || npcDialog.postBehavior == PostDialogBehavior.REPEATABLE_NO_REWARD
+                            if (allowInteraction) {
+                                startStandaloneDialog(closestNpc, npcDialog)
+                                return // Interaction handled, stop here.
+                            }
+                            // If no new mission starts, check if this NPC completes an ACTIVE objective
                         }
-                        // If no new mission starts, check if this NPC completes an ACTIVE objective
                         println("Player is near NPC '${closestNpc.npcType.displayName}', but they have nothing to say right now.")
                     }
 
                     // --- Check for Enemy interaction ---
                     val closestEnemy = sceneManager.activeEnemies.minByOrNull { it.position.dst2(playerPos) }
                     if (closestEnemy != null && playerPos.dst(closestEnemy.position) < 5f && closestEnemy.currentState == AIState.IDLE) {
-                        if (closestEnemy.standaloneDialog != null && !closestEnemy.standaloneDialogCompleted) {
-                            startStandaloneDialog(closestEnemy, closestEnemy.standaloneDialog!!)
-                            return
+                        // MODIFIED: Replaced the old check here as well
+                        val enemyDialog = closestEnemy.standaloneDialog
+                        if (enemyDialog != null) {
+                            val allowInteraction = !closestEnemy.standaloneDialogCompleted || enemyDialog.postBehavior == PostDialogBehavior.REPEATABLE_NO_REWARD
+                            if (allowInteraction) {
+                                startStandaloneDialog(closestEnemy, enemyDialog)
+                                return
+                            }
                         }
                     }
 

@@ -33,10 +33,12 @@ data class DialogSequence(val lines: List<DialogLine>, val onComplete: (() -> Un
 class DialogSystem {
     private lateinit var stage: Stage
     private lateinit var skin: Skin
+    lateinit var itemSystem: ItemSystem
 
     // --- UI Components ---
     private lateinit var mainContainer: Table // This will now be the root container for portrait + dialog box
     private lateinit var dialogContentTable: Table // The actual box with text
+    private lateinit var outcomeVisualsContainer: Table
     private lateinit var speakerPortraitImage: Image
     private lateinit var portraitCell: Cell<Image>
     private lateinit var layoutCell: Cell<Table>
@@ -47,6 +49,7 @@ class DialogSystem {
 
     // --- State Management ---
     private var activeSequence: DialogSequence? = null
+    private var activeOutcome: DialogOutcome? = null // NEW: To store the outcome until the end
     private var currentLineIndex: Int = 0
     private var textRevealProgress: Float = 0f
     private var isLineComplete: Boolean = false
@@ -140,8 +143,11 @@ class DialogSystem {
         choicesContainer.space(15f)
         choicesContainer.align(Align.right)
 
+        outcomeVisualsContainer = Table()
+
         // Add the choices container below the text label
         innerContentTable.add(speakerTable).left().padBottom(15f).row()
+        innerContentTable.add(outcomeVisualsContainer).growX().padBottom(10f).row()
         textLabelCell = innerContentTable.add(textLabel).expand().fill().left()
         innerContentTable.row()
         innerContentTable.add(choicesContainer).expandX().right().padTop(15f).row()
@@ -164,12 +170,13 @@ class DialogSystem {
         stage.addActor(mainContainer)
     }
 
-    fun startDialog(sequence: DialogSequence) {
+    fun startDialog(sequence: DialogSequence, outcome: DialogOutcome? = null) {
         if (isActive()) {
             println("Warning: Tried to start a new dialog while one is already active.")
             return
         }
         activeSequence = sequence
+        activeOutcome = outcome
         isCancelled = false
         isAwaitingChoice = false // Reset choice state
         currentLineIndex = 0
@@ -178,10 +185,73 @@ class DialogSystem {
         lastSpeakerTexturePath = null // Reset last speaker
         speakerPortraitImage.isVisible = false // Hide portrait initially
 
+        // Always clear the outcome visuals at the start of any dialog.
+        outcomeVisualsContainer.clear()
+
         mainContainer.isVisible = true
         mainContainer.color.a = 0f
         mainContainer.addAction(Actions.fadeIn(0.3f, Interpolation.fade))
         displayCurrentLine()
+    }
+
+
+    private fun buildOutcomeVisuals(outcome: DialogOutcome) {
+        outcomeVisualsContainer.clear()
+        outcomeVisualsContainer.defaults().pad(0f, 8f, 0f, 8f).center()
+
+        val iconSize = 48f
+
+        fun getItemImage(itemType: ItemType?): Image? {
+            if (itemType == null) return null
+            val texture = itemSystem.getTextureForItem(itemType) ?: return null
+            return Image(texture).apply { setScaling(Scaling.fit) }
+        }
+
+        when (outcome.type) {
+            DialogOutcomeType.GIVE_ITEM -> {
+                getItemImage(outcome.itemToGive)?.let {
+                    val receiveLabel = Label("[GREEN]You receive:", skin)
+                    receiveLabel.style.font.data.markupEnabled = true
+                    outcomeVisualsContainer.add(receiveLabel)
+                    outcomeVisualsContainer.add(it).size(iconSize)
+                }
+            }
+            DialogOutcomeType.SELL_ITEM_TO_PLAYER -> {
+                getItemImage(outcome.itemToGive)?.let {
+                    val buyLabel = Label("[ORANGE]Buy:", skin)
+                    buyLabel.style.font.data.markupEnabled = true
+                    outcomeVisualsContainer.add(buyLabel)
+                    outcomeVisualsContainer.add(it).size(iconSize)
+                    outcome.price?.let { price ->
+                        val priceLabel = Label("for [GOLD]$$price", skin)
+                        priceLabel.style.font.data.markupEnabled = true
+                        outcomeVisualsContainer.add(priceLabel)
+                    }
+                }
+            }
+            DialogOutcomeType.BUY_ITEM_FROM_PLAYER -> {
+                getItemImage(outcome.requiredItem)?.let {
+                    val sellLabel = Label("[ORANGE]Sell:", skin)
+                    sellLabel.style.font.data.markupEnabled = true
+                    outcomeVisualsContainer.add(sellLabel)
+                    outcomeVisualsContainer.add(it).size(iconSize)
+                    outcome.price?.let { price ->
+                        val priceLabel = Label("for [GOLD]$$price", skin)
+                        priceLabel.style.font.data.markupEnabled = true
+                        outcomeVisualsContainer.add(priceLabel)
+                    }
+                }
+            }
+            DialogOutcomeType.TRADE_ITEM -> {
+                val tradeLabel = Label("[ORANGE]Trade:", skin)
+                tradeLabel.style.font.data.markupEnabled = true
+                outcomeVisualsContainer.add(tradeLabel)
+                getItemImage(outcome.requiredItem)?.let { outcomeVisualsContainer.add(it).size(iconSize) }
+                outcomeVisualsContainer.add(Label("for", skin))
+                getItemImage(outcome.itemToGive)?.let { outcomeVisualsContainer.add(it).size(iconSize) }
+            }
+            DialogOutcomeType.NONE -> { /* Do nothing, container is already cleared */ }
+        }
     }
 
     fun update(deltaTime: Float) {
@@ -236,6 +306,11 @@ class DialogSystem {
         val line = sequence.lines[currentLineIndex]
         speakerLabel.setText(line.speaker)
         textLabel.setText("")
+
+        if (currentLineIndex == sequence.lines.size - 1) {
+            activeOutcome?.let { buildOutcomeVisuals(it) }
+        }
+
 
         // Check the speaker's name and adjust BOTH the portrait width AND the layout padding.
         if (line.speaker.equals("Player", ignoreCase = true)) {
@@ -368,6 +443,7 @@ class DialogSystem {
 
                 // Reset state
                 activeSequence = null
+                activeOutcome = null
                 currentLineIndex = 0
                 isLineComplete = false
                 isCancelled = false // Reset for the next dialog

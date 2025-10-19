@@ -73,6 +73,9 @@ public class Lwjgl3Launcher {
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // loot in barrels
 // enemy cover up ai
+// dialog background not width enough
+// money label visible when getting option to buy something
+// when losing something, label shows also up
 // minimap for open world mode
 // images for items you sell/buy/switch
 // updating weapon collection system

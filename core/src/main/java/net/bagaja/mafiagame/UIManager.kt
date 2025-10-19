@@ -1006,7 +1006,7 @@ class UIManager(
     private fun setupMessageLabels() {
         temporaryMessageLabel = Label("", skin, "title").apply {
             setAlignment(Align.center)
-            color = Color.GREEN
+            color = Color.WHITE
             isVisible = false
         }
         val tempMessageTable = Table().apply {

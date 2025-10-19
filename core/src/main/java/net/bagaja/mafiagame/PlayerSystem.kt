@@ -1500,7 +1500,8 @@ class PlayerSystem {
     fun getMoney(): Int = money
 
     fun addMoney(amount: Int) {
-        if (amount <= 0) return
+        if (amount == 0) return
+
         money += amount
         println("Player collected $amount. Total money: $money")
         // Notify the UI manager about the change

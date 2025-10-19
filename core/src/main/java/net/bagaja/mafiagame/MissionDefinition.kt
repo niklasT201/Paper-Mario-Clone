@@ -37,7 +37,8 @@ enum class PostDialogBehavior(val displayName: String) {
 data class StandaloneDialog(
     val dialogId: String,
     val outcome: DialogOutcome = DialogOutcome(),
-    val postBehavior: PostDialogBehavior = PostDialogBehavior.REPEATABLE // Default behavior
+    val postBehavior: PostDialogBehavior = PostDialogBehavior.REPEATABLE, // Default behavior
+    val alternativeDialogId: String? = null
 ) {
     fun isInteractive(): Boolean {
         return outcome.type != DialogOutcomeType.NONE
