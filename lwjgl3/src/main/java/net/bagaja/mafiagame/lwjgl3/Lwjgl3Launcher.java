@@ -75,10 +75,7 @@ public class Lwjgl3Launcher {
 // enemy cover up ai
 // dialog background not width enough
 // money label visible when getting option to buy something
-// when losing something, label shows also up
 // minimap for open world mode
-// images for items you sell/buy/switch
-// updating weapon collection system
 // improving dialog design when choose buttons are visible
 // Civilian npc that just follows paths. They should flee from gunfire and call the police if they see a crime
 // The Law & Wanted Level

@@ -164,9 +164,13 @@ class UIManager(
     private lateinit var weaponPickupLabel: Label
     private lateinit var weaponPickupStackLabel: Label
     private val weaponStackCountColor = Color.valueOf("#D3D3D3")
-    private val weaponPickupQueue = ArrayDeque<WeaponPickupInfo>()
+    private val inventoryChangeQueue = ArrayDeque<InventoryChangeInfo>()
     private var isWeaponNotificationActive = false
-    private data class WeaponPickupInfo(val weaponType: WeaponType, val ammoCount: Int, var stackCount: Int = 1)
+    private data class InventoryChangeInfo(
+        val weaponType: WeaponType,
+        var amount: Int, // Can be positive or negative. 'var' so we can update it for stacking.
+        var stackCount: Int = 1
+    )
 
     private lateinit var deathOverlay: Image
     private lateinit var deathTable: Table
@@ -1051,27 +1055,31 @@ class UIManager(
         stage.addActor(returnAreaTimerTable)
     }
 
-    fun queueWeaponPickupNotification(weaponType: WeaponType, ammoCount: Int) {
-        val lastPickup = weaponPickupQueue.lastOrNull()
+    fun queueInventoryChangeNotification(weaponType: WeaponType, amount: Int) {
+        if (amount == 0) return
 
-        if (lastPickup != null && lastPickup.weaponType == weaponType && lastPickup.ammoCount == ammoCount) {
+        val lastChange = inventoryChangeQueue.lastOrNull()
+
+        if (lastChange != null && lastChange.weaponType == weaponType && (lastChange.amount > 0) == (amount > 0)) {
             // It's the same! Increment the stack count.
-            lastPickup.stackCount++
+            lastChange.amount += amount
+            lastChange.stackCount++
         } else {
             // It's different, so add a new entry.
-            weaponPickupQueue.add(WeaponPickupInfo(weaponType, ammoCount))
+            inventoryChangeQueue.add(InventoryChangeInfo(weaponType, amount))
         }
 
+        // If a notification isn't already running, start the processing loop.
         if (!isWeaponNotificationActive) {
             // Set the flag immediately to "lock" the processing loop.
             isWeaponNotificationActive = true
             // Schedule the processing to start on the *next* frame.
-            Gdx.app.postRunnable { processNextWeaponPickup() }
+            Gdx.app.postRunnable { processNextInventoryChange() }
         }
     }
 
-    private fun processNextWeaponPickup() {
-        if (weaponPickupQueue.isEmpty()) {
+    private fun processNextInventoryChange() {
+        if (inventoryChangeQueue.isEmpty()) {
             // The queue is empty, so we are done. Animate out.
             val width = weaponPickupTable.width + 5f
             weaponPickupTable.addAction(Actions.sequence(
@@ -1084,27 +1092,37 @@ class UIManager(
             return
         }
 
-        val pickupInfo = weaponPickupQueue.removeFirst()
+        val changeInfo = inventoryChangeQueue.removeFirst()
 
         // Update icon
-        val itemType = ItemType.entries.find { it.correspondingWeapon == pickupInfo.weaponType }
+        val itemType = ItemType.entries.find { it.correspondingWeapon == changeInfo.weaponType }
         if (itemType != null) {
             val texture = itemSystem.getTextureForItem(itemType)
             if (texture != null) {
                 weaponPickupIcon.drawable = TextureRegionDrawable(texture)
+            } else {
+                weaponPickupIcon.drawable = null // Clear icon if texture is missing
             }
+        } else {
+            weaponPickupIcon.drawable = null // Clear icon if no item type corresponds to the weapon
         }
 
-        weaponPickupLabel.setText("+${pickupInfo.ammoCount}")
-        if (pickupInfo.stackCount > 1) {
-            weaponPickupStackLabel.setText("${pickupInfo.stackCount}")
+        // 2. Set the Text and Color
+        val prefix = if (changeInfo.amount > 0) "+" else "" // Add a "+" for positive amounts. Negative amounts already have "-".
+        weaponPickupLabel.setText("$prefix${changeInfo.amount}")
+        weaponPickupLabel.color = if (changeInfo.amount > 0) Color.WHITE else Color.RED
+
+        // 3. Set the Stack Count (e.g., "x3")
+        if (changeInfo.stackCount > 1) {
+            weaponPickupStackLabel.setText("x${changeInfo.stackCount}")
         } else {
-            weaponPickupStackLabel.setText("") // Clear the text if there's no stack
+            weaponPickupStackLabel.setText("") // Clear the stack text if count is 1.
         }
+
         weaponPickupTable.pack() // Repack to fit new text
 
-        val isQueueMonotonous = weaponPickupQueue.map { it.weaponType }.distinct().size <= 1
-        val duration = if (isQueueMonotonous) 3.0f else 1.2f
+        val isQueueMonotonous = inventoryChangeQueue.all { it.weaponType == changeInfo.weaponType }
+        val duration = if (isQueueMonotonous) 2.0f else 1.2f
 
         val isFirstInSequence = !dynamicHudElements.find { it.key == HudInfoKey.WEAPON_PICKUP }!!.isVisible
 
@@ -1117,7 +1135,7 @@ class UIManager(
                 Actions.moveBy(width, 0f),
                 Actions.moveBy(-width, 0f, 0.4f, Interpolation.swingOut),
                 Actions.delay(duration),
-                Actions.run { processNextWeaponPickup() } // Process next item
+                Actions.run { processNextInventoryChange() } // Process next item
             ))
         } else {
             // Subsequent item, just fade in the new content.
@@ -1127,7 +1145,7 @@ class UIManager(
             weaponPickupTable.addAction(Actions.sequence(
                 Actions.fadeIn(0.2f),
                 Actions.delay(duration),
-                Actions.run { processNextWeaponPickup() } // Process next item
+                Actions.run { processNextInventoryChange() } // Process next item
             ))
         }
     }
@@ -1869,33 +1887,24 @@ class UIManager(
         }
     }
 
-    private fun setupMoneyDisplay() {
-        try {
-            moneyStackTexture = Texture(Gdx.files.internal("gui/dollar_stack.png"))
-        } catch (e: Exception) {
-            // Fallback
-            val pixmap = Pixmap(32, 32, Pixmap.Format.RGBA8888); pixmap.setColor(Color.GREEN); pixmap.fill();
-            moneyStackTexture = Texture(pixmap); pixmap.dispose()
-        }
+    fun showFloatingText(text: String, color: Color, startPosition: Vector3) {
+        val label = Label(text, skin, "title")
+        label.color = color
 
-        moneyDisplayTable = Table()
-        val moneyIcon = Image(moneyStackTexture).apply { setScaling(Scaling.fit) }
-        val dollarLabel = Label("$", skin, "title")
-        moneyValueLabel = Label("0", skin, "title")
+        // Convert the 3D world position to 2D screen coordinates
+        val screenCoords = game.cameraManager.camera.project(Vector3(startPosition))
+        label.setPosition(screenCoords.x, screenCoords.y)
 
-        // CHANGED: Set the new font color for both labels
-        val moneyFontColor = Color.WHITE
-        dollarLabel.color = moneyFontColor
-        moneyValueLabel.color = moneyFontColor
+        stage.addActor(label)
 
-        moneyDisplayTable.add(moneyIcon).size(40f)
-        moneyDisplayTable.add(dollarLabel).padLeft(10f)
-        moneyDisplayTable.add(moneyValueLabel).padLeft(5f)
-
-        // Position it off-screen to the right
-        moneyDisplayTable.setPosition(stage.width, stage.height - 80f)
-        moneyDisplayTable.isVisible = false // Start hidden
-        stage.addActor(moneyDisplayTable)
+        // Animate the label floating up and fading out
+        label.addAction(Actions.sequence(
+            Actions.parallel(
+                Actions.moveBy(0f, 80f, 1.5f, Interpolation.pow2Out), // Move up
+                Actions.fadeOut(1.5f, Interpolation.fade)             // Fade out
+            ),
+            Actions.removeActor() // Remove the label from the stage when done
+        ))
     }
 
     fun setHudStyle(newStyle: HudStyle) {

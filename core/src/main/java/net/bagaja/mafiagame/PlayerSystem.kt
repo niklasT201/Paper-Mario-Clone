@@ -982,6 +982,13 @@ class PlayerSystem {
             equipWeapon(WeaponType.UNARMED)
         }
 
+        val ammoInMag = currentMagazineCounts.getOrDefault(weaponType, 0)
+        val ammoInReserve = ammoReserves.getOrDefault(weaponType, 0)
+        val totalAmmoLost = ammoInMag + ammoInReserve
+
+        // Send a notification with a NEGATIVE amount
+        sceneManager.game.uiManager.queueInventoryChangeNotification(weaponType, -totalAmmoLost)
+
         weapons.remove(weaponType)
         ammoReserves.remove(weaponType)
         currentMagazineCounts.remove(weaponType)
@@ -996,6 +1003,8 @@ class PlayerSystem {
         }
 
         if (weapons.size <= 1) return // Can't switch if you only have fists
+
+        //addMoney(-10) for testing
 
         // SAVE the current weapon's magazine state BEFORE switching
         currentMagazineCounts[equippedWeapon] = currentMagazineCount
@@ -1040,8 +1049,8 @@ class PlayerSystem {
         val currentAmmo = ammoReserves.getOrDefault(weaponType, 0)
         ammoReserves[weaponType] = currentAmmo + amount
 
-        // NEW: Trigger the notification from here with the correct amount.
-        sceneManager.game.uiManager.queueWeaponPickupNotification(weaponType, amount)
+        // Trigger the notification from here with the correct amount.
+        sceneManager.game.uiManager.queueInventoryChangeNotification(weaponType, amount)
 
         println("Added $amount ammo for ${weaponType.displayName}. Total reserve: ${ammoReserves[weaponType]}")
 
@@ -1503,8 +1512,15 @@ class PlayerSystem {
         if (amount == 0) return
 
         money += amount
-        println("Player collected $amount. Total money: $money")
-        // Notify the UI manager about the change
+        println("Player money changed by $amount. Total: $money")
+
+        val message = if (amount > 0) "+$$amount" else "-$$${-amount}"
+        val color = if (amount > 0) Color.GREEN else Color.RED
+
+        // Show the floating text at the player's position
+        sceneManager.game.uiManager.showFloatingText(message, color, getPosition())
+
+        // Keep the existing HUD update
         sceneManager.game.uiManager.showMoneyUpdate(money)
     }
 
@@ -1714,7 +1730,14 @@ class PlayerSystem {
                         bloodSpawnPosition.add(offsetX, offsetY, 0f) // No Z offset for 2D characters
 
                         // 50% chance to spawn blood effects
-                        if (violenceLevel == ViolenceLevel.ULTRA_VIOLENCE || Random.nextFloat() < 0.5f) {
+                        val shouldSpawnBlood = when (violenceLevel) {
+                            ViolenceLevel.ULTRA_VIOLENCE -> true // 100% chance
+                            ViolenceLevel.FULL_VIOLENCE -> Random.nextFloat() < 0.75f // 75% chance
+                            ViolenceLevel.REDUCED_VIOLENCE -> Random.nextFloat() < 0.25f // 25% chance
+                            else -> false // No violence = 0% chance
+                        }
+
+                        if (shouldSpawnBlood) {
                             spawnBloodEffects(bloodSpawnPosition, sceneManager)
                         }
 
