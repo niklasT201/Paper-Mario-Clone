@@ -66,17 +66,14 @@ public class Lwjgl3Launcher {
 // fire in rooms and mission not being connected right with its light source
 // save shaders and visual settings
 // visual screen for finished mission
-// enemy/npc with dialog can give items in a loop, or again and again
 // nickelodeons having real short films
-// check if blood drips are spawned right in ultra mode
 // weather events
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // loot in barrels
 // enemy cover up ai
-// dialog background not width enough
+// shotgun shots multiple pellets at once
 // money label visible when getting option to buy something
 // minimap for open world mode
-// improving dialog design when choose buttons are visible
 // Civilian npc that just follows paths. They should flee from gunfire and call the police if they see a crime
 // The Law & Wanted Level
 // first a beat cop, then patrol cars, then roadblocks, and finally tougher "Federal Agents" with tommy guns. Heat slowly decreases over time if you stay out of sight.

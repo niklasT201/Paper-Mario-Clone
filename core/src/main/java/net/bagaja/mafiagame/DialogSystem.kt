@@ -25,7 +25,11 @@ data class DialogLine(
     val speaker: String,
     val text: String,
     val speakerTexturePath: String? = null,
-    val choices: List<DialogChoice>? = null
+    val choices: List<DialogChoice>? = null,
+    val customWidth: Float? = null,
+    val customHeight: Float? = null,
+    val portraitOffsetX: Float? = null,
+    val portraitOffsetY: Float? = null
 )
 
 data class DialogSequence(val lines: List<DialogLine>, val onComplete: (() -> Unit)? = null)
@@ -34,10 +38,12 @@ class DialogSystem {
     private lateinit var stage: Stage
     private lateinit var skin: Skin
     lateinit var itemSystem: ItemSystem
+    private var isPreviewMode = false
 
     // --- UI Components ---
     private lateinit var mainContainer: Table // This will now be the root container for portrait + dialog box
     private lateinit var dialogContentTable: Table // The actual box with text
+    private lateinit var dialogContentCell: Cell<Table>
     private lateinit var outcomeVisualsContainer: Table
     private lateinit var speakerPortraitImage: Image
     private lateinit var portraitCell: Cell<Image>
@@ -161,7 +167,7 @@ class DialogSystem {
             .align(Align.bottom)
             .padRight(NPC_PORTRAIT_OVERLAP)
 
-        layoutTable.add(dialogContentTable)
+        dialogContentCell = layoutTable.add(dialogContentTable)
             .width(Gdx.graphics.width * 0.7f)
             .minHeight(Gdx.graphics.height * 0.28f)
 
@@ -175,6 +181,7 @@ class DialogSystem {
             println("Warning: Tried to start a new dialog while one is already active.")
             return
         }
+        isPreviewMode = false
         activeSequence = sequence
         activeOutcome = outcome
         isCancelled = false
@@ -194,6 +201,26 @@ class DialogSystem {
         displayCurrentLine()
     }
 
+    fun previewDialog(lines: List<DialogLine>, index: Int) {
+        if (lines.isEmpty() || index < 0 || index >= lines.size) {
+            hidePreview()
+            return
+        }
+        isPreviewMode = true
+        activeSequence = DialogSequence(lines) // Create a temporary sequence
+        currentLineIndex = index
+        mainContainer.isVisible = true
+        mainContainer.color.a = 1f // No fade-in for preview
+        displayCurrentLine()
+    }
+
+    fun hidePreview() {
+        if (isPreviewMode) {
+            mainContainer.isVisible = false
+            activeSequence = null
+            isPreviewMode = false
+        }
+    }
 
     private fun buildOutcomeVisuals(outcome: DialogOutcome) {
         outcomeVisualsContainer.clear()
@@ -299,7 +326,11 @@ class DialogSystem {
 
         val sequence = activeSequence ?: return
         if (currentLineIndex >= sequence.lines.size) {
-            endDialog()
+            if (isPreviewMode) {
+                hidePreview()
+            } else {
+                endDialog()
+            }
             return
         }
 
@@ -307,30 +338,36 @@ class DialogSystem {
         speakerLabel.setText(line.speaker)
         textLabel.setText("")
 
-        if (currentLineIndex == sequence.lines.size - 1) {
+        if (currentLineIndex == sequence.lines.size - 1 && !isPreviewMode) {
             activeOutcome?.let { buildOutcomeVisuals(it) }
         }
 
+        val defaultWidth = Gdx.graphics.width * 0.7f
+        val defaultMinHeight = Gdx.graphics.height * 0.28f
+
+        // 1. Width Override
+        val targetWidth = line.customWidth ?: defaultWidth
+        dialogContentCell.width(targetWidth) // Corrected
+
+        // 2. Height Override
+        val targetHeight = line.customHeight ?: defaultMinHeight
+        dialogContentCell.minHeight(targetHeight) // Corrected
+
+        // 3. Portrait Offset Override
+        val portraitXOffset = line.portraitOffsetX ?: 0f
+        val portraitYOffset = line.portraitOffsetY ?: 0f
 
         // Check the speaker's name and adjust BOTH the portrait width AND the layout padding.
         if (line.speaker.equals("Player", ignoreCase = true)) {
-            portraitCell.size(
-                PLAYER_PORTRAIT_WIDTH,
-                PLAYER_PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO
-            )
-            portraitCell.padRight(PLAYER_PORTRAIT_OVERLAP)
-
-            portraitCell.padBottom(PLAYER_VERTICAL_OFFSET) // Push the player portrait up
-
+            portraitCell.size(PLAYER_PORTRAIT_WIDTH, PLAYER_PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO)
+            portraitCell.padRight(PLAYER_PORTRAIT_OVERLAP + portraitXOffset)
+            portraitCell.padBottom(PLAYER_VERTICAL_OFFSET + portraitYOffset) // Push the player portrait up
             speakerPortraitImage.setScaling(Scaling.fill)
 
         } else {
-            portraitCell.size(
-                NPC_PORTRAIT_WIDTH,
-                NPC_PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO
-            )
-            portraitCell.padRight(NPC_PORTRAIT_OVERLAP)
-            portraitCell.padBottom(0f) // Reset padding for NPCs to keep them at the baseline
+            portraitCell.size(NPC_PORTRAIT_WIDTH, NPC_PORTRAIT_HEIGHT * VISIBLE_PORTRAIT_RATIO)
+            portraitCell.padRight(NPC_PORTRAIT_OVERLAP + portraitXOffset)
+            portraitCell.padBottom(portraitYOffset) // Reset padding for NPCs to keep them at the baseline
             speakerPortraitImage.setScaling(Scaling.fit)
         }
 

@@ -811,17 +811,6 @@ class PlayerSystem {
             }
         }
 
-        // If we don't have infinite ammo for this specific weapon OR for all weapons, consume ammo.
-        if (equippedWeapon != modifiers?.infiniteAmmoForWeapon && modifiers?.infiniteAmmo != true) {
-            if (equippedWeapon.requiresReload) {
-                currentMagazineCount--
-            } else {
-                // For weapons like shotguns, decrement from the main reserve
-                val currentReserve = ammoReserves.getOrDefault(equippedWeapon, 0)
-                ammoReserves[equippedWeapon] = maxOf(0, currentReserve - 1)
-            }
-        }
-
         val bulletModel = bulletModels[equippedWeapon.bulletTexturePath] ?: return
 
         val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
@@ -961,7 +950,11 @@ class PlayerSystem {
         }
 
         this.equippedWeapon = weaponType
-        this.currentMagazineCount = currentMagazineCounts.getOrDefault(weaponType, weaponType.magazineSize)
+
+        this.currentMagazineCount = currentMagazineCounts[weaponType] // This can return null
+            ?: weaponType.magazineSize // If it's null, THEN default to a full magazine.
+
+        currentMagazineCounts[weaponType] = this.currentMagazineCount
 
         isReloading = false
         reloadTimer = 0f
@@ -2461,10 +2454,14 @@ class PlayerSystem {
         // Load Magazine Counts
         currentMagazineCounts.clear()
         data.currentMagazineCounts.forEach { entry ->
-            setMagazineCount(entry.key, entry.value)
+            currentMagazineCounts[entry.key] = entry.value
         }
 
         equipWeapon(data.equippedWeapon)
+
+        currentMagazineCount = currentMagazineCounts.getOrDefault(data.equippedWeapon, 0)
+
+        println("Player state loaded. Equipped ${data.equippedWeapon} with $currentMagazineCount rounds in magazine.")
     }
 
     fun dispose() {

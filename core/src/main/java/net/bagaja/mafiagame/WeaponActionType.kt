@@ -62,7 +62,8 @@ enum class WeaponType(
     val playerPoseTexturePath: String,
     val bulletTexturePath: String?,
     val bulletSpeed: Float = 0f,
-    val bulletLifetime: Float = 0f
+    val bulletLifetime: Float = 0f,
+    val pelletCount: Int = 1
 ) {
     UNARMED(
         displayName = "Unarmed",
@@ -75,7 +76,8 @@ enum class WeaponType(
         reloadTime = 0.0f,
         allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/pig_character.png",
-        bulletTexturePath = null
+        bulletTexturePath = null,
+        pelletCount = 0
     ),
     KNIFE(
         displayName = "Knife",
@@ -88,7 +90,8 @@ enum class WeaponType(
         reloadTime = 0.0f,
         allowsMovementWhileShooting = true, // Can move while knifing
         playerPoseTexturePath = "textures/player/weapons/knife/player_knife.png",
-        bulletTexturePath = null
+        bulletTexturePath = null,
+        pelletCount = 0
     ),
     BASEBALL_BAT(
         displayName = "Baseball Bat",
@@ -101,7 +104,8 @@ enum class WeaponType(
         reloadTime = 0.0f,
         allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/weapons/baseball_bat/player_baseball_bat.png",
-        bulletTexturePath = null
+        bulletTexturePath = null,
+        pelletCount = 0
     ),
     TOMMY_GUN(
         displayName = "Tommy Gun",
@@ -191,7 +195,8 @@ enum class WeaponType(
         playerPoseTexturePath = "textures/player/weapons/shotgun/player_shotgun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 150f,
-        bulletLifetime = 0.5f
+        bulletLifetime = 0.5f,
+        pelletCount = 8
     ),
     LIGHT_SHOTGUN(
         displayName = "Light Shotgun",
@@ -206,7 +211,8 @@ enum class WeaponType(
         playerPoseTexturePath = "textures/player/weapons/shotgun/player_light_shotgun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 160f,
-        bulletLifetime = 0.6f
+        bulletLifetime = 0.6f,
+        pelletCount = 7
     ),
     SMALL_SHOTGUN(
         displayName = "Small Shotgun",
@@ -221,7 +227,8 @@ enum class WeaponType(
         playerPoseTexturePath = "textures/player/weapons/shotgun/player_small_shotgun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 140f,
-        bulletLifetime = 0.4f
+        bulletLifetime = 0.4f,
+        pelletCount = 2
     ),
     MACHINE_GUN(
         displayName = "Machine Gun",

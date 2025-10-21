@@ -11,6 +11,7 @@ class DialogueManager {
     private val json = Json().apply {
         setOutputType(JsonWriter.OutputType.json)
         setUsePrototypes(false)
+        ignoreUnknownFields = true // This will ignore the old "modifiers" field.
     }
 
     // This map will hold all dialogues from all files, keyed by their file name.
@@ -91,7 +92,18 @@ class DialogueManager {
             if (file.containsKey(dialogId)) {
                 val sequenceData = file.get(dialogId)
                 // Convert from data class to runtime class
-                val lines = sequenceData.lines.map { DialogLine(it.speaker, it.text, it.speakerTexturePath) }
+                val lines = sequenceData.lines.map {
+                    DialogLine(
+                        it.speaker,
+                        it.text,
+                        it.speakerTexturePath,
+                        null, // Choices
+                        it.customWidth,
+                        it.customHeight,
+                        it.portraitOffsetX,
+                        it.portraitOffsetY
+                    )
+                }
                 return DialogSequence(lines)
             }
         }
@@ -107,6 +119,10 @@ class DialogueLineData {
     var speaker: String = "Unknown"
     var text: String = "..."
     var speakerTexturePath: String? = null
+    var customWidth: Float? = null
+    var customHeight: Float? = null
+    var portraitOffsetX: Float? = null
+    var portraitOffsetY: Float? = null
 }
 
 class DialogueSequenceData {

@@ -2,6 +2,7 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.files.FileHandle
+import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.Stage
@@ -30,6 +31,19 @@ class DialogueEditorUI(
     private val availableTextures = GdxArray<String>()
     private val previewTextures = mutableMapOf<String, Texture>()
 
+    private val previewControllerWindow: Window
+    private var isPreviewing = false
+    private var previewLineIndex = 0
+    private var currentPreviewLines = mutableListOf<DialogLine>()
+    private var widthSlider: Slider
+    private var heightSlider: Slider
+    private var portraitXSlider: Slider
+    private var portraitYSlider: Slider
+    private var lineInfoLabel: Label
+
+    private var highlightedLineWidget: Table? = null
+    private var isUpdatingSliders = false
+
     init {
         window.isMovable = true
         window.isModal = false
@@ -49,11 +63,9 @@ class DialogueEditorUI(
         val fileTable = Table()
         fileSelectBox = SelectBox(skin)
         val newFileButton = TextButton("New", skin)
-        //val refreshButton = TextButton("Refresh", skin)
         fileTable.add(Label("File:", skin)).left()
         fileTable.add(fileSelectBox).growX().padLeft(5f).padRight(5f)
-        fileTable.add(newFileButton)//.padRight(5f)
-        //fileTable.add(refreshButton)
+        fileTable.add(newFileButton)
         leftPanel.add(fileTable).row()
 
         leftPanel.add(Label("Sequences:", skin)).left().padTop(10f).row()
@@ -96,6 +108,10 @@ class DialogueEditorUI(
         val closeButton = TextButton("Close", skin)
         val bottomButtonTable = Table()
         bottomButtonTable.add(saveButton).pad(10f)
+
+        val previewButton = TextButton("Preview", skin)
+        bottomButtonTable.add(previewButton).pad(10f) // Add it next to Save/Close
+
         bottomButtonTable.add(closeButton).pad(10f)
         mainContentTable.add(bottomButtonTable).padTop(10f)
 
@@ -103,58 +119,52 @@ class DialogueEditorUI(
         window.isVisible = false
         stage.addActor(window)
 
+        // Preview Controller Window Setup
+        previewControllerWindow = Window("Live Preview", skin, "dialog")
+        previewControllerWindow.isMovable = true
+        previewControllerWindow.padTop(40f)
+
+        val controllerContent = Table()
+        controllerContent.pad(10f).defaults().pad(4f)
+
+        lineInfoLabel = Label("Line: 0/0", skin)
+        widthSlider = Slider(200f, Gdx.graphics.width * 0.95f, 10f, false, skin)
+        heightSlider = Slider(100f, Gdx.graphics.height * 0.5f, 5f, false, skin)
+        portraitXSlider = Slider(-200f, 200f, 1f, false, skin)
+        portraitYSlider = Slider(-100f, 200f, 1f, false, skin)
+
+        val prevLineButton = TextButton("<", skin)
+        val nextLineButton = TextButton(">", skin)
+        val navigationTable = Table()
+        navigationTable.add(prevLineButton).padRight(10f)
+        navigationTable.add(lineInfoLabel)
+        navigationTable.add(nextLineButton).padLeft(10f)
+
+        controllerContent.add(navigationTable).colspan(2).center().padBottom(10f).row()
+        controllerContent.add(Label("Width:", skin)).left(); controllerContent.add(widthSlider).growX().row()
+        controllerContent.add(Label("Height:", skin)).left(); controllerContent.add(heightSlider).growX().row()
+        controllerContent.add(Label("Portrait X:", skin)).left(); controllerContent.add(portraitXSlider).growX().row()
+        controllerContent.add(Label("Portrait Y:", skin)).left(); controllerContent.add(portraitYSlider).growX().row()
+
+        val previewButtonTable = Table()
+        val saveAndCloseButton = TextButton("Save & Close", skin)
+        val closePreviewButton = TextButton("Back to Editor", skin) // Renamed for clarity
+        previewButtonTable.add(saveAndCloseButton).pad(5f)
+        previewButtonTable.add(closePreviewButton).pad(5f)
+        controllerContent.add(previewButtonTable).colspan(2).center().padTop(10f)
+
+        previewControllerWindow.add(controllerContent)
+        previewControllerWindow.pack()
+        previewControllerWindow.isVisible = false
+        stage.addActor(previewControllerWindow)
+
         // --- LISTENERS ---
         fileSelectBox.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = populateSequenceList() })
         sequenceList.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = populateLineEditor() })
-
-        newFileButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) {
-                uiManager.showTextInputDialog("New Dialogue File", "chapter2.json") { fileName ->
-                    if (fileName.endsWith(".json")) {
-                        if (dialogueManager.createNewFile(fileName)) {
-                            populateFileSelectBox()
-                            fileSelectBox.selected = fileName
-                        }
-                    } else {
-                        uiManager.showTemporaryMessage("Error: File must end with .json")
-                    }
-                }
-            }
-        })
-//
-//        refreshButton.addListener(object : ChangeListener() {
-//            override fun changed(event: ChangeEvent?, actor: Actor?) {
-//                scanAvailableTextures()
-//                uiManager.showTemporaryMessage("Found ${availableTextures.size - 1} textures")
-//            }
-//        })
-
-        newSequenceButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) {
-                val selectedFile = fileSelectBox.selected ?: return
-                val newId = "dialogue_${System.currentTimeMillis().toString().takeLast(6)}"
-                if (dialogueManager.createNewSequence(selectedFile, newId)) {
-                    populateSequenceList()
-                    sequenceList.selected = newId
-                }
-            }
-        })
-
-        deleteSequenceButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) {
-                val selectedFile = fileSelectBox.selected ?: return
-                val selectedSequenceId = sequenceList.selected ?: return
-                dialogueManager.deleteSequence(selectedFile, selectedSequenceId)
-                populateSequenceList()
-            }
-        })
-
-        addLineButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) {
-                val newLine = DialogueLineData()
-                linesContainer.addActor(createLineWidget(newLine))
-            }
-        })
+        newFileButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { uiManager.showTextInputDialog("New Dialogue File", "chapter2.json") { fileName -> if (fileName.endsWith(".json")) { if (dialogueManager.createNewFile(fileName)) { populateFileSelectBox(); fileSelectBox.selected = fileName } } else { uiManager.showTemporaryMessage("Error: File must end with .json") } } } })
+        newSequenceButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { val selectedFile = fileSelectBox.selected ?: return; val newId = "dialogue_${System.currentTimeMillis().toString().takeLast(6)}"; if (dialogueManager.createNewSequence(selectedFile, newId)) { populateSequenceList(); sequenceList.selected = newId } } })
+        deleteSequenceButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { val selectedFile = fileSelectBox.selected ?: return; val selectedSequenceId = sequenceList.selected ?: return; dialogueManager.deleteSequence(selectedFile, selectedSequenceId); populateSequenceList() } })
+        addLineButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) { val newLine = DialogueLineData(); linesContainer.addActor(createLineWidget(newLine)) } })
 
         saveButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
@@ -166,6 +176,32 @@ class DialogueEditorUI(
         })
 
         closeButton.addListener(object: ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = hide() })
+
+        // Preview Listeners
+        previewButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = startPreview() })
+        closePreviewButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = stopPreview() })
+        nextLineButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = navigatePreview(1) })
+        prevLineButton.addListener(object : ChangeListener() { override fun changed(event: ChangeEvent?, actor: Actor?) = navigatePreview(-1) })
+
+        // Save & Close button
+        saveAndCloseButton.addListener(object: ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                saveCurrentChanges()
+                dialogueManager.loadAllDialogues()
+                uiManager.game.missionSystem.refreshDialogueIds()
+                hide() // This now correctly closes both windows and returns focus
+            }
+        })
+
+        val sliderListener = object: ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                if (isPreviewing) updateLineFromSliders()
+            }
+        }
+        widthSlider.addListener(sliderListener)
+        heightSlider.addListener(sliderListener)
+        portraitXSlider.addListener(sliderListener)
+        portraitYSlider.addListener(sliderListener)
     }
 
     private fun scanAvailableTextures() {
@@ -281,6 +317,10 @@ class DialogueEditorUI(
                                 speaker = speakerField.text
                                 text = textField.text
                                 speakerTexturePath = textureField.text.replace('\\', '/').ifBlank { null }
+                                customWidth = actor.findActor<TextField>("customWidthField").text.toFloatOrNull()
+                                customHeight = actor.findActor<TextField>("customHeightField").text.toFloatOrNull()
+                                portraitOffsetX = actor.findActor<TextField>("portraitXField").text.toFloatOrNull()
+                                portraitOffsetY = actor.findActor<TextField>("portraitYField").text.toFloatOrNull()
                             })
                         }
                     }
@@ -376,15 +416,10 @@ class DialogueEditorUI(
         textureField.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 val enteredPath = textureField.text.trim()
-
                 if (enteredPath.isNotBlank()) {
                     updatePreview(enteredPath)
-
                     val normalizedPath = enteredPath.replace('\\', '/')
-                    val matchIndex = availableTextures.indexOfFirst {
-                        it.equals(normalizedPath, ignoreCase = true)
-                    }
-
+                    val matchIndex = availableTextures.indexOfFirst { it.equals(normalizedPath, ignoreCase = true) }
                     if (matchIndex != -1) {
                         textureSelectBox.selectedIndex = matchIndex
                     } else {
@@ -405,6 +440,22 @@ class DialogueEditorUI(
 
         table.add(portraitControlTable).left().padRight(10f)
         table.add(previewImage).size(64f).right().row()
+
+        val modifiersTable = Table(skin)
+        modifiersTable.defaults().pad(2f)
+
+        val customWidthField = TextField(lineData.customWidth?.toString() ?: "", skin).apply { name = "customWidthField"; messageText = "Default" }
+        val customHeightField = TextField(lineData.customHeight?.toString() ?: "", skin).apply { name = "customHeightField"; messageText = "Default" }
+        val portraitXField = TextField(lineData.portraitOffsetX?.toString() ?: "", skin).apply { name = "portraitXField"; messageText = "0" }
+        val portraitYField = TextField(lineData.portraitOffsetY?.toString() ?: "", skin).apply { name = "portraitYField"; messageText = "0" }
+
+        modifiersTable.add(Label("W:", skin)); modifiersTable.add(customWidthField).width(70f)
+        modifiersTable.add(Label("H:", skin)).padLeft(8f); modifiersTable.add(customHeightField).width(70f)
+        modifiersTable.add(Label("PX:", skin)).padLeft(8f); modifiersTable.add(portraitXField).width(70f)
+        modifiersTable.add(Label("PY:", skin)).padLeft(8f); modifiersTable.add(portraitYField).width(70f)
+
+        table.add(Label("Modifiers:", skin)).left().padTop(8f)
+        table.add(modifiersTable).colspan(2).left().padTop(8f).row()
 
         table.add(removeButton).right().colspan(3)
 
@@ -473,6 +524,9 @@ class DialogueEditorUI(
     }
 
     fun hide() {
+        if (isPreviewing) {
+            stopPreview()
+        }
         window.isVisible = false
         stage.unfocusAll()
     }
@@ -482,5 +536,124 @@ class DialogueEditorUI(
     fun dispose() {
         previewTextures.values.forEach { it.dispose() }
         previewTextures.clear()
+    }
+
+    private fun startPreview() {
+        if (isPreviewing) return
+        if (linesContainer.children.size == 0) {
+            uiManager.showTemporaryMessage("Cannot preview an empty dialogue.")
+            return
+        }
+
+        isPreviewing = true
+        previewLineIndex = 0
+        window.isVisible = false // Hide main editor
+        previewControllerWindow.isVisible = true
+        previewControllerWindow.toFront()
+
+        currentPreviewLines.clear()
+        linesContainer.children.forEach { actor ->
+            if (actor is Table) {
+                currentPreviewLines.add(getLineDataFromWidget(actor))
+            }
+        }
+
+        showLineInPreview()
+    }
+
+    private fun stopPreview() {
+        if (!isPreviewing) return
+        isPreviewing = false
+        previewControllerWindow.isVisible = false
+        uiManager.dialogSystem.hidePreview()
+
+        // Clear the highlight and show the main editor again
+        highlightedLineWidget?.background = skin.getDrawable("textfield")
+        highlightedLineWidget = null
+        window.isVisible = true
+        window.toFront()
+    }
+
+    private fun navigatePreview(direction: Int) {
+        if (!isPreviewing || currentPreviewLines.isEmpty()) return
+
+        val newIndex = previewLineIndex + direction
+        if (newIndex in currentPreviewLines.indices) {
+            previewLineIndex = newIndex
+            showLineInPreview()
+        }
+    }
+
+    private fun showLineInPreview() {
+
+        if (!isPreviewing) return
+
+        // Reset the background of the previously highlighted widget
+        highlightedLineWidget?.background = skin.getDrawable("textfield")
+
+        // Find and highlight the new widget
+        val currentLineWidget = linesContainer.children.get(previewLineIndex) as? Table
+        if (currentLineWidget != null) {
+            currentLineWidget.background = skin.newDrawable("textfield", Color.DARK_GRAY)
+            highlightedLineWidget = currentLineWidget
+            updateSlidersFromLine(currentLineWidget)
+        }
+
+        lineInfoLabel.setText("Line: ${previewLineIndex + 1}/${currentPreviewLines.size}")
+        uiManager.dialogSystem.previewDialog(currentPreviewLines, previewLineIndex)
+    }
+
+    private fun getLineDataFromWidget(widget: Table): DialogLine {
+        // Helper function to safely parse Float from a TextField
+        fun Actor?.toFloatOrNull(): Float? = (this as? TextField)?.text?.toFloatOrNull()
+
+        return DialogLine(
+            speaker = (widget.findActor("speaker") as TextField).text,
+            text = (widget.findActor("text") as TextArea).text,
+            speakerTexturePath = (widget.findActor("texture") as TextField).text.ifBlank { null },
+            customWidth = widget.findActor<TextField>("customWidthField").toFloatOrNull(),
+            customHeight = widget.findActor<TextField>("customHeightField").toFloatOrNull(),
+            portraitOffsetX = widget.findActor<TextField>("portraitXField").toFloatOrNull(),
+            portraitOffsetY = widget.findActor<TextField>("portraitYField").toFloatOrNull()
+        )
+    }
+
+    private fun updateLineFromSliders() {
+        if (isUpdatingSliders) return // Prevent recursion
+
+        val currentLineWidget = linesContainer.children.get(previewLineIndex) as? Table ?: return
+
+        // Find the text fields in the editor widget
+        val widthField = currentLineWidget.findActor<TextField>("customWidthField")
+        val heightField = currentLineWidget.findActor<TextField>("customHeightField")
+        val xField = currentLineWidget.findActor<TextField>("portraitXField")
+        val yField = currentLineWidget.findActor<TextField>("portraitYField")
+
+        // Update the text fields with the slider values
+        widthField.text = "%.0f".format(widthSlider.value)
+        heightField.text = "%.0f".format(heightSlider.value)
+        xField.text = "%.0f".format(portraitXSlider.value)
+        yField.text = "%.0f".format(portraitYSlider.value)
+
+        // Re-read the data from the widget and refresh the preview
+        currentPreviewLines[previewLineIndex] = getLineDataFromWidget(currentLineWidget)
+        uiManager.dialogSystem.previewDialog(currentPreviewLines, previewLineIndex)
+    }
+
+    private fun updateSlidersFromLine(widget: Table) {
+        // Helper to read from a TextField with proper default value
+        fun TextField?.toFloatOrDefault(default: Float): Float = this?.text?.toFloatOrNull() ?: default
+
+        // Set the flag to prevent the change listener from triggering updateLineFromSliders
+        isUpdatingSliders = true
+
+        // Update slider values from the text fields
+        widthSlider.value = widget.findActor<TextField>("customWidthField").toFloatOrDefault(Gdx.graphics.width * 0.7f)
+        heightSlider.value = widget.findActor<TextField>("customHeightField").toFloatOrDefault(Gdx.graphics.height * 0.28f)
+        portraitXSlider.value = widget.findActor<TextField>("portraitXField").toFloatOrDefault(0f)
+        portraitYSlider.value = widget.findActor<TextField>("portraitYField").toFloatOrDefault(0f)
+
+        // Reset the flag after a brief moment to allow the sliders to settle
+        isUpdatingSliders = false
     }
 }
