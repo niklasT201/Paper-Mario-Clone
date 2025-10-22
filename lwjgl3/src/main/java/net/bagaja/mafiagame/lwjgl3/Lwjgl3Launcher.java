@@ -76,12 +76,16 @@ public class Lwjgl3Launcher {
 // minimap for open world mode
 // Civilian npc that just follows paths. They should flee from gunfire and call the police if they see a crime
 // The Law & Wanted Level
+// character ui, mouse pointer not visible
+// can be closed with esc
+// white filter on items removing
 // first a beat cop, then patrol cars, then roadblocks, and finally tougher "Federal Agents" with tommy guns. Heat slowly decreases over time if you stay out of sight.
 // player can buy businesses (speakeasies, illegal casinos, protection rackets) that generate passive income
 // silent takedowns (melee from behind) and the ability to hide bodies
 // dead enemy flying behind players back
+// explosion destroys ash
+// explosion moves bones
 // shotgun blast at close range could send an enemy flying backward realistically.
-// explosion would send multiple bodies flying in different directions.
 // pulling out characters from vehicles
 // add event button automatically adds new event without saving button press
 // new events: PLAY_SOUND
@@ -118,3 +122,5 @@ public class Lwjgl3Launcher {
 // can you help me with my kotlin 3d game? I have this billboard shader for my player, items, npcs and enemies. it worls fine but i would like to modify it a bit. as you maybe see, the shader makes, that the things that has a userdata set = player are full bright. so you can see them clear. this is fine, but originally i wanted to make it so, that when i place a light source and the light source shines at a billobard, the billboard gets shiny, and when i rotate so now the other side of the billboard is visible, it also gets shiny. as you maybe know, in default in libgdx this is not possible. a billboard can only get shined at from one side and not both. so i wanted to change this, but as it didnt work what i wanted, i made at so they are for now always completely bright. for the player i noticed that i liked this even more, but i dont like it so much for everything eslse. i would like it when the player would stay as it is, so always fully bright, but everything else can be shined from both sides and not only one. but the problem is, that it seems like when i place a light source that shines at something that uses this billboard shader, it completely ignores it, like these things dont exist. why is this happening and is there a way to fix it?
 
 // question. lets say i want to use the same dialog for different missions or npcs but i want that the for one npc the dialog to be slightly higher, or wider or whatever and for the other one not. how could i implement this?
+
+// i had the idea for a new feature, where i dont know if it could be good. as you hopefully see, enemies and npcs that are killed, they start disappearing, until they are fully vanished. and i want a new feature BUT only for ultra violence mode. when an enemy or npc is killed, it will disappear, BUT only after a certrain amount of time, maybe like one minute and then after this time the normal disappearing starts. but now the question, what happens during this one minute. simple, i want that the dead character lays dead on floor, and when the player stands next to it, or maybe literally collides with the npc/enemy, player can press a key, maybe p or so and "pick" up the character, and put it to another location, until the disappearing starts. i want that when you pick up the character, it will be behind the player, so when the player moves to the right for example, the dead character will fly a little bit above the ground and move behind the player being on the left side and follow, until it disappears or the player puts it down agian

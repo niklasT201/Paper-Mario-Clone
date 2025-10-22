@@ -773,7 +773,7 @@ data class GameCar(
 
         val sceneManager = carSystem.sceneManager
         val playerSystem = sceneManager.playerSystem
-        val distanceToPlayer = this.position.dst(playerSystem.getControlledEntityPosition())
+        val distanceToPlayer = this.position.dst(playerSystem.getPosition())
         val maxShakeDistance = 50f // Explosions are felt from further away
 
         if (distanceToPlayer < maxShakeDistance) {
@@ -788,8 +788,13 @@ data class GameCar(
             sceneManager.cameraManager.startShake(duration, intensity.coerceAtLeast(0.5f))
         }
 
-        val explosionRadius = 15f  // The range of the explosion
-        val baseDamage = 120f      // The damage at the very center of the explosion
+        val explosionRadius = 15f // The range of the explosion
+        val baseDamage = 120f // The damage at the very center of the explosion
+
+        val closeExplosionRadius = 5f
+        val maxKnockbackForce = 45.0f
+        val baseUpwardLift = 0.8f
+        val closeUpwardLift = 2.2f
 
         fun calculateFalloffDamage(distance: Float): Float {
             if (distance >= explosionRadius) return 0f
@@ -805,6 +810,17 @@ data class GameCar(
             playerSystem.takeDamage(damageToPlayer)
         }
 
+        // Knockback Player
+        if (distanceToPlayer < explosionRadius && !playerSystem.isDriving) {
+            val knockbackStrength = maxKnockbackForce * (1.0f - (distanceToPlayer / explosionRadius))
+            if (knockbackStrength > 0) {
+                val finalUpwardLift = if (distanceToPlayer <= closeExplosionRadius) closeUpwardLift else baseUpwardLift
+                val knockbackDirection = playerSystem.getPosition().sub(this.position).apply { y = finalUpwardLift }.nor()
+                val knockbackVector = knockbackDirection.scl(knockbackStrength)
+                playerSystem.applyKnockback(knockbackVector)
+            }
+        }
+
         // Damage Enemies
         sceneManager.activeEnemies.forEach { enemy ->
             val distanceToEnemy = this.position.dst(enemy.position)
@@ -813,6 +829,15 @@ data class GameCar(
                 println("Car explosion hits ${enemy.enemyType.displayName} for $damageToEnemy damage.")
                 if (enemy.takeDamage(damageToEnemy, DamageType.EXPLOSIVE, sceneManager) && enemy.currentState != AIState.DYING) {
                     sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
+                }
+
+                // Knockback Enemy
+                val knockbackStrength = maxKnockbackForce * (1.0f - (distanceToEnemy / explosionRadius))
+                if (knockbackStrength > 0 && !enemy.isInCar) {
+                    val finalUpwardLift = if (distanceToEnemy <= closeExplosionRadius) closeUpwardLift else baseUpwardLift
+                    val knockbackDirection = enemy.position.cpy().sub(this.position).apply { y = finalUpwardLift }.nor()
+                    val knockbackVector = knockbackDirection.scl(knockbackStrength)
+                    sceneManager.enemySystem.applyKnockback(enemy, knockbackVector)
                 }
             }
         }
@@ -826,10 +851,19 @@ data class GameCar(
                 if (npc.takeDamage(damageToNPC, DamageType.EXPLOSIVE, sceneManager) && npc.currentState != NPCState.DYING) {
                     sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                 }
+
+                // Knockback NPC
+                val knockbackStrength = maxKnockbackForce * (1.0f - (distanceToNPC / explosionRadius))
+                if (knockbackStrength > 0 && !npc.isInCar) {
+                    val finalUpwardLift = if (distanceToNPC <= closeExplosionRadius) closeUpwardLift else baseUpwardLift
+                    val knockbackDirection = npc.position.cpy().sub(this.position).apply { y = finalUpwardLift }.nor()
+                    val knockbackVector = knockbackDirection.scl(knockbackStrength)
+                    sceneManager.npcSystem.applyKnockback(npc, knockbackVector)
+                }
             }
         }
 
-        val otherCars = com.badlogic.gdx.utils.Array(sceneManager.activeCars)
+        val otherCars = Array(sceneManager.activeCars)
         for (otherCar in otherCars) {
             // Make sure a car doesn't damage itself in the explosion
             if (otherCar.id == this.id) continue

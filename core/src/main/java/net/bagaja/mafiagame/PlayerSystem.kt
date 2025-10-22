@@ -1525,7 +1525,7 @@ class PlayerSystem {
         onFireDamagePerSecond = dps
     }
 
-    private fun applyKnockback(force: Vector3) {
+    fun applyKnockback(force: Vector3) {
         if (!isDriving) {
             physicsComponent.knockbackVelocity.set(force)
         }
@@ -1976,7 +1976,11 @@ class PlayerSystem {
                 // Area-of-effect damage logic
                 val explosionRadius = 12f
                 val maxKnockbackForce = 35.0f
-                val upwardLift = 0.7f
+
+                val closeExplosionRadius = 4f
+                val baseUpwardLift = 0.7f
+                val closeUpwardLift = 1.8f // A much stronger vertical launch for close-range hits
+
 
                 // Damage cars
                 for (car in sceneManager.activeCars) {
@@ -1998,8 +2002,9 @@ class PlayerSystem {
 
                         // Apply Knockback
                         val knockbackStrength = maxKnockbackForce * (1.0f - (distanceToEnemy / explosionRadius))
-                        if (knockbackStrength > 0) {
-                            val knockbackDirection = enemy.position.cpy().sub(explosionOrigin).apply { y = upwardLift }.nor()
+                        if (knockbackStrength > 0 && !enemy.isInCar) {
+                            val finalUpwardLift = if (distanceToEnemy <= closeExplosionRadius) closeUpwardLift else baseUpwardLift
+                            val knockbackDirection = enemy.position.cpy().sub(explosionOrigin).apply { y = finalUpwardLift }.nor()
                             val knockbackVector = knockbackDirection.scl(knockbackStrength)
                             sceneManager.enemySystem.applyKnockback(enemy, knockbackVector)
                         }
@@ -2018,8 +2023,9 @@ class PlayerSystem {
 
                         // Apply Knockback
                         val knockbackStrength = maxKnockbackForce * (1.0f - (distanceToNPC / explosionRadius))
-                        if (knockbackStrength > 0) {
-                            val knockbackDirection = npc.position.cpy().sub(explosionOrigin).apply { y = upwardLift }.nor()
+                        if (knockbackStrength > 0 && !npc.isInCar) {
+                            val finalUpwardLift = if (distanceToNPC <= closeExplosionRadius) closeUpwardLift else baseUpwardLift
+                            val knockbackDirection = npc.position.cpy().sub(explosionOrigin).apply { y = finalUpwardLift }.nor()
                             val knockbackVector = knockbackDirection.scl(knockbackStrength)
                             sceneManager.npcSystem.applyKnockback(npc, knockbackVector)
                         }
@@ -2037,8 +2043,9 @@ class PlayerSystem {
 
                     if (knockbackStrength > 0) {
                         // Calculate the direction vector
+                        val finalUpwardLift = if (distanceToPlayerSelf <= closeExplosionRadius) closeUpwardLift else baseUpwardLift
                         val knockbackDirection = getPosition().sub(explosionOrigin)
-                        knockbackDirection.y = upwardLift
+                        knockbackDirection.y = finalUpwardLift // Apply the conditional lift
 
                         if (knockbackDirection.len2() > 0.001f) {
                             knockbackDirection.nor()
