@@ -13,7 +13,7 @@ import com.badlogic.gdx.utils.Align
 class CharacterInventoryUI(
     private val skin: Skin,
     private val stage: Stage,
-    private val itemSystem: ItemSystem // We need this to get weapon icons
+    private val itemSystem: ItemSystem
 ) {
     private val window: Window = Window("Character Details", skin, "dialog")
     private lateinit var slotBackground: TextureRegionDrawable
@@ -24,8 +24,6 @@ class CharacterInventoryUI(
     // UI containers for different character types
     private val enemyContainer: Table
     private val npcContainer: Table
-
-    // NPC specific UI elements
     private val npcHealthLabel: Label
 
     init {
@@ -49,63 +47,67 @@ class CharacterInventoryUI(
     }
 
     private fun createBackgrounds() {
-        // Enhanced slot background with gradient effect
+        // Cartoon-style slot background with thick border
         val slotPixmap = Pixmap(80, 80, Pixmap.Format.RGBA8888)
-        // Dark background with subtle gradient
-        slotPixmap.setColor(Color(0.15f, 0.15f, 0.2f, 0.95f))
+        // Cream/tan background like the character's body
+        slotPixmap.setColor(Color(0.95f, 0.85f, 0.7f, 1f))
         slotPixmap.fill()
-        // Lighter inner area for depth
-        slotPixmap.setColor(Color(0.25f, 0.25f, 0.35f, 0.8f))
-        slotPixmap.fillRectangle(4, 4, 72, 72)
-        // Subtle highlight on top edge
-        slotPixmap.setColor(Color(0.4f, 0.4f, 0.55f, 0.6f))
-        slotPixmap.fillRectangle(6, 74, 68, 2)
-        // Shadow on bottom edge
-        slotPixmap.setColor(Color(0.05f, 0.05f, 0.1f, 0.8f))
-        slotPixmap.fillRectangle(6, 4, 68, 2)
-        // Border
-        slotPixmap.setColor(Color(0.4f, 0.4f, 0.5f, 0.7f))
-        slotPixmap.drawRectangle(2, 2, 76, 76)
+        // Thick black cartoon outline
+        slotPixmap.setColor(Color(0.1f, 0.1f, 0.1f, 1f))
+        slotPixmap.fillRectangle(0, 0, 80, 6) // Top border
+        slotPixmap.fillRectangle(0, 74, 80, 6) // Bottom border
+        slotPixmap.fillRectangle(0, 0, 6, 80) // Left border
+        slotPixmap.fillRectangle(74, 0, 6, 80) // Right border
+        // Inner lighter area
+        slotPixmap.setColor(Color(1f, 0.95f, 0.85f, 1f))
+        slotPixmap.fillRectangle(8, 8, 64, 64)
+        // Subtle shadow for depth (brown like the character)
+        slotPixmap.setColor(Color(0.7f, 0.6f, 0.45f, 0.3f))
+        slotPixmap.fillRectangle(10, 10, 60, 3)
+        slotPixmap.fillRectangle(10, 10, 3, 60)
         slotBackground = TextureRegionDrawable(Texture(slotPixmap))
         slotPixmap.dispose()
 
-        // Hover state for slots
+        // Hover state - brighter and more saturated
         val hoverPixmap = Pixmap(80, 80, Pixmap.Format.RGBA8888)
-        hoverPixmap.setColor(Color(0.25f, 0.35f, 0.45f, 0.95f))
+        hoverPixmap.setColor(Color(1f, 0.95f, 0.6f, 1f)) // Bright yellow-tan
         hoverPixmap.fill()
-        hoverPixmap.setColor(Color(0.35f, 0.45f, 0.55f, 0.8f))
-        hoverPixmap.fillRectangle(4, 4, 72, 72)
-        hoverPixmap.setColor(Color(0.5f, 0.6f, 0.7f, 0.6f))
-        hoverPixmap.fillRectangle(6, 74, 68, 2)
-        hoverPixmap.setColor(Color(0.15f, 0.25f, 0.35f, 0.8f))
-        hoverPixmap.fillRectangle(6, 4, 68, 2)
-        hoverPixmap.setColor(Color(0.6f, 0.7f, 0.8f, 0.8f))
-        hoverPixmap.drawRectangle(2, 2, 76, 76)
+        hoverPixmap.setColor(Color(0.15f, 0.15f, 0.15f, 1f))
+        hoverPixmap.fillRectangle(0, 0, 80, 6)
+        hoverPixmap.fillRectangle(0, 74, 80, 6)
+        hoverPixmap.fillRectangle(0, 0, 6, 80)
+        hoverPixmap.fillRectangle(74, 0, 6, 80)
+        hoverPixmap.setColor(Color(1f, 1f, 0.8f, 1f))
+        hoverPixmap.fillRectangle(8, 8, 64, 64)
         slotBackgroundHover = TextureRegionDrawable(Texture(hoverPixmap))
         hoverPixmap.dispose()
 
-        // Header background with gradient
+        // Header background - dark suit color like the character
         val headerPixmap = Pixmap(400, 60, Pixmap.Format.RGBA8888)
-        headerPixmap.setColor(Color(0.2f, 0.25f, 0.35f, 0.9f))
+        headerPixmap.setColor(Color(0.2f, 0.2f, 0.22f, 1f)) // Dark suit color
         headerPixmap.fill()
-        headerPixmap.setColor(Color(0.3f, 0.35f, 0.45f, 0.7f))
-        headerPixmap.fillRectangle(0, 40, 400, 20)
-        headerPixmap.setColor(Color(0.1f, 0.15f, 0.25f, 0.9f))
-        headerPixmap.fillRectangle(0, 0, 400, 10)
+        // Thick top border
+        headerPixmap.setColor(Color(0.1f, 0.1f, 0.1f, 1f))
+        headerPixmap.fillRectangle(0, 50, 400, 10)
+        // Subtle highlight like fabric shine
+        headerPixmap.setColor(Color(0.3f, 0.3f, 0.35f, 0.6f))
+        headerPixmap.fillRectangle(10, 45, 380, 3)
         headerBackground = TextureRegionDrawable(Texture(headerPixmap))
         headerPixmap.dispose()
 
-        // Content area background
+        // Content background - warm tan/cream
         val contentPixmap = Pixmap(400, 300, Pixmap.Format.RGBA8888)
-        contentPixmap.setColor(Color(0.12f, 0.12f, 0.18f, 0.85f))
+        contentPixmap.setColor(Color(0.92f, 0.82f, 0.65f, 1f))
         contentPixmap.fill()
-        // Subtle inner shadow effect
-        contentPixmap.setColor(Color(0.08f, 0.08f, 0.12f, 0.6f))
-        contentPixmap.fillRectangle(0, 290, 400, 10)
-        contentPixmap.fillRectangle(0, 0, 10, 300)
-        contentPixmap.setColor(Color(0.18f, 0.18f, 0.24f, 0.4f))
-        contentPixmap.fillRectangle(390, 0, 10, 300)
-        contentPixmap.fillRectangle(0, 0, 400, 10)
+        // Thick cartoon borders
+        contentPixmap.setColor(Color(0.15f, 0.15f, 0.15f, 1f))
+        contentPixmap.fillRectangle(0, 0, 400, 8) // Top
+        contentPixmap.fillRectangle(0, 292, 400, 8) // Bottom
+        contentPixmap.fillRectangle(0, 0, 8, 300) // Left
+        contentPixmap.fillRectangle(392, 0, 8, 300) // Right
+        // Inner paper-like texture
+        contentPixmap.setColor(Color(0.98f, 0.9f, 0.75f, 0.5f))
+        contentPixmap.fillRectangle(12, 12, 376, 276)
         contentBackground = TextureRegionDrawable(Texture(contentPixmap))
         contentPixmap.dispose()
     }
@@ -117,16 +119,15 @@ class CharacterInventoryUI(
         window.defaults().pad(8f)
         window.isVisible = false
 
-        // Add containers
         val contentStack = Stack()
         contentStack.add(enemyContainer)
         contentStack.add(npcContainer)
 
         window.add(contentStack).expand().fill().row()
 
-        // Enhanced close button
+        // Cartoon-style close button
         val closeButton = TextButton("✕ Close", skin)
-        closeButton.color = Color(0.8f, 0.3f, 0.3f, 1f)
+        closeButton.color = Color(0.9f, 0.2f, 0.2f, 1f) // Bright red
         closeButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 hide()
@@ -142,7 +143,7 @@ class CharacterInventoryUI(
         healthSection.pad(15f)
 
         val healthIcon = Label("❤", skin, "default")
-        healthIcon.color = Color.RED
+        healthIcon.color = Color(1f, 0.2f, 0.3f, 1f) // Bright cartoon red
         healthSection.add(healthIcon).padRight(8f)
         healthSection.add(Label("Health:", skin)).padRight(10f)
         healthSection.add(npcHealthLabel)
@@ -155,16 +156,16 @@ class CharacterInventoryUI(
         shopSection.pad(20f)
 
         val shopTitle = Label("🏪 Merchant Shop", skin, "title")
-        shopTitle.color = Color(0.9f, 0.8f, 0.4f, 1f)
+        shopTitle.color = Color(1f, 0.65f, 0f, 1f) // Bright orange-gold
         shopSection.add(shopTitle).padBottom(15f).row()
 
         val descriptionLabel = Label("NPCs may offer to sell or give you items they find.", skin)
         descriptionLabel.wrap = true
-        descriptionLabel.color = Color(0.8f, 0.8f, 0.9f, 1f)
+        descriptionLabel.color = Color(0.25f, 0.2f, 0.2f, 1f) // Dark brown text
         shopSection.add(descriptionLabel).width(280f).row()
 
         val comingSoonLabel = Label("Coming Soon™", skin, "small")
-        comingSoonLabel.color = Color(0.6f, 0.6f, 0.7f, 1f)
+        comingSoonLabel.color = Color(0.5f, 0.45f, 0.4f, 1f)
         shopSection.add(comingSoonLabel).padTop(10f)
 
         npcContainer.add(shopSection).expand().fill()
@@ -172,7 +173,7 @@ class CharacterInventoryUI(
 
     fun show(enemy: GameEnemy) {
         window.titleLabel.setText("⚔ Enemy Loadout")
-        window.titleLabel.color = Color(0.9f, 0.4f, 0.4f, 1f)
+        window.titleLabel.color = Color(1f, 0.3f, 0.2f, 1f) // Bright cartoon red
         enemyContainer.clear()
         npcContainer.isVisible = false
         enemyContainer.isVisible = true
@@ -183,12 +184,12 @@ class CharacterInventoryUI(
         headerSection.pad(15f)
 
         val healthIcon = Label("❤", skin, "default")
-        healthIcon.color = Color.RED
+        healthIcon.color = Color(1f, 0.2f, 0.3f, 1f)
         val healthText = "${enemy.health.toInt()} / ${enemy.enemyType.baseHealth.toInt()}"
         val healthLabel = Label(healthText, skin, "default")
-        healthLabel.color = if (enemy.health / enemy.enemyType.baseHealth > 0.6f) Color.GREEN
-        else if (enemy.health / enemy.enemyType.baseHealth > 0.3f) Color.YELLOW
-        else Color.RED
+        healthLabel.color = if (enemy.health / enemy.enemyType.baseHealth > 0.6f) Color(0.2f, 0.9f, 0.2f, 1f) // Bright green
+        else if (enemy.health / enemy.enemyType.baseHealth > 0.3f) Color(1f, 0.9f, 0f, 1f) // Bright yellow
+        else Color(1f, 0.2f, 0.2f, 1f) // Bright red
 
         headerSection.add(healthIcon).padRight(8f)
         headerSection.add(Label("Health:", skin)).padRight(10f)
@@ -202,10 +203,9 @@ class CharacterInventoryUI(
         inventorySection.pad(20f)
 
         val inventoryTitle = Label("🎒 Inventory", skin, "title")
-        inventoryTitle.color = Color(0.7f, 0.9f, 0.7f, 1f)
+        inventoryTitle.color = Color(0.3f, 0.7f, 0.3f, 1f) // Vibrant green
         inventorySection.add(inventoryTitle).padBottom(15f).row()
 
-        // Consolidate items (keeping original logic)
         val enemyWeapons = enemy.weapons.toMutableMap()
         if (enemy.equippedWeapon != WeaponType.UNARMED) {
             val reserveAmmo = enemyWeapons.getOrDefault(enemy.equippedWeapon, 0)
@@ -216,10 +216,9 @@ class CharacterInventoryUI(
             .filter { it.itemType == ItemType.MONEY_STACK }
             .sumOf { it.value }
 
-        // Build enhanced inventory grid
         if (enemyWeapons.isEmpty() && totalMoneyValue <= 0) {
             val emptyLabel = Label("Empty inventory", skin, "small")
-            emptyLabel.color = Color(0.6f, 0.6f, 0.7f, 1f)
+            emptyLabel.color = Color(0.4f, 0.35f, 0.3f, 1f)
             inventorySection.add(emptyLabel)
         } else {
             val inventoryGrid = Table()
@@ -228,7 +227,7 @@ class CharacterInventoryUI(
 
             // Money slot with enhanced design
             if (totalMoneyValue > 0) {
-                val moneySlot = createEnhancedSlot(ItemType.MONEY_STACK, "$$totalMoneyValue", Color.GOLD)
+                val moneySlot = createEnhancedSlot(ItemType.MONEY_STACK, "$$totalMoneyValue", Color(1f, 0.85f, 0f, 1f))
                 inventoryGrid.add(moneySlot).size(90f).pad(8f)
                 column++
             }
@@ -238,7 +237,7 @@ class CharacterInventoryUI(
                 if (weaponType == WeaponType.UNARMED) continue
 
                 val itemType = ItemType.entries.find { it.correspondingWeapon == weaponType } ?: continue
-                val weaponSlot = createEnhancedSlot(itemType, ammo.toString(), Color.WHITE)
+                val weaponSlot = createEnhancedSlot(itemType, ammo.toString(), Color(0.2f, 0.2f, 0.2f, 1f))
 
                 inventoryGrid.add(weaponSlot).size(90f).pad(8f)
                 column++
@@ -264,23 +263,26 @@ class CharacterInventoryUI(
             slot.add(itemImage)
         }
 
-        // Enhanced value label with background
         val valueLabel = Label(valueText, skin, "small")
         valueLabel.color = valueColor
 
-        // Create a small background for the value label - much more subtle
-        val labelBg = Pixmap(40, 16, Pixmap.Format.RGBA8888)
-        labelBg.setColor(Color(0f, 0f, 0f, 0.25f)) // Much more transparent
+        // Cartoon speech bubble style label background
+        val labelBg = Pixmap(44, 20, Pixmap.Format.RGBA8888)
+        labelBg.setColor(Color(1f, 1f, 1f, 0.95f)) // Bright white
         labelBg.fill()
-        labelBg.setColor(Color(0.2f, 0.2f, 0.2f, 0.4f)) // Lighter border
-        labelBg.drawRectangle(0, 0, 40, 16)
+        // Thick cartoon border
+        labelBg.setColor(Color(0.1f, 0.1f, 0.1f, 1f))
+        labelBg.fillRectangle(0, 0, 44, 3) // Top
+        labelBg.fillRectangle(0, 17, 44, 3) // Bottom
+        labelBg.fillRectangle(0, 0, 3, 20) // Left
+        labelBg.fillRectangle(41, 0, 3, 20) // Right
         val labelBackground = TextureRegionDrawable(Texture(labelBg))
         labelBg.dispose()
 
         val valueContainer = Container(valueLabel)
         valueContainer.background = labelBackground
         valueContainer.align(Align.bottomRight)
-        valueContainer.pad(2f)
+        valueContainer.pad(3f)
 
         slot.add(valueContainer)
         return slot
@@ -288,16 +290,15 @@ class CharacterInventoryUI(
 
     fun show(npc: GameNPC) {
         window.titleLabel.setText("👤 NPC Details")
-        window.titleLabel.color = Color(0.4f, 0.8f, 0.9f, 1f)
+        window.titleLabel.color = Color(0.3f, 0.7f, 1f, 1f) // Bright cyan-blue
         npcContainer.clear()
         enemyContainer.isVisible = false
         npcContainer.isVisible = true
 
-        // Rebuild NPC UI with enhanced styling
         npcHealthLabel.setText("${npc.health.toInt()} / ${npc.npcType.baseHealth.toInt()}")
-        npcHealthLabel.color = if (npc.health / npc.npcType.baseHealth > 0.6f) Color.GREEN
-        else if (npc.health / npc.npcType.baseHealth > 0.3f) Color.YELLOW
-        else Color.RED
+        npcHealthLabel.color = if (npc.health / npc.npcType.baseHealth > 0.6f) Color(0.2f, 0.9f, 0.2f, 1f)
+        else if (npc.health / npc.npcType.baseHealth > 0.3f) Color(1f, 0.9f, 0f, 1f)
+        else Color(1f, 0.2f, 0.2f, 1f)
 
         setupNPCContainer()
         showWindow()
@@ -310,7 +311,6 @@ class CharacterInventoryUI(
         window.isVisible = true
         window.toFront()
 
-        // Add subtle entrance animation effect
         window.color.a = 0f
         window.addAction(
             com.badlogic.gdx.scenes.scene2d.actions.Actions.fadeIn(0.3f)
