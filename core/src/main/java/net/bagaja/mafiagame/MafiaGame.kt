@@ -976,7 +976,6 @@ class MafiaGame : ApplicationAdapter() {
 
 
     private fun updateCursorVisibility() {
-        // MODIFIED: Replace the multiple checks with a single call to our new function
         val shouldCatchCursor = !isEditorMode && !uiManager.isCursorRequired()
 
         // if the current state doesn't match what it should be.
@@ -1026,7 +1025,7 @@ class MafiaGame : ApplicationAdapter() {
                 Gdx.gl.glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a)
                 Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
 
-                val isPaused = uiManager.isPauseMenuVisible() || uiManager.isDialogActive()
+                val isPaused = uiManager.isGamePaused()
 
                 if (!isPaused) {
                     // Get delta time for this frame
