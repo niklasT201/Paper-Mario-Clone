@@ -41,6 +41,9 @@ class DialogueEditorUI(
     private var portraitYSlider: Slider
     private var lineInfoLabel: Label
 
+    private var syncSettingsCheckbox: CheckBox
+    private var applyPresetButton: TextButton
+
     private var highlightedLineWidget: Table? = null
     private var isUpdatingSliders = false
 
@@ -146,6 +149,15 @@ class DialogueEditorUI(
         controllerContent.add(Label("Portrait X:", skin)).left(); controllerContent.add(portraitXSlider).growX().row()
         controllerContent.add(Label("Portrait Y:", skin)).left(); controllerContent.add(portraitYSlider).growX().row()
 
+        val optionsTable = Table()
+        syncSettingsCheckbox = CheckBox(" Sync settings for all lines", skin)
+        applyPresetButton = TextButton("Apply Bottom-Center Preset", skin)
+
+        optionsTable.add(syncSettingsCheckbox).left().row()
+        optionsTable.add(applyPresetButton).left().padTop(8f).row()
+
+        controllerContent.add(optionsTable).colspan(2).padTop(10f).row()
+
         val previewButtonTable = Table()
         val saveAndCloseButton = TextButton("Save & Close", skin)
         val closePreviewButton = TextButton("Back to Editor", skin) // Renamed for clarity
@@ -202,6 +214,29 @@ class DialogueEditorUI(
         heightSlider.addListener(sliderListener)
         portraitXSlider.addListener(sliderListener)
         portraitYSlider.addListener(sliderListener)
+
+        applyPresetButton.addListener(object: ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                if (!isPreviewing) return
+
+                val currentLineWidget = linesContainer.children.get(previewLineIndex) as? Table ?: return
+
+                // These are the pre-coded values for the preset
+                val presetWidth = "%.0f".format(Gdx.graphics.width * 0.7f)
+                val presetHeight = "%.0f".format(Gdx.graphics.height * 0.28f)
+                val presetPortraitX = "-80" // A bit more to the left
+                val presetPortraitY = "25"  // A bit higher up, similar to the player's default offset
+
+                // Find and update the text fields in the main editor UI for the current line
+                currentLineWidget.findActor<TextField>("customWidthField")?.text = presetWidth
+                currentLineWidget.findActor<TextField>("customHeightField")?.text = presetHeight
+                currentLineWidget.findActor<TextField>("portraitXField")?.text = presetPortraitX
+                currentLineWidget.findActor<TextField>("portraitYField")?.text = presetPortraitY
+
+                updateSlidersFromLine(currentLineWidget)
+                updateLineFromSliders()
+            }
+        })
     }
 
     private fun scanAvailableTextures() {
@@ -621,22 +656,41 @@ class DialogueEditorUI(
     private fun updateLineFromSliders() {
         if (isUpdatingSliders) return // Prevent recursion
 
-        val currentLineWidget = linesContainer.children.get(previewLineIndex) as? Table ?: return
+        // Get the new values from the sliders
+        val newWidth = "%.0f".format(widthSlider.value)
+        val newHeight = "%.0f".format(heightSlider.value)
+        val newX = "%.0f".format(portraitXSlider.value)
+        val newY = "%.0f".format(portraitYSlider.value)
 
-        // Find the text fields in the editor widget
-        val widthField = currentLineWidget.findActor<TextField>("customWidthField")
-        val heightField = currentLineWidget.findActor<TextField>("customHeightField")
-        val xField = currentLineWidget.findActor<TextField>("portraitXField")
-        val yField = currentLineWidget.findActor<TextField>("portraitYField")
+        if (syncSettingsCheckbox.isChecked) {
+            // If sync is on, apply the new values to ALL line widgets and their corresponding live data
+            linesContainer.children.forEachIndexed { index, actor ->
+                if (actor is Table) {
+                    // Update the text fields in the main editor UI for every line
+                    actor.findActor<TextField>("customWidthField")?.text = newWidth
+                    actor.findActor<TextField>("customHeightField")?.text = newHeight
+                    actor.findActor<TextField>("portraitXField")?.text = newX
+                    actor.findActor<TextField>("portraitYField")?.text = newY
 
-        // Update the text fields with the slider values
-        widthField.text = "%.0f".format(widthSlider.value)
-        heightField.text = "%.0f".format(heightSlider.value)
-        xField.text = "%.0f".format(portraitXSlider.value)
-        yField.text = "%.0f".format(portraitYSlider.value)
+                    // Also update the live preview data list by re-reading from each widget
+                    if (index < currentPreviewLines.size) {
+                        currentPreviewLines[index] = getLineDataFromWidget(actor)
+                    }
+                }
+            }
+        } else {
+            // If sync is off, apply only to the currently selected widget
+            val currentLineWidget = linesContainer.children.get(previewLineIndex) as? Table ?: return
+            currentLineWidget.findActor<TextField>("customWidthField")?.text = newWidth
+            currentLineWidget.findActor<TextField>("customHeightField")?.text = newHeight
+            currentLineWidget.findActor<TextField>("portraitXField")?.text = newX
+            currentLineWidget.findActor<TextField>("portraitYField")?.text = newY
 
-        // Re-read the data from the widget and refresh the preview
-        currentPreviewLines[previewLineIndex] = getLineDataFromWidget(currentLineWidget)
+            // Update just the current line in the live preview data list
+            currentPreviewLines[previewLineIndex] = getLineDataFromWidget(currentLineWidget)
+        }
+
+        // Refresh the visual preview with the updated data for the current line
         uiManager.dialogSystem.previewDialog(currentPreviewLines, previewLineIndex)
     }
 
