@@ -976,7 +976,8 @@ class MafiaGame : ApplicationAdapter() {
 
 
     private fun updateCursorVisibility() {
-        val shouldCatchCursor = !isEditorMode && !uiManager.isPauseMenuVisible() && !uiManager.isDialogActive()
+        // MODIFIED: Replace the multiple checks with a single call to our new function
+        val shouldCatchCursor = !isEditorMode && !uiManager.isCursorRequired()
 
         // if the current state doesn't match what it should be.
         if (Gdx.input.isCursorCatched != shouldCatchCursor) {

@@ -1972,6 +1972,12 @@ class UIManager(
         }
     }
 
+    fun isCursorRequired(): Boolean {
+        // The cursor is required if the pause menu is open, a dialog is active,
+        // OR the character inventory screen is visible.
+        return isPauseMenuVisible() || isDialogActive() || (::characterInventoryUI.isInitialized && characterInventoryUI.isVisible())
+    }
+
     fun showEnemyInventory(enemy: GameEnemy) {
         // Hide other debug/selection UIs to avoid clutter
         hideAllEditorPanels()
