@@ -1,9 +1,12 @@
 package net.bagaja.mafiagame
 
+import com.badlogic.gdx.Input
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.scenes.scene2d.Actor
+import com.badlogic.gdx.scenes.scene2d.InputEvent
+import com.badlogic.gdx.scenes.scene2d.InputListener
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
@@ -134,6 +137,16 @@ class CharacterInventoryUI(
             }
         })
         window.add(closeButton).colspan(2).padTop(20f).width(120f).height(40f)
+
+        window.addListener(object : InputListener() {
+            override fun keyDown(event: InputEvent, keycode: Int): Boolean {
+                if (keycode == Input.Keys.ESCAPE) {
+                    hide()
+                    return true // The event is handled, stop it from propagating further
+                }
+                return false // The event is not handled, let other listeners have it
+            }
+        })
     }
 
     private fun setupNPCContainer() {
@@ -268,8 +281,9 @@ class CharacterInventoryUI(
 
         // Cartoon speech bubble style label background
         val labelBg = Pixmap(44, 20, Pixmap.Format.RGBA8888)
-        labelBg.setColor(Color(1f, 1f, 1f, 0.95f)) // Bright white
+        labelBg.setColor(Color(1f, 1f, 1f, 0.6f)) // Bright white
         labelBg.fill()
+
         // Thick cartoon border
         labelBg.setColor(Color(0.1f, 0.1f, 0.1f, 1f))
         labelBg.fillRectangle(0, 0, 44, 3) // Top
