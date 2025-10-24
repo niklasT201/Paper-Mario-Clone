@@ -63,7 +63,8 @@ enum class WeaponType(
     val bulletTexturePath: String?,
     val bulletSpeed: Float = 0f,
     val bulletLifetime: Float = 0f,
-    val pelletCount: Int = 1
+    val pelletCount: Int = 1,
+    val knockbackForce: Float = 0f
 ) {
     UNARMED(
         displayName = "Unarmed",
@@ -77,7 +78,8 @@ enum class WeaponType(
         allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/pig_character.png",
         bulletTexturePath = null,
-        pelletCount = 0
+        pelletCount = 0,
+        knockbackForce = 5f
     ),
     KNIFE(
         displayName = "Knife",
@@ -105,7 +107,8 @@ enum class WeaponType(
         allowsMovementWhileShooting = true,
         playerPoseTexturePath = "textures/player/weapons/baseball_bat/player_baseball_bat.png",
         bulletTexturePath = null,
-        pelletCount = 0
+        pelletCount = 0,
+        knockbackForce = 12f
     ),
     TOMMY_GUN(
         displayName = "Tommy Gun",
@@ -196,7 +199,8 @@ enum class WeaponType(
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 150f,
         bulletLifetime = 0.5f,
-        pelletCount = 8
+        pelletCount = 8,
+        knockbackForce = 15f
     ),
     LIGHT_SHOTGUN(
         displayName = "Light Shotgun",
@@ -212,7 +216,8 @@ enum class WeaponType(
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 160f,
         bulletLifetime = 0.6f,
-        pelletCount = 7
+        pelletCount = 7,
+        knockbackForce = 12f
     ),
     SMALL_SHOTGUN(
         displayName = "Small Shotgun",
@@ -228,7 +233,8 @@ enum class WeaponType(
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 140f,
         bulletLifetime = 0.4f,
-        pelletCount = 2
+        pelletCount = 2,
+        knockbackForce = 18f
     ),
     MACHINE_GUN(
         displayName = "Machine Gun",

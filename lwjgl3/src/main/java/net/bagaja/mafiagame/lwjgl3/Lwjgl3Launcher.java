@@ -70,7 +70,6 @@ public class Lwjgl3Launcher {
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // loot in barrels
 // enemy cover up ai
-// shotgun shots multiple pellets at once
 // money label visible when getting option to buy something
 // minimap for open world mode
 // Civilian npc that just follows paths. They should flee from gunfire and call the police if they see a crime

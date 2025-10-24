@@ -8,10 +8,7 @@ import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.TextureAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
-import com.badlogic.gdx.math.Intersector
-import com.badlogic.gdx.math.MathUtils
-import com.badlogic.gdx.math.Vector2
-import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.*
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
@@ -813,33 +810,49 @@ class PlayerSystem {
 
         val bulletModel = bulletModels[equippedWeapon.bulletTexturePath] ?: return
 
+        val pelletCount = equippedWeapon.pelletCount.coerceAtLeast(1)
         val directionX = if (playerCurrentRotationY == 180f) -1f else 1f
-        val velocity = Vector3(directionX * equippedWeapon.bulletSpeed, 0f, 0f)
+        val baseDirection = Vector3(directionX, 0f, 0f)
+
         val bulletSpawnOffsetX = directionX * 1.5f
         val bulletSpawnVerticalOffset = -playerSize.y * 0.1f // Lower the bullet spawn point from the player's center
         val bulletSpawnPos = physicsComponent.position.cpy().add(bulletSpawnOffsetX, bulletSpawnVerticalOffset, 0f)
 
         // Determine rotation
         val bulletRotation = if (directionX < 0) 180f else 0f
-
-        val bullet = Bullet(
-            position = bulletSpawnPos,
-            velocity = velocity,
-            modelInstance = ModelInstance(bulletModel),
-            lifetime = equippedWeapon.bulletLifetime,
-            rotationY = bulletRotation,
-            owner = this,
-            damage = equippedWeapon.damage
-        )
-
-        // Apply player damage multiplier from mission modifier
+        val damagePerPellet = equippedWeapon.damage / pelletCount
         val damageMultiplier = modifiers?.playerDamageMultiplier ?: 1.0f
-        bullet.damage *= damageMultiplier
 
-        sceneManager.activeBullets.add(bullet)
+        for (i in 0 until pelletCount) {
+            val finalDirection = if (pelletCount > 1) {
+                val spreadAngle = 12.0f
+                val randomSpread = (Random.nextFloat() - 0.5f) * spreadAngle
+                val spreadRotation = Matrix4().setToRotation(Vector3.Y, randomSpread.toFloat())
+                baseDirection.cpy().mul(spreadRotation)
+            } else {
+                baseDirection // Not a shotgun, no spread.
+            }
+
+            val velocity = finalDirection.cpy().scl(equippedWeapon.bulletSpeed)
+
+            val bullet = Bullet(
+                position = bulletSpawnPos.cpy(),
+                velocity = velocity,
+                modelInstance = ModelInstance(bulletModel),
+                lifetime = equippedWeapon.bulletLifetime,
+                rotationY = bulletRotation,
+                owner = this,
+                damage = damagePerPellet
+            )
+
+            // Apply player damage multiplier from mission modifier
+            bullet.damage *= damageMultiplier
+
+            sceneManager.activeBullets.add(bullet)
+        }
 
         // Trigger camera shake for heavy weapons
-        if (equippedWeapon == WeaponType.MACHINE_GUN || equippedWeapon == WeaponType.TOMMY_GUN) {
+        if (equippedWeapon == WeaponType.MACHINE_GUN || equippedWeapon == WeaponType.TOMMY_GUN || equippedWeapon.pelletCount > 1) {
             // This will feel like a strong, satisfying kick for each shot.
             particleSystem.sceneManager.cameraManager.startShake(duration = 0.22f, intensity = 0.35f)
         }
@@ -1705,6 +1718,7 @@ class PlayerSystem {
 
                     HitObjectType.ENEMY -> {
                         val enemy = collisionResult.hitObject as GameEnemy
+                        val weaponUsed = (bullet.owner as? PlayerSystem)?.equippedWeapon
                         val modifiers = sceneManager.game.missionSystem.activeModifiers
 
                         val damageToDeal = if (modifiers?.playerHasOneHitKills == true) {
@@ -1737,9 +1751,20 @@ class PlayerSystem {
                         if (enemy.takeDamage(damageToDeal, DamageType.GENERIC, sceneManager, this) && enemy.currentState != AIState.DYING) {
                             sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
+                        // NEW: APPLY KNOCKBACK
+                        if (weaponUsed != null && weaponUsed.knockbackForce > 0 && !enemy.isInCar) {
+                            val knockbackDirection = bullet.velocity.cpy().nor() // Direction the bullet was traveling
+                            // We scale the direction by the weapon's knockback force.
+                            // We divide by pellet count so a full blast has the intended force, not 8x the force.
+                            val forcePerPellet = weaponUsed.knockbackForce / weaponUsed.pelletCount.coerceAtLeast(1)
+                            val knockbackVector = knockbackDirection.scl(forcePerPellet)
+
+                            sceneManager.enemySystem.applyKnockback(enemy, knockbackVector)
+                        }
                     }
                     HitObjectType.NPC -> {
                         val npc = collisionResult.hitObject as GameNPC
+                        val weaponUsed = (bullet.owner as? PlayerSystem)?.equippedWeapon
                         val modifiers = sceneManager.game.missionSystem.activeModifiers
 
                         val damageToDeal = if (modifiers?.playerHasOneHitKills == true) {
@@ -1766,6 +1791,15 @@ class PlayerSystem {
                         if (npc.takeDamage(damageToDeal, DamageType.GENERIC, sceneManager) && npc.currentState != NPCState.DYING) {
                             // NPC died, remove it from the scene
                             sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
+                        }
+
+                        // NEW: APPLY KNOCKBACK
+                        if (weaponUsed != null && weaponUsed.knockbackForce > 0 && !npc.isInCar) {
+                            val knockbackDirection = bullet.velocity.cpy().nor()
+                            val forcePerPellet = weaponUsed.knockbackForce / weaponUsed.pelletCount.coerceAtLeast(1)
+                            val knockbackVector = knockbackDirection.scl(forcePerPellet)
+
+                            sceneManager.npcSystem.applyKnockback(npc, knockbackVector)
                         }
                     }
                     HitObjectType.PLAYER -> {

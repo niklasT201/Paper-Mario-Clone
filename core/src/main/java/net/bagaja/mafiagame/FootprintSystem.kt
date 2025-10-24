@@ -83,7 +83,8 @@ class FootprintSystem {
     }
 
     fun spawnFootprint(position: Vector3, rotation: Float, sceneManager: SceneManager) {
-        if (sceneManager.game.uiManager.getViolenceLevel() != ViolenceLevel.FULL_VIOLENCE) {
+        val violenceLevel = sceneManager.game.uiManager.getViolenceLevel()
+        if (violenceLevel != ViolenceLevel.FULL_VIOLENCE && violenceLevel != ViolenceLevel.ULTRA_VIOLENCE) {
             return
         }
 
