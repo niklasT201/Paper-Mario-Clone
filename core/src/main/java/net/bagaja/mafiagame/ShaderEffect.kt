@@ -160,9 +160,13 @@ class ShaderEffectManager {
         println("Shader effects are now ${if (isEffectsEnabled) "ENABLED" else "DISABLED"}")
     }
 
-    private fun setEffect(effect: ShaderEffect) {
+    fun setEffect(effect: ShaderEffect) {
         currentEffect = effect
         println("Shader effect changed to: ${effect.displayName}")
+    }
+
+    private fun setEffectInternal(effect: ShaderEffect) {
+        setEffect(effect)
     }
 
     fun getCurrentEffect(): ShaderEffect = currentEffect
@@ -171,14 +175,14 @@ class ShaderEffectManager {
         val effects = ShaderEffect.entries.toTypedArray()
         val currentIndex = effects.indexOf(currentEffect)
         val nextIndex = (currentIndex + 1) % effects.size
-        setEffect(effects[nextIndex])
+        setEffectInternal(effects[nextIndex])
     }
 
     fun previousEffect() {
         val effects = ShaderEffect.entries.toTypedArray()
         val currentIndex = effects.indexOf(currentEffect)
         val prevIndex = if (currentIndex == 0) effects.size - 1 else currentIndex - 1
-        setEffect(effects[prevIndex])
+        setEffectInternal(effects[prevIndex])
     }
 
     fun resize(width: Int, height: Int) {

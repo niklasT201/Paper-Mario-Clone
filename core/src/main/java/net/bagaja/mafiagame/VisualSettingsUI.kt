@@ -44,6 +44,7 @@ class VisualSettingsUI(
     private lateinit var violenceLevelButton: TextButton
     private lateinit var indicatorStyleButton: TextButton
     private lateinit var hudStyleButton: TextButton
+    private lateinit var shaderSelectButton: TextButton
 
     init {
         // Initialize checkboxes with vintage styling
@@ -62,6 +63,11 @@ class VisualSettingsUI(
     private fun initialize() {
         createSmokyOverlay()
         createNewspaperSettings()
+    }
+
+    private fun updateShaderSelectButtonText() {
+        val style = PlayerSettingsManager.current.selectedShader
+        shaderSelectButton.setText("Film Style: ${style.displayName}")
     }
 
     private fun updateIndicatorButtonStyle() {
@@ -123,40 +129,50 @@ class VisualSettingsUI(
         newspaperTable.add(subtitleLabel).padBottom(30f).row()
 
         // Settings section with vintage newspaper styling
-        val settingsTable = Table()
-        settingsTable.background = createSettingsBackground()
-        settingsTable.pad(25f)
+        val scrollContentTable = Table()
+        scrollContentTable.pad(25f)
 
         // Settings header
         val settingsHeaderLabel = Label("═══ DISPLAY OPTIONS ═══", skin, "default")
         settingsHeaderLabel.setAlignment(Align.center)
         settingsHeaderLabel.color = Color.valueOf("#2C1810")
-        settingsTable.add(settingsHeaderLabel).padBottom(20f).row()
+        scrollContentTable.add(settingsHeaderLabel).padBottom(20f).row()
 
         // Checkbox options with vintage styling
         val checkboxTable = Table()
-        checkboxTable.add(fullscreenCheckbox).left().padBottom(15f).row()
-        checkboxTable.add(letterboxCheckbox).left().padBottom(15f).row()
-        checkboxTable.add(cinematicBarsCheckbox).left().padBottom(15f).row()
-        checkboxTable.add(indicatorCheckbox).left().padBottom(15f).row()
-        checkboxTable.add(trajectoryCheckbox).left().padBottom(15f).row()
-        checkboxTable.add(meleeRangeCheckbox).left().padBottom(15f).row()
-        checkboxTable.add(muzzleFlashCheckbox).left().padBottom(10f).row()
+        checkboxTable.defaults().left().padBottom(15f) // Set defaults for all checkboxes in this table
+        checkboxTable.add(fullscreenCheckbox).row()
+        checkboxTable.add(letterboxCheckbox).row()
+        checkboxTable.add(cinematicBarsCheckbox).row()
+        checkboxTable.add(indicatorCheckbox).row()
+        checkboxTable.add(trajectoryCheckbox).row()
+        checkboxTable.add(meleeRangeCheckbox).row()
+        checkboxTable.add(muzzleFlashCheckbox).row()
 
-        settingsTable.add(checkboxTable).fillX().row()
+        scrollContentTable.add(checkboxTable).fillX().row()
+
+        shaderSelectButton = createVintageButton("Film Style: Default", Color.valueOf("#4A4A4A"))
+        scrollContentTable.add(shaderSelectButton).width(320f).height(50f).padTop(20f).row()
 
         violenceLevelButton = createVintageButton("Violence: Full", Color.valueOf("#654321"))
         updateViolenceButtonText() // Set initial text
-        settingsTable.add(violenceLevelButton).width(320f).height(50f).padTop(10f).row()
+        scrollContentTable.add(violenceLevelButton).width(320f).height(50f).padTop(10f).row()
 
         // Melee Indicator Style Button
         indicatorStyleButton = createVintageButton("Melee Style: Solid", Color.valueOf("#654321"))
         updateIndicatorButtonStyle() // Set initial text
-        settingsTable.add(indicatorStyleButton).width(320f).height(50f).padTop(20f).row()
-        hudStyleButton = createVintageButton("HUD Style: Poster", Color.valueOf("#654321"))
-        settingsTable.add(hudStyleButton).width(320f).height(50f).padTop(10f).row()
+        scrollContentTable.add(indicatorStyleButton).width(320f).height(50f).padTop(10f).row()
 
-        newspaperTable.add(settingsTable).width(380f).padBottom(25f).row()
+        hudStyleButton = createVintageButton("HUD Style: Poster", Color.valueOf("#654321"))
+        scrollContentTable.add(hudStyleButton).width(320f).height(50f).padTop(10f).row()
+
+        // 3. Create the ScrollPane and put the scrollContentTable inside it.
+        val scrollPane = ScrollPane(scrollContentTable, skin)
+        scrollPane.setScrollingDisabled(true, false) // Disable horizontal, enable vertical scrolling
+        scrollPane.fadeScrollBars = false // Keep scrollbar visible for clarity
+        scrollPane.variableSizeKnobs = false // Keeps the scroll knob a consistent size
+
+        newspaperTable.add(scrollPane).width(420f).height(350f).padBottom(25f).row()
 
         // Back button with vintage styling
         backButton = createVintageButton("⬅ RETURN TO PAUSE MENU ⬅", Color.valueOf("#8B0000"))
@@ -522,6 +538,8 @@ class VisualSettingsUI(
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 val mode = if (fullscreenCheckbox.isChecked) CameraManager.DisplayMode.FULLSCREEN else CameraManager.DisplayMode.WINDOWED
                 cameraManager.setDisplayMode(mode)
+                PlayerSettingsManager.current.fullscreen = fullscreenCheckbox.isChecked
+                PlayerSettingsManager.save()
             }
         })
 
@@ -529,12 +547,16 @@ class VisualSettingsUI(
         letterboxCheckbox.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 uiManager.toggleLetterbox()
+                PlayerSettingsManager.current.letterbox = letterboxCheckbox.isChecked
+                PlayerSettingsManager.save()
             }
         })
 
         cinematicBarsCheckbox.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 uiManager.toggleCinematicBars()
+                PlayerSettingsManager.current.cinematicBars = cinematicBarsCheckbox.isChecked
+                PlayerSettingsManager.save()
             }
         })
 
@@ -542,6 +564,8 @@ class VisualSettingsUI(
         indicatorCheckbox.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 targetingIndicatorSystem.toggle()
+                PlayerSettingsManager.current.targetingIndicator = indicatorCheckbox.isChecked
+                PlayerSettingsManager.save()
             }
         })
 
@@ -549,18 +573,31 @@ class VisualSettingsUI(
         trajectoryCheckbox.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 trajectorySystem.toggle()
+                PlayerSettingsManager.current.trajectoryArc = trajectoryCheckbox.isChecked
+                PlayerSettingsManager.save()
             }
         })
 
         meleeRangeCheckbox.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 meleeRangeIndicatorSystem.toggle()
+                PlayerSettingsManager.current.meleeRangeIndicator = meleeRangeCheckbox.isChecked
+                PlayerSettingsManager.save()
             }
         })
 
         muzzleFlashCheckbox.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 playerSystem.toggleMuzzleFlashLight()
+                PlayerSettingsManager.current.muzzleFlashLight = muzzleFlashCheckbox.isChecked
+                PlayerSettingsManager.save()
+            }
+        })
+
+        // shader selection button
+        shaderSelectButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                showShaderSelectionDialog()
             }
         })
 
@@ -568,6 +605,8 @@ class VisualSettingsUI(
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 uiManager.cycleViolenceLevel()
                 updateViolenceButtonText()
+                PlayerSettingsManager.current.violenceLevel = uiManager.getViolenceLevel()
+                PlayerSettingsManager.save()
             }
         })
 
@@ -580,6 +619,8 @@ class VisualSettingsUI(
                 }
                 meleeRangeIndicatorSystem.setStyle(nextStyle)
                 updateIndicatorButtonStyle()
+                PlayerSettingsManager.current.meleeIndicatorStyle = nextStyle
+                PlayerSettingsManager.save()
             }
         })
 
@@ -591,23 +632,70 @@ class VisualSettingsUI(
                 }
                 uiManager.setHudStyle(nextStyle)
                 updateHudStyleButtonText()
+                PlayerSettingsManager.current.hudStyle = nextStyle
+                PlayerSettingsManager.save()
             }
         })
     }
 
+    private fun showShaderSelectionDialog() {
+        val dialog = Dialog("Select Film Style", skin, "dialog")
+        dialog.isMovable = true
+
+        val list = List<String>(skin)
+        list.setItems(*ShaderEffect.entries.map { it.displayName }.toTypedArray())
+        list.selected = PlayerSettingsManager.current.selectedShader.displayName
+
+        val scrollPane = ScrollPane(list, skin)
+        scrollPane.fadeScrollBars = false
+
+        dialog.contentTable.add(scrollPane).width(350f).height(400f)
+
+        // Apply changes when an item is clicked
+        list.addListener(object: ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                val selectedEffect = ShaderEffect.entries.find { it.displayName == list.selected } ?: ShaderEffect.NONE
+                uiManager.shaderEffectManager.setEffect(selectedEffect)
+                PlayerSettingsManager.current.selectedShader = selectedEffect
+                PlayerSettingsManager.save()
+                updateShaderSelectButtonText()
+                dialog.hide()
+            }
+        })
+
+        dialog.button("Close")
+        dialog.show(uiManager.getStage())
+    }
+
     fun show(stage: Stage) {
         // Update checkbox states
-        fullscreenCheckbox.isChecked = cameraManager.currentDisplayMode == CameraManager.DisplayMode.FULLSCREEN
-        letterboxCheckbox.isChecked = uiManager.isLetterboxEnabled()
-        cinematicBarsCheckbox.isChecked = uiManager.isCinematicBarsEnabled()
-        indicatorCheckbox.isChecked = targetingIndicatorSystem.isEnabled()
-        trajectoryCheckbox.isChecked = trajectorySystem.isEnabled()
-        meleeRangeCheckbox.isChecked = meleeRangeIndicatorSystem.isEnabled()
-        muzzleFlashCheckbox.isChecked = playerSystem.isMuzzleFlashLightEnabled()
+        val settings = PlayerSettingsManager.current
+        fullscreenCheckbox.isChecked = settings.fullscreen
+        letterboxCheckbox.isChecked = settings.letterbox
+        cinematicBarsCheckbox.isChecked = settings.cinematicBars
+        indicatorCheckbox.isChecked = settings.targetingIndicator
+        trajectoryCheckbox.isChecked = settings.trajectoryArc
+        meleeRangeCheckbox.isChecked = settings.meleeRangeIndicator
+        muzzleFlashCheckbox.isChecked = settings.muzzleFlashLight
+
+        // Apply the settings to the actual game systems
+        cameraManager.setDisplayMode(if(settings.fullscreen) CameraManager.DisplayMode.FULLSCREEN else CameraManager.DisplayMode.WINDOWED)
+        if (uiManager.isLetterboxEnabled() != settings.letterbox) uiManager.toggleLetterbox()
+        if (uiManager.isCinematicBarsEnabled() != settings.cinematicBars) uiManager.toggleCinematicBars()
+        if (targetingIndicatorSystem.isEnabled() != settings.targetingIndicator) targetingIndicatorSystem.toggle()
+        if (trajectorySystem.isEnabled() != settings.trajectoryArc) trajectorySystem.toggle()
+        if (meleeRangeIndicatorSystem.isEnabled() != settings.meleeRangeIndicator) meleeRangeIndicatorSystem.toggle()
+        if (playerSystem.isMuzzleFlashLightEnabled() != settings.muzzleFlashLight) playerSystem.toggleMuzzleFlashLight()
+
+        uiManager.setHudStyle(settings.hudStyle)
+        uiManager.setViolenceLevel(settings.violenceLevel) // Need to add this setter to UIManager
+        meleeRangeIndicatorSystem.setStyle(settings.meleeIndicatorStyle)
+
+        // Update button texts
         updateViolenceButtonText()
         updateIndicatorButtonStyle()
         updateHudStyleButtonText()
-        stage.addActor(overlay)
+        updateShaderSelectButtonText()
 
         // Add to stage
         stage.addActor(overlay)

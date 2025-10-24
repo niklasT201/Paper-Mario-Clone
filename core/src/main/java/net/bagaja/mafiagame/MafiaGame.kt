@@ -102,17 +102,20 @@ class MafiaGame : ApplicationAdapter() {
 
     override fun create() {
         // --- Part 1: Initialize Core Systems ---
+        PlayerSettingsManager.load()
+
         dialogueManager = DialogueManager()
         setupGraphics() // This initializes cameraManager and lightingManager
         shaderEffectManager = ShaderEffectManager()
         shaderEffectManager.initialize()
+        shaderEffectManager.setEffect(PlayerSettingsManager.current.selectedShader)
         saveLoadSystem = SaveLoadSystem(this)
 
         // UIManager creation
         uiManager = UIManager(this, shaderEffectManager)
         uiManager.initializeUI()
 
-        // --- NEW: Create InputHandler early with minimal dependencies ---
+        // Create InputHandler early with minimal dependencies
         inputHandler = InputHandler(this, uiManager)
 
         // --- Part 2: Decide Game Mode ---

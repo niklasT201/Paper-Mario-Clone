@@ -1996,6 +1996,10 @@ class UIManager(
         currentViolenceLevel = ViolenceLevel.entries[nextOrdinal]
     }
 
+    fun setViolenceLevel(level: ViolenceLevel) {
+        currentViolenceLevel = level
+    }
+
     fun getViolenceLevel(): ViolenceLevel = currentViolenceLevel
 
     fun updateTriggerRadiusField(newRadius: Float) {

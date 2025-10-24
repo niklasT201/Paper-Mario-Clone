@@ -62,9 +62,7 @@ public class Lwjgl3Launcher {
 // maybe improving billboard shader
 // south park like animation
 // Persistence & Consequences
-// Save and Load Player Progress
 // fire in rooms and mission not being connected right with its light source
-// save shaders and visual settings
 // visual screen for finished mission
 // nickelodeons having real short films
 // weather events
