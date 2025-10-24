@@ -167,10 +167,10 @@ class VisualSettingsUI(
         scrollContentTable.add(hudStyleButton).width(320f).height(50f).padTop(10f).row()
 
         // 3. Create the ScrollPane and put the scrollContentTable inside it.
-        val scrollPane = ScrollPane(scrollContentTable, skin)
-        scrollPane.setScrollingDisabled(true, false) // Disable horizontal, enable vertical scrolling
-        scrollPane.fadeScrollBars = false // Keep scrollbar visible for clarity
-        scrollPane.variableSizeKnobs = false // Keeps the scroll knob a consistent size
+        val scrollPane = ScrollPane(scrollContentTable, skin, "vintage-newspaper")
+        scrollPane.setScrollingDisabled(true, false)
+        scrollPane.fadeScrollBars = false
+        scrollPane.variableSizeKnobs = false
 
         newspaperTable.add(scrollPane).width(420f).height(350f).padBottom(25f).row()
 

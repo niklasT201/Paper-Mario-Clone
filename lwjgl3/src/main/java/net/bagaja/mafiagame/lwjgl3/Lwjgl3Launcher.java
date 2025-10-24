@@ -61,6 +61,7 @@ public class Lwjgl3Launcher {
 // step up stair
 // maybe improving billboard shader
 // south park like animation
+// shader dialog fitting to visual settings design
 // Persistence & Consequences
 // fire in rooms and mission not being connected right with its light source
 // visual screen for finished mission

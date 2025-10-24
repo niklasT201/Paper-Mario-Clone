@@ -29,6 +29,7 @@ object UISkinFactory {
                 // Update all styles with the custom font
                 updateAllStylesWithFont(loadedSkin, customFont)
                 addEnhancedLabelStyles(loadedSkin, customFont)
+                addVintageScrollPaneStyle(loadedSkin)
 
                 println("Custom font loaded and all styles patched successfully.")
 
@@ -163,6 +164,35 @@ object UISkinFactory {
 
         // Legacy styles for compatibility
         addLegacyLabelStyles(skin, font)
+    }
+
+    private fun addVintageScrollPaneStyle(skin: Skin) {
+        val style = ScrollPane.ScrollPaneStyle()
+
+        // 1. Create the background for the scroll track (the "vScroll" drawable)
+        val trackPixmap = Pixmap(10, 100, Pixmap.Format.RGBA8888)
+        trackPixmap.setColor(Color.valueOf("#4B3E2A")) // Dark, aged wood/metal color
+        trackPixmap.fill()
+        // Add a subtle inner shadow for depth
+        trackPixmap.setColor(Color.valueOf("#2C1810")) // Darker brown
+        trackPixmap.fillRectangle(0, 0, 3, 100)
+        trackPixmap.fillRectangle(7, 0, 3, 100)
+        style.vScroll = TextureRegionDrawable(Texture(trackPixmap))
+        trackPixmap.dispose()
+
+        // 2. Create the scroll knob (the part you drag, the "vScrollKnob" drawable)
+        val knobPixmap = Pixmap(10, 30, Pixmap.Format.RGBA8888)
+        knobPixmap.setColor(Color.valueOf("#8B6914")) // Dark gold/brass color
+        knobPixmap.fill()
+        // Add a highlight to make it look metallic
+        knobPixmap.setColor(Color.valueOf("#CD7F32")) // Brighter bronze/brass
+        knobPixmap.fillRectangle(1, 1, 8, 2) // Top highlight
+        knobPixmap.fillRectangle(1, 1, 2, 28) // Left highlight
+        style.vScrollKnob = TextureRegionDrawable(Texture(knobPixmap))
+        knobPixmap.dispose()
+
+        // Add the newly created style to the skin with a unique name
+        skin.add("vintage-newspaper", style)
     }
 
     /**
