@@ -986,6 +986,16 @@ class EnemySystem : IFinePositionable {
             return
         }
 
+        // If the enemy is on fire, ignore all other logic and just run away from the player.
+        if (enemy.isOnFire) {
+            val playerPos = playerSystem.getPosition()
+            val awayDirection = enemy.physics.position.cpy().sub(playerPos).nor()
+
+            // Immediately update physics and exit the AI routine for this frame.
+            characterPhysicsSystem.update(enemy.physics, awayDirection, deltaTime)
+            return
+        }
+
         val modifiers = sceneManager.game.missionSystem.activeModifiers
         val behaviorToUse = modifiers?.overrideEnemyBehavior ?: enemy.currentBehavior
 
@@ -1142,18 +1152,12 @@ class EnemySystem : IFinePositionable {
 
         if (enemy.pathRequestTimer <= 0f) {
             var targetPosition: Vector3? = null
-            if (enemy.isOnFire) {
-                // Flee from fire
-                val closestFire = sceneManager.game.fireSystem.activeFires.minByOrNull { it.gameObject.position.dst2(enemy.position) }
-                if (closestFire != null) {
-                    val awayDir = enemy.position.cpy().sub(closestFire.gameObject.position).nor()
-                    targetPosition = enemy.position.cpy().add(awayDir.scl(FIRE_FLEE_DISTANCE))
-                }
-            } else if (distanceToPlayer < SHOOTER_MIN_DISTANCE) {
+
+            if (distanceToPlayer < SHOOTER_MIN_DISTANCE) {
                 // Too close, back away
                 val awayDir = enemy.position.cpy().sub(playerPos).nor()
                 targetPosition = enemy.position.cpy().add(awayDir.scl(SHOOTER_IDEAL_DISTANCE))
-            } else if (!hasLineOfSight) {
+            } else if (!hasLineOfSight) { // hasLineOfSight is calculated in your existing shooting logic
                 // Can't see player, move to a position where we might
                 targetPosition = playerPos
             }
@@ -1206,36 +1210,22 @@ class EnemySystem : IFinePositionable {
         enemy.pathRequestTimer -= deltaTime
         if (enemy.pathRequestTimer <= 0f) {
             var targetPosition: Vector3? = null
-            if (enemy.isOnFire) {
-                // Flee from fire if burning
-                val closestFire = sceneManager.game.fireSystem.activeFires.minByOrNull { it.gameObject.position.dst2(enemy.position) }
-                if (closestFire != null) {
-                    val awayDir = enemy.position.cpy().sub(closestFire.gameObject.position).nor()
-                    targetPosition = enemy.position.cpy().add(awayDir.scl(FIRE_FLEE_DISTANCE))
-                }
-            } else {
-                // The target is always the player
-                targetPosition = playerPos
-            }
 
-            if (targetPosition != null) {
-                // Try to find a path
-                val foundPath = pathfindingSystem.findPath(enemy.position, targetPosition)
-                if (!foundPath.isNullOrEmpty()) {
-                    enemy.path = foundPath
-                    enemy.waypoint = enemy.path.poll()
-                } else {
-                    // Pathfinding failed or returned an empty path
-                    enemy.path.clear()
-                    enemy.waypoint = targetPosition // The waypoint is now the final destination
-                    println("${enemy.enemyType.displayName} couldn't find a path, moving directly towards target.")
-                }
-                enemy.pathRequestTimer = PATH_RECALCULATION_INTERVAL
+            // The target is always the player
+            targetPosition = playerPos
+
+            // Try to find a path
+            val foundPath = pathfindingSystem.findPath(enemy.position, targetPosition)
+            if (!foundPath.isNullOrEmpty()) {
+                enemy.path = foundPath
+                enemy.waypoint = enemy.path.poll()
             } else {
-                // If there's no reason to move (e.g., already in melee range), clear the path.
+                // Pathfinding failed or returned an empty path
                 enemy.path.clear()
-                enemy.waypoint = null
+                enemy.waypoint = targetPosition // The waypoint is now the final destination
+                println("${enemy.enemyType.displayName} couldn't find a path, moving directly towards target.")
             }
+            enemy.pathRequestTimer = PATH_RECALCULATION_INTERVAL
         }
 
         // MOVEMENT EXECUTION

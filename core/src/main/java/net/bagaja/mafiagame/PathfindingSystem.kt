@@ -80,12 +80,12 @@ class PathfindingSystem(
 
         // Check for fire (high cost but walkable)
         sceneManager.game.fireSystem.activeFires.forEach { fire ->
-            if (fire.gameObject.position.dst(position) < fire.damageRadius) {
+            // Use a slightly larger radius for avoidance than the actual damage radius
+            val avoidanceRadius = fire.damageRadius * 1.5f
+            if (fire.gameObject.position.dst(position) < avoidanceRadius) {
                 cost += 200 // Add a high penalty for walking through fire
             }
         }
-
-        // You could add checks for other characters here to encourage them to spread out
 
         return cost
     }

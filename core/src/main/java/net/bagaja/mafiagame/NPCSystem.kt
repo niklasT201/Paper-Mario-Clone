@@ -964,18 +964,8 @@ class NPCSystem : IFinePositionable {
         var desiredMovement = Vector3.Zero  // Default to no movement
 
         if (npc.isOnFire) {
-            // Find the closest fire to run away from
-            val closestFire = sceneManager.game.fireSystem.activeFires.minByOrNull { it.gameObject.position.dst2(npc.position) }
-            if (closestFire != null) {
-                val awayDirection = npc.physics.position.cpy().sub(closestFire.gameObject.position).nor()
-                desiredMovement = awayDirection
-            } else {
-                // No fire found? Just run in a random direction.
-                if (npc.targetPosition == null || npc.physics.position.dst2(npc.targetPosition!!) < 4f) {
-                    npc.targetPosition = npc.position.cpy().add((Random.nextFloat() - 0.5f) * 20f, 0f, (Random.nextFloat() - 0.5f) * 20f)
-                }
-                desiredMovement = npc.targetPosition!!.cpy().sub(npc.physics.position).nor()
-            }
+            val awayDirection = npc.physics.position.cpy().sub(playerPos).nor()
+            desiredMovement = awayDirection
         }
 
         else if (npc.currentState == NPCState.FLEEING) {
