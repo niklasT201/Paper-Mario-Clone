@@ -505,6 +505,27 @@ class MissionEditorUI(
         worldTable.add(civiliansFlee).colspan(2).left().row()
         worldTable.add(increasedSpawns).colspan(2).left().row()
 
+        val weatherTable = Table(skin)
+        weatherTable.add(Label("[BLUE]--- Weather Modifiers ---", skin)).colspan(2).left().padTop(10f).padBottom(5f).row()
+        val overrideWeatherCheckbox = CheckBox(" Override Weather", skin).apply { isChecked = mission.modifiers.overrideRainIntensity != null }
+        val intensityField = TextField(mission.modifiers.overrideRainIntensity?.toString() ?: "0.0", skin)
+        val durationField = TextField(mission.modifiers.rainDuration?.toString() ?: "", skin).apply { messageText = "Infinite" }
+        val delayField = TextField(mission.modifiers.rainStartDelay?.toString() ?: "", skin).apply { messageText = "Immediate" }
+
+        weatherTable.add(overrideWeatherCheckbox).colspan(2).left().row()
+        val settingsTable = Table(skin)
+        settingsTable.add("Intensity (0-1):"); settingsTable.add(intensityField).width(60f).padRight(10f)
+        settingsTable.add("Duration (s):"); settingsTable.add(durationField).width(60f).padRight(10f)
+        settingsTable.add("Delay (s):"); settingsTable.add(delayField).width(60f)
+        weatherTable.add(settingsTable).colspan(2).left().row()
+        settingsTable.isVisible = overrideWeatherCheckbox.isChecked // Show/hide based on checkbox
+
+        overrideWeatherCheckbox.addListener {
+            settingsTable.isVisible = overrideWeatherCheckbox.isChecked
+            dialog.pack()
+            true
+        }
+
         val freezeTimeCheckbox = CheckBox(" Freeze Time of Day", skin).apply { isChecked = mission.modifiers.freezeTimeAt != null }
         val timeSlider = Slider(0f, 1f, 0.01f, false, skin).apply { value = mission.modifiers.freezeTimeAt ?: 0.5f }
         val timeSliderTable = Table(skin).apply{ add(freezeTimeCheckbox).left(); add(timeSlider).growX() }
@@ -520,7 +541,8 @@ class MissionEditorUI(
         // Assemble main layout
         content.add(playerTable).top().padRight(15f)
         content.add(vehicleTable).top().padRight(15f)
-        content.add(worldTable).top()
+        content.add(worldTable).top().row() // Add a .row() here
+        content.add(weatherTable).top().colspan(3)
 
         val scrollPane = ScrollPane(content, skin)
         scrollPane.fadeScrollBars = false
@@ -557,6 +579,17 @@ class MissionEditorUI(
                 mission.modifiers.overrideNpcBehavior = NPCBehavior.entries.find { it.displayName == overrideNpcBehaviorSelectBox.selected }
                 mission.modifiers.playerHasOneHitKills = playerOneHitKills.isChecked
                 mission.modifiers.enemiesHaveOneHitKills = enemyOneHitKills.isChecked
+
+                // ADD THIS NEW LOGIC TO SAVE WEATHER MODIFIERS
+                if (overrideWeatherCheckbox.isChecked) {
+                    mission.modifiers.overrideRainIntensity = intensityField.text.toFloatOrNull()?.coerceIn(0f, 1f) ?: 0f
+                    mission.modifiers.rainDuration = durationField.text.toFloatOrNull()
+                    mission.modifiers.rainStartDelay = delayField.text.toFloatOrNull()
+                } else {
+                    mission.modifiers.overrideRainIntensity = null
+                    mission.modifiers.rainDuration = null
+                    mission.modifiers.rainStartDelay = null
+                }
 
                 uiManager.showTemporaryMessage("Modifiers updated for '${mission.title}'")
                 dialog.hide()
@@ -829,6 +862,8 @@ class MissionEditorUI(
         val dialogIdSelect = SelectBox<String>(skin).apply { items = GdxArray(missionSystem.getAllDialogueIds().toTypedArray()); selected = existingEvent?.dialogId }
         val weaponTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(WeaponType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.weaponType?.displayName }
         val ammoAmountField = TextField(existingEvent?.ammoAmount?.toString() ?: "0", skin).apply { messageText = "Default" }
+        val rainIntensityField = TextField(existingEvent?.rainIntensity?.toString() ?: "0.8", skin)
+        val rainDurationField = TextField(existingEvent?.rainDuration?.toString() ?: "", skin).apply { messageText = "Infinite" }
 
         // --- Layout Tables ---
         val targetIdTable = Table(skin).apply { add("Target/Spawn ID:"); add(targetIdField).growX() }
@@ -899,6 +934,10 @@ class MissionEditorUI(
             add("Weapon:"); add(weaponTypeSelect).growX().row()
             add("Ammo Amount:"); add(ammoAmountField).width(80f).left().row()
         }
+        val weatherSettingsTable = Table(skin).apply {
+            add("Rain Intensity (0-1):"); add(rainIntensityField).width(80f).row()
+            add("Duration (s):"); add(rainDurationField).width(80f).row()
+        }
 
         // --- ENEMY DIALOG UI (created once) ---
         val enemyInteractionTable = Table(skin).apply { add(Label("--- Standalone Interaction ---", skin, "title")).colspan(2).center().padTop(10f).row() }
@@ -943,7 +982,7 @@ class MissionEditorUI(
         npcSettingsTable.add(npcInteractionTable).colspan(2).padTop(10f).row()
 
 
-        val settingsStack = Stack(enemySettingsTable, npcSettingsTable, carSettingsTable, itemSettingsTable, moneySettingsTable, houseSettingsTable, objectSettingsTable, blockSettingsTable, dialogSettingsTable, weaponSettingsTable)
+        val settingsStack = Stack(enemySettingsTable, npcSettingsTable, carSettingsTable, itemSettingsTable, moneySettingsTable, houseSettingsTable, objectSettingsTable, blockSettingsTable, dialogSettingsTable, weaponSettingsTable, weatherSettingsTable)
 
         content.add("Event Type:"); content.add(typeSelect).row()
         content.add(targetIdTable).colspan(2).growX().row()
@@ -969,6 +1008,7 @@ class MissionEditorUI(
             blockSettingsTable.isVisible = type == GameEventType.SPAWN_BLOCK
             dialogSettingsTable.isVisible = type == GameEventType.START_DIALOG
             weaponSettingsTable.isVisible = type in listOf(GameEventType.GIVE_WEAPON, GameEventType.FORCE_EQUIP_WEAPON)
+            weatherSettingsTable.isVisible = type == GameEventType.SET_WEATHER
 
             // Dynamic visibility within panels
             lightSettingsTable.isVisible = ObjectType.entries.find { it.displayName == objectTypeSelect.selected } == ObjectType.LIGHT_SOURCE
@@ -1098,6 +1138,10 @@ class MissionEditorUI(
                         weaponType = WeaponType.entries.find { it.displayName == weaponTypeSelect.selected },
                         ammoAmount = ammoAmountField.text.toIntOrNull()
                     )
+                    GameEventType.SET_WEATHER -> baseEvent.copy(
+                        rainIntensity = rainIntensityField.text.toFloatOrNull()?.coerceIn(0f, 1f),
+                        rainDuration = rainDurationField.text.toFloatOrNull()
+                    )
                     else -> baseEvent
                 }
                 onSave(finalEvent)
@@ -1154,6 +1198,11 @@ class MissionEditorUI(
             GameEventType.CLEAR_INVENTORY -> "CLEAR PLAYER INVENTORY"
             GameEventType.SPAWN_CAR_PATH_NODE -> "SPAWN Car Path Node (ID: ${event.pathNodeId})"
             GameEventType.SPAWN_CHARACTER_PATH_NODE -> "SPAWN Char Path Node (ID: ${event.pathNodeId})"
+            GameEventType.SET_WEATHER -> {
+                val intensity = event.rainIntensity ?: 0f
+                val durationText = event.rainDuration?.let { "for ${it}s" } ?: "(Infinite)"
+                "SET WEATHER: Rain to %.1f %s".format(intensity, durationText)
+            }
         }
 
         table.add(Label(text, skin)).growX()

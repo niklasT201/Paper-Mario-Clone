@@ -9,17 +9,19 @@ import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.Disposable
 import kotlin.random.Random
 
-/**
- * Manages weather effects, starting with rain.
- */
-class WeatherSystem : Disposable {
+// Represents the natural weather state
+private enum class WeatherState {
+    CLEAR,
+    RAINING
+}
 
-    // A simple data class to hold the state of a single raindrop
+class WeatherSystem : Disposable {
     private data class Raindrop(
         val instance: ModelInstance,
         val position: Vector3 = Vector3(),
@@ -29,20 +31,38 @@ class WeatherSystem : Disposable {
     private lateinit var rainModel: Model
     private lateinit var modelBatch: ModelBatch
     private lateinit var camera: Camera
-    lateinit var lightingManager: LightingManager // Dependency Injected from MafiaGame
+    lateinit var lightingManager: LightingManager
 
     private val raindrops = Array<Raindrop>()
     private val renderableInstances = Array<ModelInstance>()
 
+    // --- Weather State ---
+    private var worldRainIntensity = 0f // The "true" intensity of rain in the world.
+    private var currentRainIntensity = 0f // The visually rendered intensity (fades in/out).
+    private var targetRainIntensity = 0f  // The intensity the world is transitioning towards.
+    private var weatherState = WeatherState.CLEAR
+
+    // --- Random Weather Logic ---
+    private var isRandomWeatherEnabled = true
+    private var weatherChangeTimer = 0f
+    private val timeBetweenWeatherChecks = 60f // Check for a weather change every 60 seconds.
+    private val chanceToStartRaining = 0.25f   // 25% chance to start raining when clear.
+    private val chanceToStopRaining = 0.50f    // 50% chance to stop raining when it is.
+
+    // --- Mission Control Logic ---
+    private var isMissionControlled = false
+    private var missionRainDelayTimer = -1f
+    private var missionRainDurationTimer = -1f
+
     // --- Configuration ---
-    private var rainIntensity = 0f // 0.0f (no rain) to 1.0f (heavy rain)
-    private val maxRaindrops = 2000 // The maximum number of drops for the heaviest rain
-    private val rainAreaSize = Vector3(120f, 60f, 120f) // The box around the player where rain exists
-    private val rainColor = Color(0.7f, 0.8f, 1.0f, 0.5f) // Bluish, semi-transparent
+    private val maxRaindrops = 2000
+    private val rainAreaSize = Vector3(120f, 60f, 120f)
+    private val rainColor = Color(0.7f, 0.8f, 1.0f, 0.5f)
 
     fun initialize(camera: Camera) {
         this.camera = camera
         this.modelBatch = ModelBatch()
+        weatherChangeTimer = timeBetweenWeatherChecks // Start the timer
 
         // Create a single, reusable model for all raindrops (a simple vertical line)
         val modelBuilder = ModelBuilder()
@@ -64,21 +84,6 @@ class WeatherSystem : Disposable {
         }
     }
 
-    /**
-     * Sets the intensity of the rain.
-     * @param intensity A value from 0.0 (off) to 1.0 (heavy).
-     */
-    fun setRainIntensity(intensity: Float) {
-        this.rainIntensity = intensity.coerceIn(0f, 1f)
-        // Inform the LightingManager to adjust the sky color
-        lightingManager.setRainFactor(this.rainIntensity)
-    }
-
-    fun getRainIntensity(): Float = this.rainIntensity
-
-    /**
-     * Resets a raindrop to a new random position at the top of the rain area.
-     */
     private fun resetRaindrop(drop: Raindrop, initialSpawn: Boolean = false) {
         val rainCenter = camera.position
         val halfSize = rainAreaSize.cpy().scl(0.5f)
@@ -100,31 +105,92 @@ class WeatherSystem : Disposable {
         drop.velocity.set(0f, -(baseSpeed + Random.nextFloat() * speedVariance), 0f)
     }
 
-    fun update(deltaTime: Float) {
-        if (rainIntensity == 0f) return
+    fun update(deltaTime: Float, isInInterior: Boolean) {
+        // --- 1. Handle Master Weather State (Random or Mission) ---
+        if (isMissionControlled) {
+            handleMissionWeather(deltaTime)
+        } else if (isRandomWeatherEnabled) {
+            handleRandomWeather(deltaTime)
+        }
 
-        val rainCenter = camera.position
-        val bottomY = rainCenter.y - rainAreaSize.y / 2f
-        val activeDropCount = (maxRaindrops * rainIntensity).toInt()
+        // --- 2. Smoothly transition the "world" weather towards its target ---
+        worldRainIntensity = Interpolation.fade.apply(worldRainIntensity, targetRainIntensity, 0.1f * deltaTime)
 
-        // Update only the active raindrops
-        for (i in 0 until activeDropCount) {
-            val drop = raindrops.get(i)
+        // --- 3. Smoothly transition the "visual" weather based on location (inside/outside) ---
+        val visualTarget = if (isInInterior) 0f else worldRainIntensity
+        currentRainIntensity = Interpolation.fade.apply(currentRainIntensity, visualTarget, 2.0f * deltaTime)
 
-            // Move the drop
-            drop.position.mulAdd(drop.velocity, deltaTime)
+        // --- 4. Update the lighting manager with the current VISUAL intensity ---
+        lightingManager.setRainFactor(currentRainIntensity)
 
-            // If the drop has fallen below the rain area, reset it
-            if (drop.position.y < bottomY) {
-                resetRaindrop(drop)
+        // --- 5. Update particle physics if there is visible rain ---
+        if (currentRainIntensity > 0.01f) {
+            val rainCenter = camera.position
+            val bottomY = rainCenter.y - rainAreaSize.y / 2f
+            val activeDropCount = (maxRaindrops * currentRainIntensity).toInt()
+
+            // Update only the active raindrops
+            for (i in 0 until activeDropCount) {
+                val drop = raindrops.get(i)
+
+                // Move the drop
+                drop.position.mulAdd(drop.velocity, deltaTime)
+
+                // If the drop has fallen below the rain area, reset it
+                if (drop.position.y < bottomY) {
+                    resetRaindrop(drop)
+                }
+            }
+        }
+    }
+
+    private fun handleRandomWeather(deltaTime: Float) {
+        weatherChangeTimer -= deltaTime
+        if (weatherChangeTimer <= 0) {
+            weatherChangeTimer = timeBetweenWeatherChecks // Reset timer
+
+            if (weatherState == WeatherState.CLEAR) {
+                if (Random.nextFloat() < chanceToStartRaining) {
+                    println("Weather: It's starting to rain.")
+                    weatherState = WeatherState.RAINING
+                    targetRainIntensity = Random.nextFloat() * 0.7f + 0.3f // Random heavy rain (0.3 to 1.0)
+                }
+            } else { // It's raining
+                if (Random.nextFloat() < chanceToStopRaining) {
+                    println("Weather: The rain is stopping.")
+                    weatherState = WeatherState.CLEAR
+                    targetRainIntensity = 0f
+                }
+            }
+        }
+    }
+
+    private fun handleMissionWeather(deltaTime: Float) {
+        // Handle delayed start
+        if (missionRainDelayTimer > 0) {
+            missionRainDelayTimer -= deltaTime
+            if (missionRainDelayTimer <= 0) {
+                println("Mission Weather: Delay finished, starting rain.")
+                worldRainIntensity = targetRainIntensity // Snap to target intensity after delay
+            }
+            return // Don't process duration while in delay
+        }
+
+        // Handle timed duration
+        if (missionRainDurationTimer > 0) {
+            missionRainDurationTimer -= deltaTime
+            if (missionRainDurationTimer <= 0) {
+                println("Mission Weather: Timed rain finished.")
+                targetRainIntensity = 0f // Start fading out
+                // Once it's faded, the mission override will be cleared.
             }
         }
     }
 
     fun render(environment: Environment) {
-        if (rainIntensity == 0f) return
+        if (currentRainIntensity < 0.01f) return
 
-        val activeDropCount = (maxRaindrops * rainIntensity).toInt()
+        val activeDropCount = (maxRaindrops * currentRainIntensity).toInt()
         if (activeDropCount == 0) return
 
         renderableInstances.clear()
@@ -148,6 +214,43 @@ class WeatherSystem : Disposable {
         Gdx.gl.glDepthMask(true)
         Gdx.gl.glDisable(GL20.GL_BLEND)
     }
+
+    // --- PUBLIC API for Mission Control ---
+
+    /** Forcibly sets the weather, disabling random weather. Called by missions. */
+    fun setMissionWeather(intensity: Float, duration: Float? = null, delay: Float? = null) {
+        println("Weather override active. Intensity: $intensity, Duration: $duration, Delay: $delay")
+        isMissionControlled = true
+        isRandomWeatherEnabled = false // Disable random changes
+        targetRainIntensity = intensity.coerceIn(0f, 1f) // Ensure target is valid
+
+        if (delay != null && delay > 0) {
+            missionRainDelayTimer = delay
+            // When delaying, start with no rain, then it will fade to the target
+            worldRainIntensity = 0f
+        } else {
+            missionRainDelayTimer = -1f
+            // If no delay, SNAP both the current and target intensity for an immediate change
+            worldRainIntensity = targetRainIntensity
+        }
+
+        missionRainDurationTimer = duration ?: -1f // -1 means infinite duration
+    }
+
+    /** Releases mission control and re-enables the random weather system. */
+    fun clearMissionOverride() {
+        if (!isMissionControlled) return
+        println("Mission has released control of the weather.")
+        isMissionControlled = false
+        isRandomWeatherEnabled = true
+        missionRainDelayTimer = -1f
+        missionRainDurationTimer = -1f
+        // Let the weather naturally decide what to do next on its timer
+        // Or you can force it to clear:
+        // targetRainIntensity = 0f
+    }
+
+    fun getRainIntensity(): Float = worldRainIntensity
 
     override fun dispose() {
         rainModel.dispose()

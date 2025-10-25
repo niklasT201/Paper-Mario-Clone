@@ -746,16 +746,23 @@ class InputHandler(
 
                 // EDITOR MODE CHECK
                 if (game.isEditorMode) {
-                    if (keycode == Input.Keys.NUM_3) {
+                    if (keycode == Input.Keys.NUM_3) { // Increase Rain
                         val currentIntensity = game.weatherSystem.getRainIntensity()
-                        game.weatherSystem.setRainIntensity(currentIntensity + 0.1f)
-                        uiManager.showTemporaryMessage("Rain Intensity: %.1f".format(game.weatherSystem.getRainIntensity()))
+                        val newIntensity = (currentIntensity + 0.1f).coerceIn(0f, 1f)
+                        game.weatherSystem.setMissionWeather(intensity = newIntensity)
+                        uiManager.showTemporaryMessage("Rain Intensity Set: %.1f".format(newIntensity))
                         return true
                     }
-                    if (keycode == Input.Keys.NUM_2) {
+                    if (keycode == Input.Keys.NUM_2) { // Decrease Rain
                         val currentIntensity = game.weatherSystem.getRainIntensity()
-                        game.weatherSystem.setRainIntensity(currentIntensity - 0.1f)
-                        uiManager.showTemporaryMessage("Rain Intensity: %.1f".format(game.weatherSystem.getRainIntensity()))
+                        val newIntensity = (currentIntensity - 0.1f).coerceIn(0f, 1f)
+                        game.weatherSystem.setMissionWeather(intensity = newIntensity)
+                        uiManager.showTemporaryMessage("Rain Intensity Set: %.1f".format(newIntensity))
+                        return true
+                    }
+                    if (keycode == Input.Keys.NUM_1) { // Clear weather override and return to random weather
+                        game.weatherSystem.clearMissionOverride()
+                        uiManager.showTemporaryMessage("Weather control returned to random system.")
                         return true
                     }
 

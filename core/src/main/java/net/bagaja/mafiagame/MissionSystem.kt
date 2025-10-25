@@ -827,6 +827,17 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
         // Activate the modifiers for this mission
         activeModifiers = missionDef.modifiers
+
+        activeModifiers?.let { mods ->
+            if (mods.overrideRainIntensity != null) {
+                game.weatherSystem.setMissionWeather(
+                    intensity = mods.overrideRainIntensity!!,
+                    duration = mods.rainDuration,
+                    delay = mods.rainStartDelay
+                )
+            }
+        }
+
         println("Activating mission modifiers: Invincible=${activeModifiers?.setUnlimitedHealth}")
 
         missionDef.eventsOnStart.forEach { executeEvent(it) }
@@ -938,6 +949,8 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         }
 
         game.uiManager.updateEnemiesLeft(-1)
+
+        game.weatherSystem.clearMissionOverride()
 
         // Deactivate modifiers when the mission ends
         println("Deactivating mission modifiers.")
@@ -1678,6 +1691,15 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             GameEventType.CLEAR_INVENTORY -> {
                 game.playerSystem.clearInventory()
                 println("Player inventory temporarily cleared for mission.")
+            }
+            GameEventType.SET_WEATHER -> {
+                if (event.rainIntensity != null) {
+                    game.weatherSystem.setMissionWeather(
+                        intensity = event.rainIntensity,
+                        duration = event.rainDuration,
+                        delay = null // Events are typically immediate
+                    )
+                }
             }
             else -> println("Event type ${event.type} not yet implemented.")
         }

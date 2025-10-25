@@ -227,6 +227,9 @@ data class MissionModifiers(
     var overrideNpcBehavior: NPCBehavior? = null,
     var playerHasOneHitKills: Boolean = false,
     var enemiesHaveOneHitKills: Boolean = false,
+    var overrideRainIntensity: Float? = null, // e.g., 0.8 for heavy rain
+    var rainDuration: Float? = null,          // in seconds, null for infinite
+    var rainStartDelay: Float? = null         // in seconds, null for immediate
 )
 
 // --- Events ---
@@ -254,7 +257,8 @@ enum class GameEventType {
     FORCE_EQUIP_WEAPON,
     SPAWN_CAR_PATH_NODE,
     SPAWN_CHARACTER_PATH_NODE,
-    CLEAR_INVENTORY
+    CLEAR_INVENTORY,
+    SET_WEATHER
 }
 
 data class GameEvent(
@@ -288,6 +292,8 @@ data class GameEvent(
 
     // Standalone Dialog for both Enemy and NPC
     val standaloneDialog: StandaloneDialog? = null,
+    val rainIntensity: Float? = null,
+    val rainDuration: Float? = null,
 
     // Car-specific (Already complete)
     val carType: CarType? = null,

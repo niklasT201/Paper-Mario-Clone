@@ -1055,16 +1055,7 @@ class MafiaGame : ApplicationAdapter() {
                     // Update lighting manager
                     lightingManager.update(deltaTime, cameraManager.camera.position, timeMultiplier)
 
-                    if (!isInInterior) {
-                        // Only update the weather if we are outside
-                        weatherSystem.update(deltaTime)
-                    } else {
-                        // If we are inside, smoothly turn off the rain
-                        val currentIntensity = weatherSystem.getRainIntensity()
-                        if (currentIntensity > 0) {
-                            weatherSystem.setRainIntensity((currentIntensity - deltaTime * 2f).coerceAtLeast(0f))
-                        }
-                    }
+                    weatherSystem.update(deltaTime, isInInterior)
 
                     val expiredLightIds = lightingManager.collectAndClearExpiredLights()
                     if (expiredLightIds.isNotEmpty()) {
