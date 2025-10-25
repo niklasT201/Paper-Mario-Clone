@@ -19,6 +19,9 @@ class LightingManager {
     private lateinit var environment: Environment
     private lateinit var dayNightCycle: DayNightCycle
     private val directionalLight: DirectionalLight = DirectionalLight()
+    private var rainFactor = 0f
+    private val rainyTintTargetColor = Color(0.4f, 0.45f, 0.5f, 1.0f) // A cool, dark grayish-blue
+    private val rainTint = Color.WHITE.cpy()
 
     // Sky System
     private lateinit var skySystem: SkySystem
@@ -72,6 +75,10 @@ class LightingManager {
         lightAreaModel = modelBuilder.createSphere(1f, 1f, 1f, 24, 24, areaMaterial,
             (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal).toLong())
         lightAreaInstance = ModelInstance(lightAreaModel!!)
+    }
+
+    fun setRainFactor(factor: Float) {
+        this.rainFactor = factor.coerceIn(0f, 1f)
     }
 
     fun toggleLightAreaVisibility() {
@@ -402,8 +409,19 @@ class LightingManager {
 
     // Get current sky color for other systems that might need it
     fun getCurrentSkyColor(): Color {
-        // Always return the true, full-color value from the sky system.
-        return skySystem.getCurrentSkyColor()
+        // Get the normal, time-of-day based sky color
+        val normalColor = skySystem.getCurrentSkyColor().cpy()
+
+        // If it's raining, calculate a tint and multiply it with the normal color
+        if (rainFactor > 0) {
+            // Interpolate our tint color from white (1,1,1, no effect) to our target rainy tint
+            rainTint.set(Color.WHITE).lerp(rainyTintTargetColor, rainFactor)
+
+            // Multiply the normal sky color by the tint to darken it proportionally
+            normalColor.mul(rainTint)
+        }
+
+        return normalColor
     }
 
     // Get day/night cycle for other systems

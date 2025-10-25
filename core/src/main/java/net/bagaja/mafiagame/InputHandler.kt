@@ -746,6 +746,18 @@ class InputHandler(
 
                 // EDITOR MODE CHECK
                 if (game.isEditorMode) {
+                    if (keycode == Input.Keys.NUM_3) {
+                        val currentIntensity = game.weatherSystem.getRainIntensity()
+                        game.weatherSystem.setRainIntensity(currentIntensity + 0.1f)
+                        uiManager.showTemporaryMessage("Rain Intensity: %.1f".format(game.weatherSystem.getRainIntensity()))
+                        return true
+                    }
+                    if (keycode == Input.Keys.NUM_2) {
+                        val currentIntensity = game.weatherSystem.getRainIntensity()
+                        game.weatherSystem.setRainIntensity(currentIntensity - 0.1f)
+                        uiManager.showTemporaryMessage("Rain Intensity: %.1f".format(game.weatherSystem.getRainIntensity()))
+                        return true
+                    }
 
                     if (keycode == Input.Keys.F7) {
                         uiManager.toggleMissionEditor()

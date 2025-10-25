@@ -66,7 +66,6 @@ public class Lwjgl3Launcher {
 // visual screen for finished mission
 // bullet holes disappear when breaking blocks with them
 // nickelodeons having real short films
-// weather events
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // loot in barrels
 // enemy cover up ai

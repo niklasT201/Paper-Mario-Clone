@@ -79,7 +79,6 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var parallaxBackgroundSystem: ParallaxBackgroundSystem
     private lateinit var interiorSystem: InteriorSystem
     var isPlacingExitDoorMode = false
-    var houseRequiringDoor: GameHouse? = null
 
     private var showInvisibleBlockOutlines = false
     private var showBlockCollisionOutlines = false
@@ -100,6 +99,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var characterPathSystem: CharacterPathSystem
     lateinit var objectiveArrowSystem: ObjectiveArrowSystem
     lateinit var bulletTrailSystem: BulletTrailSystem
+    lateinit var weatherSystem: WeatherSystem
 
     override fun create() {
         // --- Part 1: Initialize Core Systems ---
@@ -199,6 +199,9 @@ class MafiaGame : ApplicationAdapter() {
         uiManager.spawnerSystem = spawnerSystem
         uiManager.dialogueManager = dialogueManager
         uiManager.dialogSystem.itemSystem = itemSystem
+        weatherSystem = WeatherSystem()
+        weatherSystem.initialize(cameraManager.camera)
+        weatherSystem.lightingManager = this.lightingManager
 
         teleporterSystem = TeleporterSystem(objectSystem, uiManager)
 
@@ -1052,6 +1055,17 @@ class MafiaGame : ApplicationAdapter() {
                     // Update lighting manager
                     lightingManager.update(deltaTime, cameraManager.camera.position, timeMultiplier)
 
+                    if (!isInInterior) {
+                        // Only update the weather if we are outside
+                        weatherSystem.update(deltaTime)
+                    } else {
+                        // If we are inside, smoothly turn off the rain
+                        val currentIntensity = weatherSystem.getRainIntensity()
+                        if (currentIntensity > 0) {
+                            weatherSystem.setRainIntensity((currentIntensity - deltaTime * 2f).coerceAtLeast(0f))
+                        }
+                    }
+
                     val expiredLightIds = lightingManager.collectAndClearExpiredLights()
                     if (expiredLightIds.isNotEmpty()) {
                         expiredLightIds.forEach { id ->
@@ -1158,6 +1172,10 @@ class MafiaGame : ApplicationAdapter() {
 
                 // Render parallax backgrounds
                 parallaxBackgroundSystem.render(modelBatch, cameraManager.camera, environment)
+
+                if (!isInInterior) {
+                    weatherSystem.render(environment)
+                }
 
                 objectiveArrowSystem.render(cameraManager.camera, environment)
 
@@ -1371,6 +1389,7 @@ class MafiaGame : ApplicationAdapter() {
         if (::bulletTrailSystem.isInitialized) bulletTrailSystem.dispose()
         if (::carPathSystem.isInitialized) carPathSystem.dispose()
         if (::characterPathSystem.isInitialized) characterPathSystem.dispose()
+        if (::weatherSystem.isInitialized) weatherSystem.dispose()
 
         // Dispose shader effect manager
         if (::shaderEffectManager.isInitialized) shaderEffectManager.dispose()
