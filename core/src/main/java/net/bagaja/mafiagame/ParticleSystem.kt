@@ -821,14 +821,49 @@ class ParticleSystem {
                 instance.transform.setToTranslation(particle.position)
 
                 if (surfaceNormal != null) {
-                    // NEW: Logic to align the decal to the wall surface
-                    val rotationAxis = Vector3.Z.cpy().crs(surfaceNormal).nor()
-                    val angle = Math.toDegrees(acos(Vector3.Z.dot(surfaceNormal).toDouble())).toFloat()
+                    val isBulletHole = type == ParticleEffectType.BULLET_HOLE_PLAYER ||
+                        type == ParticleEffectType.BULLET_HOLE_ENEMY
 
-                    // Apply the alignment rotation
-                    instance.transform.rotate(rotationAxis, angle)
-                    // Existing logic for ground-only decals
-                    instance.transform.rotate(surfaceNormal, Random.nextFloat() * 360f) // The "spinning plate" rotation
+                    if (isBulletHole) {
+                        val absX = kotlin.math.abs(surfaceNormal.x)
+                        val absZ = kotlin.math.abs(surfaceNormal.z)
+
+                        // Random spin angle (like spinning a coin on the wall)
+                        val spinAngle = Random.nextFloat() * 360f
+
+                        if (absX > absZ) {
+                            // East/West face - align to YZ plane
+                            if (surfaceNormal.x > 0) {
+                                // East face (+X) - rotate around X axis for the spin, then orient to wall
+                                instance.transform.rotate(Vector3.X, spinAngle)
+                                instance.transform.rotate(Vector3.Y, 90f)
+                            } else {
+                                // West face (-X)
+                                instance.transform.rotate(Vector3.X, spinAngle)
+                                instance.transform.rotate(Vector3.Y, -90f)
+                            }
+                        } else {
+                            // North/South face - align to XY plane
+                            if (surfaceNormal.z > 0) {
+                                // North face (+Z)
+                                instance.transform.rotate(Vector3.Z, spinAngle)
+                                instance.transform.rotate(Vector3.Y, 0f)
+                            } else {
+                                // South face (-Z)
+                                instance.transform.rotate(Vector3.Z, spinAngle)
+                                instance.transform.rotate(Vector3.Y, 180f)
+                            }
+                        }
+                    } else {
+                        // Original alignment logic for other decals
+                        val rotationAxis = Vector3.Z.cpy().crs(surfaceNormal).nor()
+                        val angle = Math.toDegrees(acos(Vector3.Z.dot(surfaceNormal).toDouble())).toFloat()
+
+                        // Apply the alignment rotation
+                        instance.transform.rotate(rotationAxis, angle)
+                        // Existing logic for ground-only decals
+                        instance.transform.rotate(surfaceNormal, Random.nextFloat() * 360f) // The "spinning plate" rotation
+                    }
                 }
 
                 // Apply scale last

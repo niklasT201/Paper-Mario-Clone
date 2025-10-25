@@ -60,8 +60,6 @@ public class Lwjgl3Launcher {
 // maybe adding bouncy dynamite (1 bounce max)
 // step up stair
 // maybe improving billboard shader
-// add bullet hole placement missing
-// bullet cases stop falling on blocks
 // south park like animation
 // shader dialog fitting to visual settings design
 // Persistence & Consequences

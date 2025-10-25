@@ -176,8 +176,6 @@ class PlayerSystem {
         const val FALL_SPEED = 25f
         const val MAX_STEP_HEIGHT = 1.1f
         const val CAR_MAX_STEP_HEIGHT = 4.1f
-        const val HEADLIGHT_INTENSITY = 18f
-        private const val PARTICLE_IMPACT_OFFSET = 0.1f
     }
 
     private lateinit var characterPhysicsSystem: CharacterPhysicsSystem
@@ -216,7 +214,6 @@ class PlayerSystem {
     var isDriving = false
         private set
     var drivingCar: GameCar? = null
-    private val carSpeed = 20f // Speed is still relevant
 
     private var state = PlayerState.IDLE
     private var attackTimer = 0f // Timer for how long the ATTACKING state lasts
@@ -233,10 +230,8 @@ class PlayerSystem {
     private var weapons: MutableList<WeaponType> = mutableListOf(WeaponType.UNARMED)
     private var currentWeaponIndex = 0
 
-    private var isShooting = false
     private val shootingPoseDuration = 0.2f
     private val MIN_THROW_CHARGE_TIME = 0.1f
-    private var shootingPoseTimer = 0f
     private var fireRateTimer = 0f
     private var chargeTime = 0f
     private val minShotScale = 0.7f // The initial size of the particle on a quick tap
@@ -1697,8 +1692,11 @@ class PlayerSystem {
                         particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_MEDIUM, collisionResult.hitPoint)
 
                         if (bulletHoleType != null) {
-                            // Spawn the decal slightly offset from the surface
-                            val decalPosition = collisionResult.hitPoint.cpy().mulAdd(collisionResult.surfaceNormal, PARTICLE_IMPACT_OFFSET)
+                            val bulletHoleOffset = 0.02f // Very small offset to prevent z-fighting
+
+                            // Calculate the decal position with minimal offset
+                            val decalPosition = collisionResult.hitPoint.cpy().mulAdd(collisionResult.surfaceNormal, bulletHoleOffset)
+
                             particleSystem.spawnEffect(
                                 type = bulletHoleType,
                                 position = decalPosition,
