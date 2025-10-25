@@ -79,14 +79,13 @@ public class Lwjgl3Launcher {
 // player can buy businesses (speakeasies, illegal casinos, protection rackets) that generate passive income
 // silent takedowns (melee from behind) and the ability to hide bodies
 // dead enemy flying behind players back
-// explosion moves bones
+// bones can be moved by character and explosions
 // shotgun blast at close range could send an enemy flying backward realistically.
 // pulling out characters from vehicles
 // add event button automatically adds new event without saving button press
 // new events: PLAY_SOUND
 // fixing enemy reloading bug
 // fixing flickering character image
-// drive to location, visual arrow that shows direction
 // SEQUENCE, LOSE_THE_COPS, INFLUENCE_NPC, CAPTURE_TERRITORY
 // Cutscene System
 // interact with interiors/objectives, cars, characters = give item, lose item, new event will happen

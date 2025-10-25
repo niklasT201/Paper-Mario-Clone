@@ -87,14 +87,17 @@ class ObjectiveArrowSystem(private val game: MafiaGame) : Disposable {
 
         if (direction.len2() < 0.01f) {
             // At the target, don't rotate.
+            arrowInstance?.transform?.idt() // Reset to identity
+            arrowInstance?.transform?.setTranslation(arrowPosition)
         } else {
             direction.nor()
+
+            direction.scl(-1f)
+
+            arrowInstance?.transform?.setToRotation(Vector3.Z, direction)
+            arrowInstance?.transform?.setTranslation(arrowPosition)
         }
-
-        arrowInstance?.transform?.setToRotation(direction, Vector3.Y)
-        arrowInstance?.transform?.setTranslation(arrowPosition)
     }
-
 
     fun render(camera: Camera, environment: Environment) {
         val car = game.playerSystem.drivingCar
