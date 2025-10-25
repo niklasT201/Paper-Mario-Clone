@@ -59,6 +59,9 @@ class WeatherSystem : Disposable {
     private val rainAreaSize = Vector3(120f, 60f, 120f)
     private val rainColor = Color(0.7f, 0.8f, 1.0f, 0.5f)
 
+    private var lightningTimer = 0f
+    private val timeBetweenLightning = 15f // Average time between strikes
+
     fun initialize(camera: Camera) {
         this.camera = camera
         this.modelBatch = ModelBatch()
@@ -139,6 +142,23 @@ class WeatherSystem : Disposable {
                 // If the drop has fallen below the rain area, reset it
                 if (drop.position.y < bottomY) {
                     resetRaindrop(drop)
+                }
+            }
+
+            if (worldRainIntensity > 0.8f) { // Only have lightning in very heavy rain
+                lightningTimer -= deltaTime
+                if (lightningTimer <= 0) {
+                    // Reset timer with some randomness
+                    lightningTimer = timeBetweenLightning + (Random.nextFloat() * 10f - 5f)
+
+                    // Trigger the effects
+                    lightingManager.triggerLightningFlash()
+                    // You would also play a thunder sound here
+                    // And trigger a camera shake for the thunder rumble
+                    val cameraShakeDelay = Random.nextFloat() * 1.5f + 0.5f // Thunder arrives after the light
+                    // We can't use Actions here, so a more complex timer system would be needed
+                    // For a simple start, let's just shake the camera instantly
+                    lightingManager.game.cameraManager.startShake(0.4f, 0.3f)
                 }
             }
         }
@@ -223,6 +243,7 @@ class WeatherSystem : Disposable {
         isMissionControlled = true
         isRandomWeatherEnabled = false // Disable random changes
         targetRainIntensity = intensity.coerceIn(0f, 1f) // Ensure target is valid
+        weatherState = if (targetRainIntensity > 0) WeatherState.RAINING else WeatherState.CLEAR
 
         if (delay != null && delay > 0) {
             missionRainDelayTimer = delay
@@ -245,9 +266,7 @@ class WeatherSystem : Disposable {
         isRandomWeatherEnabled = true
         missionRainDelayTimer = -1f
         missionRainDurationTimer = -1f
-        // Let the weather naturally decide what to do next on its timer
-        // Or you can force it to clear:
-        // targetRainIntensity = 0f
+        weatherState = if (worldRainIntensity > 0) WeatherState.RAINING else WeatherState.CLEAR
     }
 
     fun getRainIntensity(): Float = worldRainIntensity

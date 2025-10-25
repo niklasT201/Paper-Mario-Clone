@@ -47,6 +47,9 @@ class LightingManager {
     private var lightAreaModel: Model? = null
     private var lightAreaInstance: ModelInstance? = null
 
+    private var lightningFlashTimer = 0f
+    private val lightningFlashDuration = 0.25f
+
     fun setGrayscaleMode(enabled: Boolean) {
         isGrayscaleMode = enabled
     }
@@ -113,6 +116,10 @@ class LightingManager {
         // NEW: Update flickering lights logic
         updateFlickeringLights(deltaTime)
 
+        if (lightningFlashTimer > 0) {
+            lightningFlashTimer -= deltaTime
+        }
+
         updateLighting()
 
         lightUpdateCounter++
@@ -156,6 +163,11 @@ class LightingManager {
         modelBatch.render(sunModel)
     }
 
+    fun triggerLightningFlash() {
+        println("LIGHTNING STRIKE!")
+        lightningFlashTimer = lightningFlashDuration
+    }
+
     private fun updateLighting() {
         // 1. Update Ambient Light
         val visualProgress = timeOverrideProgress ?: dayNightCycle.getDayProgress()
@@ -163,29 +175,46 @@ class LightingManager {
         val tempCycleForVisuals = DayNightCycle()
         tempCycleForVisuals.setDayProgress(visualProgress)
 
+        // 2. Calculate the BASE lighting values for this time of day
+        val normalAmbientIntensity = tempCycleForVisuals.getAmbientIntensity()
         // Determine the final ambient light intensity
-        val ambientIntensity = if (isBuildModeBright) {
-            0.8f // A fixed bright value for building, regardless of time
-        } else {
-            tempCycleForVisuals.getAmbientIntensity() // Use the normal calculated intensity
+        val baseAmbientIntensity = if (isBuildModeBright) 0.8f else normalAmbientIntensity
+
+        // Calculate the normal sun intensity for this time of day.
+        val baseSunIntensity = tempCycleForVisuals.getSunIntensity()
+
+        // 3. Check for overrides (like lightning) and determine the FINAL values to render.
+        var finalAmbient = baseAmbientIntensity
+        var finalSunIntensity = baseSunIntensity
+
+        // Check if a lightning flash is currently active.
+        if (lightningFlashTimer > 0) {
+            // Calculate the progress of the flash (from 1.0 down to 0.0).
+            val flashProgress = lightningFlashTimer / lightningFlashDuration
+
+            // A lightning flash should be extremely bright, overriding all other light.
+            // We make it fade out quickly by multiplying by the progress.
+            finalAmbient = 1.0f * flashProgress
+            finalSunIntensity = 1.5f * flashProgress // A brighter sun flash for a stark, dramatic effect.
         }
 
         // Remove the old directional light before adding the new one
-        environment.set(ColorAttribute(ColorAttribute.AmbientLight, ambientIntensity, ambientIntensity, ambientIntensity, 1f))
+        environment.set(ColorAttribute(ColorAttribute.AmbientLight, finalAmbient, finalAmbient, finalAmbient, 1f))
+
+        // Always remove the old directional light before adding a new one to prevent stacking.
         environment.remove(directionalLight)
 
-        // 2. Update Directional Light (The Sun)
-        val sunIntensity = tempCycleForVisuals.getSunIntensity()
-
         // The sun only shines if its intensity is greater than 0
-        if (sunIntensity > 0f) {
+        if (finalSunIntensity > 0f) {
+            // Get the sun's color and direction based on the time of day.
             val (r, g, b) = tempCycleForVisuals.getSunColor()
             val sunDirection = tempCycleForVisuals.getSunDirection()
 
+            // Set the directional light's properties using the FINAL intensity.
             directionalLight.set(
-                r * sunIntensity,
-                g * sunIntensity,
-                b * sunIntensity,
+                r * finalSunIntensity,
+                g * finalSunIntensity,
+                b * finalSunIntensity,
                 sunDirection
             )
             environment.add(directionalLight)
