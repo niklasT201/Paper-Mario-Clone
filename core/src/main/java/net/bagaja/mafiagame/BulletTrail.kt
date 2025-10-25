@@ -21,7 +21,8 @@ data class BulletTrail(
     var lifetime: Float,
     val initialLifetime: Float,
     private val material: Material,
-    private val colorAttribute: ColorAttribute
+    private val colorAttribute: ColorAttribute,
+    val sceneId: String
 ) {
     fun update(deltaTime: Float) {
         lifetime -= deltaTime
@@ -79,7 +80,7 @@ class BulletTrailSystem : Disposable {
      * @param start The position where the trail begins (behind the bullet).
      * @param end The current position of the bullet.
      */
-    fun addTrail(start: Vector3, end: Vector3) {
+    fun addTrail(start: Vector3, end: Vector3, sceneId: String) {
         if (!isEnabled) return
 
         // Create a unique material instance for this trail so its fade is independent
@@ -92,7 +93,7 @@ class BulletTrailSystem : Disposable {
         instance.materials.set(0, material)
 
         val lifetime = 0.08f // Very fast fade
-        val trail = BulletTrail(instance, lifetime, lifetime, material, colorAttribute)
+        val trail = BulletTrail(instance, lifetime, lifetime, material, colorAttribute, sceneId)
 
         // Stretch and orient the line model to connect the start and end points
         val direction = end.cpy().sub(start)
@@ -117,14 +118,17 @@ class BulletTrailSystem : Disposable {
         }
     }
 
-    fun render(camera: Camera) {
-        if (!isEnabled || trails.isEmpty) return
+    fun render(camera: Camera, currentSceneId: String) {
+        val trailsToRender = trails.filter { it.sceneId == currentSceneId }
+
+        if (!isEnabled || trailsToRender.isEmpty()) return
 
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST) // Draw on top of everything
         modelBatch.begin(camera)
-        modelBatch.render(trails.map { it.modelInstance })
+        // Render only the filtered list
+        modelBatch.render(trailsToRender.map { it.modelInstance })
         modelBatch.end()
-        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST) // Re-enable for the rest of the scene
+        Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
     }
 
     override fun dispose() {

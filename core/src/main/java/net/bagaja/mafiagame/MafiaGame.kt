@@ -1263,7 +1263,7 @@ class MafiaGame : ApplicationAdapter() {
 
                 modelBatch.end()
 
-                bulletTrailSystem.render(cameraManager.camera)
+                bulletTrailSystem.render(cameraManager.camera, sceneManager.getCurrentSceneId())
 
                 if (isEditorMode) {
                     carPathSystem.render(cameraManager.camera)

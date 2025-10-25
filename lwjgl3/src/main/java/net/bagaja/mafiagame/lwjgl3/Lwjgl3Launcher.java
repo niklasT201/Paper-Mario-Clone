@@ -79,7 +79,6 @@ public class Lwjgl3Launcher {
 // silent takedowns (melee from behind) and the ability to hide bodies
 // dead enemy flying behind players back
 // bones can be moved by character and explosions
-// shotgun blast at close range could send an enemy flying backward realistically.
 // pulling out characters from vehicles
 // add event button automatically adds new event without saving button press
 // new events: PLAY_SOUND

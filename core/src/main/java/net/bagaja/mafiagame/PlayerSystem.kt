@@ -1712,7 +1712,11 @@ class PlayerSystem {
                 val offset = bulletDirection.cpy().scl(-0.4f)
 
                 // 6. Add the trail to the system.
-                bulletTrailSystem.addTrail(trailStartPos.add(offset), bulletCurrentPos.cpy().add(offset))
+                bulletTrailSystem.addTrail(
+                    trailStartPos.add(offset),
+                    bulletCurrentPos.cpy().add(offset),
+                    sceneManager.getCurrentSceneId()
+                )
             }
 
             // Collision Check
