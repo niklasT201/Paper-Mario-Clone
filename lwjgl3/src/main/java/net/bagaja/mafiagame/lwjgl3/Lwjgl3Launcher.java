@@ -67,6 +67,10 @@ public class Lwjgl3Launcher {
 // bullet holes disappear when breaking blocks with them
 // nickelodeons having real short films
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
+// blood being removed by rain
+// less character and car spawn when heavy rain
+// maybe puddles by heavy rain and footprints in puddles
+// characters change behaviour in rain
 // loot in barrels
 // enemy cover up ai
 // money label visible when getting option to buy something

@@ -1076,7 +1076,7 @@ class MafiaGame : ApplicationAdapter() {
                     }
                     particleSystem.update(deltaTime)
                     spawnerSystem.update(deltaTime, sceneManager.activeSpawners, playerSystem.getPosition())
-                    val expiredFires = fireSystem.update(Gdx.graphics.deltaTime, playerSystem, particleSystem, sceneManager)
+                    val expiredFires = fireSystem.update(Gdx.graphics.deltaTime, playerSystem, particleSystem, sceneManager, weatherSystem)
                     if (expiredFires.isNotEmpty()) {
                         for (fireToRemove in expiredFires) {
                             sceneManager.activeObjects.removeValue(fireToRemove.gameObject, true)

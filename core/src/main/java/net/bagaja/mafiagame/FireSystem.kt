@@ -246,9 +246,12 @@ class FireSystem {
         activeFires.removeValue(fireToRemove, true)
     }
 
-    fun update(deltaTime: Float, playerSystem: PlayerSystem, particleSystem: ParticleSystem, sceneManager: SceneManager): List<GameFire> {
+    fun update(deltaTime: Float, playerSystem: PlayerSystem, particleSystem: ParticleSystem, sceneManager: SceneManager, weatherSystem: WeatherSystem): List<GameFire> {
         val expiredFires = mutableListOf<GameFire>()
         val iterator = activeFires.iterator()
+
+        val rainIntensity = weatherSystem.getRainIntensity()
+        val isRainingHard = rainIntensity > 0.6f // Only extinguish in medium-to-heavy rain
 
         while(iterator.hasNext()) {
             val fire = iterator.next()
@@ -293,10 +296,9 @@ class FireSystem {
             }
 
             // Check if fire should be extinguished
-            if (fire.canBeExtinguished) {
-                // TODO: Replace 'isRaining' with actual game logic for rain or water collision.
-                val isRaining = false
-                if (isRaining) {
+            if (fire.canBeExtinguished && isRainingHard) {
+                val isOutdoors = fire.gameObject.position.y > -1f // Simple check to avoid underground fires
+                if (isOutdoors) {
                     fire.isBeingExtinguished = true
                 }
             }
