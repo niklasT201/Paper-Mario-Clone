@@ -60,6 +60,8 @@ public class Lwjgl3Launcher {
 // maybe adding bouncy dynamite (1 bounce max)
 // step up stair
 // maybe improving billboard shader
+// add bullet hole placement missing
+// bullet cases stop falling on blocks
 // south park like animation
 // shader dialog fitting to visual settings design
 // Persistence & Consequences
@@ -69,6 +71,7 @@ public class Lwjgl3Launcher {
 // weather events
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // loot in barrels
+// bullet motion trails; Keep them short and subtle — just enough to suggest motion, not big streaks
 // enemy cover up ai
 // money label visible when getting option to buy something
 // minimap for open world mode

@@ -851,6 +851,24 @@ class PlayerSystem {
             sceneManager.activeBullets.add(bullet)
         }
 
+        if (equippedWeapon.actionType == WeaponActionType.SHOOTING && equippedWeapon != WeaponType.REVOLVER) {
+
+            // Eject the casing in the opposite direction the player is facing.
+            val ejectDirectionX = -directionX
+
+            // Spawn position is near the center of the player model.
+            val casingSpawnPos = physicsComponent.position.cpy().add(0f, 1f, 0f)
+
+            // Give it an initial velocity pushing it sideways and slightly up.
+            val casingVelocity = Vector3(ejectDirectionX * (Random.nextFloat() * 4f + 4f), 8f, 0f)
+
+            particleSystem.spawnEffect(
+                type = ParticleEffectType.SHELL_CASING_PLAYER,
+                position = casingSpawnPos,
+                baseDirection = casingVelocity // Use baseDirection to pass the velocity vector
+            )
+        }
+
         // Trigger camera shake for heavy weapons
         if (equippedWeapon == WeaponType.MACHINE_GUN || equippedWeapon == WeaponType.TOMMY_GUN || equippedWeapon.pelletCount > 1) {
             // This will feel like a strong, satisfying kick for each shot.
@@ -1667,7 +1685,11 @@ class PlayerSystem {
                 val particleSpawnPos = collisionResult.hitPoint.cpy().mulAdd(collisionResult.surfaceNormal, PARTICLE_IMPACT_OFFSET)
 
                 when (collisionResult.type) {
-                    HitObjectType.BLOCK, HitObjectType.INTERIOR -> {
+                    HitObjectType.BLOCK -> {
+                        // Spawn dust/sparks for static objects
+                        particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_MEDIUM, particleSpawnPos)
+                    }
+                    HitObjectType.INTERIOR -> {
                         // Spawn dust/sparks for static objects
                         particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_MEDIUM, particleSpawnPos)
                     }

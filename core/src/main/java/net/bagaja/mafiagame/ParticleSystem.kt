@@ -423,6 +423,34 @@ enum class ParticleEffectType(
         frameDuration = 0.1f, isLooping = false, particleLifetime = 3600f,
         particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
         scale = 8f, scaleVariance = 0.5f, fadeIn = 7.0f, fadeOut = 0f
+    ),
+    BULLET_HOLE_PLAYER(
+        "Player Bullet Hole",
+        arrayOf("textures/player/weapons/bullet_hole_player.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 60.0f, // Lasts for a minute
+        particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f, // Stays put
+        scale = 0.5f, scaleVariance = 0.1f, fadeIn = 0.0f, fadeOut = 5.0f // Fades out slowly at the end
+    ),
+    BULLET_HOLE_ENEMY(
+        "Enemy Bullet Hole",
+        arrayOf("textures/player/weapons/bullet_hole_enemy.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 60.0f,
+        particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
+        scale = 0.5f, scaleVariance = 0.1f, fadeIn = 0.0f, fadeOut = 5.0f
+    ),
+    SHELL_CASING_PLAYER(
+        "Player Shell Casing",
+        arrayOf("textures/player/weapons/cartridge_player.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 2.5f,
+        particleCount = 1..1, initialSpeed = 8f, speedVariance = 2f, gravity = -35f, // Strong gravity
+        scale = 0.3f, scaleVariance = 0.05f, fadeIn = 0.0f, fadeOut = 0.5f
+    ),
+    SHELL_CASING_ENEMY(
+        "Enemy Shell Casing",
+        arrayOf("textures/player/weapons/cartridge_enemy.png"),
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 2.5f,
+        particleCount = 1..1, initialSpeed = 8f, speedVariance = 2f, gravity = -35f, // Strong gravity
+        scale = 0.3f, scaleVariance = 0.05f, fadeIn = 0.0f, fadeOut = 0.5f
     );
 
     val isAnimated: Boolean get() = texturePaths.size > 1
@@ -751,10 +779,21 @@ class ParticleSystem {
                 gravity = finalGravity
             )
 
-            if (isGroundOrientedEffect(type)) {
+            if (isGroundOrientedEffect(type) || isSurfaceOrientedEffect(type)) { // MODIFIED: Check for both ground and surface types
                 particle.isSurfaceOriented = true
                 instance.transform.setToTranslation(particle.position)
-                instance.transform.rotate(Vector3.Y, Random.nextFloat() * 360f) // The "spinning plate" rotation
+
+                if (isSurfaceOrientedEffect(type) && surfaceNormal != null) {
+                    // NEW: Logic to align the decal to the wall surface
+                    val rotationAxis = Vector3.Y.cpy().crs(surfaceNormal).nor()
+                    val angle = Math.toDegrees(Math.acos(Vector3.Y.dot(surfaceNormal).toDouble())).toFloat()
+                    instance.transform.rotate(rotationAxis, angle)
+                    instance.transform.rotate(surfaceNormal, Random.nextFloat() * 360f) // The "spinning plate" rotation
+                } else {
+                    // Existing logic for ground-only decals
+                    instance.transform.rotate(Vector3.Y, Random.nextFloat() * 360f)
+                }
+
                 instance.transform.scale(particle.scale, particle.scale, particle.scale)
             } else {
                 // Handle surface orientation before setting up other animations
@@ -781,6 +820,14 @@ class ParticleSystem {
             ParticleEffectType.DYNAMITE_EXPLOSION_AREA_ONE,
             ParticleEffectType.DYNAMITE_EXPLOSION_AREA_TWO,
             ParticleEffectType.FIRE_BURN_SPOT -> true
+            else -> false
+        }
+    }
+
+    private fun isSurfaceOrientedEffect(type: ParticleEffectType): Boolean {
+        return when (type) {
+            ParticleEffectType.BULLET_HOLE_PLAYER,
+            ParticleEffectType.BULLET_HOLE_ENEMY -> true
             else -> false
         }
     }

@@ -1391,6 +1391,19 @@ class EnemySystem : IFinePositionable {
 
         sceneManager.activeBullets.add(bullet)
 
+        if (enemy.equippedWeapon.actionType == WeaponActionType.SHOOTING && enemy.equippedWeapon != WeaponType.REVOLVER) {
+            val ejectDirectionX = -directionX
+
+            val casingSpawnPos = enemy.position.cpy().add(0f, 1f, 0f)
+            val casingVelocity = Vector3(ejectDirectionX * (Random.nextFloat() * 4f + 4f), 8f, 0f)
+
+            sceneManager.game.particleSystem.spawnEffect(
+                type = ParticleEffectType.SHELL_CASING_ENEMY,
+                position = casingSpawnPos,
+                baseDirection = casingVelocity
+            )
+        }
+
         // 1. Calculate Smoke Scale
         val chargeProgress = (enemy.continuousShootingTimer / chargeDurationForMaxScale).coerceIn(0f, 1f)
         val currentShotScale = minShotScale + (maxShotScale - minShotScale) * chargeProgress
