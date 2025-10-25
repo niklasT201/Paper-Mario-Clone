@@ -856,8 +856,9 @@ class ParticleSystem {
                         }
                     } else {
                         // Original alignment logic for other decals
-                        val rotationAxis = Vector3.Z.cpy().crs(surfaceNormal).nor()
-                        val angle = Math.toDegrees(acos(Vector3.Z.dot(surfaceNormal).toDouble())).toFloat()
+                        val up = Vector3.Y
+                        val rotationAxis = up.cpy().crs(surfaceNormal).nor()
+                        val angle = Math.toDegrees(acos(up.dot(surfaceNormal).toDouble())).toFloat()
 
                         // Apply the alignment rotation
                         instance.transform.rotate(rotationAxis, angle)

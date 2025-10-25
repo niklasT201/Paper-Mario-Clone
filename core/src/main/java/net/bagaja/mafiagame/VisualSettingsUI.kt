@@ -639,17 +639,48 @@ class VisualSettingsUI(
     }
 
     private fun showShaderSelectionDialog() {
-        val dialog = Dialog("Select Film Style", skin, "dialog")
-        dialog.isMovable = true
+        // Create custom dialog with vintage styling
+        val dialog = Dialog("", skin, "dialog")
+        dialog.isMovable = false
 
+        // Create main vintage container
+        val vintageContainer = Table()
+        vintageContainer.background = createVintageDialogBackground()
+        vintageContainer.pad(40f, 50f, 30f, 50f)
+
+        // Header with art deco styling
+        val headerTable = Table()
+        headerTable.add(createArtDecoDecoration("left")).padRight(20f)
+
+        val titleLabel = Label("⦿ FILM STYLE SELECTION ⦿", skin, "title")
+        titleLabel.setAlignment(Align.center)
+        titleLabel.color = Color.valueOf("#1A0F0A")
+        headerTable.add(titleLabel)
+
+        headerTable.add(createArtDecoDecoration("right")).padLeft(20f)
+        vintageContainer.add(headerTable).padBottom(25f).row()
+
+        // Subtitle
+        val subtitleLabel = Label("~ Choose Your Visual Filter ~", skin, "default")
+        subtitleLabel.setAlignment(Align.center)
+        subtitleLabel.color = Color.valueOf("#3D2817")
+        vintageContainer.add(subtitleLabel).padBottom(20f).row()
+
+        // Create list with vintage styling
         val list = List<String>(skin)
         list.setItems(*ShaderEffect.entries.map { it.displayName }.toTypedArray())
         list.selected = PlayerSettingsManager.current.selectedShader.displayName
 
-        val scrollPane = ScrollPane(list, skin)
-        scrollPane.fadeScrollBars = false
+        // Style the list
+        list.style.fontColorSelected = Color.valueOf("#F5F1E8")
+        list.style.fontColorUnselected = Color.valueOf("#2C1810")
+        list.style.selection = createVintageSelectionDrawable()
 
-        dialog.contentTable.add(scrollPane).width(350f).height(400f)
+        val scrollPane = ScrollPane(list, skin, "vintage-newspaper")
+        scrollPane.fadeScrollBars = false
+        scrollPane.setScrollingDisabled(true, false)
+
+        vintageContainer.add(scrollPane).width(350f).height(300f).padBottom(20f).row()
 
         // Apply changes when an item is clicked
         list.addListener(object: ChangeListener() {
@@ -663,8 +694,105 @@ class VisualSettingsUI(
             }
         })
 
-        dialog.button("Close")
+        // Close button with vintage styling
+        val closeButton = createVintageButton("⬅ RETURN ⬅", Color.valueOf("#8B0000"))
+        closeButton.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                dialog.hide()
+            }
+        })
+        vintageContainer.add(closeButton).width(250f).height(45f)
+
+        // Add vintage container to dialog
+        dialog.contentTable.add(vintageContainer)
+
+        // Remove default buttons
+        dialog.buttonTable.clear()
+
         dialog.show(uiManager.getStage())
+    }
+
+    private fun createVintageDialogBackground(): TextureRegionDrawable {
+        val pixmap = Pixmap(450, 440, Pixmap.Format.RGBA8888)
+
+        // Aged newspaper color
+        val paperColor = Color.valueOf("#F5F1E8")
+        pixmap.setColor(paperColor)
+        pixmap.fill()
+
+        // Add newsprint texture
+        val inkSpots = Color.valueOf("#E8E0D6")
+        for (i in 0 until 300) {
+            val x = Random.nextInt(450)
+            val y = Random.nextInt(440)
+            val size = Random.nextInt(2) + 1
+            pixmap.setColor(inkSpots)
+            pixmap.fillCircle(x, y, size)
+        }
+
+        // Create art deco border
+        val borderColor = Color.valueOf("#2C1810")
+        pixmap.setColor(borderColor)
+
+        // Main border
+        for (i in 0 until 6) {
+            pixmap.drawRectangle(i, i, 450 - i * 2, 440 - i * 2)
+        }
+
+        // Art deco corner elements
+        val accentColor = Color.valueOf("#8B6914")
+        pixmap.setColor(accentColor)
+
+        val cornerSize = 20
+        for (i in 10 until cornerSize) {
+            // Top-left fan
+            pixmap.drawLine(10, i, i, 10)
+            pixmap.drawLine(12, i, i, 12)
+
+            // Top-right fan
+            pixmap.drawLine(440, i, 450 - i, 10)
+            pixmap.drawLine(438, i, 450 - i, 12)
+
+            // Bottom-left fan
+            pixmap.drawLine(10, 430 - i, i, 430)
+            pixmap.drawLine(12, 430 - i, i, 428)
+
+            // Bottom-right fan
+            pixmap.drawLine(440, 430 - i, 450 - i, 430)
+            pixmap.drawLine(438, 430 - i, 450 - i, 428)
+        }
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+        return TextureRegionDrawable(TextureRegion(texture))
+    }
+
+    private fun createVintageSelectionDrawable(): TextureRegionDrawable {
+        val pixmap = Pixmap(350, 30, Pixmap.Format.RGBA8888)
+
+        // Rich brown selection color
+        val selectionColor = Color.valueOf("#654321")
+        pixmap.setColor(selectionColor)
+        pixmap.fill()
+
+        // Add leather texture
+        val textureColor = Color.valueOf("#4A3520")
+        for (i in 0 until 40) {
+            val x = Random.nextInt(350)
+            val y = Random.nextInt(30)
+            pixmap.setColor(textureColor)
+            pixmap.fillCircle(x, y, 2)
+        }
+
+        // Gold border
+        val borderColor = Color.valueOf("#CD7F32")
+        pixmap.setColor(borderColor)
+        pixmap.drawRectangle(0, 0, 350, 30)
+        pixmap.drawRectangle(1, 1, 348, 28)
+
+        val texture = Texture(pixmap)
+        pixmap.dispose()
+        return TextureRegionDrawable(TextureRegion(texture))
     }
 
     fun show(stage: Stage) {

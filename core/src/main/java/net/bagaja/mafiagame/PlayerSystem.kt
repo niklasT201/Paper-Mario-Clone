@@ -1789,15 +1789,19 @@ class PlayerSystem {
                         if (enemy.takeDamage(damageToDeal, DamageType.GENERIC, sceneManager, this) && enemy.currentState != AIState.DYING) {
                             sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
-                        // NEW: APPLY KNOCKBACK
+                        // APPLY KNOCKBACK
                         if (weaponUsed != null && weaponUsed.knockbackForce > 0 && !enemy.isInCar) {
-                            val knockbackDirection = bullet.velocity.cpy().nor() // Direction the bullet was traveling
-                            // We scale the direction by the weapon's knockback force.
-                            // We divide by pellet count so a full blast has the intended force, not 8x the force.
-                            val forcePerPellet = weaponUsed.knockbackForce / weaponUsed.pelletCount.coerceAtLeast(1)
-                            val knockbackVector = knockbackDirection.scl(forcePerPellet)
+                            val willDie = enemy.health <= damageToDeal
 
-                            sceneManager.enemySystem.applyKnockback(enemy, knockbackVector)
+                            val knockbackDirection = bullet.velocity.cpy().nor()
+                            val forcePerPellet = weaponUsed.knockbackForce / weaponUsed.pelletCount.coerceAtLeast(1)
+
+                            // Add ragdoll effect for fatal shots
+                            val ragdollMultiplier = if (willDie) 1.3f else 1.0f
+                            val knockbackVector = knockbackDirection.scl(forcePerPellet * ragdollMultiplier)
+
+                            // Apply directly to physics to work even on dying enemies
+                            enemy.physics.knockbackVelocity.set(knockbackVector)
                         }
                     }
                     HitObjectType.NPC -> {
@@ -1831,13 +1835,17 @@ class PlayerSystem {
                             sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }
 
-                        // NEW: APPLY KNOCKBACK
+                        // APPLY KNOCKBACK
                         if (weaponUsed != null && weaponUsed.knockbackForce > 0 && !npc.isInCar) {
+                            val willDie = npc.health <= damageToDeal
+
                             val knockbackDirection = bullet.velocity.cpy().nor()
                             val forcePerPellet = weaponUsed.knockbackForce / weaponUsed.pelletCount.coerceAtLeast(1)
-                            val knockbackVector = knockbackDirection.scl(forcePerPellet)
 
-                            sceneManager.npcSystem.applyKnockback(npc, knockbackVector)
+                            val ragdollMultiplier = if (willDie) 1.3f else 1.0f
+                            val knockbackVector = knockbackDirection.scl(forcePerPellet * ragdollMultiplier)
+
+                            npc.physics.knockbackVelocity.set(knockbackVector)
                         }
                     }
                     HitObjectType.PLAYER -> {
@@ -2047,12 +2055,11 @@ class PlayerSystem {
 
                 // Area-of-effect damage logic
                 val explosionRadius = 12f
-                val maxKnockbackForce = 35.0f
+                val maxKnockbackForce = 65.0f
 
                 val closeExplosionRadius = 4f
-                val baseUpwardLift = 0.7f
-                val closeUpwardLift = 1.8f // A much stronger vertical launch for close-range hits
-
+                val baseUpwardLift = 1.2f
+                val closeUpwardLift = 2.5f
 
                 // Damage cars
                 for (car in sceneManager.activeCars) {
@@ -2062,12 +2069,16 @@ class PlayerSystem {
                         car.takeDamage(actualDamage, DamageType.EXPLOSIVE)
                     }
                 }
+
                 // Damage enemies
                 sceneManager.activeEnemies.forEach { enemy ->
                     val distanceToEnemy = enemy.position.dst(validGroundPosition)
                     if (distanceToEnemy < explosionRadius) {
                         // Apply Damage
                         val actualDamage = calculateFalloffDamage(baseDamageToDeal, distanceToEnemy, explosionRadius)
+                        val willDie = enemy.health <= actualDamage
+
+                        // Apply Damage
                         if (enemy.takeDamage(actualDamage, DamageType.EXPLOSIVE, sceneManager, this) && enemy.currentState != AIState.DYING) {
                             sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
@@ -2076,9 +2087,20 @@ class PlayerSystem {
                         val knockbackStrength = maxKnockbackForce * (1.0f - (distanceToEnemy / explosionRadius))
                         if (knockbackStrength > 0 && !enemy.isInCar) {
                             val finalUpwardLift = if (distanceToEnemy <= closeExplosionRadius) closeUpwardLift else baseUpwardLift
-                            val knockbackDirection = enemy.position.cpy().sub(explosionOrigin).apply { y = finalUpwardLift }.nor()
+
+                            // Add extra upward force for dying enemies to make them "ragdoll"
+                            val ragdollBonus = if (willDie && distanceToEnemy <= closeExplosionRadius) 1.5f else 1.0f
+
+                            val knockbackDirection = enemy.position.cpy().sub(explosionOrigin).apply {
+                                y = finalUpwardLift * ragdollBonus
+                            }.nor()
+
                             val knockbackVector = knockbackDirection.scl(knockbackStrength)
-                            sceneManager.enemySystem.applyKnockback(enemy, knockbackVector)
+
+                            // Apply knockback directly to physics component to bypass state checks
+                            enemy.physics.knockbackVelocity.set(knockbackVector)
+
+                            println("Knocked ${enemy.enemyType.displayName} with force: ${knockbackVector.len()} (${if(willDie) "FATAL" else "survived"})")
                         }
                     }
                 }
@@ -2089,6 +2111,9 @@ class PlayerSystem {
                     if (distanceToNPC < explosionRadius) {
                         // Apply Damage
                         val actualDamage = calculateFalloffDamage(baseDamageToDeal, distanceToNPC, explosionRadius)
+                        val willDie = npc.health <= actualDamage
+
+                        // Apply Damage
                         if (npc.takeDamage(actualDamage, DamageType.EXPLOSIVE, sceneManager) && npc.currentState != NPCState.DYING) {
                             sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }
@@ -2097,9 +2122,16 @@ class PlayerSystem {
                         val knockbackStrength = maxKnockbackForce * (1.0f - (distanceToNPC / explosionRadius))
                         if (knockbackStrength > 0 && !npc.isInCar) {
                             val finalUpwardLift = if (distanceToNPC <= closeExplosionRadius) closeUpwardLift else baseUpwardLift
-                            val knockbackDirection = npc.position.cpy().sub(explosionOrigin).apply { y = finalUpwardLift }.nor()
+                            val ragdollBonus = if (willDie && distanceToNPC <= closeExplosionRadius) 1.5f else 1.0f
+
+                            val knockbackDirection = npc.position.cpy().sub(explosionOrigin).apply {
+                                y = finalUpwardLift * ragdollBonus
+                            }.nor()
+
                             val knockbackVector = knockbackDirection.scl(knockbackStrength)
-                            sceneManager.npcSystem.applyKnockback(npc, knockbackVector)
+                            npc.physics.knockbackVelocity.set(knockbackVector)
+
+                            println("Knocked ${npc.npcType.displayName} with force: ${knockbackVector.len()} (${if(willDie) "FATAL" else "survived"})")
                         }
                     }
                 }

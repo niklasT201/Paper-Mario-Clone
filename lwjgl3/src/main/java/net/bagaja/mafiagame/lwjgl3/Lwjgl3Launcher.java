@@ -61,10 +61,10 @@ public class Lwjgl3Launcher {
 // step up stair
 // maybe improving billboard shader
 // south park like animation
-// shader dialog fitting to visual settings design
 // Persistence & Consequences
 // fire in rooms and mission not being connected right with its light source
 // visual screen for finished mission
+// bullet holes disappear when breaking blocks with them
 // nickelodeons having real short films
 // weather events
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
