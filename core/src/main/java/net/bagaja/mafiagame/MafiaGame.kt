@@ -99,6 +99,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var carPathSystem: CarPathSystem
     lateinit var characterPathSystem: CharacterPathSystem
     lateinit var objectiveArrowSystem: ObjectiveArrowSystem
+    lateinit var bulletTrailSystem: BulletTrailSystem
 
     override fun create() {
         // --- Part 1: Initialize Core Systems ---
@@ -140,6 +141,7 @@ class MafiaGame : ApplicationAdapter() {
         characterPathSystem = CharacterPathSystem()
         particleSystem = ParticleSystem()
         objectiveArrowSystem = ObjectiveArrowSystem(this)
+        bulletTrailSystem = BulletTrailSystem()
         blockSystem = BlockSystem()
         objectSystem = ObjectSystem()
         fireSystem = FireSystem()
@@ -250,6 +252,7 @@ class MafiaGame : ApplicationAdapter() {
         meleeRangeIndicatorSystem.initialize()
         trajectorySystem.initialize()
         blockDebugRenderer.initialize()
+        bulletTrailSystem.initialize()
 
         objectiveArrowSystem.initialize()
         missionSystem.initialize()
@@ -1080,6 +1083,7 @@ class MafiaGame : ApplicationAdapter() {
                         trajectorySystem.update(playerSystem, sceneManager)
                     }
 
+                    bulletTrailSystem.update(deltaTime)
                     playerSystem.update(deltaTime, sceneManager)
                     enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
                     npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
@@ -1259,6 +1263,8 @@ class MafiaGame : ApplicationAdapter() {
 
                 modelBatch.end()
 
+                bulletTrailSystem.render(cameraManager.camera)
+
                 if (isEditorMode) {
                     carPathSystem.render(cameraManager.camera)
                     characterPathSystem.render(cameraManager.camera)
@@ -1362,6 +1368,7 @@ class MafiaGame : ApplicationAdapter() {
         if (::boneSystem.isInitialized) boneSystem.dispose()
         if (::objectiveArrowSystem.isInitialized) objectiveArrowSystem.dispose()
         if (::triggerSystem.isInitialized) triggerSystem.dispose()
+        if (::bulletTrailSystem.isInitialized) bulletTrailSystem.dispose()
         if (::carPathSystem.isInitialized) carPathSystem.dispose()
         if (::characterPathSystem.isInitialized) characterPathSystem.dispose()
 

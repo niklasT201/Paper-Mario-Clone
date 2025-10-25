@@ -257,8 +257,7 @@ class PlayerSystem {
     private val FOOTPRINT_SPAWN_INTERVAL = 0.35f // One print every 0.35 seconds of movement
 
     private lateinit var lightingManager: LightingManager
-    private val headlightForwardOffset = 10f // How far in front of the car center the light is
-    private val headlightVerticalOffset = 2.0f
+    private lateinit var bulletTrailSystem: BulletTrailSystem
 
     fun getPlayerBounds(): BoundingBox {
         return physicsComponent.bounds
@@ -272,6 +271,10 @@ class PlayerSystem {
         this.footprintSystem = footprintSystem
         this.characterPhysicsSystem = characterPhysicsSystem
         this.sceneManager = sceneManager
+
+        // 3. ADD THIS LINE HERE: Assign the system inside initialize()
+        this.bulletTrailSystem = sceneManager.game.bulletTrailSystem
+
         physicsComponent = PhysicsComponent(
             position = Vector3(0f, 2f, 0f), // Default start position
             size = this.playerSize,
@@ -279,10 +282,7 @@ class PlayerSystem {
         )
 
         setupAnimationSystem()
-
-        // Load weapon
         setupWeaponAssets()
-
         setupBillboardShader()
         setupPlayerModel()
         physicsComponent.updateBounds()
@@ -1695,6 +1695,25 @@ class PlayerSystem {
         while (bulletIterator.hasNext()) {
             val bullet = bulletIterator.next()
             bullet.update(deltaTime)
+
+            // 1. Check if the bullet is old enough
+            if (bullet.age > 0.05f) {
+                // 2. Define the desired length of the trail.
+                val trailLength = 3.0f
+
+                // 3. Get the bullet's current position and direction.
+                val bulletCurrentPos = bullet.position
+                val bulletDirection = bullet.velocity.cpy().nor()
+
+                // 4. Calculate the trail's start point
+                val trailStartPos = bulletCurrentPos.cpy().mulAdd(bulletDirection, -trailLength)
+
+                // 5. Apply the small offset to both start and end
+                val offset = bulletDirection.cpy().scl(-0.4f)
+
+                // 6. Add the trail to the system.
+                bulletTrailSystem.addTrail(trailStartPos.add(offset), bulletCurrentPos.cpy().add(offset))
+            }
 
             // Collision Check
             val collisionResult = checkBulletCollision(bullet, sceneManager)
