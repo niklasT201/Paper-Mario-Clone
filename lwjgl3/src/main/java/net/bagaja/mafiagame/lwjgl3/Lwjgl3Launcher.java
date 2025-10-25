@@ -70,6 +70,7 @@ public class Lwjgl3Launcher {
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // loot in barrels
 // bullet motion trails; Keep them short and subtle — just enough to suggest motion, not big streaks
+// npcs struggle in fire
 // enemy cover up ai
 // money label visible when getting option to buy something
 // minimap for open world mode
@@ -79,7 +80,6 @@ public class Lwjgl3Launcher {
 // player can buy businesses (speakeasies, illegal casinos, protection rackets) that generate passive income
 // silent takedowns (melee from behind) and the ability to hide bodies
 // dead enemy flying behind players back
-// explosion destroys ash
 // explosion moves bones
 // shotgun blast at close range could send an enemy flying backward realistically.
 // pulling out characters from vehicles

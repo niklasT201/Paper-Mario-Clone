@@ -471,7 +471,7 @@ data class GameParticle(
     val velocity: Vector3,
     var life: Float, // Remaining lifetime
     val initialLife: Float, // For calculating fade
-    val scale: Float, // Store the particle's scale
+    var scale: Float, // Store the particle's scale
     var animatesRotation: Boolean = false,
     var currentRotationY: Float = 0f,
     var targetRotationY: Float = 0f,
@@ -637,6 +637,8 @@ class ParticleSystem {
     init {
         billboardModelBatch = ModelBatch(billboardShaderProvider)
     }
+
+    fun getActiveParticles(): Array<GameParticle> = activeParticles
 
     fun initialize(blockSize: Float) {
         this.blockSize = blockSize

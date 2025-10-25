@@ -1629,6 +1629,33 @@ class PlayerSystem {
         }
         handleWeaponInput(deltaTime, sceneManager)
 
+        // Player interaction with ash
+        if (isMoving && !isDriving) {
+            val shrinkAmount = 2.0f * deltaTime // How much scale to remove per second of contact
+            val removalThreshold = 0.3f
+            val playerBounds = getPlayerBounds() // Use bounding box for better collision
+
+            // Use the particleSystem directly, which is a member of PlayerSystem
+            val ashIterator = particleSystem.getActiveParticles().iterator()
+            while (ashIterator.hasNext()) {
+                val particle = ashIterator.next()
+                if (particle.type == ParticleEffectType.BURNED_ASH) {
+                    // Create a simple bounding box for the ash particle (it's a flat plane)
+                    val ashBounds = BoundingBox(
+                        particle.position.cpy().sub(particle.scale / 2f, 0f, particle.scale / 2f),
+                        particle.position.cpy().add(particle.scale / 2f, 0.5f, particle.scale / 2f) // Give it a little height
+                    )
+
+                    if (playerBounds.intersects(ashBounds)) {
+                        particle.scale -= shrinkAmount
+                        if (particle.scale < removalThreshold) {
+                            particle.life = 0f // Mark for removal
+                        }
+                    }
+                }
+            }
+        }
+
         // Update animation system
         animationSystem.update(deltaTime)
 
@@ -2061,6 +2088,8 @@ class PlayerSystem {
                 val baseUpwardLift = 1.2f
                 val closeUpwardLift = 2.5f
 
+                val explosionRadiusSquared = explosionRadius * explosionRadius
+
                 // Damage cars
                 for (car in sceneManager.activeCars) {
                     val distanceToCar = car.position.dst(validGroundPosition)
@@ -2190,6 +2219,37 @@ class PlayerSystem {
                                 particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_HEAVY, obj.position)
                             }
                         }
+                    }
+                }
+
+                // Affect Ash
+                val ashIterator = particleSystem.getActiveParticles().iterator()
+                while (ashIterator.hasNext()) {
+                    val particle = ashIterator.next()
+                    if (particle.type == ParticleEffectType.BURNED_ASH) {
+                        if (particle.position.dst2(validGroundPosition) < explosionRadiusSquared) {
+                            // Define "big" ash threshold
+                            val bigAshThreshold = 1.8f // BURNED_ASH default scale is 2.0
+                            if (particle.scale > bigAshThreshold) {
+                                // Shrink big ash to be very small
+                                particle.scale = 0.5f
+                                println("Shrank big ash particle due to explosion.")
+                            } else {
+                                // Small ash is removed completely
+                                particle.life = 0f // Mark for removal
+                                println("Removed small ash particle due to explosion.")
+                            }
+                        }
+                    }
+                }
+
+                // Affect Bones
+                val boneIterator = sceneManager.activeBones.iterator()
+                while (boneIterator.hasNext()) {
+                    val bone = boneIterator.next()
+                    if (bone.position.dst2(validGroundPosition) < explosionRadiusSquared) {
+                        boneIterator.remove()
+                        println("Destroyed bone due to explosion.")
                     }
                 }
             }
