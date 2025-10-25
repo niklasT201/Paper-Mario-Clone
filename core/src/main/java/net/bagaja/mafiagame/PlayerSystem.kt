@@ -177,6 +177,7 @@ class PlayerSystem {
         const val MAX_STEP_HEIGHT = 1.1f
         const val CAR_MAX_STEP_HEIGHT = 4.1f
         const val HEADLIGHT_INTENSITY = 18f
+        private const val PARTICLE_IMPACT_OFFSET = 0.1f
     }
 
     private lateinit var characterPhysicsSystem: CharacterPhysicsSystem
@@ -1684,10 +1685,27 @@ class PlayerSystem {
                 // Calculate the spawn position
                 val particleSpawnPos = collisionResult.hitPoint.cpy().mulAdd(collisionResult.surfaceNormal, PARTICLE_IMPACT_OFFSET)
 
+                val bulletHoleType = when (bullet.owner) {
+                    is PlayerSystem -> ParticleEffectType.BULLET_HOLE_PLAYER
+                    is GameEnemy -> ParticleEffectType.BULLET_HOLE_ENEMY
+                    else -> null // Don't spawn a hole for other types
+                }
+
                 when (collisionResult.type) {
                     HitObjectType.BLOCK -> {
                         // Spawn dust/sparks for static objects
-                        particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_MEDIUM, particleSpawnPos)
+                        particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_MEDIUM, collisionResult.hitPoint)
+
+                        if (bulletHoleType != null) {
+                            // Spawn the decal slightly offset from the surface
+                            val decalPosition = collisionResult.hitPoint.cpy().mulAdd(collisionResult.surfaceNormal, PARTICLE_IMPACT_OFFSET)
+                            particleSystem.spawnEffect(
+                                type = bulletHoleType,
+                                position = decalPosition,
+                                surfaceNormal = collisionResult.surfaceNormal, // Pass the normal to align the decal
+                                gravityOverride = 0f
+                            )
+                        }
                     }
                     HitObjectType.INTERIOR -> {
                         // Spawn dust/sparks for static objects

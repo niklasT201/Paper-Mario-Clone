@@ -15,6 +15,7 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
+import kotlin.math.acos
 import kotlin.random.Random
 
 /**
@@ -40,7 +41,8 @@ enum class ParticleEffectType(
     val scaleVariance: Float,
     val sizeRandomnessChance: Float = 1.0f,
     val fadeIn: Float = 0.1f, // Time to fade in
-    val fadeOut: Float = 0.5f  // Time to fade out
+    val fadeOut: Float = 0.5f,  // Time to fade out
+    val collidesWithWorld: Boolean = false
 ) {
     BLOOD_SPLATTER_1(
         "Blood Splatter 1",
@@ -441,16 +443,18 @@ enum class ParticleEffectType(
     SHELL_CASING_PLAYER(
         "Player Shell Casing",
         arrayOf("textures/player/weapons/cartridge_player.png"),
-        frameDuration = 0.1f, isLooping = false, particleLifetime = 2.5f,
-        particleCount = 1..1, initialSpeed = 8f, speedVariance = 2f, gravity = -35f, // Strong gravity
-        scale = 0.3f, scaleVariance = 0.05f, fadeIn = 0.0f, fadeOut = 0.5f
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 4.0f, // Longer lifetime to see them on ground
+        particleCount = 1..1, initialSpeed = 8f, speedVariance = 2f, gravity = -35f,
+        scale = 0.3f, scaleVariance = 0.05f, fadeIn = 0.0f, fadeOut = 1.0f,
+        collidesWithWorld = true
     ),
     SHELL_CASING_ENEMY(
         "Enemy Shell Casing",
         arrayOf("textures/player/weapons/cartridge_enemy.png"),
-        frameDuration = 0.1f, isLooping = false, particleLifetime = 2.5f,
-        particleCount = 1..1, initialSpeed = 8f, speedVariance = 2f, gravity = -35f, // Strong gravity
-        scale = 0.3f, scaleVariance = 0.05f, fadeIn = 0.0f, fadeOut = 0.5f
+        frameDuration = 0.1f, isLooping = false, particleLifetime = 4.0f, // Longer lifetime
+        particleCount = 1..1, initialSpeed = 8f, speedVariance = 2f, gravity = -35f,
+        scale = 0.3f, scaleVariance = 0.05f, fadeIn = 0.0f, fadeOut = 1.0f,
+        collidesWithWorld = true
     );
 
     val isAnimated: Boolean get() = texturePaths.size > 1
@@ -476,24 +480,46 @@ data class GameParticle(
     val swingAmplitude: Float,
     val swingFrequency: Float,
     var swingAngle: Float = 0f,
-    val gravity: Float
+    val gravity: Float,
+    var hasCollided: Boolean = false
 ) {
     val material: Material = instance.materials.first()
     private val blendingAttribute: BlendingAttribute = material.get(BlendingAttribute.Type) as BlendingAttribute
     private val rotationSpeed: Float = 360f // Degrees per second, matches player
 
-    fun update(deltaTime: Float) {
-        if (!isSurfaceOriented) {
-            // Basic physics
-            velocity.y += this.gravity * deltaTime
-            position.add(velocity.x * deltaTime, velocity.y * deltaTime, velocity.z * deltaTime)
-        }
+    fun update(deltaTime: Float, sceneManager: SceneManager) {
+        if (!isSurfaceOriented && !hasCollided) {
 
-        // Animation
-        if (type.isAnimated) {
-            animationSystem.update(deltaTime)
-            animationSystem.getCurrentTexture()?.let {
-                material.set(TextureAttribute.createDiffuse(it))
+            // Basic physics
+            if (type.collidesWithWorld) {
+                val ray = Ray(position, velocity.cpy().nor())
+                val distanceThisFrame = velocity.len() * deltaTime
+
+                // Perform a raycast to see if the particle will hit anything this frame
+                val collisionResult = sceneManager.checkCollisionForRay(ray, distanceThisFrame)
+
+                if (collisionResult != null && collisionResult.type == HitObjectType.BLOCK) {
+                    hasCollided = true // It has landed
+                    velocity.set(Vector3.Zero) // Stop all movement
+                    position.set(collisionResult.hitPoint) // Snap to the impact point
+
+                    // Final resting transform: lay it flat on the surface
+                    instance.transform.setToTranslation(position)
+                    // Use the surface normal to orient it correctly
+                    val up = Vector3.Y
+                    val rotationAxis = up.cpy().crs(collisionResult.surfaceNormal).nor()
+                    val angle = Math.toDegrees(Math.acos(up.dot(collisionResult.surfaceNormal).toDouble())).toFloat()
+                    instance.transform.rotate(rotationAxis, angle)
+                    // Add a random final spin on the ground
+                    instance.transform.rotate(collisionResult.surfaceNormal, Random.nextFloat() * 360f)
+                    instance.transform.scale(scale, scale, scale)
+                }
+            }
+
+            // Standard Physics (only if not collided)
+            if (!hasCollided) {
+                velocity.y += this.gravity * deltaTime
+                position.add(velocity.x * deltaTime, velocity.y * deltaTime, velocity.z * deltaTime)
             }
         }
 
@@ -501,18 +527,29 @@ data class GameParticle(
         life -= deltaTime
         updateOpacity()
 
-        if (animatesRotation) {
-            updateRotation(deltaTime)
-        }
+        // Only run these animations if the particle hasn't stopped on the ground
+        if (!hasCollided) {
+            // Animation
+            if (type.isAnimated) {
+                animationSystem.update(deltaTime)
+                animationSystem.getCurrentTexture()?.let {
+                    material.set(TextureAttribute.createDiffuse(it))
+                }
+            }
 
-        // Update swinging animation if enabled
-        if (this.swings) {
-            updateSwinging()
-        }
+            if (animatesRotation) {
+                updateRotation(deltaTime)
+            }
 
-        if (!isSurfaceOriented) {
-            // Update the model's transform
-            updateTransform()
+            // Update swinging animation if enabled
+            if (this.swings) {
+                updateSwinging()
+            }
+
+            if (!isSurfaceOriented) {
+                // Update the model's transform
+                updateTransform()
+            }
         }
     }
 
@@ -779,21 +816,22 @@ class ParticleSystem {
                 gravity = finalGravity
             )
 
-            if (isGroundOrientedEffect(type) || isSurfaceOrientedEffect(type)) { // MODIFIED: Check for both ground and surface types
+            if (isGroundOrientedEffect(type) || isSurfaceOrientedEffect(type)) {
                 particle.isSurfaceOriented = true
                 instance.transform.setToTranslation(particle.position)
 
-                if (isSurfaceOrientedEffect(type) && surfaceNormal != null) {
+                if (surfaceNormal != null) {
                     // NEW: Logic to align the decal to the wall surface
-                    val rotationAxis = Vector3.Y.cpy().crs(surfaceNormal).nor()
-                    val angle = Math.toDegrees(Math.acos(Vector3.Y.dot(surfaceNormal).toDouble())).toFloat()
+                    val rotationAxis = Vector3.Z.cpy().crs(surfaceNormal).nor()
+                    val angle = Math.toDegrees(acos(Vector3.Z.dot(surfaceNormal).toDouble())).toFloat()
+
+                    // Apply the alignment rotation
                     instance.transform.rotate(rotationAxis, angle)
-                    instance.transform.rotate(surfaceNormal, Random.nextFloat() * 360f) // The "spinning plate" rotation
-                } else {
                     // Existing logic for ground-only decals
-                    instance.transform.rotate(Vector3.Y, Random.nextFloat() * 360f)
+                    instance.transform.rotate(surfaceNormal, Random.nextFloat() * 360f) // The "spinning plate" rotation
                 }
 
+                // Apply scale last
                 instance.transform.scale(particle.scale, particle.scale, particle.scale)
             } else {
                 // Handle surface orientation before setting up other animations
@@ -827,7 +865,11 @@ class ParticleSystem {
     private fun isSurfaceOrientedEffect(type: ParticleEffectType): Boolean {
         return when (type) {
             ParticleEffectType.BULLET_HOLE_PLAYER,
-            ParticleEffectType.BULLET_HOLE_ENEMY -> true
+            ParticleEffectType.BULLET_HOLE_ENEMY,
+
+            ParticleEffectType.BLOOD_SPLATTER_1,
+            ParticleEffectType.BLOOD_SPLATTER_2,
+            ParticleEffectType.BLOOD_SPLATTER_3 -> true
             else -> false
         }
     }
@@ -836,7 +878,7 @@ class ParticleSystem {
         val iterator = activeParticles.iterator()
         while (iterator.hasNext()) {
             val particle = iterator.next()
-            particle.update(deltaTime)
+            particle.update(deltaTime, sceneManager) // This line needs to be updated
             if (particle.life <= 0) {
                 particle.animationSystem.dispose()
                 iterator.remove()
