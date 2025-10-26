@@ -249,6 +249,8 @@ class MafiaGame : ApplicationAdapter() {
         npcSystem.sceneManager = sceneManager
         particleSystem.sceneManager = sceneManager
         spawnerSystem.sceneManager = sceneManager
+        bloodPoolSystem.sceneManager = sceneManager
+        footprintSystem.sceneManager = sceneManager
 
         highlightSystem.initialize()
         targetingIndicatorSystem.initialize()

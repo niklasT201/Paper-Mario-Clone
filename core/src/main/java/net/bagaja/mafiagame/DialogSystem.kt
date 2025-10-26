@@ -336,15 +336,20 @@ class DialogSystem {
 
         val sequence = activeSequence ?: return
         if (currentLineIndex >= sequence.lines.size) {
-            endDialog()
+            if (isPreviewMode) {
+                hidePreview()
+            } else {
+                endDialog()
+            }
             return
         }
 
         val isLastLine = currentLineIndex == sequence.lines.size - 1
 
+        // If this is the last line of a transactional dialog, show the player's money.
         if (isTransactionalDialog && isLastLine && !isPreviewMode) {
-            // Call the new function to SHOW and KEEP the money display visible.
-            uiManager.setMoneyDisplayVisibility(true, uiManager.game.playerSystem.getMoney())
+            // We use the uiManager reference to get to the game and then the player's money.
+            uiManager.showMoneyUpdate(uiManager.game.playerSystem.getMoney())
         }
 
         val line = sequence.lines[currentLineIndex]
@@ -485,11 +490,7 @@ class DialogSystem {
             Actions.run {
                 mainContainer.isVisible = false
 
-                // If this was a transactional dialog, explicitly hide the money display.
-                if (isTransactionalDialog) {
-                    uiManager.setMoneyDisplayVisibility(false, null)
-                }
-
+                // --- ADD THIS CHECK ---
                 // Only call onComplete if the dialog wasn't cancelled by the user.
                 if (!isCancelled) {
                     sequence.onComplete?.invoke()

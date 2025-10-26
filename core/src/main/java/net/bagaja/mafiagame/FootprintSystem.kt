@@ -22,7 +22,8 @@ data class GameFootprint(
     val position: Vector3,
     var lifetime: Float,
     val initialLifetime: Float,
-    private val blendingAttribute: BlendingAttribute
+    private val blendingAttribute: BlendingAttribute,
+    val washAwayComponent: WashAwayComponent = WashAwayComponent()
 ) {
     // A helper method to easily update the opacity for fading
     fun setOpacity(opacity: Float) {
@@ -37,6 +38,7 @@ class FootprintSystem {
     private val renderableInstances = Array<ModelInstance>()
     private lateinit var shaderProvider: BillboardShaderProvider
     private lateinit var bloodPrintTexture: Texture
+    lateinit var sceneManager: SceneManager
 
     companion object {
         const val FOOTPRINT_LIFETIME = 8.0f // Footprints last for 12 seconds
@@ -149,10 +151,35 @@ class FootprintSystem {
     }
 
     fun update(deltaTime: Float, activeFootprints: Array<GameFootprint>) {
+        val rainIntensity = sceneManager.game.weatherSystem.getRainIntensity()
         val iterator = activeFootprints.iterator()
+
         while (iterator.hasNext()) {
             val footprint = iterator.next()
             footprint.lifetime -= deltaTime
+
+            if (rainIntensity > 0.01f) {
+                val component = footprint.washAwayComponent
+                component.timer -= deltaTime
+
+                if (component.timer <= 0) {
+                    when (component.state) {
+                        WashAwayState.IDLE -> {
+                            component.state = WashAwayState.SHRINKING
+                            component.timer = Random.nextFloat() * 2.0f + 1.0f
+                        }
+                        WashAwayState.SHRINKING -> {
+                            component.state = WashAwayState.IDLE
+                            component.timer = Random.nextFloat() * 10f + 5f
+                        }
+                    }
+                }
+
+                if (component.state == WashAwayState.SHRINKING) {
+                    val shrinkRate = 2.0f * rainIntensity
+                    footprint.lifetime -= shrinkRate * deltaTime
+                }
+            }
 
             // If lifetime is over, remove the footprint
             if (footprint.lifetime <= 0) {

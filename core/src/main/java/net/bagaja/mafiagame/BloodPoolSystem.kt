@@ -21,8 +21,9 @@ data class BloodPool(
     val instance: ModelInstance,
     val position: Vector3,
     var currentScale: Float = 0.1f, // Start very small
-    val maxScale: Float,            // The random maximum size
-    val growthRate: Float           // How fast it grows
+    val maxScale: Float, // The random maximum size
+    val growthRate: Float, // How fast it grows
+    val washAwayComponent: WashAwayComponent = WashAwayComponent()
 )
 
 class BloodPoolSystem {
@@ -31,6 +32,7 @@ class BloodPoolSystem {
     private lateinit var billboardModelBatch: ModelBatch
     private val renderableInstances = Array<ModelInstance>()
     private lateinit var billboardShaderProvider: BillboardShaderProvider
+    lateinit var sceneManager: SceneManager
 
     fun initialize() {
         // MODIFIED: Initialize the shader and batch for proper rendering
@@ -107,14 +109,49 @@ class BloodPoolSystem {
     }
 
     fun update(deltaTime: Float, activePools: Array<BloodPool>) {
-        for (pool in activePools) {
+        val rainIntensity = sceneManager.game.weatherSystem.getRainIntensity()
+        val iterator = activePools.iterator()
+
+        while(iterator.hasNext()) {
             // Grow the pool over time until it reaches its max size
+            val pool = iterator.next()
+
             if (pool.currentScale < pool.maxScale) {
                 pool.currentScale += pool.growthRate * deltaTime
                 if (pool.currentScale > pool.maxScale) {
                     pool.currentScale = pool.maxScale
                 }
             }
+
+            if (rainIntensity > 0.01f) {
+                val component = pool.washAwayComponent
+                component.timer -= deltaTime
+
+                if (component.timer <= 0) {
+                    when (component.state) {
+                        WashAwayState.IDLE -> {
+                            component.state = WashAwayState.SHRINKING
+                            component.timer = Random.nextFloat() * 2.0f + 1.0f
+                        }
+                        WashAwayState.SHRINKING -> {
+                            component.state = WashAwayState.IDLE
+                            component.timer = Random.nextFloat() * 15f + 5f
+                        }
+                    }
+                }
+
+                if (component.state == WashAwayState.SHRINKING) {
+                    // --- THE FIX IS HERE ---
+                    val shrinkRate = 0.5f * rainIntensity
+                    pool.currentScale -= shrinkRate * deltaTime
+                }
+            }
+
+            if (pool.currentScale <= 0f) {
+                iterator.remove()
+                continue
+            }
+
             // Update the visual transform of the model instance
             pool.instance.transform.setToTranslation(pool.position)
             pool.instance.transform.scale(pool.currentScale, 1f, pool.currentScale)

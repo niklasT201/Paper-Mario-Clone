@@ -481,7 +481,8 @@ data class GameParticle(
     val swingFrequency: Float,
     var swingAngle: Float = 0f,
     val gravity: Float,
-    var hasCollided: Boolean = false
+    var hasCollided: Boolean = false,
+    val washAwayComponent: WashAwayComponent = WashAwayComponent() // Add the component
 ) {
     val material: Material = instance.materials.first()
     private val blendingAttribute: BlendingAttribute = material.get(BlendingAttribute.Type) as BlendingAttribute
@@ -913,10 +914,48 @@ class ParticleSystem {
     }
 
     fun update(deltaTime: Float) {
+        val rainIntensity = sceneManager.game.weatherSystem.getRainIntensity()
         val iterator = activeParticles.iterator()
+
         while (iterator.hasNext()) {
             val particle = iterator.next()
             particle.update(deltaTime, sceneManager) // This line needs to be updated
+
+            // RAIN WASH-AWAY
+            val isWashable = particle.type in listOf(
+                ParticleEffectType.BLOOD_SPLATTER_1,
+                ParticleEffectType.BLOOD_SPLATTER_2,
+                ParticleEffectType.BLOOD_SPLATTER_3,
+                ParticleEffectType.BURNED_ASH
+            )
+
+            if (rainIntensity > 0.01f && isWashable) {
+                val component = particle.washAwayComponent
+                component.timer -= deltaTime
+
+                if (component.timer <= 0) {
+                    when (component.state) {
+                        WashAwayState.IDLE -> {
+                            component.state = WashAwayState.SHRINKING
+                            component.timer = Random.nextFloat() * 2.5f + 1.0f // Shrink for 1-3.5 seconds
+                        }
+                        WashAwayState.SHRINKING -> {
+                            component.state = WashAwayState.IDLE
+                            component.timer = Random.nextFloat() * 20f + 10f // Pause for 10-30 seconds
+                        }
+                    }
+                }
+
+                if (component.state == WashAwayState.SHRINKING) {
+                    val shrinkRate = 0.4f * rainIntensity // Base shrink speed
+                    particle.scale -= shrinkRate * deltaTime
+                    // If scale becomes too small, mark for removal
+                    if (particle.scale <= 0.05f) {
+                        particle.life = 0f
+                    }
+                }
+            }
+
             if (particle.life <= 0) {
                 particle.animationSystem.dispose()
                 iterator.remove()

@@ -65,9 +65,10 @@ public class Lwjgl3Launcher {
 // fire in rooms and mission not being connected right with its light source
 // visual screen for finished mission
 // bullet holes disappear when breaking blocks with them
+// money label showing up at rewards
+// overhaul of the reward dialog
 // nickelodeons having real short films
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
-// blood being removed by rain
 // less character and car spawn when heavy rain
 // maybe puddles by heavy rain and footprints in puddles
 // characters change behaviour in rain
@@ -118,3 +119,6 @@ public class Lwjgl3Launcher {
 // question. lets say i want to use the same dialog for different missions or npcs but i want that the for one npc the dialog to be slightly higher, or wider or whatever and for the other one not. how could i implement this?
 
 // i had the idea for a new feature, where i dont know if it could be good. as you hopefully see, enemies and npcs that are killed, they start disappearing, until they are fully vanished. and i want a new feature BUT only for ultra violence mode. when an enemy or npc is killed, it will disappear, BUT only after a certrain amount of time, maybe like one minute and then after this time the normal disappearing starts. but now the question, what happens during this one minute. simple, i want that the dead character lays dead on floor, and when the player stands next to it, or maybe literally collides with the npc/enemy, player can press a key, maybe p or so and "pick" up the character, and put it to another location, until the disappearing starts. i want that when you pick up the character, it will be behind the player, so when the player moves to the right for example, the dead character will fly a little bit above the ground and move behind the player being on the left side and follow, until it disappears or the player puts it down agian
+
+// can you help me with my kotlin 3d game?
+//i have this preview ui for dialogs, but this doesnt work for dialogs that are used for reward dialogs, so anything besides None. this is not so good, as it sometimes looks weird, how big the dialog gets just bc the reward, and i have no way to change it how i want it and it would be annyoing when i would have to modify every single dialog hardcoded. is there a way to add that i can also modify the dialog when they are used by an enemy/npc and have a reward, that i can see how the reward dialog will look and not only the created dialogs that i can later use for these characters
