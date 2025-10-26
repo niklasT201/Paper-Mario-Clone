@@ -531,9 +531,10 @@ class EnemySystem : IFinePositionable {
         }
     }
 
-    fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float) {
-       val playerPos = playerSystem.getPosition()
+    fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float, weatherSystem: WeatherSystem, isInInterior: Boolean) {
+        val playerPos = playerSystem.getPosition()
         val iterator = sceneManager.activeEnemies.iterator()
+        val visualRainIntensity = weatherSystem.getVisualRainIntensity()
 
         while (iterator.hasNext()) {
             val enemy = iterator.next()
@@ -562,6 +563,22 @@ class EnemySystem : IFinePositionable {
             // HANDLE ON FIRE STATE (DAMAGE & VISUALS)
             if (enemy.isOnFire) {
                 enemy.onFireTimer -= deltaTime
+
+                // RAIN EXTINGUISH
+                if (visualRainIntensity > 0.1f && !isInInterior && !enemy.isInCar) {
+                    val extinguishRate = 3.0f * visualRainIntensity
+                    enemy.onFireTimer -= extinguishRate * deltaTime
+
+                    if (Random.nextFloat() < 0.3f) {
+                        val steamPosition = enemy.position.cpy().add(
+                            (Random.nextFloat() - 0.5f) * (enemy.enemyType.width * 0.8f),
+                            (Random.nextFloat()) * (enemy.enemyType.height * 0.8f),
+                            0f
+                        )
+                        sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.SMOKE_FRAME_1, steamPosition)
+                    }
+                }
+
                 if (enemy.onFireTimer <= 0) {
                     enemy.isOnFire = false
                 } else {

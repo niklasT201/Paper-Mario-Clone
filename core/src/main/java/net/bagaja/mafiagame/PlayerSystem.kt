@@ -1558,11 +1558,33 @@ class PlayerSystem {
         }
     }
 
-    fun update(deltaTime: Float, sceneManager: SceneManager) {
+    fun update(deltaTime: Float, sceneManager: SceneManager, weatherSystem: WeatherSystem, isInInterior: Boolean) {
 
         // HANDLE ON FIRE STATE (DAMAGE & VISUALS)
         if (this.isOnFire) {
             this.onFireTimer -= deltaTime
+
+            // RAIN EXTINGUISH
+            val visualRainIntensity = weatherSystem.getVisualRainIntensity()
+            if (visualRainIntensity > 0.1f && !isInInterior && !isDriving) {
+                // If it's raining and the player is outside and not in a car...
+
+                // 1. Make the fire burn out faster based on rain intensity.
+                val extinguishRate = 3.0f * visualRainIntensity
+                this.onFireTimer -= extinguishRate * deltaTime
+                println("Player is on fire in the rain! Extinguishing...")
+
+                // 2. Spawn sizzle/steam particles for visual feedback.
+                if (Random.nextFloat() < 0.3f) { // 30% chance per frame to spawn steam
+                    val steamPosition = this.getPosition().add(
+                        (Random.nextFloat() - 0.5f) * (this.playerSize.x * 0.8f),
+                        (Random.nextFloat()) * (this.playerSize.y * 0.8f),
+                        0f
+                    )
+                    this.particleSystem.spawnEffect(ParticleEffectType.SMOKE_FRAME_1, steamPosition)
+                }
+            }
+
             if (this.onFireTimer <= 0) {
                 this.isOnFire = false
             } else {

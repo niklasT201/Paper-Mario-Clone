@@ -1091,9 +1091,9 @@ class MafiaGame : ApplicationAdapter() {
                     }
 
                     bulletTrailSystem.update(deltaTime)
-                    playerSystem.update(deltaTime, sceneManager)
-                    enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize)
-                    npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize)
+                    playerSystem.update(deltaTime, sceneManager, weatherSystem, isInInterior)
+                    enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize, weatherSystem, isInInterior)
+                    npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize, weatherSystem, isInInterior)
                     bloodPoolSystem.update(deltaTime, sceneManager.activeBloodPools)
                     footprintSystem.update(deltaTime, sceneManager.activeFootprints)
 

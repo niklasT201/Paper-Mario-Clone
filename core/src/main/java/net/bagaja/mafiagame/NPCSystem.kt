@@ -566,9 +566,10 @@ class NPCSystem : IFinePositionable {
         }
     }
 
-    fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float) {
+    fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float, weatherSystem: WeatherSystem, isInInterior: Boolean) {
         val playerPos = playerSystem.getPosition()
         val iterator = sceneManager.activeNPCs.iterator()
+        val visualRainIntensity = weatherSystem.getVisualRainIntensity()
 
         while(iterator.hasNext()) {
             val npc = iterator.next()
@@ -597,6 +598,22 @@ class NPCSystem : IFinePositionable {
             // HANDLE ON FIRE STATE (DAMAGE & VISUALS)
             if (npc.isOnFire) {
                 npc.onFireTimer -= deltaTime
+
+                // RAIN EXTINGUISH
+                if (visualRainIntensity > 0.1f && !isInInterior && !npc.isInCar) {
+                    val extinguishRate = 3.0f * visualRainIntensity
+                    npc.onFireTimer -= extinguishRate * deltaTime
+
+                    if (Random.nextFloat() < 0.3f) {
+                        val steamPosition = npc.position.cpy().add(
+                            (Random.nextFloat() - 0.5f) * (npc.npcType.width * 0.8f),
+                            (Random.nextFloat()) * (npc.npcType.height * 0.8f),
+                            0f
+                        )
+                        sceneManager.game.particleSystem.spawnEffect(ParticleEffectType.SMOKE_FRAME_1, steamPosition)
+                    }
+                }
+
                 if (npc.onFireTimer <= 0) {
                     npc.isOnFire = false
                 } else {
