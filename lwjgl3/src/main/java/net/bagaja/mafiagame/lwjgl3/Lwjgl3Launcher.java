@@ -73,7 +73,6 @@ public class Lwjgl3Launcher {
 // characters change behaviour in rain
 // loot in barrels
 // enemy cover up ai
-// money label visible when getting option to buy something
 // minimap for open world mode
 // Civilian npc that just follows paths. They should flee from gunfire and call the police if they see a crime
 // The Law & Wanted Level

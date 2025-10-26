@@ -210,6 +210,7 @@ class UIManager(
         layoutBuilder = UILayoutBuilder(skin) // Create the builder
 
         dialogSystem = DialogSystem()
+        dialogSystem.uiManager = this
         dialogSystem.initialize(stage, skin)
 
         // Initialize UIs that can exist without a game world
@@ -1915,6 +1916,38 @@ class UIManager(
 
     fun getCurrentHudStyle(): HudStyle = currentHudStyle
 
+    fun setMoneyDisplayVisibility(visible: Boolean, amount: Int? = null) {
+        val moneyElement = dynamicHudElements.find { it.key == HudInfoKey.MONEY } ?: return
+
+        // Update the text if an amount is provided
+        if (amount != null) {
+            moneyValueLabel.setText(amount.toString())
+            moneyDisplayTable.pack() // Recalculate size based on new text
+        }
+
+        // Check if the state is actually changing
+        if (moneyElement.isVisible == visible) return
+
+        // Get the animation width
+        val width = moneyDisplayTable.width + 5f
+        moneyDisplayTable.clearActions() // Stop any previous animations
+
+        if (visible) {
+            // Animate it sliding IN
+            setHudElementVisibility(HudInfoKey.MONEY, true)
+            moneyDisplayTable.addAction(Actions.sequence(
+                Actions.moveBy(width, 0f), // Instantly move it off-screen
+                Actions.moveBy(-width, 0f, 0.4f, Interpolation.swingOut) // Slide in
+            ))
+        } else {
+            // Animate it sliding OUT
+            moneyDisplayTable.addAction(Actions.sequence(
+                Actions.moveBy(width, 0f, 0.4f, Interpolation.swingIn), // Slide out
+                Actions.run { setHudElementVisibility(HudInfoKey.MONEY, false) } // Hide after animation
+            ))
+        }
+    }
+
     fun showMoneyUpdate(newAmount: Int) {
         // Find our money element in the master list to check its visibility state.
         val moneyElement = dynamicHudElements.find { it.key == HudInfoKey.MONEY } ?: return
@@ -1922,39 +1955,36 @@ class UIManager(
         moneyValueLabel.setText(newAmount.toString())
         moneyDisplayTable.pack() // Recalculate size based on new text
 
+        // If the display is already visible (e.g., from a dialog), just make it "pop"
         if (moneyElement.isVisible) {
-            var foundAndResetDelay = false
-            for (action in moneyDisplayTable.actions) {
-                if (action is SequenceAction) {
-                    // Find the delay part of the animation sequence.
-                    for (subAction in action.actions) {
-                        if (subAction is DelayAction) {
-                            subAction.restart() // This resets the timer on the delay!
-                            foundAndResetDelay = true
-                            break
-                        }
-                    }
-                }
-                if (foundAndResetDelay) break
-            }
-
-        } else {
-            // The display is completely off-screen. Play the full "slide in" animation.
-            setHudElementVisibility(HudInfoKey.MONEY, true)
-
-            val width = moneyDisplayTable.width + 5f
-
-            // Play the full slide-in, delay, and slide-out sequence.
+            moneyDisplayTable.clearActions()
             moneyDisplayTable.addAction(Actions.sequence(
-                Actions.moveBy(width, 0f), // Instantly move it off-screen to the right
-                Actions.moveBy(-width, 0f, 0.4f, Interpolation.swingOut), // Slide in
-                Actions.delay(2.5f), // Wait
-                Actions.moveBy(width, 0f, 0.4f, Interpolation.swingIn), // Slide out
-                Actions.run {
-                    setHudElementVisibility(HudInfoKey.MONEY, false)
-                }
+                Actions.scaleTo(1.1f, 1.1f, 0.1f),
+                Actions.scaleTo(1.0f, 1.0f, 0.1f),
+                // If it wasn't a temporary display before, now it is.
+                Actions.delay(2.5f),
+                Actions.run { setMoneyDisplayVisibility(false, null) }
             ))
+            return
         }
+
+        // The display is hidden, so play the full temporary animation.
+        setHudElementVisibility(HudInfoKey.MONEY, true)
+
+        val width = moneyDisplayTable.width + 5f
+
+        moneyDisplayTable.clearActions()
+
+        // Play the full slide-in, delay, and slide-out sequence.
+        moneyDisplayTable.addAction(Actions.sequence(
+            Actions.moveBy(width, 0f), // Instantly move it off-screen to the right
+            Actions.moveBy(-width, 0f, 0.4f, Interpolation.swingOut), // Slide in
+            Actions.delay(2.5f), // Wait
+            Actions.moveBy(width, 0f, 0.4f, Interpolation.swingIn), // Slide out
+            Actions.run {
+                setHudElementVisibility(HudInfoKey.MONEY, false)
+            }
+        ))
     }
 
     fun isDialogActive(): Boolean = dialogSystem.isActive()

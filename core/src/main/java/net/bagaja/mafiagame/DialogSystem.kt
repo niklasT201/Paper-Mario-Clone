@@ -35,6 +35,7 @@ data class DialogLine(
 data class DialogSequence(val lines: List<DialogLine>, val onComplete: (() -> Unit)? = null)
 
 class DialogSystem {
+    lateinit var uiManager: UIManager
     private lateinit var stage: Stage
     private lateinit var skin: Skin
     lateinit var itemSystem: ItemSystem
@@ -67,6 +68,7 @@ class DialogSystem {
     private lateinit var choicesContainer: HorizontalGroup
     private var isAwaitingChoice: Boolean = false
     private var isCancelled: Boolean = false
+    private var isTransactionalDialog = false
 
     // --- Configuration ---
     companion object {
@@ -181,6 +183,14 @@ class DialogSystem {
             println("Warning: Tried to start a new dialog while one is already active.")
             return
         }
+
+        // Check if the outcome involves a financial transaction.
+        isTransactionalDialog = outcome?.type in listOf(
+            DialogOutcomeType.SELL_ITEM_TO_PLAYER,
+            DialogOutcomeType.BUY_ITEM_FROM_PLAYER,
+            DialogOutcomeType.TRADE_ITEM
+        )
+
         isPreviewMode = false
         activeSequence = sequence
         activeOutcome = outcome
@@ -326,12 +336,15 @@ class DialogSystem {
 
         val sequence = activeSequence ?: return
         if (currentLineIndex >= sequence.lines.size) {
-            if (isPreviewMode) {
-                hidePreview()
-            } else {
-                endDialog()
-            }
+            endDialog()
             return
+        }
+
+        val isLastLine = currentLineIndex == sequence.lines.size - 1
+
+        if (isTransactionalDialog && isLastLine && !isPreviewMode) {
+            // Call the new function to SHOW and KEEP the money display visible.
+            uiManager.setMoneyDisplayVisibility(true, uiManager.game.playerSystem.getMoney())
         }
 
         val line = sequence.lines[currentLineIndex]
@@ -472,7 +485,11 @@ class DialogSystem {
             Actions.run {
                 mainContainer.isVisible = false
 
-                // --- ADD THIS CHECK ---
+                // If this was a transactional dialog, explicitly hide the money display.
+                if (isTransactionalDialog) {
+                    uiManager.setMoneyDisplayVisibility(false, null)
+                }
+
                 // Only call onComplete if the dialog wasn't cancelled by the user.
                 if (!isCancelled) {
                     sequence.onComplete?.invoke()
