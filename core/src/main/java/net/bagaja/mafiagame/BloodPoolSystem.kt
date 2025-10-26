@@ -109,7 +109,7 @@ class BloodPoolSystem {
     }
 
     fun update(deltaTime: Float, activePools: Array<BloodPool>) {
-        val rainIntensity = sceneManager.game.weatherSystem.getRainIntensity()
+        val rainIntensity = sceneManager.game.weatherSystem.getVisualRainIntensity()
         val iterator = activePools.iterator()
 
         while(iterator.hasNext()) {

@@ -151,7 +151,7 @@ class FootprintSystem {
     }
 
     fun update(deltaTime: Float, activeFootprints: Array<GameFootprint>) {
-        val rainIntensity = sceneManager.game.weatherSystem.getRainIntensity()
+        val rainIntensity = sceneManager.game.weatherSystem.getVisualRainIntensity()
         val iterator = activeFootprints.iterator()
 
         while (iterator.hasNext()) {

@@ -250,13 +250,58 @@ class FireSystem {
         val expiredFires = mutableListOf<GameFire>()
         val iterator = activeFires.iterator()
 
-        val rainIntensity = weatherSystem.getRainIntensity()
-        val isRainingHard = rainIntensity > 0.6f // Only extinguish in medium-to-heavy rain
+        val visualRainIntensity = weatherSystem.getVisualRainIntensity()
+        val isRainingVisually = visualRainIntensity > 0.01f // Only extinguish in medium-to-heavy rain
 
         while(iterator.hasNext()) {
             val fire = iterator.next()
             fire.update(deltaTime, particleSystem, sceneManager.game.lightingManager)
 
+            val isOutdoors = fire.gameObject.position.y > -1f
+
+            if (fire.canBeExtinguished && isRainingVisually && isOutdoors) {
+                // --- RAIN INTERACTION LOGIC (Sputtering & Shrinking) ---
+                if (Random.nextFloat() < (0.5f * visualRainIntensity * fire.currentScale)) {
+                    val steamPosition = fire.gameObject.position.cpy().add(
+                        (Random.nextFloat() - 0.5f) * (fire.gameObject.objectType.width * fire.currentScale * 0.5f),
+                        fire.gameObject.objectType.height * fire.currentScale * 0.7f,
+                        (Random.nextFloat() - 0.5f) * (fire.gameObject.objectType.width * fire.currentScale * 0.5f)
+                    )
+                    particleSystem.spawnEffect(ParticleEffectType.SMOKE_FRAME_1, steamPosition)
+                }
+
+                val component = fire.gameObject.washAwayComponent
+                component.timer -= deltaTime
+                if (component.timer <= 0) {
+                    when (component.state) {
+                        WashAwayState.IDLE -> {
+                            component.state = WashAwayState.SHRINKING
+                            component.timer = Random.nextFloat() * 1.5f + 0.5f // Shrink for 0.5-2 seconds
+                        }
+                        WashAwayState.SHRINKING -> {
+                            component.state = WashAwayState.IDLE
+                            component.timer = Random.nextFloat() * 4f + 2f // Pause for 2-6 seconds
+                        }
+                    }
+                }
+
+                if (component.state == WashAwayState.SHRINKING) {
+                    val shrinkRate = 0.8f * visualRainIntensity
+                    fire.currentScale -= shrinkRate * deltaTime
+                }
+            } else {
+                // --- FIRE RECOVERY LOGIC ---
+                if (fire.currentScale < fire.initialScale) {
+                    val recoveryRate = 0.2f
+                    fire.currentScale += recoveryRate * deltaTime
+                    if (fire.currentScale > fire.initialScale) {
+                        fire.currentScale = fire.initialScale
+                    }
+                }
+                fire.gameObject.washAwayComponent.state = WashAwayState.IDLE
+            }
+
+            // --- FIRE SPREAD LOGIC ---
             if (fire.canSpread && !fire.isBeingExtinguished) {
                 fire.spreadTimer -= deltaTime
                 if (fire.spreadTimer <= 0f) {
@@ -296,17 +341,8 @@ class FireSystem {
             }
 
             // Check if fire should be extinguished
-            if (fire.canBeExtinguished && isRainingHard) {
-                val isOutdoors = fire.gameObject.position.y > -1f // Simple check to avoid underground fires
-                if (isOutdoors) {
-                    fire.isBeingExtinguished = true
-                }
-            }
-
             if (fire.isExpired()) {
-                // You will need to pass objectSystem and lightingManager here to fully remove it.
                 println("Fire ${fire.id} has expired and should be removed.")
-                // iterator.remove() // We can't fully remove it without the other systems.
                 expiredFires.add(fire)
                 continue // Skip damage logic for expired fires
             }

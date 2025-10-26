@@ -123,8 +123,8 @@ class WeatherSystem : Disposable {
         val visualTarget = if (isInInterior) 0f else worldRainIntensity
         currentRainIntensity = Interpolation.fade.apply(currentRainIntensity, visualTarget, 2.0f * deltaTime)
 
-        // --- 4. Update the lighting manager with the current VISUAL intensity ---
-        lightingManager.setRainFactor(currentRainIntensity)
+        // --- 4. Update the lighting manager with the current LOGICAL intensity for color tinting ---
+        lightingManager.setRainFactor(worldRainIntensity) // Lighting should change with the sky, not the drops
 
         // --- 5. Update particle physics if there is visible rain ---
         if (currentRainIntensity > 0.01f) {
@@ -270,6 +270,7 @@ class WeatherSystem : Disposable {
     }
 
     fun getRainIntensity(): Float = worldRainIntensity
+    fun getVisualRainIntensity(): Float = currentRainIntensity
 
     override fun dispose() {
         rainModel.dispose()

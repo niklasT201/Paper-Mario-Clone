@@ -914,14 +914,30 @@ class ParticleSystem {
     }
 
     fun update(deltaTime: Float) {
-        val rainIntensity = sceneManager.game.weatherSystem.getRainIntensity()
+        val visualRainIntensity = sceneManager.game.weatherSystem.getVisualRainIntensity()
         val iterator = activeParticles.iterator()
 
         while (iterator.hasNext()) {
             val particle = iterator.next()
+
+            val isSmoke = particle.type.name.contains("SMOKE")
+            if (visualRainIntensity > 0.01f && isSmoke && !particle.hasCollided) {
+                // 1. Reduce lifetime faster
+                val lifetimeReduction = 1.5f * visualRainIntensity * deltaTime
+                particle.life -= lifetimeReduction
+
+                // 2. Increase gravity to pull it down
+                val gravityIncrease = 40f * visualRainIntensity * deltaTime
+                particle.velocity.y -= gravityIncrease
+
+                // 3. (POLISH) Shrink the particle to make it look "dissipated"
+                val scaleReduction = 0.3f * visualRainIntensity * deltaTime
+                particle.scale = (particle.scale - scaleReduction).coerceAtLeast(0.1f)
+            }
+
             particle.update(deltaTime, sceneManager) // This line needs to be updated
 
-            // RAIN WASH-AWAY
+            // Wash-away logic for blood/ash
             val isWashable = particle.type in listOf(
                 ParticleEffectType.BLOOD_SPLATTER_1,
                 ParticleEffectType.BLOOD_SPLATTER_2,
@@ -929,7 +945,7 @@ class ParticleSystem {
                 ParticleEffectType.BURNED_ASH
             )
 
-            if (rainIntensity > 0.01f && isWashable) {
+            if (visualRainIntensity > 0.01f && isWashable) {
                 val component = particle.washAwayComponent
                 component.timer -= deltaTime
 
@@ -947,7 +963,7 @@ class ParticleSystem {
                 }
 
                 if (component.state == WashAwayState.SHRINKING) {
-                    val shrinkRate = 0.4f * rainIntensity // Base shrink speed
+                    val shrinkRate = 0.4f * visualRainIntensity // Base shrink speed
                     particle.scale -= shrinkRate * deltaTime
                     // If scale becomes too small, mark for removal
                     if (particle.scale <= 0.05f) {
