@@ -111,6 +111,10 @@ class SpawnerSystem(
             "WORLD"
         }
 
+        val weatherSystem = sceneManager.game.weatherSystem
+        val rainIntensity = weatherSystem.getRainIntensity() // Use logical intensity for gameplay effects
+        val isRaining = rainIntensity > 0.1f // A small threshold to consider it "raining"
+
         val modifiers = sceneManager.game.missionSystem.activeModifiers
         val activeSpawners = spawners.filter { spawner ->
             // Condition 1: The spawner MUST belong to the current scene.
@@ -169,8 +173,20 @@ class SpawnerSystem(
                 continue // Skip this spawner
             }
 
+            // RAIN DELAY LOGIC
+            var effectiveDeltaTime = deltaTime
+            val isCharacterOrCarSpawner = spawner.spawnerType in listOf(SpawnerType.CAR, SpawnerType.ENEMY, SpawnerType.NPC)
+
+            // Apply the delay only if it's raining, the spawner is for a character/car, AND it's in the world scene.
+            if (isRaining && isCharacterOrCarSpawner && spawner.sceneId == "WORLD") {
+                // At max rain intensity (1.0), spawner 6 times slower
+                val rainSlowdownFactor = 1.0f + (5.0f * rainIntensity)
+                effectiveDeltaTime /= rainSlowdownFactor
+            }
+
             // Countdown the timer.
-            spawner.timer -= deltaTime
+            spawner.timer -= effectiveDeltaTime
+
             if (spawner.timer <= 0f) {
                 // Check for increased enemy spawn modifier
                 val spawnCount = if (spawner.spawnerType == SpawnerType.ENEMY && modifiers?.increasedEnemySpawns == true) {

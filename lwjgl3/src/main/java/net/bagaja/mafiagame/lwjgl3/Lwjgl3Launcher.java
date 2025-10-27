@@ -70,7 +70,6 @@ public class Lwjgl3Launcher {
 // nickelodeons having real short films
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // rain splashes at ground
-// less character and car spawn when heavy rain
 // maybe puddles by heavy rain and footprints in puddles
 // characters change behaviour in rain
 // loot in barrels

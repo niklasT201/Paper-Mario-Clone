@@ -1012,6 +1012,9 @@ class MafiaGame : ApplicationAdapter() {
             }
 
             GameMode.IN_GAME -> {
+                val rawDeltaTime = Gdx.graphics.deltaTime
+                val MAX_DELTA_TIME = 0.1f
+                val deltaTime = minOf(rawDeltaTime, MAX_DELTA_TIME)
 
                 updateCursorVisibility()
                 // Begin capturing the frame for post-processing
@@ -1022,29 +1025,19 @@ class MafiaGame : ApplicationAdapter() {
 
                 // Check if we are in an interior
                 val currentSceneType = sceneManager.currentScene
-                val isInInterior =
-                    currentSceneType == SceneType.HOUSE_INTERIOR || currentSceneType == SceneType.TRANSITIONING_TO_WORLD
+                val isInInterior = currentSceneType == SceneType.HOUSE_INTERIOR || currentSceneType == SceneType.TRANSITIONING_TO_WORLD
 
                 // If in an interior, use a black background
-                val clearColor = if (isInInterior) {
-                    Color.BLACK
-                } else {
-                    // Get current sky color for clearing
-                    lightingManager.getCurrentSkyColor()
-                }
-
+                val clearColor = if (isInInterior) Color.BLACK else lightingManager.getCurrentSkyColor() // Get current sky color for clearing
                 Gdx.gl.glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a)
                 Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT or GL20.GL_DEPTH_BUFFER_BIT)
 
                 val isPaused = uiManager.isGamePaused()
 
                 if (!isPaused) {
-                    // Get delta time for this frame
-                    val deltaTime = Gdx.graphics.deltaTime
                     val timeMultiplier = if (inputHandler.isTimeSpeedUpActive()) 200f else 1f
+                    val isSinCityEffect = shaderEffectManager.isEffectsEnabled && shaderEffectManager.getCurrentEffect() == ShaderEffect.SIN_CITY
 
-                    val isSinCityEffect = shaderEffectManager.isEffectsEnabled &&
-                        shaderEffectManager.getCurrentEffect() == ShaderEffect.SIN_CITY
                     lightingManager.setGrayscaleMode(isSinCityEffect)
 
                     sceneManager.update(deltaTime)
@@ -1078,7 +1071,8 @@ class MafiaGame : ApplicationAdapter() {
                     }
                     particleSystem.update(deltaTime, weatherSystem, isInInterior)
                     spawnerSystem.update(deltaTime, sceneManager.activeSpawners, playerSystem.getPosition())
-                    val expiredFires = fireSystem.update(Gdx.graphics.deltaTime, playerSystem, particleSystem, sceneManager, weatherSystem, isInInterior)
+
+                    val expiredFires = fireSystem.update(deltaTime, playerSystem, particleSystem, sceneManager, weatherSystem, isInInterior)
                     if (expiredFires.isNotEmpty()) {
                         for (fireToRemove in expiredFires) {
                             sceneManager.activeObjects.removeValue(fireToRemove.gameObject, true)
