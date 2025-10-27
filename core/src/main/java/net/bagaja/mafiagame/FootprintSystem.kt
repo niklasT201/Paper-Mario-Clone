@@ -150,15 +150,15 @@ class FootprintSystem {
         sceneManager.activeFootprints.add(newFootprint)
     }
 
-    fun update(deltaTime: Float, activeFootprints: Array<GameFootprint>) {
-        val rainIntensity = sceneManager.game.weatherSystem.getVisualRainIntensity()
+    fun update(deltaTime: Float, activeFootprints: Array<GameFootprint>, weatherSystem: WeatherSystem, isInInterior: Boolean) {
+        val rainIntensity = weatherSystem.getVisualRainIntensity()
         val iterator = activeFootprints.iterator()
 
         while (iterator.hasNext()) {
             val footprint = iterator.next()
             footprint.lifetime -= deltaTime
 
-            if (rainIntensity > 0.01f) {
+            if (rainIntensity > 0.01f && !isInInterior) {
                 val component = footprint.washAwayComponent
                 component.timer -= deltaTime
 

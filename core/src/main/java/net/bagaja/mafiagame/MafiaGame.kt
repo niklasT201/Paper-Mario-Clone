@@ -1055,7 +1055,7 @@ class MafiaGame : ApplicationAdapter() {
                     transitionSystem.update(deltaTime)
 
                     // Update lighting manager
-                    lightingManager.update(deltaTime, cameraManager.camera.position, timeMultiplier)
+                    lightingManager.update(deltaTime, cameraManager.camera.position, timeMultiplier, isInInterior)
 
                     weatherSystem.update(deltaTime, isInInterior)
 
@@ -1076,9 +1076,9 @@ class MafiaGame : ApplicationAdapter() {
                         carPathSystem.update(cameraManager.camera)
                         characterPathSystem.update(cameraManager.camera)
                     }
-                    particleSystem.update(deltaTime)
+                    particleSystem.update(deltaTime, weatherSystem, isInInterior)
                     spawnerSystem.update(deltaTime, sceneManager.activeSpawners, playerSystem.getPosition())
-                    val expiredFires = fireSystem.update(Gdx.graphics.deltaTime, playerSystem, particleSystem, sceneManager, weatherSystem)
+                    val expiredFires = fireSystem.update(Gdx.graphics.deltaTime, playerSystem, particleSystem, sceneManager, weatherSystem, isInInterior)
                     if (expiredFires.isNotEmpty()) {
                         for (fireToRemove in expiredFires) {
                             sceneManager.activeObjects.removeValue(fireToRemove.gameObject, true)
@@ -1094,8 +1094,8 @@ class MafiaGame : ApplicationAdapter() {
                     playerSystem.update(deltaTime, sceneManager, weatherSystem, isInInterior)
                     enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize, weatherSystem, isInInterior)
                     npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize, weatherSystem, isInInterior)
-                    bloodPoolSystem.update(deltaTime, sceneManager.activeBloodPools)
-                    footprintSystem.update(deltaTime, sceneManager.activeFootprints)
+                    bloodPoolSystem.update(deltaTime, sceneManager.activeBloodPools, weatherSystem, isInInterior)
+                    footprintSystem.update(deltaTime, sceneManager.activeFootprints, weatherSystem, isInInterior)
 
                     // Handle car destruction and removals
                     carSystem.update(deltaTime, sceneManager)

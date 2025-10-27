@@ -108,8 +108,8 @@ class BloodPoolSystem {
         sceneManager.activeBloodPools.add(newPool)
     }
 
-    fun update(deltaTime: Float, activePools: Array<BloodPool>) {
-        val rainIntensity = sceneManager.game.weatherSystem.getVisualRainIntensity()
+    fun update(deltaTime: Float, activePools: Array<BloodPool>, weatherSystem: WeatherSystem, isInInterior: Boolean) {
+        val rainIntensity = weatherSystem.getVisualRainIntensity()
         val iterator = activePools.iterator()
 
         while(iterator.hasNext()) {
@@ -123,7 +123,7 @@ class BloodPoolSystem {
                 }
             }
 
-            if (rainIntensity > 0.01f) {
+            if (rainIntensity > 0.01f && !isInInterior) {
                 val component = pool.washAwayComponent
                 component.timer -= deltaTime
 

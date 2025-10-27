@@ -67,7 +67,7 @@ class LightingManager {
         createSunModel()
 
         // Set initial lighting based on the starting time
-        updateLighting()
+        updateLighting(false)
 
         // Create model for the light area visual
         val areaMaterial = Material(
@@ -103,7 +103,7 @@ class LightingManager {
         return isBuildModeBright
     }
 
-    fun update(deltaTime: Float, cameraPosition: Vector3, timeMultiplier: Float = 1.0f) {
+    fun update(deltaTime: Float, cameraPosition: Vector3, timeMultiplier: Float = 1.0f, isInInterior: Boolean = false) {
         val frozenTime = game.missionSystem.activeModifiers?.freezeTimeAt
         if (frozenTime != null) {
             dayNightCycle.setDayProgress(frozenTime)
@@ -120,7 +120,7 @@ class LightingManager {
             lightningFlashTimer -= deltaTime
         }
 
-        updateLighting()
+        updateLighting(isInInterior)
 
         lightUpdateCounter++
         if (lightUpdateCounter >= lightUpdateInterval) {
@@ -168,7 +168,7 @@ class LightingManager {
         lightningFlashTimer = lightningFlashDuration
     }
 
-    private fun updateLighting() {
+    private fun updateLighting(isInInterior: Boolean) {
         // 1. Update Ambient Light
         val visualProgress = timeOverrideProgress ?: dayNightCycle.getDayProgress()
 
@@ -191,11 +191,12 @@ class LightingManager {
         if (lightningFlashTimer > 0) {
             // Calculate the progress of the flash (from 1.0 down to 0.0).
             val flashProgress = lightningFlashTimer / lightningFlashDuration
+            val flashMultiplier = if (isInInterior) 0.25f else 1.0f
 
             // A lightning flash should be extremely bright, overriding all other light.
             // We make it fade out quickly by multiplying by the progress.
-            finalAmbient = 1.0f * flashProgress
-            finalSunIntensity = 1.5f * flashProgress // A brighter sun flash for a stark, dramatic effect.
+            finalAmbient = (1.0f * flashProgress * flashMultiplier).coerceAtLeast(baseAmbientIntensity)
+            finalSunIntensity = (1.5f * flashProgress * flashMultiplier).coerceAtLeast(baseSunIntensity) // A brighter sun flash for a stark, dramatic effect.
         }
 
         // Remove the old directional light before adding the new one

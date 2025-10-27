@@ -145,6 +145,7 @@ class WeatherSystem : Disposable {
                 }
             }
 
+            // LIGHTNING AND THUNDER
             if (worldRainIntensity > 0.8f) { // Only have lightning in very heavy rain
                 lightningTimer -= deltaTime
                 if (lightningTimer <= 0) {
@@ -155,10 +156,12 @@ class WeatherSystem : Disposable {
                     lightingManager.triggerLightningFlash()
                     // You would also play a thunder sound here
                     // And trigger a camera shake for the thunder rumble
-                    val cameraShakeDelay = Random.nextFloat() * 1.5f + 0.5f // Thunder arrives after the light
+                    // 3. Trigger the camera shake for thunder, now checking if indoors.
+                    val shakeIntensity = if (isInInterior) 0.1f else 0.4f // Drastically reduced indoors
+                    val shakeDuration = if (isInInterior) 0.3f else 0.5f // Shorter duration indoors
                     // We can't use Actions here, so a more complex timer system would be needed
                     // For a simple start, let's just shake the camera instantly
-                    lightingManager.game.cameraManager.startShake(0.4f, 0.3f)
+                    lightingManager.game.cameraManager.startShake(shakeDuration, shakeIntensity)
                 }
             }
         }

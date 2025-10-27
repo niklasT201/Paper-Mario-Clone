@@ -246,7 +246,7 @@ class FireSystem {
         activeFires.removeValue(fireToRemove, true)
     }
 
-    fun update(deltaTime: Float, playerSystem: PlayerSystem, particleSystem: ParticleSystem, sceneManager: SceneManager, weatherSystem: WeatherSystem): List<GameFire> {
+    fun update(deltaTime: Float, playerSystem: PlayerSystem, particleSystem: ParticleSystem, sceneManager: SceneManager, weatherSystem: WeatherSystem, isInInterior: Boolean): List<GameFire> {
         val expiredFires = mutableListOf<GameFire>()
         val iterator = activeFires.iterator()
 
@@ -257,9 +257,7 @@ class FireSystem {
             val fire = iterator.next()
             fire.update(deltaTime, particleSystem, sceneManager.game.lightingManager)
 
-            val isOutdoors = fire.gameObject.position.y > -1f
-
-            if (fire.canBeExtinguished && isRainingVisually && isOutdoors) {
+            if (fire.canBeExtinguished && isRainingVisually && !isInInterior) {
                 // --- RAIN INTERACTION LOGIC (Sputtering & Shrinking) ---
                 if (Random.nextFloat() < (0.5f * visualRainIntensity * fire.currentScale)) {
                     val steamPosition = fire.gameObject.position.cpy().add(

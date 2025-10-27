@@ -913,15 +913,15 @@ class ParticleSystem {
         }
     }
 
-    fun update(deltaTime: Float) {
-        val visualRainIntensity = sceneManager.game.weatherSystem.getVisualRainIntensity()
+    fun update(deltaTime: Float, weatherSystem: WeatherSystem, isInInterior: Boolean) {
+        val visualRainIntensity = weatherSystem.getVisualRainIntensity()
         val iterator = activeParticles.iterator()
 
         while (iterator.hasNext()) {
             val particle = iterator.next()
 
             val isSmoke = particle.type.name.contains("SMOKE")
-            if (visualRainIntensity > 0.01f && isSmoke && !particle.hasCollided) {
+            if (visualRainIntensity > 0.01f && isSmoke && !particle.hasCollided && !isInInterior) {
                 // 1. Reduce lifetime faster
                 val lifetimeReduction = 1.5f * visualRainIntensity * deltaTime
                 particle.life -= lifetimeReduction
@@ -945,7 +945,7 @@ class ParticleSystem {
                 ParticleEffectType.BURNED_ASH
             )
 
-            if (visualRainIntensity > 0.01f && isWashable) {
+            if (visualRainIntensity > 0.01f && isWashable && !isInInterior) {
                 val component = particle.washAwayComponent
                 component.timer -= deltaTime
 
