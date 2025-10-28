@@ -100,6 +100,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var objectiveArrowSystem: ObjectiveArrowSystem
     lateinit var bulletTrailSystem: BulletTrailSystem
     lateinit var weatherSystem: WeatherSystem
+    lateinit var decalSystem: DecalSystem
 
     override fun create() {
         // --- Part 1: Initialize Core Systems ---
@@ -181,6 +182,7 @@ class MafiaGame : ApplicationAdapter() {
 
         pathfindingSystem = PathfindingSystem(sceneManager, blockSize, playerSystem.playerSize)
         characterPhysicsSystem = CharacterPhysicsSystem(sceneManager)
+        decalSystem = DecalSystem(sceneManager)
 
         // --- DEPENDENCY INJECTION FOR UIManager ---
         uiManager.blockSystem = blockSystem
@@ -228,6 +230,7 @@ class MafiaGame : ApplicationAdapter() {
 
         sceneManager.raycastSystem = this.raycastSystem
         sceneManager.teleporterSystem = this.teleporterSystem
+        sceneManager.decalSystem = decalSystem
 
         carPathSystem.sceneManager = sceneManager
         carPathSystem.raycastSystem = raycastSystem
@@ -270,6 +273,7 @@ class MafiaGame : ApplicationAdapter() {
         bloodPoolSystem.initialize()
         footprintSystem.initialize()
         boneSystem.initialize()
+        decalSystem.initialize()
         itemSystem.initialize(blockSize)
         carSystem.initialize(blockSize)
         lockIndicatorSystem.initialize()
@@ -1090,6 +1094,7 @@ class MafiaGame : ApplicationAdapter() {
                     npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize, weatherSystem, isInInterior)
                     bloodPoolSystem.update(deltaTime, sceneManager.activeBloodPools, weatherSystem, isInInterior)
                     footprintSystem.update(deltaTime, sceneManager.activeFootprints, weatherSystem, isInInterior)
+                    decalSystem.update(deltaTime)
 
                     // Handle car destruction and removals
                     carSystem.update(deltaTime, sceneManager)
@@ -1246,6 +1251,7 @@ class MafiaGame : ApplicationAdapter() {
 
                 footprintSystem.render(cameraManager.camera, environment, sceneManager.activeFootprints)
                 boneSystem.render(cameraManager.camera, environment, sceneManager.activeBones)
+                decalSystem.render(cameraManager.camera, environment)
 
                 // Render all potentially transparent billboards AFTER the fire
                 playerSystem.render(cameraManager.camera, environment)
@@ -1377,6 +1383,7 @@ class MafiaGame : ApplicationAdapter() {
         if (::carPathSystem.isInitialized) carPathSystem.dispose()
         if (::characterPathSystem.isInitialized) characterPathSystem.dispose()
         if (::weatherSystem.isInitialized) weatherSystem.dispose()
+        if (::decalSystem.isInitialized) decalSystem.dispose()
 
         // Dispose shader effect manager
         if (::shaderEffectManager.isInitialized) shaderEffectManager.dispose()

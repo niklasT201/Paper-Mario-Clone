@@ -1,10 +1,7 @@
 package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
-import com.badlogic.gdx.graphics.Camera
-import com.badlogic.gdx.graphics.GL20
-import com.badlogic.gdx.graphics.Texture
-import com.badlogic.gdx.graphics.VertexAttributes
+import com.badlogic.gdx.graphics.*
 import com.badlogic.gdx.graphics.g3d.*
 import com.badlogic.gdx.graphics.g3d.attributes.BlendingAttribute
 import com.badlogic.gdx.graphics.g3d.attributes.IntAttribute
@@ -619,6 +616,7 @@ class ParticleSystem {
     private val activeParticles = Array<GameParticle>()
     private val billboardParticleModels = mutableMapOf<ParticleEffectType, Model>()
     private val groundParticleModels = mutableMapOf<ParticleEffectType, Model>()
+    private val effectTextures = mutableMapOf<ParticleEffectType, List<Texture>>()
 
     private val billboardModelBatch: ModelBatch
     private val billboardShaderProvider: BillboardShaderProvider = BillboardShaderProvider().apply {
@@ -1014,6 +1012,21 @@ class ParticleSystem {
             iterator.remove()
         }
         println("ParticleSystem: All active particles have been cleared.")
+    }
+
+    fun getTextureForEffect(type: ParticleEffectType): Texture? {
+        // Lazy-load textures if not already loaded (good practice)
+        if (!effectTextures.containsKey(type)) {
+            effectTextures[type] = type.texturePaths.map { path ->
+                try {
+                    Texture(Gdx.files.internal(path))
+                } catch (e: Exception) {
+                    // Return a placeholder or handle the error
+                    Pixmap(1, 1, Pixmap.Format.RGBA8888).let { p -> p.setColor(Color.MAGENTA); p.fill(); Texture(p).also { p.dispose() } }
+                }
+            }
+        }
+        return effectTextures[type]?.firstOrNull()
     }
 
     fun dispose() {

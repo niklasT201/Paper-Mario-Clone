@@ -2099,20 +2099,12 @@ class PlayerSystem {
 
                 // 4. Scorch Mark
                 if (collisionResult != null) {
-                    // 3. Spawn the explosion scorch mark on the ground.
-                    val explosionAreaTypes = listOf(
-                        ParticleEffectType.DYNAMITE_EXPLOSION_AREA_ONE,
-                        ParticleEffectType.DYNAMITE_EXPLOSION_AREA_TWO
-                    )
-                    val selectedAreaType = explosionAreaTypes.random() // Randomly pick one of the two scorch marks.
-                    val scorchMarkPosition = explosionOrigin.cpy().add(0f, 0.15f, 0f)
-
-                    particleSystem.spawnEffect(
-                        type = selectedAreaType,
-                        position = scorchMarkPosition,
-                        surfaceNormal = Vector3.Y, // The ground's normal is straight up.
-                        gravityOverride = 0f       // Ensure it doesn't fall through the world.
-                    )
+                    // 3. Spawn the projected scorch mark decal on the ground.
+                    val decalTexture = particleSystem.getTextureForEffect(ParticleEffectType.DYNAMITE_EXPLOSION_AREA_ONE) // A way to get the texture
+                    if (decalTexture != null) {
+                        val decalSize = Vector3(17f, 10f, 17f) // Width, Projection Depth, Length
+                        sceneManager.game.decalSystem.spawnProjectedDecal(explosionOrigin, decalSize, decalTexture, 25f)
+                    }
                 }
 
                 println("Dynamite effect originating at $explosionOrigin")

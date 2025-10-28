@@ -46,6 +46,7 @@ class SceneManager(
 ) {
     lateinit var raycastSystem: RaycastSystem
     lateinit var teleporterSystem: TeleporterSystem
+    lateinit var decalSystem: DecalSystem
     // --- ACTIVE SCENE DATA ---
     lateinit var worldChunkManager: ChunkManager
     val interiorChunkManagers = mutableMapOf<String, ChunkManager>()

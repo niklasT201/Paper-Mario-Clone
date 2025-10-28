@@ -20,6 +20,20 @@ class CharacterPhysicsSystem(private val sceneManager: SceneManager) {
     private val tempBlockBounds = BoundingBox()
     private val nearbyBlocks = Array<GameBlock>()
 
+    fun update(component: PhysicsComponent, desiredMovement: Vector3, deltaTime: Float, speedMultiplier: Float = 1.0f): Boolean {
+        // Temporarily apply the speed multiplier for this frame's calculation
+        val originalSpeed = component.speed
+        component.speed *= speedMultiplier
+
+        // Call the original update function with the modified component
+        val moved = update(component, desiredMovement, deltaTime)
+
+        // IMPORTANT: Reset the speed back to its original value
+        component.speed = originalSpeed
+
+        return moved
+    }
+
     fun update(component: PhysicsComponent, desiredMovement: Vector3, deltaTime: Float): Boolean {
         val originalPosition = component.position.cpy()
         component.isMoving = false

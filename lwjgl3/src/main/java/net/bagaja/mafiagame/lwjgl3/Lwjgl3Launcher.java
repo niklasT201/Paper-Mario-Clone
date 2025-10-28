@@ -69,6 +69,7 @@ public class Lwjgl3Launcher {
 // overhaul of the reward dialog
 // nickelodeons having real short films
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
+// fire spot/explosion image only being fully visible when area is big enough
 // rain splashes at ground
 // maybe puddles by heavy rain and footprints in puddles
 // characters change behaviour in rain
