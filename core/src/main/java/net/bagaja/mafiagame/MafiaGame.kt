@@ -101,6 +101,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var bulletTrailSystem: BulletTrailSystem
     lateinit var weatherSystem: WeatherSystem
     lateinit var decalSystem: DecalSystem
+    lateinit var waterPuddleSystem: WaterPuddleSystem
 
     override fun create() {
         // --- Part 1: Initialize Core Systems ---
@@ -148,6 +149,7 @@ class MafiaGame : ApplicationAdapter() {
         fireSystem = FireSystem()
         bloodPoolSystem = BloodPoolSystem()
         footprintSystem = FootprintSystem()
+        waterPuddleSystem = WaterPuddleSystem()
         boneSystem = BoneSystem()
         itemSystem = ItemSystem()
         carSystem = CarSystem()
@@ -204,6 +206,8 @@ class MafiaGame : ApplicationAdapter() {
         weatherSystem = WeatherSystem()
         weatherSystem.initialize(cameraManager.camera)
         weatherSystem.lightingManager = this.lightingManager
+        weatherSystem.particleSystem = this.particleSystem
+        weatherSystem.sceneManager = this.sceneManager
 
         teleporterSystem = TeleporterSystem(objectSystem, uiManager)
 
@@ -272,6 +276,7 @@ class MafiaGame : ApplicationAdapter() {
         fireSystem.initialize()
         bloodPoolSystem.initialize()
         footprintSystem.initialize()
+        waterPuddleSystem.initialize()
         boneSystem.initialize()
         decalSystem.initialize()
         itemSystem.initialize(blockSize)
@@ -285,6 +290,9 @@ class MafiaGame : ApplicationAdapter() {
         npcSystem.initialize(blockSize, characterPhysicsSystem)
         roomTemplateManager.initialize()
         playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem, footprintSystem, characterPhysicsSystem, sceneManager)
+        playerSystem.waterPuddleSystem = this.waterPuddleSystem
+
+        waterPuddleSystem.sceneManager = sceneManager
 
         // Initialize managers that depend on initialized systems
         transitionSystem.create(cameraManager.findUiCamera())
@@ -1093,6 +1101,7 @@ class MafiaGame : ApplicationAdapter() {
                     enemySystem.update(deltaTime, playerSystem, sceneManager, blockSize, weatherSystem, isInInterior)
                     npcSystem.update(deltaTime, playerSystem, sceneManager, blockSize, weatherSystem, isInInterior)
                     bloodPoolSystem.update(deltaTime, sceneManager.activeBloodPools, weatherSystem, isInInterior)
+                    waterPuddleSystem.update(deltaTime, weatherSystem, isInInterior)
                     footprintSystem.update(deltaTime, sceneManager.activeFootprints, weatherSystem, isInInterior)
                     decalSystem.update(deltaTime)
 
@@ -1248,6 +1257,7 @@ class MafiaGame : ApplicationAdapter() {
 
                 // Render Blood Pool
                 bloodPoolSystem.render(cameraManager.camera, environment, sceneManager.activeBloodPools)
+                waterPuddleSystem.render(cameraManager.camera, environment)
 
                 footprintSystem.render(cameraManager.camera, environment, sceneManager.activeFootprints)
                 boneSystem.render(cameraManager.camera, environment, sceneManager.activeBones)
@@ -1376,6 +1386,7 @@ class MafiaGame : ApplicationAdapter() {
         if (::fireSystem.isInitialized) fireSystem.dispose()
         if (::bloodPoolSystem.isInitialized) bloodPoolSystem.dispose()
         if (::footprintSystem.isInitialized) footprintSystem.dispose()
+        if (::waterPuddleSystem.isInitialized) waterPuddleSystem.dispose()
         if (::boneSystem.isInitialized) boneSystem.dispose()
         if (::objectiveArrowSystem.isInitialized) objectiveArrowSystem.dispose()
         if (::triggerSystem.isInitialized) triggerSystem.dispose()

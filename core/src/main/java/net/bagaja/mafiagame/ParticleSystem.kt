@@ -437,6 +437,16 @@ enum class ParticleEffectType(
         particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
         scale = 0.5f, scaleVariance = 0.1f, fadeIn = 0.0f, fadeOut = 5.0f
     ),
+    RAIN_SPLASH(
+        "Rain Splash",
+        arrayOf(
+            "textures/particles/rain/splash.png",
+            "textures/particles/rain/splash_two.png"
+        ),
+        frameDuration = 0.08f, isLooping = false, particleLifetime = 0.16f,
+        particleCount = 1..1, initialSpeed = 0f, speedVariance = 0f, gravity = 0f,
+        scale = 1.0f, scaleVariance = 0.3f, fadeIn = 0.0f, fadeOut = 0.1f
+    ),
     SHELL_CASING_PLAYER(
         "Player Shell Casing",
         arrayOf("textures/player/weapons/cartridge_player.png"),

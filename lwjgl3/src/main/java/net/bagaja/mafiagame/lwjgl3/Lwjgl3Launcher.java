@@ -70,11 +70,10 @@ public class Lwjgl3Launcher {
 // nickelodeons having real short films
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // fire spot/explosion image only being fully visible when area is big enough
-// rain splashes at ground
-// maybe puddles by heavy rain and footprints in puddles
 // characters change behaviour in rain
 // loot in barrels
 // enemy cover up ai
+// splashes can spawn under y = 0
 // minimap for open world mode
 // Civilian npc that just follows paths. They should flee from gunfire and call the police if they see a crime
 // The Law & Wanted Level

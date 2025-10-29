@@ -13,6 +13,7 @@ import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.Disposable
+import kotlin.math.abs
 import kotlin.random.Random
 
 // Represents the natural weather state
@@ -27,6 +28,8 @@ class WeatherSystem : Disposable {
         val position: Vector3 = Vector3(),
         val velocity: Vector3 = Vector3()
     )
+    lateinit var particleSystem: ParticleSystem
+    lateinit var sceneManager: SceneManager
 
     private lateinit var rainModel: Model
     private lateinit var modelBatch: ModelBatch
@@ -128,6 +131,16 @@ class WeatherSystem : Disposable {
 
         // --- 5. Update particle physics if there is visible rain ---
         if (currentRainIntensity > 0.01f) {
+
+            // SPAWN RAIN SPLASHES
+            if (!isInInterior) {
+                // Number of splashes depends on intensity, spawn up to 10 per frame in heaviest rain
+                val splashesToSpawn = (currentRainIntensity * 10 * Random.nextFloat()).toInt()
+                for (i in 0 until splashesToSpawn) {
+                    spawnRainSplash()
+                }
+            }
+
             val rainCenter = camera.position
             val bottomY = rainCenter.y - rainAreaSize.y / 2f
             val activeDropCount = (maxRaindrops * currentRainIntensity).toInt()
@@ -165,6 +178,22 @@ class WeatherSystem : Disposable {
                 }
             }
         }
+    }
+
+    private fun spawnRainSplash() {
+        val spawnRadius = 60f
+        val playerPos = camera.position // Using camera position is better for visuals that appear around the screen
+
+        val randomX = playerPos.x + (Random.nextFloat() * 2f - 1f) * spawnRadius
+        val randomZ = playerPos.z + (Random.nextFloat() * 2f - 1f) * spawnRadius
+
+        val groundY = sceneManager.findHighestSupportY(randomX, randomZ, playerPos.y, 0.1f, sceneManager.game.blockSize)
+
+        // Don't spawn splashes way above or below the camera
+        if (abs(groundY - playerPos.y) > 20f) return
+
+        val position = Vector3(randomX, groundY, randomZ)
+        particleSystem.spawnEffect(ParticleEffectType.RAIN_SPLASH, position)
     }
 
     private fun handleRandomWeather(deltaTime: Float) {

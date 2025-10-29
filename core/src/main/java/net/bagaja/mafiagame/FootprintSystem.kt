@@ -32,8 +32,8 @@ data class GameFootprint(
 }
 
 class FootprintSystem {
-    private lateinit var footprintTexture: Texture
-    private lateinit var footprintModel: Model
+    private val footprintTextures = mutableMapOf<FootprintType, Texture>()
+    private val footprintModels = mutableMapOf<FootprintType, Model>()
     private lateinit var modelBatch: ModelBatch
     private val renderableInstances = Array<ModelInstance>()
     private lateinit var shaderProvider: BillboardShaderProvider
@@ -41,8 +41,8 @@ class FootprintSystem {
     lateinit var sceneManager: SceneManager
 
     companion object {
-        const val FOOTPRINT_LIFETIME = 8.0f // Footprints last for 12 seconds
-        const val FOOTPRINT_FADE_TIME = 2.0f  // Start fading 3 seconds before disappearing
+        const val FOOTPRINT_LIFETIME = 8.0f // Footprints last for 8 seconds
+        const val FOOTPRINT_FADE_TIME = 2.0f  // Start fading 2 seconds before disappearing
     }
 
     fun initialize() {
@@ -56,52 +56,61 @@ class FootprintSystem {
 
         try {
             // Load the texture
-            footprintTexture = Texture(Gdx.files.internal("textures/particles/bloody_shoeprints.png"), true).apply {
-                setFilter(Texture.TextureFilter.MipMapLinearLinear, Texture.TextureFilter.Linear)
+            val texturePaths = mapOf(
+                FootprintType.BLOODY to "textures/particles/bloody_shoeprints.png",
+                FootprintType.WET to "textures/particles/rain/wet_shoeprints.png"
+            )
+
+            for ((type, path) in texturePaths) {
+                val texture = Texture(Gdx.files.internal(path), true).apply {
+                    setFilter(Texture.TextureFilter.MipMapLinearLinear, Texture.TextureFilter.Linear)
+                }
+                footprintTextures[type] = texture
+
+                val material = Material(
+                    TextureAttribute.createDiffuse(texture),
+                    BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
+                    IntAttribute.createCullFace(GL20.GL_NONE)
+                )
+                val model = modelBuilder.createRect(
+                    -0.5f, 0f, 0.5f, -0.5f, 0f, -0.5f,
+                    0.5f, 0f, -0.5f, 0.5f, 0f, 0.5f,
+                    0f, 1f, 0f, // Normal pointing up
+                    material,
+                    (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
+                )
+                footprintModels[type] = model
             }
 
             bloodPrintTexture = Texture(Gdx.files.internal("textures/particles/blood_pool/blood_pool_one.png"), true).apply {
                 setFilter(Texture.TextureFilter.MipMapLinearLinear, Texture.TextureFilter.Linear)
             }
-
-            // Create a material with transparency
-            val material = Material(
-                TextureAttribute.createDiffuse(footprintTexture),
-                BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
-                IntAttribute.createCullFace(GL20.GL_NONE)
-            )
-
-            // Create a flat, horizontal plane model for the footprint
-            footprintModel = modelBuilder.createRect(
-                -0.5f, 0f, 0.5f, -0.5f, 0f, -0.5f,
-                0.5f, 0f, -0.5f, 0.5f, 0f, 0.5f,
-                0f, 1f, 0f, // Normal pointing up
-                material,
-                (VertexAttributes.Usage.Position or VertexAttributes.Usage.Normal or VertexAttributes.Usage.TextureCoordinates).toLong()
-            )
         } catch (e: Exception) {
-            println("ERROR: Could not load bloody_prints.png texture: ${e.message}")
+            println("ERROR: Could not load footprint texture: ${e.message}")
         }
     }
 
-    fun spawnFootprint(position: Vector3, rotation: Float, sceneManager: SceneManager) {
-        val violenceLevel = sceneManager.game.uiManager.getViolenceLevel()
-        if (violenceLevel != ViolenceLevel.FULL_VIOLENCE && violenceLevel != ViolenceLevel.ULTRA_VIOLENCE) {
-            return
+    fun spawnFootprint(position: Vector3, rotation: Float, type: FootprintType, sceneManager: SceneManager, lifetimeOverride: Float? = null) {
+        if (type == FootprintType.BLOODY) {
+            val violenceLevel = sceneManager.game.uiManager.getViolenceLevel()
+            if (violenceLevel != ViolenceLevel.FULL_VIOLENCE && violenceLevel != ViolenceLevel.ULTRA_VIOLENCE) {
+                return
+            }
         }
 
-        if (!::footprintModel.isInitialized) return
-
-        val instance = ModelInstance(footprintModel)
-        instance.userData = "effect" // For potential future use
+        val modelToUse = footprintModels[type] ?: return
+        val instance = ModelInstance(modelToUse)
+        instance.userData = "effect"
 
         val blendingAttribute = instance.materials.first().get(BlendingAttribute.Type) as BlendingAttribute
+
+        val lifetime = lifetimeOverride ?: FOOTPRINT_LIFETIME
 
         val newFootprint = GameFootprint(
             instance = instance,
             position = position.cpy().add(0f, 0.06f, 0f), // Place slightly above ground to prevent z-fighting
-            lifetime = FOOTPRINT_LIFETIME,
-            initialLifetime = FOOTPRINT_LIFETIME,
+            lifetime = lifetime,
+            initialLifetime = lifetime,
             blendingAttribute = blendingAttribute
         )
 
@@ -118,7 +127,7 @@ class FootprintSystem {
             return
         }
 
-        if (!::footprintModel.isInitialized || !::bloodPrintTexture.isInitialized) return
+        if (footprintModels.isEmpty() || !::bloodPrintTexture.isInitialized) return
 
         // Create a new material using the blood texture
         val material = Material(
@@ -127,7 +136,7 @@ class FootprintSystem {
             IntAttribute.createCullFace(GL20.GL_NONE)
         )
         // Create a unique instance with this material
-        val instance = ModelInstance(footprintModel)
+        val instance = ModelInstance(footprintModels[FootprintType.BLOODY]!!)
         instance.materials.first().set(material)
         instance.userData = "effect"
 
@@ -210,9 +219,10 @@ class FootprintSystem {
     }
 
     fun dispose() {
-        if (::footprintModel.isInitialized) footprintModel.dispose()
-        if (::footprintTexture.isInitialized) footprintTexture.dispose()
         if (::modelBatch.isInitialized) modelBatch.dispose()
         if (::shaderProvider.isInitialized) shaderProvider.dispose()
+        footprintModels.values.forEach { it.dispose() }
+        footprintTextures.values.forEach { it.dispose() }
+        if (::bloodPrintTexture.isInitialized) bloodPrintTexture.dispose()
     }
 }

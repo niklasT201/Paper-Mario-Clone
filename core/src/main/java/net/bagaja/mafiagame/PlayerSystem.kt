@@ -66,6 +66,10 @@ class PlayerSystem {
     private var respawnPosition = Vector3(9f, 2f, 9f)
     private var isDead = false
 
+    lateinit var waterPuddleSystem: WaterPuddleSystem
+    private var wetFootprintsTimer = 0f
+    private val WET_FOOTPRINT_COOLDOWN = 10f
+
     fun isDead(): Boolean = isDead
 
     fun takeDamage(amount: Float) {
@@ -1353,6 +1357,26 @@ class PlayerSystem {
         return true
     }
 
+    private fun checkPuddleCollision(sceneManager: SceneManager) {
+        if (isDriving || isDead) return // No checks needed if in a car or dead
+
+        var isTouchingPuddle = false
+        val playerBounds = getPlayerBounds()
+
+        for (puddle in waterPuddleSystem.activePuddles) {
+            // Use bounding box intersection for a more accurate check
+            if (playerBounds.intersects(puddle.bounds)) {
+                isTouchingPuddle = true
+                break // Found a collision, no need to check other puddles
+            }
+        }
+
+        if (isTouchingPuddle) {
+            // If touching a puddle, refresh the timer to its maximum duration
+            wetFootprintsTimer = WET_FOOTPRINT_COOLDOWN
+        }
+    }
+
     private fun handlePlayerOnFootMovement(deltaTime: Float, sceneManager: SceneManager, particleSystem: ParticleSystem): Boolean {
         // Disable on-foot movement and collision while driving
         if (isDriving) return false
@@ -1447,18 +1471,36 @@ class PlayerSystem {
                     )
                 }
             }
-            if (bloodyFootprintsTimer > 0f) {
-                footprintSpawnTimer += deltaTime
-                if (footprintSpawnTimer >= FOOTPRINT_SPAWN_INTERVAL) {
-                    footprintSpawnTimer = 0f
 
-                    // Find the ground position directly below the player
-                    val groundY = sceneManager.findHighestSupportY(physicsComponent.position.x, physicsComponent.position.z, physicsComponent.position.y, physicsComponent.size.x / 2f, blockSize)
-                    val footprintPosition = Vector3(physicsComponent.position.x, groundY, physicsComponent.position.z)
-                    val movementRotation = MathUtils.atan2(-desiredMovement.x, -desiredMovement.z) * MathUtils.radiansToDegrees + 90f
+            footprintSpawnTimer += deltaTime
+            if (footprintSpawnTimer >= FOOTPRINT_SPAWN_INTERVAL) {
+                footprintSpawnTimer = 0f // Reset for the next print
 
+                // Find the ground position directly below the player
+                val groundY = sceneManager.findHighestSupportY(physicsComponent.position.x, physicsComponent.position.z, physicsComponent.position.y, physicsComponent.size.x / 2f, blockSize)
+                val footprintPosition = Vector3(physicsComponent.position.x, groundY, physicsComponent.position.z)
+                val movementRotation = MathUtils.atan2(-desiredMovement.x, -desiredMovement.z) * MathUtils.radiansToDegrees + 90f
+
+                // Check if the player is currently standing in a puddle
+                val isInPuddle = waterPuddleSystem.isPositionInPuddle(footprintPosition)
+
+                // Priority 1: Bloody footprints override wet ones.
+                if (bloodyFootprintsTimer > 0f) {
                     // Spawn the footprint using the new system
-                    footprintSystem.spawnFootprint(footprintPosition, movementRotation, sceneManager)
+                    footprintSystem.spawnFootprint(footprintPosition, movementRotation, FootprintType.BLOODY, sceneManager)
+                }
+                // Priority 2: Wet footprints.
+                else if (wetFootprintsTimer > 0f) {
+                    if (isInPuddle) {
+                        // If we are currently in a puddle, always spawn a normal wet print.
+                        footprintSystem.spawnFootprint(footprintPosition, movementRotation, FootprintType.WET, sceneManager)
+                    } else {
+                        // If we are OUTSIDE a puddle, but our feet are still wet, there's a CHANCE to leave a short-lived print.
+                        if (Random.nextFloat() < 0.15f) { // 15% chance
+                            val shortLifetime = Random.nextFloat() * 2f + 1f // Random lifetime between 1 and 3 seconds
+                            footprintSystem.spawnFootprint(footprintPosition, movementRotation, FootprintType.WET, sceneManager, lifetimeOverride = shortLifetime)
+                        }
+                    }
                 }
             }
         } else {
@@ -1643,6 +1685,13 @@ class PlayerSystem {
         }
 
         // Check for blood pool collision and update the footprint timer
+        if (!isDriving && !isDead) { // Only check when on foot and alive
+            checkPuddleCollision(sceneManager)
+            if (wetFootprintsTimer > 0f) {
+                wetFootprintsTimer -= deltaTime
+            }
+        }
+
         if (!isDriving && !isDead) { // Only check when on foot
             checkBloodPoolCollision(sceneManager)
             if (bloodyFootprintsTimer > 0f) {
