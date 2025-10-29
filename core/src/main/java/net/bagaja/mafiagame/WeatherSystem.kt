@@ -187,10 +187,16 @@ class WeatherSystem : Disposable {
         val randomX = playerPos.x + (Random.nextFloat() * 2f - 1f) * spawnRadius
         val randomZ = playerPos.z + (Random.nextFloat() * 2f - 1f) * spawnRadius
 
-        val groundY = sceneManager.findHighestSupportY(randomX, randomZ, playerPos.y, 0.1f, sceneManager.game.blockSize)
+        // STEP 1: Use the new, more robust function from SceneManager.
+        var groundY = sceneManager.findAbsoluteHighestSurfaceY(randomX, randomZ)
+
+        // STEP 2: If the function returned its "not found" value, default to Y=0, just like triggers.
+        if (groundY == -Float.MAX_VALUE) {
+            groundY = 0f
+        }
 
         // Don't spawn splashes way above or below the camera
-        if (abs(groundY - playerPos.y) > 20f) return
+        if (abs(groundY - playerPos.y) > 30f) return
 
         val position = Vector3(randomX, groundY, randomZ)
         particleSystem.spawnEffect(ParticleEffectType.RAIN_SPLASH, position)

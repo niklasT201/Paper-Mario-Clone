@@ -696,6 +696,21 @@ class SceneManager(
         return true
     }
 
+    fun findAbsoluteHighestSurfaceY(x: Float, z: Float): Float {
+        var highestY = -Float.MAX_VALUE // Start from the very bottom
+        val blocksInColumn = activeChunkManager.getBlocksInColumn(x, z)
+
+        for (gameBlock in blocksInColumn) {
+            if (!gameBlock.blockType.hasCollision) continue
+
+            val blockBounds = gameBlock.getBoundingBox(game.blockSize, tempBlockBounds)
+            if (blockBounds.max.y > highestY) {
+                highestY = blockBounds.max.y
+            }
+        }
+        return highestY
+    }
+
     fun update(deltaTime: Float) {
         // Check if we've just entered the door animation phase (or equivalent phase in simple fade)
         if (transitionSystem.getCurrentPhase() == TransitionSystem.TransitionPhase.DOOR_ANIMATION) {
