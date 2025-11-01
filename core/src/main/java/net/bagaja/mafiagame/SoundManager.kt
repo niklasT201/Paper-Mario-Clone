@@ -31,6 +31,8 @@ class SoundManager : Disposable {
     private val loadedSounds = mutableMapOf<String, Sound>()
     private val activeLoopingSounds = Array<ActiveSound>()
     private var listenerPosition: Vector3 = Vector3.Zero
+    private var masterVolume = 1.0f
+    private var sfxVolume = 1.0f
 
     /**
      * No-op. Sounds are now loaded manually via the `load` methods.
@@ -144,12 +146,24 @@ class SoundManager : Disposable {
         }
     }
 
+    fun setMasterVolume(volume: Float) {
+        masterVolume = volume.coerceIn(0f, 1f)
+    }
+
+    fun setSfxVolume(volume: Float) {
+        sfxVolume = volume.coerceIn(0f, 1f)
+    }
+
     private fun calculateVolumeAndPan(soundPosition: Vector3, maxRange: Float = 60f): Pair<Float, Float> {
         val distance = listenerPosition.dst(soundPosition)
-        val volume = (1.0f - (distance / maxRange)).coerceIn(0f, 1f)
+        val distanceVolume = (1.0f - (distance / maxRange)).coerceIn(0f, 1f)
+
+        // NEW: Calculate final volume by multiplying all factors
+        val finalVolume = distanceVolume * masterVolume * sfxVolume
+
         val direction = soundPosition.x - listenerPosition.x
         val pan = (direction / (maxRange * 0.5f)).coerceIn(-1.0f, 1.0f)
-        return Pair(volume, pan)
+        return Pair(finalVolume, pan) // Return the final calculated volume
     }
 
     private fun playEchoes(sound: Sound, initialVolume: Float, initialPan: Float) {

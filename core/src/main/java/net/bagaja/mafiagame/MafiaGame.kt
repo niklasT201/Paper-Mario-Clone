@@ -109,6 +109,13 @@ class MafiaGame : ApplicationAdapter() {
         // --- Part 1: Initialize Core Systems ---
         PlayerSettingsManager.load()
 
+        musicManager = MusicManager() // Must initialize before setting volume
+        soundManager = SoundManager() // Must initialize before setting volume
+        musicManager.setMasterVolume(PlayerSettingsManager.current.masterVolume)
+        musicManager.setMusicVolume(PlayerSettingsManager.current.musicVolume)
+        soundManager.setMasterVolume(PlayerSettingsManager.current.masterVolume)
+        soundManager.setSfxVolume(PlayerSettingsManager.current.sfxVolume)
+
         dialogueManager = DialogueManager()
         setupGraphics() // This initializes cameraManager and lightingManager
         shaderEffectManager = ShaderEffectManager()
@@ -117,22 +124,14 @@ class MafiaGame : ApplicationAdapter() {
         saveLoadSystem = SaveLoadSystem(this)
 
         // --- SOUND MANAGER SETUP ---
-        soundManager = SoundManager()
         soundManager.initialize()
         soundManager.load(SoundManager.Effect.GUNSHOT_REVOLVER)
-        soundManager.load("fire_crackle", "sounds/fire_loop.ogg")
-
-        // --- MUSIC MANAGER SETUP ---
-        musicManager = MusicManager()
-        musicManager.setVolume(0.55f) // Set a comfortable default volume
-
-        // --- Register all your songs ---
 
         // SONG 1: The new slow, dramatic Mafia Theme
         musicManager.registerSong(MusicSource.Procedural("mafia_theme") {
             ProceduralMusicGenerator(
                 bpm = 75.0, // Slow and heavy tempo
-                kickPattern  = "x-------x-------",
+                kickPattern  = "----------------",
                 snarePattern = "----x-------x---",
                 hihatPattern = "x-x-x-x-x-x-x-x-",
                 crashPattern = "----------------",

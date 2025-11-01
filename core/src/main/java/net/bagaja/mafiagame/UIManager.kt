@@ -75,6 +75,7 @@ class UIManager(
     private lateinit var stage: Stage
     lateinit var skin: Skin
     private lateinit var layoutBuilder: UILayoutBuilder
+    private lateinit var audioSettingsUI: AudioSettingsUI
     private lateinit var blockSelectionUI: BlockSelectionUI
     private lateinit var objectSelectionUI: ObjectSelectionUI
     private lateinit var itemSelectionUI: ItemSelectionUI
@@ -255,6 +256,7 @@ class UIManager(
         skyCustomizationUI = SkyCustomizationUI(skin, stage, lightingManager); skyCustomizationUI.initialize()
         shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager); shaderEffectUI.initialize()
         visualSettingsUI = VisualSettingsUI(skin, game.cameraManager, this, game.targetingIndicatorSystem, game.trajectorySystem, game.meleeRangeIndicatorSystem, game.playerSystem)
+        audioSettingsUI = AudioSettingsUI(skin, this, game.musicManager, game.soundManager)
         enemyDebugUI = EnemyDebugUI(skin, stage)
 
         // Setup main UI
@@ -1650,6 +1652,14 @@ class UIManager(
         if (::visualSettingsUI.isInitialized && visualSettingsUI.isVisible()) {
             visualSettingsUI.hide()
         }
+        if (::audioSettingsUI.isInitialized && audioSettingsUI.isVisible()) { // ADD
+            audioSettingsUI.hide()
+        }
+    }
+
+    fun showAudioSettings() {
+        pauseMenuUI.hideInstantly()
+        audioSettingsUI.show(stage)
     }
 
     fun hideAllGameHUDs() {
@@ -1680,30 +1690,36 @@ class UIManager(
             return
         }
 
+        if (audioSettingsUI.isVisible()) {
+            returnToPauseMenu()
+            return // Stop further processing
+        }
+
         if (pauseMenuUI.isVisible()) {
             pauseMenuUI.hide()
-            game.musicManager.playRandom()
+            game.musicManager.playSong("mafia_theme")
         } else {
             val showSettings = (game.currentGameMode == GameMode.IN_GAME)
             pauseMenuUI.setSettingsButtonVisibility(showSettings)
             pauseMenuUI.show()
-            // When pausing, play a specific theme
-            game.musicManager.playSong("pause_menu_theme")
+            game.musicManager.stop()
         }
     }
 
     fun isPauseMenuVisible(): Boolean {
         // Check if visualSettingsUI has been created before accessing it.
         val isVisualSettingsVisible = if (::visualSettingsUI.isInitialized) visualSettingsUI.isVisible() else false
+        val isAudioSettingsVisible = if (::audioSettingsUI.isInitialized) audioSettingsUI.isVisible() else false
 
         // pauseMenuUI is always initialized, so it's safe to check.
         val isPauseVisible = if (::pauseMenuUI.isInitialized) pauseMenuUI.isVisible() else false
 
-        return isPauseVisible || isVisualSettingsVisible
+        return isPauseVisible || isVisualSettingsVisible || isAudioSettingsVisible
     }
 
     fun returnToPauseMenu() {
         visualSettingsUI.hide()
+        audioSettingsUI.hide()
         pauseMenuUI.show()
     }
 

@@ -49,6 +49,8 @@ public class Lwjgl3Launcher {
 // edge houses
 // sound settings
 // adding option for choosing between existing files and code ones
+// visual and audio ui crashing pause menu
+// saving button only visible in editor mode
 // visual option to change sound
 // realistic that same weapon can have different sounds
 // using new animation images

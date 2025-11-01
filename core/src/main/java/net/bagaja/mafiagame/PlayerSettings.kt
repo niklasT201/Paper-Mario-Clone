@@ -14,7 +14,10 @@ data class PlayerSettingsData(
     var trajectoryArc: Boolean = true,
     var meleeRangeIndicator: Boolean = true,
     var meleeIndicatorStyle: IndicatorStyle = IndicatorStyle.SOLID_CIRCLE,
-    var muzzleFlashLight: Boolean = true
+    var muzzleFlashLight: Boolean = true,
+    var masterVolume: Float = 0.8f, // Default to 80%
+    var musicVolume: Float = 0.7f,  // Default to 70%
+    var sfxVolume: Float = 0.9f     // Default to 90%
 )
 
 // A manager class to handle loading and saving the settings

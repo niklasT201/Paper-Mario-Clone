@@ -33,6 +33,8 @@ class MusicManager : Disposable {
     private var volume = 0.5f
     private val fadeDuration = 1.5f
     private var fadeTimer = 0f
+    private var masterVolume = 1.0f // NEW property
+    private var musicVolume = 1.0f
 
     /**
      * Registers a new song with the manager so it can be played.
@@ -94,9 +96,20 @@ class MusicManager : Disposable {
      * Sets the master volume for the music.
      * @param newVolume A value between 0.0 (silent) and 1.0 (full volume).
      */
-    fun setVolume(newVolume: Float) {
-        volume = newVolume.coerceIn(0f, 1f)
-        activeSong?.setVolume(volume)
+    fun setMasterVolume(volume: Float) {
+        masterVolume = volume.coerceIn(0f, 1f)
+        applyVolume()
+    }
+
+    fun setMusicVolume(volume: Float) {
+        musicVolume = volume.coerceIn(0f, 1f)
+        applyVolume()
+    }
+
+    private fun applyVolume() {
+        val finalVolume = masterVolume * musicVolume
+        // Apply to the currently playing song
+        activeSong?.setVolume(finalVolume)
     }
 
     /**
@@ -107,18 +120,18 @@ class MusicManager : Disposable {
             PlaybackState.FADING_OUT -> {
                 fadeTimer -= deltaTime
                 val fadeProgress = (fadeTimer / fadeDuration).coerceIn(0f, 1f)
-                activeSong?.setVolume(volume * fadeProgress)
+                // MODIFIED LINE: Use the calculated final volume
+                activeSong?.setVolume(masterVolume * musicVolume * fadeProgress)
 
                 if (fadeTimer <= 0f) {
                     activeSong?.dispose()
                     activeSong = null
                     playbackState = PlaybackState.STOPPED
 
-                    // If a new song is queued, start playing it now.
                     if (nextSong != null) {
                         activeSong = nextSong
                         nextSong = null
-                        activeSong?.setVolume(volume)
+                        applyVolume() // MODIFIED: Use applyVolume()
                         activeSong?.play()
                         playbackState = PlaybackState.PLAYING
                     }
@@ -158,7 +171,7 @@ class MusicManager : Disposable {
             // No song is playing, just start the new one
             activeSong?.dispose()
             activeSong = newSong
-            activeSong?.setVolume(volume)
+            applyVolume()
             activeSong?.play()
             playbackState = PlaybackState.PLAYING
         }
