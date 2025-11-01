@@ -116,22 +116,62 @@ class MafiaGame : ApplicationAdapter() {
         shaderEffectManager.setEffect(PlayerSettingsManager.current.selectedShader)
         saveLoadSystem = SaveLoadSystem(this)
 
-        // --- SOUND MANAGER SETUP (Your code here is perfect) ---
+        // --- SOUND MANAGER SETUP ---
         soundManager = SoundManager()
         soundManager.initialize()
         soundManager.load(SoundManager.Effect.GUNSHOT_REVOLVER)
-        soundManager.load("fire_crackle", "sounds/fire_loop.ogg") // Assuming you have this .ogg file
+        soundManager.load("fire_crackle", "sounds/fire_loop.ogg")
 
-        // --- MUSIC MANAGER SETUP (CORRECTED) ---
+        // --- MUSIC MANAGER SETUP ---
         musicManager = MusicManager()
+        musicManager.setVolume(0.55f) // Set a comfortable default volume
 
-        // ADD THIS BLOCK to register your songs first
-        // You can add as many songs as you like here.
+        // --- Register all your songs ---
 
-        // Example 1: Your original procedural action music
+        // SONG 1: The new slow, dramatic Mafia Theme
+        musicManager.registerSong(MusicSource.Procedural("mafia_theme") {
+            ProceduralMusicGenerator(
+                bpm = 75.0, // Slow and heavy tempo
+                kickPattern  = "x-------x-------",
+                snarePattern = "----x-------x---",
+                hihatPattern = "x-x-x-x-x-x-x-x-",
+                crashPattern = "----------------",
+                bassPattern = arrayOf(
+                    ProceduralMusicGenerator.Note.A1, null, null, null, null, null, null, null,
+                    ProceduralMusicGenerator.Note.A1, null, null, null, null, null, null, null,
+                    ProceduralMusicGenerator.Note.D2, null, null, null, null, null, null, null,
+                    ProceduralMusicGenerator.Note.D2, null, null, null, null, null, null, null,
+                    ProceduralMusicGenerator.Note.E2, null, null, null, null, null, null, null,
+                    ProceduralMusicGenerator.Note.E2, null, null, null, null, null, null, null,
+                    ProceduralMusicGenerator.Note.E2, null, null, null, null, null, null, null,
+                    ProceduralMusicGenerator.Note.E2, null, null, null, null, null, null, null
+                ),
+                chordStabPattern = arrayOf( // Soft triangle wave chords
+                    ProceduralMusicGenerator.Note.A2, null, ProceduralMusicGenerator.Note.C3, null, ProceduralMusicGenerator.Note.E3, null, null, null,
+                    null, null, null, null, null, null, null, null,
+                    ProceduralMusicGenerator.Note.D2, null, ProceduralMusicGenerator.Note.F2, null, ProceduralMusicGenerator.Note.A2, null, null, null,
+                    null, null, null, null, null, null, null, null,
+                    ProceduralMusicGenerator.Note.E2, null, ProceduralMusicGenerator.Note.GS2, null, ProceduralMusicGenerator.Note.B2, null, null, null,
+                    null, null, null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null,
+                    null, null, null, null, null, null, null, null
+                ),
+                leadRiffPattern = emptyArray(), // The main lead is now the violin
+                tensionPulsePattern = arrayOf( // This pattern now plays the VIOLIN_SAW melody
+                    ProceduralMusicGenerator.Note.A3, null, null, null, ProceduralMusicGenerator.Note.E4, null, null, null,
+                    ProceduralMusicGenerator.Note.D4, null, null, null, ProceduralMusicGenerator.Note.C4, null, null, null,
+                    ProceduralMusicGenerator.Note.B3, null, null, null, null, null, null, null,
+                    null, null, ProceduralMusicGenerator.Note.C4, null, ProceduralMusicGenerator.Note.A3, null, null,
+                    ProceduralMusicGenerator.Note.G3, null, null, null, ProceduralMusicGenerator.Note.E4, null, null, null,
+                    ProceduralMusicGenerator.Note.D4, null, null, null, ProceduralMusicGenerator.Note.C4, null, null, null,
+                    ProceduralMusicGenerator.Note.B4, null, null, null, ProceduralMusicGenerator.Note.A4, null, ProceduralMusicGenerator.Note.B4, null,
+                    ProceduralMusicGenerator.Note.C5, null, null, null, null, null, null, null
+                )
+            )
+        })
+
+        // SONG 2: Your original procedural action music
         musicManager.registerSong(MusicSource.Procedural("action_theme") {
-            // Note: Because the 'Note' enum is inside ProceduralMusicGenerator,
-            // we need to reference it like this.
             ProceduralMusicGenerator(
                 bpm = 145.0,
                 kickPattern  = "x---x---x---x---",
@@ -145,8 +185,8 @@ class MafiaGame : ApplicationAdapter() {
             )
         })
 
-        // NOW you can start playing the music
-        musicManager.playRandom()
+        // Play the new Mafia Theme by default when the game starts
+        musicManager.playSong("mafia_theme")
 
         // UIManager creation
         uiManager = UIManager(this, shaderEffectManager)

@@ -86,7 +86,7 @@ class ProceduralMusicGenerator(
 
                     // Instruments
                     bassPattern.getOrNull(currentStep)?.let { activeVoices.add(Oscillator(Waveform.SQUARE, it.freq, 0.6f, 0.12f)) }
-                    chordStabPattern.getOrNull(currentStep)?.let { activeVoices.add(Oscillator(Waveform.SAWTOOTH, it.freq, 0.25f, 0.1f)) }
+                    chordStabPattern.getOrNull(currentStep)?.let { activeVoices.add(Oscillator(Waveform.TRIANGLE, it.freq, 0.35f, 0.4f)) }
                     leadRiffPattern.getOrNull(currentStep)?.let { activeVoices.add(Oscillator(Waveform.PULSE_HARD, it.freq, 0.35f, 0.2f)) }
                     tensionPulsePattern.getOrNull(currentStep)?.let { activeVoices.add(Oscillator(Waveform.SINE, it.freq, 0.08f, 0.15f)) }
                 }
@@ -104,7 +104,7 @@ class ProceduralMusicGenerator(
     }
 
     // --- Private Inner Classes (Copied from your original file) ---
-    private enum class Waveform { SINE, SQUARE, SAWTOOTH, TRIANGLE, NOISE, KICK, PULSE_HARD }
+    private enum class Waveform { SINE, SQUARE, SAWTOOTH, TRIANGLE, NOISE, KICK, PULSE_HARD, VIOLIN_SAW }
 
     private class Oscillator(
         val waveform: Waveform,
@@ -125,7 +125,17 @@ class ProceduralMusicGenerator(
                 isFinished = true
                 return 0.0f
             }
-            val envelope = if (time < attackTime) (time / attackTime).toFloat() else 1.0f - (((time - attackTime) / decayTime).toFloat().let { it * it })
+
+            // --- MODIFIED ENVELOPE ---
+            val currentAttackTime = if (waveform == Waveform.VIOLIN_SAW) 0.05f else 0.005f // Slower attack for violin
+            val currentDecayTime = (duration - currentAttackTime).coerceAtLeast(0.005F)
+            val envelope = if (time < currentAttackTime) {
+                (time / currentAttackTime).toFloat()
+            } else {
+                val t = ((time - currentAttackTime) / currentDecayTime).toFloat()
+                1.0f - (t * t)
+            }
+
             val value = when (waveform) {
                 Waveform.SINE -> sin(2.0 * PI * frequency * time).toFloat()
                 Waveform.SQUARE -> if (sin(2.0 * PI * frequency * time) > 0) 1.0f else -1.0f
@@ -134,6 +144,17 @@ class ProceduralMusicGenerator(
                 Waveform.NOISE -> MathUtils.random(-1.0f, 1.0f)
                 Waveform.KICK -> sin(2.0 * PI * (frequency * (1.0f - (time / duration).toFloat()).coerceAtLeast(0.01f) * 15f) * time).toFloat()
                 Waveform.PULSE_HARD -> if (sin(2.0 * PI * frequency * time) > 0.6) 1.0f else -1.0f
+
+                // --- NEW VIOLIN WAVEFORM LOGIC ---
+                Waveform.VIOLIN_SAW -> {
+                    // Add vibrato: a gentle, periodic change in pitch
+                    val vibratoRate = 5.0 // How fast the pitch wavers
+                    val vibratoDepth = 0.005 // How much the pitch changes
+                    val vibrato = sin(2.0 * PI * vibratoRate * time).toFloat() * vibratoDepth
+                    val effectiveFrequency = frequency * (1f + vibrato)
+                    // Generate the base sawtooth wave with the modulated frequency
+                    (((time * effectiveFrequency * 2.0) % 2.0) - 1.0).toFloat()
+                }
             }
             return value * amplitude * envelope
         }
@@ -142,10 +163,10 @@ class ProceduralMusicGenerator(
     // Note enum is required for the patterns
     @Suppress("unused")
     enum class Note(val freq: Float) {
-        D1(36.71f), E1(41.20f), F1(43.65f), G1(49.00f), GS1(51.91f), A1(55.00f), B1(61.74f),
+        C1(32.70f), D1(36.71f), E1(41.20f), F1(43.65f), G1(49.00f), GS1(51.91f), A1(55.00f), B1(61.74f),
         C2(65.41f), CS2(69.30f), D2(73.42f), E2(82.41f), F2(87.31f), FS2(92.50f), G2(98.00f), GS2(103.83f), A2(110.00f), B2(123.47f),
         C3(130.81f), CS3(138.59f), D3(146.83f), E3(164.81f), F3(174.61f), FS3(185.00f), G3(196.00f), GS3(207.65f), A3(220.00f), B3(246.94f),
         C4(261.63f), CS4(277.18f), D4(293.66f), E4(329.63f), F4(349.23f), FS4(369.99f), G4(392.00f), A4(440.00f), B4(493.88f),
-        D5(587.33f), E5(659.25f), A5(880.00f), C7(2093.00f)
+        C5(523.25f), D5(587.33f), E5(659.25f), A5(880.00f), C7(2093.00f)
     }
 }
