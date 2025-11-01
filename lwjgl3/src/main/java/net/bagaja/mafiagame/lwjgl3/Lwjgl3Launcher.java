@@ -47,6 +47,9 @@ public class Lwjgl3Launcher {
 // more animations adding
 
 // edge houses
+// sound settings
+// adding option for choosing between existing files and code ones
+// visual option to change sound
 // using new animation images
 // rusher stopping in front of the player
 // fire system uses spread fire, fire or flame particle folder

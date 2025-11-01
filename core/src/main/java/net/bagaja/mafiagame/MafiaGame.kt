@@ -100,6 +100,8 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var objectiveArrowSystem: ObjectiveArrowSystem
     lateinit var bulletTrailSystem: BulletTrailSystem
     lateinit var weatherSystem: WeatherSystem
+    private lateinit var musicGenerator: MusicGenerator
+    lateinit var soundManager: SoundManager
     lateinit var decalSystem: DecalSystem
     lateinit var waterPuddleSystem: WaterPuddleSystem
 
@@ -113,6 +115,12 @@ class MafiaGame : ApplicationAdapter() {
         shaderEffectManager.initialize()
         shaderEffectManager.setEffect(PlayerSettingsManager.current.selectedShader)
         saveLoadSystem = SaveLoadSystem(this)
+
+        soundManager = SoundManager()
+        soundManager.initialize()
+
+        musicGenerator = MusicGenerator()
+        musicGenerator.start() // Start the music!
 
         // UIManager creation
         uiManager = UIManager(this, shaderEffectManager)
@@ -1048,6 +1056,7 @@ class MafiaGame : ApplicationAdapter() {
 
                 if (!isPaused) {
                     val timeMultiplier = if (inputHandler.isTimeSpeedUpActive()) 200f else 1f
+                    soundManager.update(playerSystem.getControlledEntityPosition())
                     val isSinCityEffect = shaderEffectManager.isEffectsEnabled && shaderEffectManager.getCurrentEffect() == ShaderEffect.SIN_CITY
 
                     lightingManager.setGrayscaleMode(isSinCityEffect)
@@ -1363,6 +1372,8 @@ class MafiaGame : ApplicationAdapter() {
     }
 
     override fun dispose() {
+        if (::soundManager.isInitialized) soundManager.dispose()
+        if (::musicGenerator.isInitialized) musicGenerator.dispose()
         if (::modelBatch.isInitialized) modelBatch.dispose()
         if (::spriteBatch.isInitialized) spriteBatch.dispose()
         if (::blockSystem.isInitialized) blockSystem.dispose()

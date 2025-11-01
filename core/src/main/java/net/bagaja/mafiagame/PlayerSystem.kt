@@ -851,6 +851,12 @@ class PlayerSystem {
             sceneManager.activeBullets.add(bullet)
         }
 
+        sceneManager.game.soundManager.playSound(
+            effect = SoundManager.SoundEffect.GUNSHOT_REVOLVER,
+            position = bulletSpawnPos.cpy(),
+            reverb = true // Adds the hall/echo effect!
+        )
+
         if (equippedWeapon.actionType == WeaponActionType.SHOOTING && equippedWeapon != WeaponType.REVOLVER) {
 
             // Eject the casing in the opposite direction the player is facing.
