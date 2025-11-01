@@ -11,50 +11,36 @@ import kotlin.math.sin
 import kotlin.random.Random
 
 /**
- * Generates raw audio data for sound effects from code and converts them into
- * LibGDX Sound objects. This object is responsible for cleaning up the temporary
- * files it creates upon disposal.
+ * Generates raw audio data for sound effects and converts them into LibGDX Sound objects.
  */
-// MODIFIED: Implemented Disposable for cleanup
 object ProceduralSFXGenerator : Disposable {
 
     private const val SAMPLE_RATE = 44100
-    // NEW: A list to keep track of the temporary directories we create.
     private val tempDirs = mutableListOf<FileHandle>()
 
     /**
      * Generates a sound effect based on the specified type and returns a LibGDX Sound object.
      */
-    fun generate(effect: SoundManager.SoundEffect): Sound {
+    fun generate(effect: SoundManager.Effect): Sound {
         val pcmData = when (effect) {
-            SoundManager.SoundEffect.GUNSHOT_REVOLVER -> generateGunshot()
-            SoundManager.SoundEffect.FIRE_LOOP -> generateFireLoop()
+            SoundManager.Effect.GUNSHOT_REVOLVER -> generateGunshot()
+            SoundManager.Effect.FIRE_LOOP -> generateFireLoop()
         }
         val wavData = convertToWav(pcmData)
 
-        // --- MODIFIED BLOCK ---
-        // 1. Create a temporary directory.
-        val tempDir = FileHandle.tempDirectory("mafiagame-sfx")
-        // 2. Add this directory to our list so we can delete it later.
+        val tempDir = FileHandle.tempDirectory("mafiagame-sfx-${System.nanoTime()}")
         tempDirs.add(tempDir)
-        // 3. Create our own file handle with the correct .wav extension inside that directory.
-        val tempHandle = tempDir.child("sfx_${System.nanoTime()}.wav")
-        // 4. REMOVED the problematic deleteOnExit() call.
-        // --- END OF MODIFIED BLOCK ---
+        val tempHandle = tempDir.child("sfx.wav")
 
         tempHandle.writeBytes(wavData, false)
         return Gdx.audio.newSound(tempHandle)
     }
 
-    // NEW: This method will be called when the game shuts down to clean up our temp files.
     override fun dispose() {
         println("Cleaning up ${tempDirs.size} temporary SFX directories...")
         tempDirs.forEach { dir ->
             try {
-                if (dir.exists()) {
-                    // deleteDirectory() removes the folder and all files inside it.
-                    dir.deleteDirectory()
-                }
+                if (dir.exists()) dir.deleteDirectory()
             } catch (e: Exception) {
                 println("Error cleaning up temp directory ${dir.path()}: ${e.message}")
             }
@@ -62,9 +48,7 @@ object ProceduralSFXGenerator : Disposable {
         tempDirs.clear()
     }
 
-
-    // --- The rest of the file is unchanged ---
-
+    // --- Private Generation and Conversion Functions (Unchanged) ---
     private fun generateGunshot(): ShortArray {
         val durationSeconds = 0.3f
         val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
@@ -100,15 +84,11 @@ object ProceduralSFXGenerator : Disposable {
     }
 
     private fun DataOutputStream.writeLittleEndianInt(value: Int) {
-        writeByte(value and 0xFF)
-        writeByte((value ushr 8) and 0xFF)
-        writeByte((value ushr 16) and 0xFF)
-        writeByte((value ushr 24) and 0xFF)
+        writeByte(value and 0xFF); writeByte((value ushr 8) and 0xFF); writeByte((value ushr 16) and 0xFF); writeByte((value ushr 24) and 0xFF)
     }
 
     private fun DataOutputStream.writeLittleEndianShort(value: Short) {
-        writeByte(value.toInt() and 0xFF)
-        writeByte((value.toInt() ushr 8) and 0xFF)
+        writeByte(value.toInt() and 0xFF); writeByte((value.toInt() ushr 8) and 0xFF)
     }
 
     private fun convertToWav(pcmData: ShortArray): ByteArray {
@@ -119,35 +99,11 @@ object ProceduralSFXGenerator : Disposable {
             byteData[i * 2] = (sh.toInt() and 0xff).toByte()
             byteData[i * 2 + 1] = (sh.toInt() shr 8 and 0xff).toByte()
         }
-
-        val channels = 1
-        val bitsPerSample = 16
-        val byteRate = SAMPLE_RATE * channels * bitsPerSample / 8
-        val subChunk2Size = pcmData.size * channels * bitsPerSample / 8
-        val chunkSize = 36 + subChunk2Size
-
-        dataStream.writeBytes("RIFF")
-        dataStream.writeLittleEndianInt(chunkSize)
-        dataStream.writeBytes("WAVE")
-        dataStream.writeBytes("fmt ")
-        dataStream.writeLittleEndianInt(16)
-        dataStream.writeLittleEndianShort(1.toShort())
-        dataStream.writeLittleEndianShort(channels.toShort())
-        dataStream.writeLittleEndianInt(SAMPLE_RATE)
-        dataStream.writeLittleEndianInt(byteRate)
-        dataStream.writeLittleEndianShort((channels * bitsPerSample / 8).toShort())
-        dataStream.writeLittleEndianShort(bitsPerSample.toShort())
-        dataStream.writeBytes("data")
-        dataStream.writeLittleEndianInt(subChunk2Size)
-        dataStream.write(byteData)
-        dataStream.flush()
-
+        dataStream.writeBytes("RIFF"); dataStream.writeLittleEndianInt(36 + byteData.size); dataStream.writeBytes("WAVE"); dataStream.writeBytes("fmt "); dataStream.writeLittleEndianInt(16); dataStream.writeLittleEndianShort(1.toShort()); dataStream.writeLittleEndianShort(1.toShort()); dataStream.writeLittleEndianInt(SAMPLE_RATE); dataStream.writeLittleEndianInt(SAMPLE_RATE * 2); dataStream.writeLittleEndianShort(2.toShort()); dataStream.writeLittleEndianShort(16.toShort()); dataStream.writeBytes("data"); dataStream.writeLittleEndianInt(byteData.size); dataStream.write(byteData); dataStream.flush()
         return byteStream.toByteArray()
     }
 
     private fun Float.pow(n: Int): Float {
-        var result = 1.0f
-        for (i in 1..n) result *= this
-        return result
+        var result = 1.0f; repeat(n) { result *= this }; return result
     }
 }

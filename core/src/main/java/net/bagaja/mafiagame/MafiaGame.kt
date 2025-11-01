@@ -100,7 +100,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var objectiveArrowSystem: ObjectiveArrowSystem
     lateinit var bulletTrailSystem: BulletTrailSystem
     lateinit var weatherSystem: WeatherSystem
-    private lateinit var musicGenerator: MusicGenerator
+    lateinit var musicManager: MusicManager
     lateinit var soundManager: SoundManager
     lateinit var decalSystem: DecalSystem
     lateinit var waterPuddleSystem: WaterPuddleSystem
@@ -116,11 +116,37 @@ class MafiaGame : ApplicationAdapter() {
         shaderEffectManager.setEffect(PlayerSettingsManager.current.selectedShader)
         saveLoadSystem = SaveLoadSystem(this)
 
+        // --- SOUND MANAGER SETUP (Your code here is perfect) ---
         soundManager = SoundManager()
         soundManager.initialize()
+        soundManager.load(SoundManager.Effect.GUNSHOT_REVOLVER)
+        soundManager.load("fire_crackle", "sounds/fire_loop.ogg") // Assuming you have this .ogg file
 
-        musicGenerator = MusicGenerator()
-        musicGenerator.start() // Start the music!
+        // --- MUSIC MANAGER SETUP (CORRECTED) ---
+        musicManager = MusicManager()
+
+        // ADD THIS BLOCK to register your songs first
+        // You can add as many songs as you like here.
+
+        // Example 1: Your original procedural action music
+        musicManager.registerSong(MusicSource.Procedural("action_theme") {
+            // Note: Because the 'Note' enum is inside ProceduralMusicGenerator,
+            // we need to reference it like this.
+            ProceduralMusicGenerator(
+                bpm = 145.0,
+                kickPattern  = "x---x---x---x---",
+                snarePattern = "----x-------x---",
+                hihatPattern = "x-x-x-x-x-x-x-x-",
+                crashPattern = "x---------------x---------------x---------------x---------------",
+                bassPattern = arrayOf(ProceduralMusicGenerator.Note.E2, ProceduralMusicGenerator.Note.E2, null, ProceduralMusicGenerator.Note.E3, null, ProceduralMusicGenerator.Note.E2, null, null, ProceduralMusicGenerator.Note.E2, ProceduralMusicGenerator.Note.E2, null, ProceduralMusicGenerator.Note.E3, null, ProceduralMusicGenerator.Note.E2, null, null, ProceduralMusicGenerator.Note.A1, ProceduralMusicGenerator.Note.A1, null, ProceduralMusicGenerator.Note.A2, null, ProceduralMusicGenerator.Note.A1, null, null, ProceduralMusicGenerator.Note.A1, ProceduralMusicGenerator.Note.A1, null, ProceduralMusicGenerator.Note.A2, null, ProceduralMusicGenerator.Note.A1, null, null, ProceduralMusicGenerator.Note.D2, ProceduralMusicGenerator.Note.D2, null, ProceduralMusicGenerator.Note.D3, null, ProceduralMusicGenerator.Note.D2, null, null, ProceduralMusicGenerator.Note.D2, ProceduralMusicGenerator.Note.D2, null, ProceduralMusicGenerator.Note.D3, null, ProceduralMusicGenerator.Note.D2, null, null, ProceduralMusicGenerator.Note.A1, ProceduralMusicGenerator.Note.A1, null, ProceduralMusicGenerator.Note.A2, null, ProceduralMusicGenerator.Note.A1, ProceduralMusicGenerator.Note.A2, null, ProceduralMusicGenerator.Note.A1, ProceduralMusicGenerator.Note.A1, null, ProceduralMusicGenerator.Note.A2, null, ProceduralMusicGenerator.Note.A1, ProceduralMusicGenerator.Note.A2, ProceduralMusicGenerator.Note.A2),
+                chordStabPattern = arrayOf(ProceduralMusicGenerator.Note.E3, null, null, ProceduralMusicGenerator.Note.B3, null, null, null, null, ProceduralMusicGenerator.Note.E3, null, null, ProceduralMusicGenerator.Note.B3, null, null, null, null, ProceduralMusicGenerator.Note.A3, null, null, ProceduralMusicGenerator.Note.E4, null, null, null, null, ProceduralMusicGenerator.Note.A3, null, null, ProceduralMusicGenerator.Note.E4, null, null, null, null, ProceduralMusicGenerator.Note.D3, null, null, ProceduralMusicGenerator.Note.A3, null, null, null, null, ProceduralMusicGenerator.Note.D3, null, null, ProceduralMusicGenerator.Note.A3, null, null, null, null, ProceduralMusicGenerator.Note.A3, null, null, ProceduralMusicGenerator.Note.E4, null, null, ProceduralMusicGenerator.Note.A3, null, ProceduralMusicGenerator.Note.A3, null, ProceduralMusicGenerator.Note.E4, null, ProceduralMusicGenerator.Note.A3, null, ProceduralMusicGenerator.Note.E4, null),
+                leadRiffPattern = arrayOf(ProceduralMusicGenerator.Note.E4, null, ProceduralMusicGenerator.Note.FS4, ProceduralMusicGenerator.Note.G4, null, ProceduralMusicGenerator.Note.FS4, ProceduralMusicGenerator.Note.E4, null, ProceduralMusicGenerator.Note.D4, null, ProceduralMusicGenerator.Note.E4, null, ProceduralMusicGenerator.Note.FS4, null, null, null, ProceduralMusicGenerator.Note.A4, null, ProceduralMusicGenerator.Note.G4, ProceduralMusicGenerator.Note.FS4, null, ProceduralMusicGenerator.Note.E4, ProceduralMusicGenerator.Note.D4, null, ProceduralMusicGenerator.Note.E4, null, ProceduralMusicGenerator.Note.FS4, null, ProceduralMusicGenerator.Note.A4, null, null, null, ProceduralMusicGenerator.Note.D4, null, ProceduralMusicGenerator.Note.E4, ProceduralMusicGenerator.Note.FS4, null, ProceduralMusicGenerator.Note.G4, ProceduralMusicGenerator.Note.A4, null, ProceduralMusicGenerator.Note.B4, null, ProceduralMusicGenerator.Note.A4, null, ProceduralMusicGenerator.Note.G4, null, null, null, ProceduralMusicGenerator.Note.A4, null, ProceduralMusicGenerator.Note.G4, null, ProceduralMusicGenerator.Note.FS4, null, ProceduralMusicGenerator.Note.E4, null, ProceduralMusicGenerator.Note.D4, null, ProceduralMusicGenerator.Note.E4, null, ProceduralMusicGenerator.Note.A3, ProceduralMusicGenerator.Note.B3, ProceduralMusicGenerator.Note.CS4, ProceduralMusicGenerator.Note.D4),
+                tensionPulsePattern = arrayOf(ProceduralMusicGenerator.Note.E5, null, null, null, ProceduralMusicGenerator.Note.E5, null, null, null, ProceduralMusicGenerator.Note.E5, null, null, null, ProceduralMusicGenerator.Note.E5, null, null, null, ProceduralMusicGenerator.Note.A4, null, null, null, ProceduralMusicGenerator.Note.A4, null, null, null, ProceduralMusicGenerator.Note.A4, null, null, null, ProceduralMusicGenerator.Note.A4, null, null, null, ProceduralMusicGenerator.Note.D5, null, null, null, ProceduralMusicGenerator.Note.D5, null, null, null, ProceduralMusicGenerator.Note.D5, null, null, null, ProceduralMusicGenerator.Note.D5, null, null, null, ProceduralMusicGenerator.Note.A4, null, null, null, ProceduralMusicGenerator.Note.A4, null, null, null, ProceduralMusicGenerator.Note.A4, null, null, ProceduralMusicGenerator.Note.A4, null, ProceduralMusicGenerator.Note.A4, null, null)
+            )
+        })
+
+        // NOW you can start playing the music
+        musicManager.playRandom()
 
         // UIManager creation
         uiManager = UIManager(this, shaderEffectManager)
@@ -1056,6 +1082,7 @@ class MafiaGame : ApplicationAdapter() {
 
                 if (!isPaused) {
                     val timeMultiplier = if (inputHandler.isTimeSpeedUpActive()) 200f else 1f
+                    musicManager.update(deltaTime)
                     soundManager.update(playerSystem.getControlledEntityPosition())
                     val isSinCityEffect = shaderEffectManager.isEffectsEnabled && shaderEffectManager.getCurrentEffect() == ShaderEffect.SIN_CITY
 
@@ -1373,7 +1400,7 @@ class MafiaGame : ApplicationAdapter() {
 
     override fun dispose() {
         if (::soundManager.isInitialized) soundManager.dispose()
-        if (::musicGenerator.isInitialized) musicGenerator.dispose()
+        if (::musicManager.isInitialized) musicManager.dispose()
         if (::modelBatch.isInitialized) modelBatch.dispose()
         if (::spriteBatch.isInitialized) spriteBatch.dispose()
         if (::blockSystem.isInitialized) blockSystem.dispose()

@@ -1,5 +1,6 @@
 package net.bagaja.mafiagame
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.audio.Sound
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
@@ -8,11 +9,14 @@ import com.badlogic.gdx.utils.Timer
 
 /**
  * Manages all game sound effects, including 3D positioning, volume attenuation,
- * looping, and a simulated reverb/echo effect.
+ * looping, and a simulated reverb/echo effect. Supports both procedural and file-based sounds.
  */
 class SoundManager : Disposable {
 
-    enum class SoundEffect {
+    /**
+     * A unique identifier for a procedurally generated sound effect.
+     */
+    enum class Effect {
         GUNSHOT_REVOLVER,
         FIRE_LOOP
     }
@@ -20,19 +24,46 @@ class SoundManager : Disposable {
     private data class ActiveSound(
         val sound: Sound,
         val id: Long,
-        val effect: SoundEffect,
+        val soundId: String,
         val position: Vector3
     )
 
-    private val sounds = mutableMapOf<SoundEffect, Sound>()
+    private val loadedSounds = mutableMapOf<String, Sound>()
     private val activeLoopingSounds = Array<ActiveSound>()
-    private lateinit var listenerPosition: Vector3
+    private var listenerPosition: Vector3 = Vector3.Zero
 
+    /**
+     * No-op. Sounds are now loaded manually via the `load` methods.
+     */
     fun initialize() {
-        println("Initializing SoundManager and generating procedural SFX...")
-        sounds[SoundEffect.GUNSHOT_REVOLVER] = ProceduralSFXGenerator.generate(SoundEffect.GUNSHOT_REVOLVER)
-        sounds[SoundEffect.FIRE_LOOP] = ProceduralSFXGenerator.generate(SoundEffect.FIRE_LOOP)
-        println("Procedural SFX generation complete.")
+        println("SoundManager initialized. Load sounds using load() methods.")
+    }
+
+    /**
+     * Loads a procedural sound effect and stores it by its enum name.
+     * @param effect The procedural effect to generate and load.
+     */
+    fun load(effect: Effect) {
+        if (loadedSounds.containsKey(effect.name)) return
+        println("Generating procedural SFX for: ${effect.name}")
+        val sound = ProceduralSFXGenerator.generate(effect)
+        loadedSounds[effect.name] = sound
+    }
+
+    /**
+     * Loads a sound effect from an internal file path (e.g., "sounds/explosion.ogg").
+     * @param id A unique string ID to refer to this sound.
+     * @param filePath The path to the .ogg file inside the assets folder.
+     */
+    fun load(id: String, filePath: String) {
+        if (loadedSounds.containsKey(id)) return
+        try {
+            println("Loading sound file: $filePath")
+            val sound = Gdx.audio.newSound(Gdx.files.internal(filePath))
+            loadedSounds[id] = sound
+        } catch (e: Exception) {
+            println("SoundManager ERROR: Could not load sound file at '$filePath': ${e.message}")
+        }
     }
 
     fun update(listenerPos: Vector3) {
@@ -43,20 +74,49 @@ class SoundManager : Disposable {
         }
     }
 
+    /** Overload for playing procedural effects easily. */
     fun playSound(
-        effect: SoundEffect,
+        effect: Effect,
         position: Vector3,
         loop: Boolean = false,
         maxRange: Float = 60f,
         reverb: Boolean = false
     ) {
-        val sound = sounds[effect] ?: return
+        playSoundById(effect.name, position, loop, maxRange, reverb)
+    }
+
+    /** Main function to play any loaded sound by its string ID. */
+    fun playSound(
+        id: String,
+        position: Vector3,
+        loop: Boolean = false,
+        maxRange: Float = 60f,
+        reverb: Boolean = false
+    ) {
+        playSoundById(id, position, loop, maxRange, reverb)
+    }
+
+    private fun playSoundById(
+        id: String,
+        position: Vector3,
+        loop: Boolean,
+        maxRange: Float,
+        reverb: Boolean
+    ) {
+        val sound = loadedSounds[id]
+        if (sound == null) {
+            println("SoundManager WARN: Sound with ID '$id' not loaded.")
+            return
+        }
+
         val (volume, pan) = calculateVolumeAndPan(position, maxRange)
 
         if (volume > 0.01f) {
             if (loop) {
-                val id = sound.loop(volume, 1.0f, pan)
-                activeLoopingSounds.add(ActiveSound(sound, id, effect, position))
+                // Ensure we don't start a duplicate loop at the exact same position
+                if (activeLoopingSounds.any { it.soundId == id && it.position.epsilonEquals(position, 0.1f) }) return
+                val soundId = sound.loop(volume, 1.0f, pan)
+                activeLoopingSounds.add(ActiveSound(sound, soundId, id, position))
             } else {
                 sound.play(volume, 1.0f, pan)
                 if (reverb) {
@@ -66,8 +126,18 @@ class SoundManager : Disposable {
         }
     }
 
-    fun stopLoopingSound(effect: SoundEffect, position: Vector3) {
-        val soundToStop = activeLoopingSounds.find { it.effect == effect && it.position == position }
+    /** Overload for stopping procedural effects. */
+    fun stopLoopingSound(effect: Effect, position: Vector3) {
+        stopLoopingSoundById(effect.name, position)
+    }
+
+    /** Main function to stop a looping sound by its ID and position. */
+    fun stopLoopingSound(id: String, position: Vector3) {
+        stopLoopingSoundById(id, position)
+    }
+
+    private fun stopLoopingSoundById(id: String, position: Vector3) {
+        val soundToStop = activeLoopingSounds.find { it.soundId == id && it.position.epsilonEquals(position, 0.1f) }
         if (soundToStop != null) {
             soundToStop.sound.stop(soundToStop.id)
             activeLoopingSounds.removeValue(soundToStop, true)
@@ -79,7 +149,7 @@ class SoundManager : Disposable {
         val volume = (1.0f - (distance / maxRange)).coerceIn(0f, 1f)
         val direction = soundPosition.x - listenerPosition.x
         val pan = (direction / (maxRange * 0.5f)).coerceIn(-1.0f, 1.0f)
-        return volume to pan
+        return Pair(volume, pan)
     }
 
     private fun playEchoes(sound: Sound, initialVolume: Float, initialPan: Float) {
@@ -98,11 +168,12 @@ class SoundManager : Disposable {
     }
 
     override fun dispose() {
-        println("Disposing SoundManager and all procedural sounds.")
-        sounds.values.forEach { it.dispose() }
-        sounds.clear()
+        println("Disposing SoundManager and all loaded sounds.")
+        // Use the correct variable name: loadedSounds
+        loadedSounds.values.forEach { it.dispose() }
+        loadedSounds.clear()
+        activeLoopingSounds.forEach { it.sound.stop(it.id) }
         activeLoopingSounds.clear()
-        // MODIFIED: This now calls our new cleanup method.
         ProceduralSFXGenerator.dispose()
     }
 }

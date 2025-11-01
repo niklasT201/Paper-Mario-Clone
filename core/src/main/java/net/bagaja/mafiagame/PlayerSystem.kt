@@ -852,7 +852,7 @@ class PlayerSystem {
         }
 
         sceneManager.game.soundManager.playSound(
-            effect = SoundManager.SoundEffect.GUNSHOT_REVOLVER,
+            effect = SoundManager.Effect.GUNSHOT_REVOLVER,
             position = bulletSpawnPos.cpy(),
             reverb = true // Adds the hall/echo effect!
         )

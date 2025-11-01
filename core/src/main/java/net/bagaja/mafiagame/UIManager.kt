@@ -1682,10 +1682,13 @@ class UIManager(
 
         if (pauseMenuUI.isVisible()) {
             pauseMenuUI.hide()
+            game.musicManager.playRandom()
         } else {
             val showSettings = (game.currentGameMode == GameMode.IN_GAME)
             pauseMenuUI.setSettingsButtonVisibility(showSettings)
             pauseMenuUI.show()
+            // When pausing, play a specific theme
+            game.musicManager.playSong("pause_menu_theme")
         }
     }
 

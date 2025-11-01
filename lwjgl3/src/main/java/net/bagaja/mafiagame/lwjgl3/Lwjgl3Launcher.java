@@ -50,6 +50,7 @@ public class Lwjgl3Launcher {
 // sound settings
 // adding option for choosing between existing files and code ones
 // visual option to change sound
+// realistic that same weapon can have different sounds
 // using new animation images
 // rusher stopping in front of the player
 // fire system uses spread fire, fire or flame particle folder
