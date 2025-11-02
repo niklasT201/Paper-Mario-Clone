@@ -38,7 +38,7 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val 
 
     fun initialize() {
         createSmokyOverlay()
-        createNewspaperMenu()
+        createMainContainer()
         createFloatingDecorations()
     }
 
@@ -82,12 +82,16 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val 
         }
     }
 
-    private fun createNewspaperMenu() {
+    private fun createMainContainer() {
         mainContainer = Table()
         mainContainer.setFillParent(true)
         mainContainer.center()
         mainContainer.isVisible = false
         stage.addActor(mainContainer)
+    }
+
+    private fun buildMenuContent() {
+        mainContainer.clearChildren()
 
         val buttonsTable = Table()
 
@@ -141,16 +145,19 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val 
         })
         buttonsTable.add(audioSettingsButton).fillX().height(60f).padBottom(10f).row()
 
-        saveButton = createVintageButton("💰 SAVE GAME 💰", Color.valueOf("#2F4F2F"))
-        saveButton.addListener(object : ChangeListener() {
-            override fun changed(event: ChangeEvent?, actor: Actor?) {
-                saveLoadSystem.saveGame(uiManager.game.currentSaveFileName)
-                hide()
-            }
-        })
-        buttonsTable.add(saveButton).fillX().height(60f).padBottom(10f).row()
+        // Only add save button if in editor mode
+        if (uiManager.game.isEditorMode) {
+            saveButton = createVintageButton("💰 SAVE GAME 💰", Color.valueOf("#2F4F2F"))
+            saveButton.addListener(object : ChangeListener() {
+                override fun changed(event: ChangeEvent?, actor: Actor?) {
+                    saveLoadSystem.saveGame(uiManager.game.currentSaveFileName)
+                    hide()
+                }
+            })
+            buttonsTable.add(saveButton).fillX().height(60f).padBottom(10f).row()
+        }
 
-        // --- NEW BUTTON REPLACES "LOAD GAME" ---
+        // Return to menu button
         val returnToMenuButton = createVintageButton("↩️ RETURN TO MENU ↩️", Color.valueOf("#4682B4")) // Steel Blue
         returnToMenuButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
@@ -491,7 +498,8 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val 
     }
 
     fun show() {
-        saveButton.isVisible = uiManager.game.isEditorMode
+        buildMenuContent()
+
         isVisible = true
         overlay.isVisible = true
         mainContainer.isVisible = true
