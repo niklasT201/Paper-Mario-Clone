@@ -498,7 +498,12 @@ class PlayerSystem {
         isReloading = true
         reloadTimer = equippedWeapon.reloadTime
         println("Reloading... (${equippedWeapon.reloadTime}s)")
-        // TODO: Play a reload sound effect here
+
+        sceneManager.game.soundManager.playSound(
+            effect = SoundManager.Effect.RELOAD_CLICK,
+            position = getPosition(), // Play sound at the player's position
+            reverb = true
+        )
     }
 
     private fun canShoot(): Boolean {
@@ -677,6 +682,12 @@ class PlayerSystem {
 
             // Only hit enemies that are in a valid state
             if (enemy.currentState != AIState.DYING && hitBox.intersects(enemy.physics.bounds)) {
+                sceneManager.game.soundManager.playSound(
+                    effect = SoundManager.Effect.PUNCH_HIT,
+                    position = enemy.position, // Play the sound at the enemy's location
+                    reverb = true
+                )
+
                 println("Melee hit on enemy: ${enemy.enemyType.displayName}")
 
                 val modifiers = sceneManager.game.missionSystem.activeModifiers
@@ -711,6 +722,12 @@ class PlayerSystem {
 
             // Only hit NPCs that are in a valid state
             if (npc.currentState != NPCState.DYING && npc.currentState != NPCState.FLEEING && hitBox.intersects(npc.physics.bounds)) {
+                sceneManager.game.soundManager.playSound(
+                    effect = SoundManager.Effect.PUNCH_HIT,
+                    position = npc.position, // Play the sound at the NPC's location
+                    reverb = true
+                )
+
                 println("Melee hit on NPC: ${npc.npcType.displayName}")
 
                 val modifiers = sceneManager.game.missionSystem.activeModifiers
@@ -1873,6 +1890,14 @@ class PlayerSystem {
                     HitObjectType.OBJECT -> {
                         val gameObject = collisionResult.hitObject as GameObject
                         if (gameObject.takeDamage(bullet.damage)) {
+                            if (gameObject.objectType == ObjectType.LANTERN) {
+                                sceneManager.game.soundManager.playSound(
+                                    effect = SoundManager.Effect.GLASS_BREAK,
+                                    position = gameObject.position,
+                                    reverb = true
+                                )
+                            }
+
                             // Object was destroyed. REPORT IT!
                             sceneManager.game.missionSystem.reportObjectDestroyed(gameObject.id)
 
@@ -2127,6 +2152,13 @@ class PlayerSystem {
                     explosionOrigin = throwable.position.cpy()
                     spawnSmokeOnGround = false
                 }
+
+                sceneManager.game.soundManager.playSound(
+                    effect = SoundManager.Effect.EXPLOSION,
+                    position = explosionOrigin,
+                    reverb = true, // Explosions sound great with reverb
+                    maxRange = 120f // Explosions are loud and can be heard from far away
+                )
 
                 // Camera Shake
                 val distanceToPlayer = explosionOrigin.dst(getPosition())

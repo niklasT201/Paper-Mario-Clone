@@ -404,6 +404,12 @@ class ItemSystem: IFinePositionable {
                     continue // Skip to the next item
                 }
 
+                sceneManager.game.soundManager.playSound(
+                    effect = SoundManager.Effect.ITEM_PICKUP,
+                    position = item.position, // Play the sound where the item was
+                    reverb = false // No need for reverb on a UI-like sound
+                )
+
                 if (item.itemType == ItemType.MONEY_STACK) {
                     playerSystem.addMoney(item.value)
                     // The item will be marked for removal below, but don't equip anything

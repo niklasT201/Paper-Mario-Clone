@@ -25,6 +25,12 @@ object ProceduralSFXGenerator : Disposable {
         val pcmData = when (effect) {
             SoundManager.Effect.GUNSHOT_REVOLVER -> generateGunshot()
             SoundManager.Effect.FIRE_LOOP -> generateFireLoop()
+            SoundManager.Effect.EXPLOSION -> generateExplosion()
+            SoundManager.Effect.PUNCH_HIT -> generatePunchHit()
+            SoundManager.Effect.ITEM_PICKUP -> generateItemPickup()
+            SoundManager.Effect.RELOAD_CLICK -> generateReloadClick()
+            SoundManager.Effect.GLASS_BREAK -> generateGlassBreak()
+            SoundManager.Effect.CAR_CRASH_HEAVY -> generateCarCrash()
         }
         val wavData = convertToWav(pcmData)
 
@@ -78,6 +84,148 @@ object ProceduralSFXGenerator : Disposable {
             val crackle = if (Random.nextFloat() < 0.05f) Random.nextFloat() * 1.5f else 1.0f
             val amplitudeEnvelope = (0.5f + sin(i * 0.1f) * 0.1f) * crackle
             val mixedSample = (lowPass * amplitudeEnvelope * 0.5f).coerceIn(-1f, 1f)
+            samples[i] = (mixedSample * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    private fun generateExplosion(): ShortArray {
+        val durationSeconds = 1.2f
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+
+            // 1. A deep, powerful thump that quickly fades
+            val thumpFrequency = 40f * (1.0f - progress).pow(4) // Rapidly falling pitch
+            val thumpEnvelope = (1.0f - progress).pow(2)
+            val thump = sin(2f * PI * i * thumpFrequency / SAMPLE_RATE).toFloat() * thumpEnvelope
+
+            // 2. A long tail of crackling noise
+            val noiseEnvelope = (1.0f - progress).pow(6)
+            val noise = (Random.nextFloat() * 2f - 1f) * noiseEnvelope
+
+            val mixedSample = ((thump * 0.8f) + (noise * 0.2f)).coerceIn(-1f, 1f)
+            samples[i] = (mixedSample * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    /**
+     * Generates a punch/melee impact sound.
+     */
+    private fun generatePunchHit(): ShortArray {
+        val durationSeconds = 0.15f
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+
+            // A very fast decaying burst of noise for the "smack"
+            val noiseEnvelope = (1.0f - progress).pow(8)
+            val noise = (Random.nextFloat() * 2f - 1f) * noiseEnvelope * 0.6f
+
+            // A quick, low-frequency thump for the "oomph"
+            val thumpFrequency = 100f
+            val thumpEnvelope = (1.0f - progress).pow(4)
+            val thump = sin(2f * PI * i * thumpFrequency / SAMPLE_RATE).toFloat() * thumpEnvelope * 0.4f
+
+            val mixedSample = (noise + thump).coerceIn(-1f, 1f)
+            samples[i] = (mixedSample * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    /**
+     * Generates a classic, rising-pitch "pickup" sound.
+     */
+    private fun generateItemPickup(): ShortArray {
+        val durationSeconds = 0.12f
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+            val frequency = 880f + (progress * 880f)
+            val envelope = (1.0f - progress).pow(2)
+            val sample = sin(2f * PI * i * frequency / SAMPLE_RATE).toFloat() * envelope
+
+            samples[i] = (sample * 0.4f * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    /**
+     * Generates a sharp, metallic "click" sound.
+     */
+    private fun generateReloadClick(): ShortArray {
+        val durationSeconds = 0.05f
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+            // A very short, high-frequency burst of noise
+            val noiseEnvelope = (1.0f - progress).pow(10)
+            val noise = (Random.nextFloat() * 2f - 1f) * noiseEnvelope
+            samples[i] = (noise * 0.5f * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    /**
+     * Generates a glass-shattering sound.
+     */
+    private fun generateGlassBreak(): ShortArray {
+        val durationSeconds = 0.8f
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+            var sample = 0f
+
+            // Mix multiple high-frequency sine waves with different decays for the "shatter"
+            val freq1 = 4000f + sin(progress * 10f) * 200f
+            val env1 = (1.0f - progress).pow(8)
+            sample += sin(2f * PI * i * freq1 / SAMPLE_RATE).toFloat() * env1 * 0.3f
+
+            val freq2 = 6000f + sin(progress * 15f) * 300f
+            val env2 = (1.0f - progress).pow(12)
+            sample += sin(2f * PI * i * freq2 / SAMPLE_RATE).toFloat() * env2 * 0.3f
+
+            // Add high-frequency noise for the "crash"
+            val noiseEnv = (1.0f - progress).pow(10)
+            sample += (Random.nextFloat() * 2f - 1f) * noiseEnv * 0.4f
+
+            samples[i] = (sample.coerceIn(-1f, 1f) * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    /**
+     * Generates a heavy car crash sound with a thud and scrape.
+     */
+    private fun generateCarCrash(): ShortArray {
+        val durationSeconds = 1.0f
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+
+            // Low frequency thud for the initial impact
+            val thumpFrequency = 60f
+            val thumpEnvelope = (1.0f - progress).pow(6)
+            val thump = sin(2f * PI * i * thumpFrequency / SAMPLE_RATE).toFloat() * thumpEnvelope * 0.7f
+
+            // Decaying noise for the crunching/scraping metal
+            val noiseEnvelope = (1.0f - progress).pow(8)
+            val noise = (Random.nextFloat() * 2f - 1f) * noiseEnvelope * 0.3f
+
+            val mixedSample = (thump + noise).coerceIn(-1f, 1f)
             samples[i] = (mixedSample * Short.MAX_VALUE).toInt().toShort()
         }
         return samples

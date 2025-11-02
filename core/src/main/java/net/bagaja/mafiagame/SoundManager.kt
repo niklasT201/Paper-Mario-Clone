@@ -19,7 +19,13 @@ class SoundManager : Disposable {
      */
     enum class Effect {
         GUNSHOT_REVOLVER,
-        FIRE_LOOP
+        FIRE_LOOP,
+        EXPLOSION,          // For dynamite, car explosions, etc.
+        PUNCH_HIT,          // For melee impacts
+        ITEM_PICKUP,        // A classic "blip" sound for collecting items
+        RELOAD_CLICK,       // A sharp, metallic click for reloading
+        GLASS_BREAK,        // For windows or destructible objects
+        CAR_CRASH_HEAVY     // For car collisions
     }
 
     private data class ActiveSound(
