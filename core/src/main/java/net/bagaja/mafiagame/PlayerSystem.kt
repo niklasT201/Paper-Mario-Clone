@@ -638,16 +638,29 @@ class PlayerSystem {
                             }
 
                             // This function will now handle ammo reduction
-                            spawnBullet() // This function will now handle ammo reduction
+                            spawnBullet()
                             fireRateTimer = equippedWeapon.fireCooldown
                             state = PlayerState.ATTACKING
                             attackTimer = shootingPoseDuration
 
+                            if (currentMagazineCount <= 0 && automaticFireSoundId != null) {
+                                soundManager.stopLoopingSound(automaticFireSoundId!!)
+                                automaticFireSoundId = null
+                            }
+
                         } else if (justPressedShoot) {
+                            // Play an "empty weapon" sound effect if a gun is equipped
+                            if (equippedWeapon.actionType == WeaponActionType.SHOOTING) {
+                                sceneManager.game.soundManager.playSound(
+                                    id = SoundManager.Effect.RELOAD_CLICK.name,
+                                    position = getPosition(),
+                                    reverb = false // A dry click usually sounds better for this
+                                )
+                            }
+
                             // Player tried to shoot but couldn't (e.g., empty magazine)
                             println("Click! (Out of ammo or empty magazine)")
                             checkAndRemoveWeaponIfOutOfAmmo()
-                            // TODO: Play an "empty clip" sound effect here
                         }
 
                         // Reload logic
