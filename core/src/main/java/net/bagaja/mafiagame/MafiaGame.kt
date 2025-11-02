@@ -125,7 +125,7 @@ class MafiaGame : ApplicationAdapter() {
 
         // --- SOUND MANAGER SETUP ---
         soundManager.initialize()
-        soundManager.load(SoundManager.Effect.GUNSHOT_REVOLVER)
+        AssetLoader.loadGameSounds(soundManager)
 
         // SONG 1: The new slow, dramatic Mafia Theme
         musicManager.registerSong(MusicSource.Procedural("mafia_theme") { ProceduralSongLibrary.getMafiaTheme() })

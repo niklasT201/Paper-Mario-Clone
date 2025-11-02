@@ -6,6 +6,7 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.Disposable
 import com.badlogic.gdx.utils.Timer
+import kotlin.random.Random
 
 /**
  * Manages all game sound effects, including 3D positioning, volume attenuation,
@@ -114,15 +115,23 @@ class SoundManager : Disposable {
         val (volume, pan) = calculateVolumeAndPan(position, maxRange)
 
         if (volume > 0.01f) {
+            // Generate a random pitch between 0.98 and 1.02 (a 2% variation up or down)
+            val pitch = 1.0f + (Random.nextFloat() * 0.04f - 0.02f)
+
             if (loop) {
                 // Ensure we don't start a duplicate loop at the exact same position
                 if (activeLoopingSounds.any { it.soundId == id && it.position.epsilonEquals(position, 0.1f) }) return
-                val soundId = sound.loop(volume, 1.0f, pan)
+
+                // Use the new pitch variable in the loop call
+                val soundId = sound.loop(volume, pitch, pan)
+
                 activeLoopingSounds.add(ActiveSound(sound, soundId, id, position))
             } else {
-                sound.play(volume, 1.0f, pan)
+                // Use the new pitch variable in the play call
+                sound.play(volume, pitch, pan)
+
                 if (reverb) {
-                    playEchoes(sound, volume, pan)
+                    playEchoes(sound, volume, pan, pitch) // Pass pitch to echoes too!
                 }
             }
         }
@@ -166,7 +175,7 @@ class SoundManager : Disposable {
         return Pair(finalVolume, pan) // Return the final calculated volume
     }
 
-    private fun playEchoes(sound: Sound, initialVolume: Float, initialPan: Float) {
+    private fun playEchoes(sound: Sound, initialVolume: Float, initialPan: Float, basePitch: Float) {
         val echoDelays = listOf(0.05f, 0.1f, 0.15f)
         val echoVolumeMultipliers = listOf(0.4f, 0.2f, 0.1f)
 
@@ -175,9 +184,33 @@ class SoundManager : Disposable {
                 override fun run() {
                     val echoVolume = initialVolume * echoVolumeMultipliers[i]
                     val echoPan = initialPan * -0.5f
-                    sound.play(echoVolume, 0.95f, echoPan)
+                    // Slightly alter the pitch of the echo for more richness
+                    val echoPitch = basePitch * 0.98f
+                    sound.play(echoVolume, echoPitch, echoPan)
                 }
             }, echoDelays[i])
+        }
+    }
+
+    fun loadWeaponSound(baseId: String, variationCount: Int, proceduralFallback: Effect) {
+        if (variationCount <= 0) return
+
+        println("Loading weapon sound set for '$baseId' with $variationCount variations...")
+        for (i in 1..variationCount) {
+            val variationId = "${baseId}_V$i"
+            val filePath = "sounds/${baseId.lowercase()}_v$i.ogg"
+            val fileHandle = Gdx.files.internal(filePath)
+
+            val sound = if (fileHandle.exists()) {
+                // File exists, load it!
+                println("  -> Loading '$variationId' from file: $filePath")
+                Gdx.audio.newSound(fileHandle)
+            } else {
+                // File NOT found, generate the fallback.
+                println("  -> WARNING: File not found for '$variationId' at '$filePath'. Generating procedural fallback.")
+                ProceduralSFXGenerator.generate(proceduralFallback)
+            }
+            loadedSounds[variationId] = sound
         }
     }
 

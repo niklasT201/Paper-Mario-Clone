@@ -14,6 +14,7 @@ import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
+import kotlin.random.Random
 import java.util.*
 import kotlin.math.floor
 import kotlin.math.sin
@@ -140,12 +141,22 @@ class ItemSystem: IFinePositionable {
     fun createItem(position: Vector3, itemType: ItemType, pickupDelay: Float = 0.5f): GameItem? {
         val modelInstance = createItemInstance(itemType)
         if (modelInstance != null) {
-            return GameItem(
+            val newGameItem = GameItem(
                 modelInstance,
                 itemType,
                 position.cpy(),
                 pickupDelay = pickupDelay
             )
+
+            itemType.correspondingWeapon?.let { weaponType ->
+                if (weaponType.soundVariations > 0 && weaponType.soundId != null) {
+                    val randomVariation = Random.nextInt(1, weaponType.soundVariations + 1)
+                    newGameItem.soundVariationId = "${weaponType.soundId}_V$randomVariation"
+                    println("Created ${itemType.displayName} with sound variation: ${newGameItem.soundVariationId}")
+                }
+            }
+
+            return newGameItem
         }
         return null
     }
@@ -400,7 +411,7 @@ class ItemSystem: IFinePositionable {
                     // Check if the collected item corresponds to a weapon
                     item.itemType.correspondingWeapon?.let { weaponToEquip ->
                         // If it does, tell the player system to equip it
-                        playerSystem.equipWeapon(weaponToEquip, item.ammo)
+                        playerSystem.addWeaponToInventory(weaponToEquip, item.ammo, item.soundVariationId)
                     }
                 }
 
@@ -477,7 +488,8 @@ data class GameItem(
     var value: Int = itemType.value, // This is the changed line
     var pickupDelay: Float = 0f,
     var id: String = UUID.randomUUID().toString(),
-    var missionId: String? = null
+    var missionId: String? = null,
+    var soundVariationId: String? = null
 ) {
     init {
         // Random bobbing offset so items don't all bob in sync

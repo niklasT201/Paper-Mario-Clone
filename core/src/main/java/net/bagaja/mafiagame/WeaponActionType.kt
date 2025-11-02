@@ -66,7 +66,9 @@ enum class WeaponType(
     val bulletSpeed: Float = 0f,
     val bulletLifetime: Float = 0f,
     val pelletCount: Int = 1,
-    val knockbackForce: Float = 0f
+    val knockbackForce: Float = 0f,
+    val soundId: String? = null,
+    val soundVariations: Int = 0
 ) {
     UNARMED(
         displayName = "Unarmed",
@@ -125,7 +127,9 @@ enum class WeaponType(
         playerPoseTexturePath = "textures/player/weapons/tommy_gun/pig_character_tommy_gun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 150f,
-        bulletLifetime = 1.5f
+        bulletLifetime = 1.5f,
+        soundId = "GUNSHOT_TOMMYGUN",
+        soundVariations = 2
     ),
     LIGHT_TOMMY_GUN(
         displayName = "Light Tommy Gun",
@@ -140,7 +144,9 @@ enum class WeaponType(
         playerPoseTexturePath = "textures/player/weapons/tommy_gun/player_light_tommy_gun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 160f,
-        bulletLifetime = 1.4f
+        bulletLifetime = 1.4f,
+        soundId = "GUNSHOT_TOMMYGUN",
+        soundVariations = 2
     ),
     REVOLVER(
         displayName = "Revolver",
@@ -155,7 +161,9 @@ enum class WeaponType(
         playerPoseTexturePath = "textures/player/weapons/revolver/player_revolver.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 200f,
-        bulletLifetime = 2.0f
+        bulletLifetime = 2.0f,
+        soundId = "GUNSHOT_REVOLVER",
+        soundVariations = 3
     ),
     LIGHT_REVOLVER(
         displayName = "Light Revolver",
@@ -170,7 +178,9 @@ enum class WeaponType(
         playerPoseTexturePath = "textures/player/weapons/revolver/player_light_revolver.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 210f,
-        bulletLifetime = 2.0f
+        bulletLifetime = 2.0f,
+        soundId = "GUNSHOT_REVOLVER",
+        soundVariations = 3
     ),
     SMALLER_REVOLVER(
         displayName = "Smaller Revolver",
@@ -185,7 +195,9 @@ enum class WeaponType(
         playerPoseTexturePath = "textures/player/weapons/revolver/player_smaller_revolver.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 190f,
-        bulletLifetime = 1.8f
+        bulletLifetime = 1.8f,
+        soundId = "GUNSHOT_REVOLVER",
+        soundVariations = 3
     ),
     SHOTGUN(
         displayName = "Shotgun",
@@ -202,7 +214,9 @@ enum class WeaponType(
         bulletSpeed = 150f,
         bulletLifetime = 0.5f,
         pelletCount = 8,
-        knockbackForce = 15f
+        knockbackForce = 15f,
+        soundId = "GUNSHOT_SHOTGUN",
+        soundVariations = 2
     ),
     LIGHT_SHOTGUN(
         displayName = "Light Shotgun",
@@ -219,7 +233,9 @@ enum class WeaponType(
         bulletSpeed = 160f,
         bulletLifetime = 0.6f,
         pelletCount = 7,
-        knockbackForce = 12f
+        knockbackForce = 12f,
+        soundId = "GUNSHOT_SHOTGUN",
+        soundVariations = 2
     ),
     SMALL_SHOTGUN(
         displayName = "Small Shotgun",
@@ -236,7 +252,9 @@ enum class WeaponType(
         bulletSpeed = 140f,
         bulletLifetime = 0.4f,
         pelletCount = 2,
-        knockbackForce = 18f
+        knockbackForce = 18f,
+        soundId = "GUNSHOT_SHOTGUN",
+        soundVariations = 2
     ),
     MACHINE_GUN(
         displayName = "Machine Gun",
@@ -251,7 +269,9 @@ enum class WeaponType(
         playerPoseTexturePath = "textures/player/weapons/machine_gun/pig_character_machine_gun.png",
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 180f,
-        bulletLifetime = 1.8f
+        bulletLifetime = 1.8f,
+        soundId = "GUNSHOT_MACHINEGUN",
+        soundVariations = 3
     ),
     MOLOTOV(
         displayName = "Molotov",

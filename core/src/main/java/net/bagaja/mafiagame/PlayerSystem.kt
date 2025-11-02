@@ -13,6 +13,7 @@ import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.ObjectMap
+import java.util.*
 import kotlin.math.floor
 import kotlin.random.Random
 
@@ -40,6 +41,12 @@ enum class PlayerState {
     ATTACKING,      // For shooting and melee swings
     CHARGING_THROW  // For holding down the mouse with a throwable weapon
 }
+
+data class PlayerWeaponInstance(
+    val id: String = UUID.randomUUID().toString(), // A unique ID for this specific gun instance
+    val weaponType: WeaponType,
+    val soundVariationId: String?
+)
 
 class PlayerSystem {
     private lateinit var playerTexture: Texture
@@ -230,9 +237,14 @@ class PlayerSystem {
     private var isReloading = false
     private var reloadTimer = 0f
 
-    var equippedWeapon: WeaponType = WeaponType.UNARMED
-    private var weapons: MutableList<WeaponType> = mutableListOf(WeaponType.UNARMED)
+    val equippedWeapon: WeaponType
+        get() = weaponInstances.getOrNull(currentWeaponIndex)?.weaponType ?: WeaponType.UNARMED
+    private var weaponInstances: MutableList<PlayerWeaponInstance> = mutableListOf(PlayerWeaponInstance(weaponType = WeaponType.UNARMED, soundVariationId = null))
     private var currentWeaponIndex = 0
+
+    private fun getEquippedWeaponInstance(): PlayerWeaponInstance? {
+        return weaponInstances.getOrNull(currentWeaponIndex)
+    }
 
     private val shootingPoseDuration = 0.2f
     private val MIN_THROW_CHARGE_TIME = 0.1f
@@ -851,8 +863,9 @@ class PlayerSystem {
             sceneManager.activeBullets.add(bullet)
         }
 
+        val soundIdToPlay = getEquippedWeaponInstance()?.soundVariationId ?: SoundManager.Effect.GUNSHOT_REVOLVER.name
         sceneManager.game.soundManager.playSound(
-            effect = SoundManager.Effect.GUNSHOT_REVOLVER,
+            id = soundIdToPlay,
             position = bulletSpawnPos.cpy(),
             reverb = true // Adds the hall/echo effect!
         )
@@ -951,20 +964,33 @@ class PlayerSystem {
         )
     }
 
-    fun addWeaponToInventory(weaponType: WeaponType, ammo: Int) {
-        if (!weapons.contains(weaponType)) {
-            weapons.add(weaponType)
+    fun addWeaponToInventory(weaponType: WeaponType, ammo: Int, soundVariationId: String? = null) {
+        // Check if player already has an instance of this weapon type
+        val existingInstance = weaponInstances.find { it.weaponType == weaponType }
+
+        if (existingInstance == null) {
+            // Player does not have this weapon type, add a new instance
+            val soundId = soundVariationId ?: run {
+                if (weaponType.soundVariations > 0 && weaponType.soundId != null) {
+                    val randomVariation = Random.nextInt(1, weaponType.soundVariations + 1)
+                    "${weaponType.soundId}_V$randomVariation"
+                } else {
+                    null
+                }
+            }
+            weaponInstances.add(PlayerWeaponInstance(weaponType = weaponType, soundVariationId = soundId))
         }
+
         addAmmoToReserves(weaponType, ammo)
     }
 
     fun hasWeapon(weaponType: WeaponType): Boolean {
         if (weaponType == WeaponType.UNARMED) return true // Player always has fists
-        return weapons.contains(weaponType)
+        return weaponInstances.any { it.weaponType == weaponType }
     }
 
     fun clearInventory() {
-        weapons.clear()
+        weaponInstances.clear()
         ammoReserves.clear()
         currentMagazineCounts.clear()
         // Always give the player their fists back.
@@ -972,25 +998,26 @@ class PlayerSystem {
     }
 
 
-    fun equipWeapon(weaponType: WeaponType, ammoToGive: Int? = null) {
-        if (weaponType == WeaponType.UNARMED) {
-            if (!weapons.contains(WeaponType.UNARMED)) {
-                weapons.add(0, WeaponType.UNARMED) // Ensure fists are always at the start
-            }
-            currentWeaponIndex = weapons.indexOf(WeaponType.UNARMED)
+    fun equipWeapon(weaponType: WeaponType, ammoToGive: Int? = null, soundVariationId: String? = null) {
+        // Find the index of the first instance of this weapon type
+        val index = weaponInstances.indexOfFirst { it.weaponType == weaponType }
+
+        if (index != -1) {
+            currentWeaponIndex = index
         } else {
-            if (!weapons.contains(weaponType)) {
-                // A mutable list is needed to add items
-                weapons.add(weaponType)
+            // Weapon not in inventory, add it
+            if (weaponType == WeaponType.UNARMED) {
+                weaponInstances.add(0, PlayerWeaponInstance(weaponType = WeaponType.UNARMED, soundVariationId = null))
+                currentWeaponIndex = 0
+            } else {
+                val newInstance = PlayerWeaponInstance(weaponType = weaponType, soundVariationId = soundVariationId)
+                weaponInstances.add(newInstance)
+                currentWeaponIndex = weaponInstances.size - 1
             }
-            currentWeaponIndex = weapons.indexOf(weaponType)
         }
 
-        this.equippedWeapon = weaponType
 
-        this.currentMagazineCount = currentMagazineCounts[weaponType] // This can return null
-            ?: weaponType.magazineSize // If it's null, THEN default to a full magazine.
-
+        this.currentMagazineCount = currentMagazineCounts[weaponType] ?: weaponType.magazineSize // If it's null, THEN default to a full magazine.
         currentMagazineCounts[weaponType] = this.currentMagazineCount
 
         isReloading = false
@@ -1001,7 +1028,7 @@ class PlayerSystem {
             addAmmoToReserves(weaponType, ammoToGive)
         }
 
-        println("Player equipped: ${weaponType.displayName}. Magazine loaded with $currentMagazineCount rounds.")
+        println("Player equipped: ${equippedWeapon.displayName}. Sound: ${getEquippedWeaponInstance()?.soundVariationId ?: "Default"}")
     }
 
     fun removeWeaponFromInventory(weaponType: WeaponType) {
@@ -1019,7 +1046,8 @@ class PlayerSystem {
         // Send a notification with a NEGATIVE amount
         sceneManager.game.uiManager.queueInventoryChangeNotification(weaponType, -totalAmmoLost)
 
-        weapons.remove(weaponType)
+        weaponInstances.removeAll { it.weaponType == weaponType }
+
         ammoReserves.remove(weaponType)
         currentMagazineCounts.remove(weaponType)
     }
@@ -1032,15 +1060,14 @@ class PlayerSystem {
             return // Exit the function immediately, preventing the switch.
         }
 
-        if (weapons.size <= 1) return // Can't switch if you only have fists
-
-        //addMoney(-10) for testing
+        if (weaponInstances.size <= 1) return // Can't switch if you only have fists
 
         // SAVE the current weapon's magazine state BEFORE switching
         currentMagazineCounts[equippedWeapon] = currentMagazineCount
 
-        currentWeaponIndex = (currentWeaponIndex + 1) % weapons.size
-        equipWeapon(weapons[currentWeaponIndex])
+        currentWeaponIndex = (currentWeaponIndex + 1) % weaponInstances.size
+        val nextInstance = weaponInstances[currentWeaponIndex]
+        equipWeapon(nextInstance.weaponType, soundVariationId = nextInstance.soundVariationId)
     }
 
     private fun checkAndRemoveWeaponIfOutOfAmmo() {
@@ -1085,8 +1112,15 @@ class PlayerSystem {
         println("Added $amount ammo for ${weaponType.displayName}. Total reserve: ${ammoReserves[weaponType]}")
 
         // Make sure the weapon is in the player's inventory list if they get ammo for it
-        if (weaponType != WeaponType.UNARMED && !weapons.contains(weaponType)) {
-            weapons.add(weaponType)
+        if (weaponType != WeaponType.UNARMED && !hasWeapon(weaponType)) {
+            val newSoundId = if (weaponType.soundVariations > 0 && weaponType.soundId != null) {
+                val randomVariation = Random.nextInt(1, weaponType.soundVariations + 1)
+                "${weaponType.soundId}_V$randomVariation"
+            } else {
+                null
+            }
+            weaponInstances.add(PlayerWeaponInstance(weaponType = weaponType, soundVariationId = newSoundId))
+            println("Player did not have ${weaponType.displayName}, added it to inventory.")
         }
     }
 
@@ -2706,11 +2740,19 @@ class PlayerSystem {
         data.weapons.forEach { entry -> ammoReserves[entry.key] = entry.value }
 
         // Rebuild the list of weapons the player possesses
-        weapons.clear()
-        weapons.add(WeaponType.UNARMED)
-        data.weapons.keys().forEach { weapon ->
-            if (weapon != WeaponType.UNARMED && !weapons.contains(weapon)) {
-                weapons.add(weapon)
+        weaponInstances.clear()
+        weaponInstances.add(PlayerWeaponInstance(weaponType = WeaponType.UNARMED, soundVariationId = null))
+
+        data.weapons.keys().forEach { weaponType ->
+            if (weaponType != WeaponType.UNARMED) {
+                val newSoundId = if (weaponType.soundVariations > 0 && weaponType.soundId != null) {
+                    val randomVariation = Random.nextInt(1, weaponType.soundVariations + 1)
+                    "${weaponType.soundId}_V$randomVariation"
+                } else {
+                    null // This weapon type has no sound variations.
+                }
+
+                weaponInstances.add(PlayerWeaponInstance(weaponType = weaponType, soundVariationId = newSoundId))
             }
         }
 
