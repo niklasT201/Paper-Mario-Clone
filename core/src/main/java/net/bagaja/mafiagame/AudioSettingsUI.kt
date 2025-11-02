@@ -108,13 +108,15 @@ class AudioSettingsUI(
         musicVolumeSlider = Slider(0f, 1f, 0.01f, false, skin)
         sfxVolumeSlider = Slider(0f, 1f, 0.01f, false, skin)
 
-        slidersTable.add(Label("Master Volume", skin, "default")).left().row()
+        val labelColor = Color.valueOf("#3D2817") // A dark, thematic brown from your subtitle
+
+        slidersTable.add(Label("Master Volume", skin, "default").also { it.color = labelColor }).left().row()
         slidersTable.add(masterVolumeSlider).width(320f).padBottom(20f).row()
 
-        slidersTable.add(Label("Music Volume", skin, "default")).left().row()
+        slidersTable.add(Label("Music Volume", skin, "default").also { it.color = labelColor }).left().row()
         slidersTable.add(musicVolumeSlider).width(320f).padBottom(20f).row()
 
-        slidersTable.add(Label("Sound FX Volume", skin, "default")).left().row()
+        slidersTable.add(Label("Sound FX Volume", skin, "default").also { it.color = labelColor }).left().row()
         slidersTable.add(sfxVolumeSlider).width(320f).row()
 
         scrollContentTable.add(slidersTable).fillX().row()

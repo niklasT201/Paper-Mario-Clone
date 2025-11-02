@@ -34,6 +34,7 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val 
     private var animationTime = 0f
     private lateinit var visualSettingsButton: TextButton
     private lateinit var audioSettingsButton: TextButton
+    private lateinit var saveButton: TextButton
 
     fun initialize() {
         createSmokyOverlay()
@@ -140,7 +141,7 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val 
         })
         buttonsTable.add(audioSettingsButton).fillX().height(60f).padBottom(10f).row()
 
-        val saveButton = createVintageButton("💰 SAVE GAME 💰", Color.valueOf("#2F4F2F"))
+        saveButton = createVintageButton("💰 SAVE GAME 💰", Color.valueOf("#2F4F2F"))
         saveButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 saveLoadSystem.saveGame(uiManager.game.currentSaveFileName)
@@ -490,6 +491,7 @@ class PauseMenuUI(private val skin: Skin, private val stage: Stage, private val 
     }
 
     fun show() {
+        saveButton.isVisible = uiManager.game.isEditorMode
         isVisible = true
         overlay.isVisible = true
         mainContainer.isVisible = true

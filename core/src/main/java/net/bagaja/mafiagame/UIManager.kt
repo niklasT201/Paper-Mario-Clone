@@ -1718,8 +1718,14 @@ class UIManager(
     }
 
     fun returnToPauseMenu() {
-        visualSettingsUI.hide()
-        audioSettingsUI.hide()
+        // Only hide the UI that is currently visible
+        if (visualSettingsUI.isVisible()) {
+            visualSettingsUI.hide()
+        }
+        if (audioSettingsUI.isVisible()) {
+            audioSettingsUI.hide()
+        }
+
         pauseMenuUI.show()
     }
 
