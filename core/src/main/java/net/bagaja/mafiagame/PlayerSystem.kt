@@ -608,9 +608,7 @@ class PlayerSystem {
                                             if (wasHoldingShootButton) {
                                                 automaticFireSoundId = soundManager.playSound(
                                                     id = equippedWeapon.soundIdAutomaticLoop!!,
-                                                    position = getPosition(),
-                                                    loop = true,
-                                                    reverb = true
+                                                    position = getPosition(), loop = true, reverb = true
                                                 )
                                             }
                                         }
@@ -623,10 +621,7 @@ class PlayerSystem {
                                 if (justPressedShoot) {
                                     // Get the specific sound ID from the equipped gun instance
                                     val equippedInstance = getEquippedWeaponInstance()
-                                    var soundIdToPlay = equippedInstance?.soundVariationId // Priority 1: The specific gun's sound
-                                        ?: equippedWeapon.soundIdSingleShot             // Priority 2: The weapon type's default shot sound
-
-                                    // Special case for Shotguns to randomize each shot from its pool
+                                    var soundIdToPlay = equippedInstance?.soundVariationId ?: equippedWeapon.soundIdSingleShot
                                     if (equippedWeapon.soundId == "GUNSHOT_SHOTGUN") {
                                         val variation = Random.nextInt(1, equippedWeapon.soundVariations + 1)
                                         soundIdToPlay = "GUNSHOT_SHOTGUN_V$variation"
@@ -661,43 +656,35 @@ class PlayerSystem {
                         }
                     }
                     WeaponActionType.MELEE -> {
-                        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT) && !isRotating) {
-                            if (!isRotating) {
-                                val animName = when (equippedWeapon) {
-                                    WeaponType.UNARMED -> "attack_punch"
-                                    WeaponType.BASEBALL_BAT -> "attack_baseball_bat"
-                                    WeaponType.KNIFE -> "attack_knife"
-                                    else -> null
-                                }
+                        if (justPressedShoot && !isRotating) {
+                            val animName = when (equippedWeapon) {
+                                WeaponType.UNARMED -> "attack_punch"
+                                WeaponType.BASEBALL_BAT -> "attack_baseball_bat"
+                                WeaponType.KNIFE -> "attack_knife"
+                                else -> null
+                            }
 
-                                if (animName != null) {
-                                    animationSystem.playAnimation(animName, true)
-                                    state = PlayerState.ATTACKING
-                                    attackTimer = animationSystem.currentAnimation?.getTotalDuration() ?: 0.3f
-                                    fireRateTimer = equippedWeapon.fireCooldown
+                            if (animName != null) {
+                                animationSystem.playAnimation(animName, true)
+                                state = PlayerState.ATTACKING
+                                attackTimer = animationSystem.currentAnimation?.getTotalDuration() ?: 0.3f
+                                fireRateTimer = equippedWeapon.fireCooldown
 
-                                    performMeleeAttack(sceneManager)
-                                }
+                                performMeleeAttack(sceneManager)
                             }
                         }
                     }
                     WeaponActionType.THROWABLE -> {
                         // Check for input to start an action
-                        if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+                        if (justPressedShoot) {
                             state = PlayerState.CHARGING_THROW
                             throwChargeTime = 0f
                         }
                     }
                 }
             }
-            PlayerState.ATTACKING -> {
-                if (attackTimer <= 0f) {
-                    state = PlayerState.IDLE
-                    if (equippedWeapon.actionType == WeaponActionType.MELEE) {
-                        animationSystem.playAnimation("idle")
-                    }
-                }
-            }
+            // Other states are unchanged
+            PlayerState.ATTACKING -> { if (attackTimer <= 0f) { state = PlayerState.IDLE; if (equippedWeapon.actionType == WeaponActionType.MELEE) { animationSystem.playAnimation("idle") } } }
             PlayerState.CHARGING_THROW -> {
                 throwChargeTime += deltaTime
 
@@ -712,7 +699,7 @@ class PlayerSystem {
                 }
 
                 // Check if the button was released
-                if (!Gdx.input.isButtonPressed(Input.Buttons.LEFT)) {
+                if (!isCurrentlyHoldingShoot) {
                     //  Check if the button was held long enough to be a valid throw
                     if (throwChargeTime >= MIN_THROW_CHARGE_TIME) {
                         spawnThrowable() // Execute the throw
@@ -1837,6 +1824,10 @@ class PlayerSystem {
             }
         }
         handleWeaponInput(deltaTime, sceneManager)
+
+        automaticFireSoundId?.let { soundId ->
+            sceneManager.game.soundManager.updateLoopingSoundPosition(soundId, getPosition())
+        }
 
         // Player interaction with ash
         if (isMoving && !isDriving) {

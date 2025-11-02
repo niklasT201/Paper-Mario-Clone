@@ -83,6 +83,33 @@ class SoundManager : Disposable {
         }
     }
 
+    fun updateLoopingSoundPosition(instanceId: Long, newPosition: Vector3) {
+        val activeSound = activeLoopingSounds.find { it.id == instanceId }
+        activeSound?.position?.set(newPosition)
+    }
+
+    /**
+     * Pauses all currently active looping sounds.
+     */
+    fun pauseAllLoopingSounds() {
+        if (activeLoopingSounds.isEmpty) return
+        println("Pausing ${activeLoopingSounds.size} looping sound(s).")
+        for (activeSound in activeLoopingSounds) {
+            activeSound.sound.pause(activeSound.id)
+        }
+    }
+
+    /**
+     * Resumes all currently active looping sounds.
+     */
+    fun resumeAllLoopingSounds() {
+        if (activeLoopingSounds.isEmpty) return
+        println("Resuming ${activeLoopingSounds.size} looping sound(s).")
+        for (activeSound in activeLoopingSounds) {
+            activeSound.sound.resume(activeSound.id)
+        }
+    }
+
     /** Overload for playing procedural effects easily. Returns the sound instance ID or null. */
     fun playSound(
         effect: Effect,

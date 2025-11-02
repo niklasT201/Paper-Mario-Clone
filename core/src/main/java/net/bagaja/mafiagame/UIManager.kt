@@ -1698,11 +1698,13 @@ class UIManager(
         if (pauseMenuUI.isVisible()) {
             pauseMenuUI.hide()
             game.musicManager.playSong("mafia_theme")
+            game.soundManager.resumeAllLoopingSounds()
         } else {
             val showSettings = (game.currentGameMode == GameMode.IN_GAME)
             pauseMenuUI.setSettingsButtonVisibility(showSettings)
             pauseMenuUI.show()
             game.musicManager.stop()
+            game.soundManager.pauseAllLoopingSounds()
         }
     }
 
