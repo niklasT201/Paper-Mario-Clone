@@ -1540,7 +1540,7 @@ class PlayerSystem {
         updatePlayerRotation(deltaTime)
 
         // 3. NOW, check if movement should be cancelled due to a heavy weapon.
-        if (isHoldingShootButton && !equippedWeapon.allowsMovementWhileShooting) {
+        if (Gdx.input.isButtonPressed(Input.Buttons.LEFT) && !equippedWeapon.allowsMovementWhileShooting) {
             desiredMovement.set(0f, 0f, 0f) // Cancel the actual movement vector
         }
 

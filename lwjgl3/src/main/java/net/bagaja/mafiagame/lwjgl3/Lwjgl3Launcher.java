@@ -47,8 +47,6 @@ public class Lwjgl3Launcher {
 // more animations adding
 
 // edge houses
-// machine gun stopping movement
-// realistic that same weapon can have different sounds
 // using new animation images
 // rusher stopping in front of the player
 // fire system uses spread fire, fire or flame particle folder
