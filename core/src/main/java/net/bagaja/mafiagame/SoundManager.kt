@@ -83,26 +83,26 @@ class SoundManager : Disposable {
         }
     }
 
-    /** Overload for playing procedural effects easily. */
+    /** Overload for playing procedural effects easily. Returns the sound instance ID or null. */
     fun playSound(
         effect: Effect,
         position: Vector3,
         loop: Boolean = false,
         maxRange: Float = 60f,
         reverb: Boolean = false
-    ) {
-        playSoundById(effect.name, position, loop, maxRange, reverb)
+    ): Long? {
+        return playSoundById(effect.name, position, loop, maxRange, reverb)
     }
 
-    /** Main function to play any loaded sound by its string ID. */
+    /** Main function to play any loaded sound by its string ID. Returns the sound instance ID or null. */
     fun playSound(
         id: String,
         position: Vector3,
         loop: Boolean = false,
         maxRange: Float = 60f,
         reverb: Boolean = false
-    ) {
-        playSoundById(id, position, loop, maxRange, reverb)
+    ): Long? {
+        return playSoundById(id, position, loop, maxRange, reverb)
     }
 
     private fun playSoundById(
@@ -111,36 +111,48 @@ class SoundManager : Disposable {
         loop: Boolean,
         maxRange: Float,
         reverb: Boolean
-    ) {
+    ): Long? {
         val sound = loadedSounds[id]
         if (sound == null) {
             println("SoundManager WARN: Sound with ID '$id' not loaded.")
-            return
+            return null // Sound doesn't exist, return null
         }
 
         val (volume, pan) = calculateVolumeAndPan(position, maxRange)
 
         if (volume > 0.01f) {
-            // Generate a random pitch between 0.98 and 1.02 (a 2% variation up or down)
+            // Generate a random pitch for this specific sound instance
             val pitch = 1.0f + (Random.nextFloat() * 0.04f - 0.02f)
 
             if (loop) {
-                // Ensure we don't start a duplicate loop at the exact same position
-                if (activeLoopingSounds.any { it.soundId == id && it.position.epsilonEquals(position, 0.1f) }) return
+                // Prevent duplicate loops at the same spot
+                if (activeLoopingSounds.any { it.soundId == id && it.position.epsilonEquals(position, 0.1f) }) {
+                    return null
+                }
 
-                // Use the new pitch variable in the loop call
-                val soundId = sound.loop(volume, pitch, pan)
+                // Play the looping sound and get its unique instance ID
+                val soundInstanceId = sound.loop(volume, pitch, pan)
 
-                activeLoopingSounds.add(ActiveSound(sound, soundId, id, position))
+                // Track this active loop so we can stop it later
+                activeLoopingSounds.add(ActiveSound(sound, soundInstanceId, id, position))
+
+                // Return the ID so the caller can manage it (e.g., PlayerSystem)
+                return soundInstanceId
             } else {
-                // Use the new pitch variable in the play call
-                sound.play(volume, pitch, pan)
+                // This is a one-shot sound effect
+                val soundInstanceId = sound.play(volume, pitch, pan)
 
                 if (reverb) {
-                    playEchoes(sound, volume, pan, pitch) // Pass pitch to echoes too!
+                    playEchoes(sound, volume, pan, pitch)
                 }
+
+                // Return the ID for the one-shot sound
+                return soundInstanceId
             }
         }
+
+        // The sound was too far away to be heard, so it wasn't played.
+        return null
     }
 
     /** Overload for stopping procedural effects. */
@@ -149,8 +161,14 @@ class SoundManager : Disposable {
     }
 
     /** Main function to stop a looping sound by its ID and position. */
-    fun stopLoopingSound(id: String, position: Vector3) {
-        stopLoopingSoundById(id, position)
+    fun stopLoopingSound(instanceId: Long) {
+        // Find the active sound by its unique instance ID
+        val soundToStop = activeLoopingSounds.find { it.id == instanceId }
+
+        if (soundToStop != null) {
+            soundToStop.sound.stop(soundToStop.id)
+            activeLoopingSounds.removeValue(soundToStop, true)
+        }
     }
 
     private fun stopLoopingSoundById(id: String, position: Vector3) {

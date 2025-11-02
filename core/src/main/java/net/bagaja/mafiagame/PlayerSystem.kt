@@ -70,6 +70,9 @@ class PlayerSystem {
     private var money: Int = 0
     private lateinit var sceneManager: SceneManager
 
+    private var wasHoldingShootButton = false
+    private var automaticFireSoundId: Long? = null
+
     private var respawnPosition = Vector3(9f, 2f, 9f)
     private var isDead = false
 
@@ -497,13 +500,16 @@ class PlayerSystem {
         // Start the reload process
         isReloading = true
         reloadTimer = equippedWeapon.reloadTime
-        println("Reloading... (${equippedWeapon.reloadTime}s)")
 
+        // PLAY RELOAD SOUND
+        val reloadSoundId = equippedWeapon.soundIdReload ?: SoundManager.Effect.RELOAD_CLICK.name
         sceneManager.game.soundManager.playSound(
-            effect = SoundManager.Effect.RELOAD_CLICK,
+            id = reloadSoundId,
             position = getPosition(), // Play sound at the player's position
             reverb = true
         )
+
+        println("Reloading... (${equippedWeapon.reloadTime}s)")
     }
 
     private fun canShoot(): Boolean {
@@ -535,10 +541,13 @@ class PlayerSystem {
     private fun handleWeaponInput(deltaTime: Float, sceneManager: SceneManager) {
         if (isDead) return
 
-        isHoldingShootButton = Gdx.input.isButtonPressed(Input.Buttons.LEFT) &&
-            equippedWeapon.actionType == WeaponActionType.SHOOTING
+        // State tracking for button presses
+        val isCurrentlyHoldingShoot = Gdx.input.isButtonPressed(Input.Buttons.LEFT)
+        val justPressedShoot = isCurrentlyHoldingShoot && !wasHoldingShootButton
+        val justReleasedShoot = !isCurrentlyHoldingShoot && wasHoldingShootButton
+        wasHoldingShootButton = isCurrentlyHoldingShoot
 
-        if (isHoldingShootButton) {
+        if (isCurrentlyHoldingShoot && equippedWeapon.actionType == WeaponActionType.SHOOTING) {
             chargeTime += deltaTime
         } else {
             chargeTime = 0f
@@ -547,6 +556,12 @@ class PlayerSystem {
         // Timers
         fireRateTimer -= deltaTime
         attackTimer -= deltaTime
+
+        // Stop automatic fire sound when the button is released
+        if (justReleasedShoot && automaticFireSoundId != null) {
+            sceneManager.game.soundManager.stopLoopingSound(automaticFireSoundId!!)
+            automaticFireSoundId = null
+        }
 
         // State Machine Logic
         when (state) {
@@ -572,15 +587,68 @@ class PlayerSystem {
                         val isFacingCorrectDirection = (intendedDirectionX < 0 && playerCurrentRotationY == 180f) || (intendedDirectionX > 0 && playerCurrentRotationY == 0f)
 
                         // 3. The final condition to allow shooting.
-                        val canShootNow = canShoot() && !isReloading && Gdx.input.isButtonPressed(Input.Buttons.LEFT) && !isRotating && isFacingCorrectDirection
+                        val canShootNow = canShoot() && !isReloading && isCurrentlyHoldingShoot && !isRotating && isFacingCorrectDirection
 
                         if (canShootNow) {
+                            val soundManager = sceneManager.game.soundManager
+                            val isFirstShotOfBurst = justPressedShoot
+
+                            // Case 1: Automatic Weapon
+                            if (equippedWeapon.soundIdAutomaticLoop != null) {
+                                // On the very first press of the trigger, play the distinct single-shot sound.
+                                if (isFirstShotOfBurst && equippedWeapon.soundIdSingleShot != null) {
+                                    soundManager.playSound(id = equippedWeapon.soundIdSingleShot!!, position = getPosition(), reverb = true)
+                                }
+
+                                // If the automatic loop isn't already playing, schedule it to start.
+                                if (automaticFireSoundId == null) {
+                                    com.badlogic.gdx.utils.Timer.schedule(object : com.badlogic.gdx.utils.Timer.Task() {
+                                        override fun run() {
+                                            // Double-check if the player is still holding the fire button after the short delay.
+                                            if (wasHoldingShootButton) {
+                                                automaticFireSoundId = soundManager.playSound(
+                                                    id = equippedWeapon.soundIdAutomaticLoop!!,
+                                                    position = getPosition(),
+                                                    loop = true,
+                                                    reverb = true
+                                                )
+                                            }
+                                        }
+                                    }, 0.1f) // 100ms delay to let the single-shot sound be heard.
+                                }
+                            }
+                            // Case 2: Semi-Automatic Weapon (Revolver, Shotgun, etc.)
+                            else {
+                                // Only play a sound on the initial press for semi-auto weapons.
+                                if (justPressedShoot) {
+                                    // Get the specific sound ID from the equipped gun instance
+                                    val equippedInstance = getEquippedWeaponInstance()
+                                    var soundIdToPlay = equippedInstance?.soundVariationId // Priority 1: The specific gun's sound
+                                        ?: equippedWeapon.soundIdSingleShot             // Priority 2: The weapon type's default shot sound
+
+                                    // Special case for Shotguns to randomize each shot from its pool
+                                    if (equippedWeapon.soundId == "GUNSHOT_SHOTGUN") {
+                                        val variation = Random.nextInt(1, equippedWeapon.soundVariations + 1)
+                                        soundIdToPlay = "GUNSHOT_SHOTGUN_V$variation"
+                                    }
+
+                                    if (soundIdToPlay != null) {
+                                        soundManager.playSound(id = soundIdToPlay, position = getPosition(), reverb = true)
+                                    } else {
+                                        // Ultimate fallback if no sound is defined at all for this weapon.
+                                        println("WARN: No sound ID found for ${equippedWeapon.displayName}. Playing procedural fallback.")
+                                        soundManager.playSound(effect = SoundManager.Effect.GUNSHOT_REVOLVER, position = getPosition(), reverb = true)
+                                    }
+                                }
+                            }
+
+                            // This function will now handle ammo reduction
                             spawnBullet() // This function will now handle ammo reduction
                             fireRateTimer = equippedWeapon.fireCooldown
                             state = PlayerState.ATTACKING
                             attackTimer = shootingPoseDuration
-                        }
-                        else if (Gdx.input.isButtonJustPressed(Input.Buttons.LEFT)) {
+
+                        } else if (justPressedShoot) {
                             // Player tried to shoot but couldn't (e.g., empty magazine)
                             println("Click! (Out of ammo or empty magazine)")
                             checkAndRemoveWeaponIfOutOfAmmo()
@@ -675,6 +743,8 @@ class PlayerSystem {
             Vector3(hitBoxCenter.x + (attackRange / 2f), hitBoxCenter.y + (playerSize.y / 2f), hitBoxCenter.z + (attackWidth / 2f))
         )
 
+        var hitSomething = false
+
         // Check against enemies
         val enemyIterator = sceneManager.activeEnemies.iterator()
         while(enemyIterator.hasNext()) {
@@ -682,11 +752,13 @@ class PlayerSystem {
 
             // Only hit enemies that are in a valid state
             if (enemy.currentState != AIState.DYING && hitBox.intersects(enemy.physics.bounds)) {
-                sceneManager.game.soundManager.playSound(
-                    effect = SoundManager.Effect.PUNCH_HIT,
-                    position = enemy.position, // Play the sound at the enemy's location
-                    reverb = true
-                )
+
+                if (!hitSomething) {
+                    equippedWeapon.soundIdMeleeHit?.randomOrNull()?.let { soundId ->
+                        sceneManager.game.soundManager.playSound(id = soundId, position = enemy.position, reverb = true)
+                    }
+                    hitSomething = true
+                }
 
                 println("Melee hit on enemy: ${enemy.enemyType.displayName}")
 
@@ -880,13 +952,22 @@ class PlayerSystem {
             sceneManager.activeBullets.add(bullet)
         }
 
-        val soundIdToPlay = getEquippedWeaponInstance()?.soundVariationId ?: SoundManager.Effect.GUNSHOT_REVOLVER.name
-        sceneManager.game.soundManager.playSound(
-            id = soundIdToPlay,
-            position = bulletSpawnPos.cpy(),
-            reverb = true // Adds the hall/echo effect!
-        )
+        // 3. POST-SHOT SOUND (SHOTGUN PUMP)
+        if (equippedWeapon == WeaponType.SHOTGUN) {
+            equippedWeapon.soundIdPostShotAction?.let { soundIdBase ->
+                // Randomize between the two pump sounds (_V1, _V2)
+                val variation = Random.nextInt(1, 2 + 1)
+                val pumpSoundId = "${soundIdBase}_V$variation"
 
+                com.badlogic.gdx.utils.Timer.schedule(object : com.badlogic.gdx.utils.Timer.Task() {
+                    override fun run() {
+                        sceneManager.game.soundManager.playSound(id = pumpSoundId, position = getPosition(), reverb = true)
+                    }
+                }, 0.3f) // 0.3 second delay for the pump sound
+            }
+        }
+
+        // 4. SHELL CASING EJECTION
         if (equippedWeapon.actionType == WeaponActionType.SHOOTING && equippedWeapon != WeaponType.REVOLVER) {
 
             // Eject the casing in the opposite direction the player is facing.
@@ -2154,10 +2235,10 @@ class PlayerSystem {
                 }
 
                 sceneManager.game.soundManager.playSound(
-                    effect = SoundManager.Effect.EXPLOSION,
+                    id = "EXPLOSION_HIGH", // Use the ID from AssetLoader
                     position = explosionOrigin,
-                    reverb = true, // Explosions sound great with reverb
-                    maxRange = 120f // Explosions are loud and can be heard from far away
+                    reverb = true,
+                    maxRange = 120f
                 )
 
                 // Camera Shake

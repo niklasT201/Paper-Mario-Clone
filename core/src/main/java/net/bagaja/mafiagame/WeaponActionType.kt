@@ -68,7 +68,12 @@ enum class WeaponType(
     val pelletCount: Int = 1,
     val knockbackForce: Float = 0f,
     val soundId: String? = null,
-    val soundVariations: Int = 0
+    val soundVariations: Int = 0,
+    val soundIdSingleShot: String? = null,
+    val soundIdAutomaticLoop: String? = null,
+    val soundIdPostShotAction: String? = null,
+    val soundIdReload: String? = null,
+    val soundIdMeleeHit: List<String>? = null
 ) {
     UNARMED(
         displayName = "Unarmed",
@@ -83,7 +88,8 @@ enum class WeaponType(
         playerPoseTexturePath = "textures/player/pig_character.png",
         bulletTexturePath = null,
         pelletCount = 0,
-        knockbackForce = 5f
+        knockbackForce = 5f,
+        soundIdMeleeHit = listOf("PUNCH_FIST", "PUNCH_BOXING", "PUNCH_GENERIC")
     ),
     KNIFE(
         displayName = "Knife",
@@ -112,7 +118,8 @@ enum class WeaponType(
         playerPoseTexturePath = "textures/player/weapons/baseball_bat/player_baseball_bat.png",
         bulletTexturePath = null,
         pelletCount = 0,
-        knockbackForce = 12f
+        knockbackForce = 12f,
+        soundIdMeleeHit = listOf("BASEBALL_BAT_HIT")
     ),
     TOMMY_GUN(
         displayName = "Tommy Gun",
@@ -128,8 +135,10 @@ enum class WeaponType(
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 150f,
         bulletLifetime = 1.5f,
-        soundId = "GUNSHOT_TOMMYGUN",
-        soundVariations = 2
+        soundId = "GUNSHOT_TOMMYGUN", // Use a consistent base ID
+        soundVariations = 2,
+        soundIdSingleShot = "TOMMY_GUN_SINGLE", // This is no longer used for variation, just as a fallback
+        soundIdAutomaticLoop = "TOMMY_GUN_AUTO"
     ),
     LIGHT_TOMMY_GUN(
         displayName = "Light Tommy Gun",
@@ -145,8 +154,10 @@ enum class WeaponType(
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 160f,
         bulletLifetime = 1.4f,
-        soundId = "GUNSHOT_TOMMYGUN",
-        soundVariations = 2
+        soundId = "GUNSHOT_TOMMYGUN", // Use a consistent base ID
+        soundVariations = 2,
+        soundIdSingleShot = "TOMMY_GUN_SINGLE",
+        soundIdAutomaticLoop = "TOMMY_GUN_AUTO"
     ),
     REVOLVER(
         displayName = "Revolver",
@@ -162,8 +173,9 @@ enum class WeaponType(
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 200f,
         bulletLifetime = 2.0f,
-        soundId = "GUNSHOT_REVOLVER",
-        soundVariations = 3
+        soundId = "GUNSHOT_REVOLVER", // Used for the variation system
+        soundVariations = 2,          // Two revolver shot files
+        soundIdSingleShot = "REVOLVER_SHOT_NORMAL" // Default shot
     ),
     LIGHT_REVOLVER(
         displayName = "Light Revolver",
@@ -179,8 +191,9 @@ enum class WeaponType(
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 210f,
         bulletLifetime = 2.0f,
-        soundId = "GUNSHOT_REVOLVER",
-        soundVariations = 3
+        soundId = "GUNSHOT_REVOLVER", // Can share the same variation pool
+        soundVariations = 2,
+        soundIdSingleShot = "REVOLVER_SHOT_DEEP"
     ),
     SMALLER_REVOLVER(
         displayName = "Smaller Revolver",
@@ -197,7 +210,8 @@ enum class WeaponType(
         bulletSpeed = 190f,
         bulletLifetime = 1.8f,
         soundId = "GUNSHOT_REVOLVER",
-        soundVariations = 3
+        soundVariations = 2,
+        soundIdSingleShot = "REVOLVER_SHOT_NORMAL"
     ),
     SHOTGUN(
         displayName = "Shotgun",
@@ -215,8 +229,11 @@ enum class WeaponType(
         bulletLifetime = 0.5f,
         pelletCount = 8,
         knockbackForce = 15f,
-        soundId = "GUNSHOT_SHOTGUN",
-        soundVariations = 2
+        soundId = "GUNSHOT_SHOTGUN", // Base ID for variations
+        soundVariations = 2,
+        soundIdSingleShot = "SHOTGUN_SHOT_V1", // We'll use this as a base, and randomize in code
+        soundIdPostShotAction = "SHOTGUN_PUMP_V1", // Same here
+        soundIdReload = "SHOTGUN_RELOAD"
     ),
     LIGHT_SHOTGUN(
         displayName = "Light Shotgun",
@@ -234,8 +251,11 @@ enum class WeaponType(
         bulletLifetime = 0.6f,
         pelletCount = 7,
         knockbackForce = 12f,
-        soundId = "GUNSHOT_SHOTGUN",
-        soundVariations = 2
+        soundId = "GUNSHOT_SHOTGUN", // Base ID for variations
+        soundVariations = 2,
+        soundIdSingleShot = "SHOTGUN_SHOT_V1", // We'll use this as a base, and randomize in code
+        soundIdPostShotAction = "SHOTGUN_PUMP_V1", // Same here
+        soundIdReload = "SHOTGUN_RELOAD"
     ),
     SMALL_SHOTGUN(
         displayName = "Small Shotgun",
@@ -253,8 +273,11 @@ enum class WeaponType(
         bulletLifetime = 0.4f,
         pelletCount = 2,
         knockbackForce = 18f,
-        soundId = "GUNSHOT_SHOTGUN",
-        soundVariations = 2
+        soundId = "GUNSHOT_SHOTGUN", // Base ID for variations
+        soundVariations = 2,
+        soundIdSingleShot = "SHOTGUN_SHOT_V1", // We'll use this as a base, and randomize in code
+        soundIdPostShotAction = "SHOTGUN_PUMP_V1", // Same here
+        soundIdReload = "SHOTGUN_RELOAD"
     ),
     MACHINE_GUN(
         displayName = "Machine Gun",
@@ -270,8 +293,8 @@ enum class WeaponType(
         bulletTexturePath = "textures/player/weapons/bullet_tile.png",
         bulletSpeed = 180f,
         bulletLifetime = 1.8f,
-        soundId = "GUNSHOT_MACHINEGUN",
-        soundVariations = 3
+        soundIdSingleShot = "MACHINE_GUN_SINGLE",
+        soundIdAutomaticLoop = "MACHINE_GUN_AUTO"
     ),
     MOLOTOV(
         displayName = "Molotov",
