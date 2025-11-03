@@ -116,6 +116,15 @@ class PlayerSystem {
         if (isDriving) return
 
         if (health > 0) {
+            // Play the hurt sound before applying damage if damage will be taken
+            if (finalDamage > 0) {
+                sceneManager.game.soundManager.playSound(
+                    effect = SoundManager.Effect.PLAYER_HURT,
+                    position = getPosition(),
+                    reverb = false // Hurt sounds are often more impactful without reverb
+                )
+            }
+
             health -= finalDamage // Use the final calculated damage
             println("Player took damage! Health is now: ${health.toInt()}")
             if (health <= 0) {
@@ -132,6 +141,13 @@ class PlayerSystem {
 
         println("--- PLAYER DEATH SEQUENCE INITIATED ---")
         isDead = true
+
+        // Play a heavy, final impact sound for death
+        sceneManager.game.soundManager.playSound(
+            effect = SoundManager.Effect.CAR_CRASH_HEAVY, // A good, deep thud sound
+            position = getPosition(),
+            reverb = true
+        )
 
         state = PlayerState.IDLE
         throwChargeTime = 0f
@@ -152,6 +168,12 @@ class PlayerSystem {
         if (!isDead) return
 
         println("--- RESPAWNING PLAYER ---")
+
+        sceneManager.game.soundManager.playSound(
+            effect = SoundManager.Effect.TELEPORT, // A fitting sound for reappearing
+            position = respawnPosition, // Play the sound where the player will appear
+            reverb = false
+        )
 
         // 1. Reset player state
         health = maxHealth
@@ -492,8 +514,15 @@ class PlayerSystem {
         val ammoAvailable = ammoReserves.getOrDefault(equippedWeapon, 0)
         if (ammoAvailable <= 0) {
             println("Out of reserve ammo for ${equippedWeapon.displayName}!")
+
+            // Play a procedural "click" sound at the player's position.
+            sceneManager.game.soundManager.playSound(
+                effect = SoundManager.Effect.RELOAD_CLICK,
+                position = getPosition(), // The sound originates from the player
+                reverb = false // A dry click sounds better without reverb
+            )
+
             checkAndRemoveWeaponIfOutOfAmmo()
-            // TODO: Play an "empty" sound effect here
             return
         }
 
@@ -1244,7 +1273,14 @@ class PlayerSystem {
         // Check if the car is locked before entering
         if (car.isLocked && !canBypassLock) {
             println("This car is locked.")
-            // TODO: Play a "locked door" sound or show a UI message
+
+            // Play a procedural "locked door" sound at the car's position.
+            sceneManager.game.soundManager.playSound(
+                effect = SoundManager.Effect.DOOR_LOCKED,
+                position = car.position, // The sound originates from the car door
+                reverb = true // Reverb helps place the sound in the game world
+            )
+
             return // Stop the function here, player cannot enter.
         }
 
@@ -1515,6 +1551,15 @@ class PlayerSystem {
         }
 
         if (isTouchingPuddle) {
+            // If we are just now stepping into a puddle, play the sound
+            if (wetFootprintsTimer <= 0f) {
+                // Play the procedural water splash sound
+                sceneManager.game.soundManager.playSound(
+                    effect = SoundManager.Effect.WATER_SPLASH,
+                    position = getPosition(),
+                    reverb = true
+                )
+            }
             // If touching a puddle, refresh the timer to its maximum duration
             wetFootprintsTimer = WET_FOOTPRINT_COOLDOWN
         }
@@ -1619,6 +1664,14 @@ class PlayerSystem {
             if (footprintSpawnTimer >= FOOTPRINT_SPAWN_INTERVAL) {
                 footprintSpawnTimer = 0f // Reset for the next print
 
+                // Play a footstep sound each time a footprint is due
+                sceneManager.game.soundManager.playSound(
+                    effect = SoundManager.Effect.FOOTSTEP,
+                    position = getPosition(),
+                    reverb = true,
+                    maxRange = 25f // Footsteps shouldn't be heard from too far away
+                )
+
                 // Find the ground position directly below the player
                 val groundY = sceneManager.findHighestSupportY(physicsComponent.position.x, physicsComponent.position.z, physicsComponent.position.y, physicsComponent.size.x / 2f, blockSize)
                 val footprintPosition = Vector3(physicsComponent.position.x, groundY, physicsComponent.position.z)
@@ -1707,6 +1760,13 @@ class PlayerSystem {
         setPosition(finalDestination)
         teleportCooldown = 1.0f // 1 second cooldown before teleporting again
         println("Player teleported!")
+
+        // Play the teleport sound at the destination
+        sceneManager.game.soundManager.playSound(
+            effect = SoundManager.Effect.TELEPORT,
+            position = finalDestination,
+            reverb = true
+        )
 
         return true // Teleport was successful
     }
@@ -2176,6 +2236,15 @@ class PlayerSystem {
         }
 
         if (isTouchingBlood) {
+            // If we are just now stepping into blood, play the sound
+            if (bloodyFootprintsTimer <= 0f) {
+                // Play the procedural blood squish sound
+                sceneManager.game.soundManager.playSound(
+                    effect = SoundManager.Effect.BLOOD_SQUISH,
+                    position = getPosition(),
+                    reverb = true
+                )
+            }
             // If touching a blood pool, refresh the timer to its maximum duration
             bloodyFootprintsTimer = BLOODY_FOOTPRINT_COOLDOWN
         }

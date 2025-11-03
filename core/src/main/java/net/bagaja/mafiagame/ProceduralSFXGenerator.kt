@@ -40,6 +40,8 @@ object ProceduralSFXGenerator : Disposable {
             SoundManager.Effect.TELEPORT -> generateTeleport()
             SoundManager.Effect.MISSION_START -> generateArpeggio(floatArrayOf(261.63f, 329.63f, 392.00f), 0.12f) // C-E-G chord
             SoundManager.Effect.OBJECTIVE_COMPLETE -> generateArpeggio(floatArrayOf(392.00f, 523.25f, 659.25f), 0.1f) // G-C-E chord (higher)
+            SoundManager.Effect.WATER_SPLASH -> generateWaterSplash()
+            SoundManager.Effect.BLOOD_SQUISH -> generateBloodSquish()
         }
         val wavData = convertToWav(pcmData)
 
@@ -375,6 +377,56 @@ object ProceduralSFXGenerator : Disposable {
             val sine = sin(2f * PI * i * freq / SAMPLE_RATE).toFloat()
             val mixedSample = (sine * noteEnvelope * 0.4f).coerceIn(-1f, 1f)
             samples[i] = (mixedSample * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    private fun generateBloodSquish(): ShortArray {
+        val durationSeconds = 0.25f
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+        var lowPass = 0f
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+            val noise = Random.nextFloat() * 2f - 1f
+            // A heavier low-pass filter to make it sound "thicker"
+            lowPass += (noise - lowPass) * 0.6f
+
+            // A low-frequency thump that drops in pitch
+            val thumpFrequency = 120f * (1.0f - progress).pow(3)
+            val thump = sin(2f * PI * i * thumpFrequency / SAMPLE_RATE).toFloat()
+
+            // A fast decaying envelope
+            val envelope = (1.0f - progress).pow(7)
+
+            val mixedSample = ((lowPass * 0.6f) + (thump * 0.4f)) * envelope
+            samples[i] = (mixedSample.coerceIn(-1f, 1f) * 0.4f * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    /**
+     * Generates a short, sharp splash sound for stepping in water.
+     */
+    private fun generateWaterSplash(): ShortArray {
+        val durationSeconds = 0.2f
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+        var lowPass = 0f
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+            // Start with white noise for the "splash"
+            val noise = Random.nextFloat() * 2f - 1f
+            // Apply a simple low-pass filter to make it sound less harsh
+            lowPass += (noise - lowPass) * 0.4f
+
+            // A quick, sharp decay
+            val envelope = (1.0f - progress).pow(6)
+
+            val mixedSample = lowPass * envelope
+            samples[i] = (mixedSample.coerceIn(-1f, 1f) * 0.5f * Short.MAX_VALUE).toInt().toShort()
         }
         return samples
     }

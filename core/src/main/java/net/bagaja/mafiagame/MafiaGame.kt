@@ -262,6 +262,7 @@ class MafiaGame : ApplicationAdapter() {
         characterPathSystem.raycastSystem = raycastSystem
 
         blockSystem.sceneManager = sceneManager
+        fireSystem.sceneManager = sceneManager
         objectSystem.sceneManager = sceneManager
         itemSystem.sceneManager = sceneManager
         carSystem.sceneManager = sceneManager

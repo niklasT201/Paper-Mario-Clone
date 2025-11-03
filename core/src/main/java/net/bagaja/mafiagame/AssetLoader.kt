@@ -76,6 +76,8 @@ object AssetLoader {
         soundManager.load(SoundManager.Effect.TELEPORT)
         soundManager.load(SoundManager.Effect.MISSION_START)
         soundManager.load(SoundManager.Effect.OBJECTIVE_COMPLETE)
+        soundManager.load(SoundManager.Effect.WATER_SPLASH)
+        soundManager.load(SoundManager.Effect.BLOOD_SQUISH)
 
         println("--- Finished Loading Sounds ---")
     }

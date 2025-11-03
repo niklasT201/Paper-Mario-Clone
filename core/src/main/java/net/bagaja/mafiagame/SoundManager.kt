@@ -34,7 +34,9 @@ class SoundManager : Disposable {
         FOOTSTEP,
         TELEPORT,
         MISSION_START,
-        OBJECTIVE_COMPLETE
+        OBJECTIVE_COMPLETE,
+        WATER_SPLASH,
+        BLOOD_SQUISH
     }
 
     private data class ActiveSound(

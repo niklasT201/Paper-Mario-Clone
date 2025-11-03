@@ -30,7 +30,8 @@ data class GameFire(
     var lifetime: Float,
     val canSpread: Boolean = false,
     val generation: Int = 0,
-    var missionId: String? = null
+    var missionId: String? = null,
+    @Transient var soundInstanceId: Long? = null
 ) {
     private val material = gameObject.modelInstance.materials.first()
     private val blendingAttribute: BlendingAttribute? = material.get(BlendingAttribute.Type) as? BlendingAttribute
@@ -110,6 +111,7 @@ data class GameFire(
 
 // System to manage all fire objects
 class FireSystem {
+    lateinit var sceneManager: SceneManager
     val activeFires = Array<GameFire>()
     private lateinit var fireAnimationFrames: kotlin.Array<String>
     private lateinit var frameTextures: List<Texture>
@@ -133,6 +135,11 @@ class FireSystem {
         const val ON_FIRE_MIN_DURATION = 3.0f
         const val ON_FIRE_MAX_DURATION = 6.0f
     }
+
+    private val fireSoundIds = listOf(
+        "FIRE_BURNING_V1", "FIRE_BURNING_V2", "FIRE_BURNING_V3", "FIRE_BURNING_V4", "FIRE_BURNING_V5",
+        "FIRE_CRACKLE_V1", "FIRE_CRACKLE_V2", "FIRE_CRACKLE_V3"
+    )
 
     fun initialize() {
         fireAnimationFrames = arrayOf(
@@ -162,22 +169,18 @@ class FireSystem {
         generation: Int = 0,
         canSpread: Boolean = false,
         id: String = UUID.randomUUID().toString(),
-        // ADD THIS NEW OPTIONAL PARAMETER FOR LOADING
         existingAssociatedLightId: Int? = null
     ): GameFire? {
         // If an override is provided
         val finalLightIntensity = lightIntensityOverride ?: ObjectType.FIRE_SPREAD.lightIntensity
         val finalLightRange = lightRangeOverride ?: ObjectType.FIRE_SPREAD.lightRange
 
-        // --- MODIFIED BLOCK ---
-        // Pass the existing light ID if it's provided (from a save file)
         val fireObject = objectSystem.createGameObjectWithLight(
             ObjectType.FIRE_SPREAD,
             position,
             lightingManager,
             existingAssociatedLightId // Pass the ID here
         ) ?: return null
-        // --- END MODIFIED BLOCK ---
 
         fireObject.modelInstance.userData = "fire_effect"
         fireObject.id = id // Assign the ID here
@@ -237,10 +240,29 @@ class FireSystem {
         newFire.animationSystem.playAnimation("fire_spread")
 
         activeFires.add(newFire)
+
+        // Play a random looping fire sound
+        fireSoundIds.randomOrNull()?.let { randomSoundId ->
+            val soundId = sceneManager.game.soundManager.playSound(
+                id = randomSoundId,
+                position = newFire.gameObject.position,
+                loop = true,
+                reverb = true,
+                maxRange = 40f // Fire sound doesn't need to travel across the entire map
+            )
+            // Store the unique instance ID on the fire object
+            newFire.soundInstanceId = soundId
+        }
+
         return newFire
     }
 
     fun removeFire(fireToRemove: GameFire, objectSystem: ObjectSystem, lightingManager: LightingManager) {
+        // Stop the looping sound
+        fireToRemove.soundInstanceId?.let { soundId ->
+            sceneManager.game.soundManager.stopLoopingSound(soundId)
+        }
+
         // remove the associated light source
         objectSystem.removeGameObjectWithLight(fireToRemove.gameObject, lightingManager)
         activeFires.removeValue(fireToRemove, true)
