@@ -279,6 +279,14 @@ class FireSystem {
             val fire = iterator.next()
             fire.update(deltaTime, particleSystem, sceneManager.game.lightingManager)
 
+            fire.soundInstanceId?.let { soundId ->
+                if (fire.initialScale > 0.01f) {
+                    // Calculate a volume scale based on the fire's current size vs its original size
+                    val scaleRatio = fire.currentScale / fire.initialScale
+                    sceneManager.game.soundManager.setLoopingSoundVolumeMultiplier(soundId, scaleRatio)
+                }
+            }
+
             if (fire.canBeExtinguished && isRainingVisually && !isInInterior) {
                 // --- RAIN INTERACTION LOGIC (Sputtering & Shrinking) ---
                 if (Random.nextFloat() < (0.5f * visualRainIntensity * fire.currentScale)) {

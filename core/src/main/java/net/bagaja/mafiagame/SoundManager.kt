@@ -43,7 +43,8 @@ class SoundManager : Disposable {
         val sound: Sound,
         val id: Long,
         val soundId: String,
-        val position: Vector3
+        val position: Vector3,
+        var volumeMultiplier: Float = 1.0f
     )
 
     private val loadedSounds = mutableMapOf<String, Sound>()
@@ -86,11 +87,19 @@ class SoundManager : Disposable {
         }
     }
 
+    fun setLoopingSoundVolumeMultiplier(instanceId: Long, multiplier: Float) {
+        val activeSound = activeLoopingSounds.find { it.id == instanceId }
+        activeSound?.volumeMultiplier = multiplier.coerceIn(0f, 2f) // Clamp to prevent silence or ear-splitting sound
+    }
+
     fun update(listenerPos: Vector3) {
         this.listenerPosition = listenerPos
         activeLoopingSounds.forEach { activeSound ->
-            val (volume, pan) = calculateVolumeAndPan(activeSound.position)
-            activeSound.sound.setPan(activeSound.id, pan, volume)
+            // Calculate the base volume from distance and settings
+            val (baseVolume, pan) = calculateVolumeAndPan(activeSound.position)
+            // Apply the specific sound's multiplier
+            val finalVolume = baseVolume * activeSound.volumeMultiplier
+            activeSound.sound.setPan(activeSound.id, pan, finalVolume)
         }
     }
 
@@ -158,26 +167,29 @@ class SoundManager : Disposable {
 
         val (volume, pan) = calculateVolumeAndPan(position, maxRange)
 
-        if (volume > 0.01f) {
-            // Generate a random pitch for this specific sound instance
+        if (loop) {
+            // FOR LOOPING SOUNDS: Always play, even at volume 0. The update loop will handle it.
+            if (activeLoopingSounds.any { it.soundId == id && it.position.epsilonEquals(position, 0.1f) }) {
+                return null
+            }
             val pitch = 1.0f + (Random.nextFloat() * 0.04f - 0.02f)
 
-            if (loop) {
-                // Prevent duplicate loops at the same spot
-                if (activeLoopingSounds.any { it.soundId == id && it.position.epsilonEquals(position, 0.1f) }) {
-                    return null
-                }
+            // Play the looping sound and get its unique instance ID
+            val soundInstanceId = sound.loop(volume, pitch, pan)
+
+            // Track this active loop so we can stop it later
+            activeLoopingSounds.add(ActiveSound(sound, soundInstanceId, id, position))
+
+            // Return the ID so the caller can manage it (e.g., PlayerSystem)
+            return soundInstanceId
+
+        } else {
+            // This is a one-shot sound effect
+            if (volume > 0.01f) {
+                // Generate a random pitch for this specific sound instance
+                val pitch = 1.0f + (Random.nextFloat() * 0.04f - 0.02f)
 
                 // Play the looping sound and get its unique instance ID
-                val soundInstanceId = sound.loop(volume, pitch, pan)
-
-                // Track this active loop so we can stop it later
-                activeLoopingSounds.add(ActiveSound(sound, soundInstanceId, id, position))
-
-                // Return the ID so the caller can manage it (e.g., PlayerSystem)
-                return soundInstanceId
-            } else {
-                // This is a one-shot sound effect
                 val soundInstanceId = sound.play(volume, pitch, pan)
 
                 if (reverb) {
@@ -189,8 +201,7 @@ class SoundManager : Disposable {
             }
         }
 
-        // The sound was too far away to be heard, so it wasn't played.
-        return null
+        return null // One-shot sound was too far away to be heard
     }
 
     /** Overload for stopping procedural effects. */
