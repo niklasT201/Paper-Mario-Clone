@@ -179,7 +179,10 @@ class WaterPuddleSystem : Disposable {
 
 
     fun render(camera: Camera, environment: Environment) {
-        if (activePuddles.isEmpty) return
+        // Check if we are in the world scene
+        if (activePuddles.isEmpty || sceneManager.currentScene != SceneType.WORLD) {
+            return
+        }
 
         shaderProvider.setEnvironment(environment)
         modelBatch.begin(camera)

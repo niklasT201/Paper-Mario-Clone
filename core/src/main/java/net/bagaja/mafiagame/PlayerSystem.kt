@@ -299,6 +299,7 @@ class PlayerSystem {
 
     private lateinit var lightingManager: LightingManager
     private lateinit var bulletTrailSystem: BulletTrailSystem
+    private val waterSplashSoundIds = (1..10).map { i -> "WATER_SPLASH_V$i" }
 
     fun getPlayerBounds(): BoundingBox {
         return physicsComponent.bounds
@@ -1553,12 +1554,16 @@ class PlayerSystem {
         if (isTouchingPuddle) {
             // If we are just now stepping into a puddle, play the sound
             if (wetFootprintsTimer <= 0f) {
-                // Play the procedural water splash sound
-                sceneManager.game.soundManager.playSound(
-                    effect = SoundManager.Effect.WATER_SPLASH,
-                    position = getPosition(),
-                    reverbProfile = SoundManager.DEFAULT_REVERB
-                )
+                // Play a random file-based water splash sound
+                waterSplashSoundIds.randomOrNull()?.let { soundId ->
+                    sceneManager.game.soundManager.playSound(
+                        id = soundId,
+                        position = getPosition(),
+                        reverbProfile = SoundManager.DEFAULT_REVERB,
+                        maxRange = 30f, // Splashes are not very loud
+                        volumeMultiplier = 0.7f // Make them slightly quieter
+                    )
+                }
             }
             // If touching a puddle, refresh the timer to its maximum duration
             wetFootprintsTimer = WET_FOOTPRINT_COOLDOWN

@@ -60,6 +60,40 @@ object AssetLoader {
         load("FIRE_CRACKLE_V2", "fire/cracking_fire_two.ogg")
         load("FIRE_CRACKLE_V3", "fire/cracking_fire_three.ogg")
 
+        // --- Weather & Ambience ---
+        println("--- Loading Weather Sounds ---")
+        // Rain Loops
+        load("RAIN_LIGHT", "weather/rain/rain.ogg")
+        load("RAIN_MEDIUM", "weather/rain_medium/medium_rain.ogg")
+        load("HEAVY_RAIN_V1", "weather/heavy_rain/heavy_rain.ogg")
+        load("HEAVY_RAIN_V2", "weather/heavy_rain/heavy_rain_two.ogg")
+        load("HEAVY_RAIN_V3", "weather/heavy_rain/heavy_rain_three.ogg")
+        load("HEAVY_RAIN_V4", "weather/heavy_rain/heavy_rain_four.ogg")
+        load("HEAVY_RAIN_V6", "weather/heavy_rain/heavy_rain_six.ogg")
+        load("HEAVY_RAIN_V7", "weather/heavy_rain/heavy_rain_seven.ogg")
+        load("HEAVY_RAIN_V9", "weather/heavy_rain/heavy_rain_nine.ogg")
+        load("HEAVY_RAIN_V10", "weather/heavy_rain/heavy_rain_ten.ogg")
+
+        // Storm Ambience & Effects
+        load("STORM_AMBIENCE", "weather/storm/stormy.ogg")
+        load("STORM_END", "weather/storm/stormy_declain.ogg")
+        load("LIGHTNING_V1", "weather/storm/lightning/lightning_streak.ogg")
+        load("LIGHTNING_V2", "weather/storm/lightning/lightning_streak_two.ogg")
+        load("LIGHTNING_V3", "weather/storm/lightning/lightning_streak_three.ogg")
+
+        // Water Splashes
+        load("WATER_SPLASH_V1", "weather/water_splash/water_splash.ogg")
+        load("WATER_SPLASH_V2", "weather/water_splash/water_splash_two.ogg")
+        load("WATER_SPLASH_V3", "weather/water_splash/water_splash_three.ogg")
+        load("WATER_SPLASH_V4", "weather/water_splash/water_splash_four.ogg")
+        load("WATER_SPLASH_V5", "weather/water_splash/water_splash_five.ogg")
+        load("WATER_SPLASH_V6", "weather/water_splash/water_splash_six.ogg")
+        load("WATER_SPLASH_V7", "weather/water_splash/water_splash_seven.ogg")
+        load("WATER_SPLASH_V8", "weather/water_splash/water_splash_eight.ogg")
+        load("WATER_SPLASH_V9", "weather/water_splash/water_splash_nine.ogg")
+        load("WATER_SPLASH_V10", "weather/water_splash/water_splash_ten.ogg")
+
+
         // --- Load Procedural SFX ---
         println("--- Loading Procedural Fallbacks & Effects ---")
         soundManager.load(SoundManager.Effect.GUNSHOT_REVOLVER) // Keep as a final fallback

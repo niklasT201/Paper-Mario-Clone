@@ -65,6 +65,30 @@ class WeatherSystem : Disposable {
     private var lightningTimer = 0f
     private val timeBetweenLightning = 15f // Average time between strikes
 
+    private var lightRainSoundId: Long? = null
+    private var mediumRainSoundId: Long? = null
+    private var heavyRainSoundId: Long? = null
+    private var stormAmbienceSoundId: Long? = null
+    private var currentHeavyRainId: String? = null
+
+    // Store the sound IDs in lists for easy access
+    private val heavyRainSoundIds = (1..10).mapNotNull {
+        when(it) {
+            1 -> "HEAVY_RAIN_V1"
+            2 -> "HEAVY_RAIN_V2"
+            3 -> "HEAVY_RAIN_V3"
+            4 -> "HEAVY_RAIN_V4"
+            5 -> null // V5 doesn't exist in your list
+            6 -> "HEAVY_RAIN_V6"
+            7 -> "HEAVY_RAIN_V7"
+            8 -> null // V8 doesn't exist
+            9 -> "HEAVY_RAIN_V9"
+            10 -> "HEAVY_RAIN_V10"
+            else -> null
+        }
+    }
+    private val lightningSoundIds = listOf("LIGHTNING_V1", "LIGHTNING_V2", "LIGHTNING_V3")
+
     fun initialize(camera: Camera) {
         this.camera = camera
         this.modelBatch = ModelBatch()
@@ -120,7 +144,14 @@ class WeatherSystem : Disposable {
         }
 
         // --- 2. Smoothly transition the "world" weather towards its target ---
+        val previousWorldIntensity = worldRainIntensity
         worldRainIntensity = Interpolation.fade.apply(worldRainIntensity, targetRainIntensity, 0.1f * deltaTime)
+
+        // Check if the rain has just stopped
+        if (previousWorldIntensity > 0.1f && worldRainIntensity <= 0.1f) {
+            // Play the "storm declain" sound as the storm ends
+            sceneManager.game.soundManager.playSound("STORM_END", camera.position, reverbProfile = SoundManager.DEFAULT_REVERB)
+        }
 
         // --- 3. Smoothly transition the "visual" weather based on location (inside/outside) ---
         val visualTarget = if (isInInterior) 0f else worldRainIntensity
@@ -129,7 +160,11 @@ class WeatherSystem : Disposable {
         // --- 4. Update the lighting manager with the current LOGICAL intensity for color tinting ---
         lightingManager.setRainFactor(worldRainIntensity) // Lighting should change with the sky, not the drops
 
-        // --- 5. Update particle physics if there is visible rain ---
+        // --- 5. UPDATE LAYERED AUDIO (REVISED) ---
+        val interiorMuffle = if (isInInterior && worldRainIntensity > 0.7f) 0.15f else if (isInInterior) 0.0f else 1.0f
+        updateRainAudio(worldRainIntensity, interiorMuffle)
+
+        // --- 6. Update particle physics if there is visible rain ---
         if (currentRainIntensity > 0.01f) {
 
             // SPAWN RAIN SPLASHES
@@ -159,7 +194,7 @@ class WeatherSystem : Disposable {
             }
 
             // LIGHTNING AND THUNDER
-            if (worldRainIntensity > 0.8f) { // Only have lightning in very heavy rain
+            if (worldRainIntensity > 0.7f && !isInInterior) { // Only have lightning in very heavy rain
                 lightningTimer -= deltaTime
                 if (lightningTimer <= 0) {
                     // Reset timer with some randomness
@@ -167,17 +202,72 @@ class WeatherSystem : Disposable {
 
                     // Trigger the effects
                     lightingManager.triggerLightningFlash()
-                    // You would also play a thunder sound here
-                    // And trigger a camera shake for the thunder rumble
-                    // 3. Trigger the camera shake for thunder, now checking if indoors.
-                    val shakeIntensity = if (isInInterior) 0.1f else 0.4f // Drastically reduced indoors
-                    val shakeDuration = if (isInInterior) 0.3f else 0.5f // Shorter duration indoors
-                    // We can't use Actions here, so a more complex timer system would be needed
-                    // For a simple start, let's just shake the camera instantly
+
+                    // Play a random thunder sound
+                    lightningSoundIds.randomOrNull()?.let { soundId ->
+                        sceneManager.game.soundManager.playSound(soundId, camera.position, reverbProfile = SoundManager.DEFAULT_REVERB, maxRange = 150f)
+                    }
+
+                    val shakeIntensity = if (isInInterior) 0.1f else 0.4f
+                    val shakeDuration = if (isInInterior) 0.3f else 0.5f
                     lightingManager.game.cameraManager.startShake(shakeDuration, shakeIntensity)
                 }
             }
         }
+    }
+
+    private fun updateRainAudio(worldIntensity: Float, interiorMuffle: Float) {
+        val soundManager = sceneManager.game.soundManager
+
+        // --- Define Intensity Thresholds ---
+        val lightMax = 0.4f
+        val mediumMax = 0.7f
+        val heavyMin = 0.6f
+
+        // --- Calculate Volume for Each Layer ---
+        val lightVol = (1.0f - (worldIntensity / lightMax)).coerceIn(0f, 1f)
+
+        // Medium rain: Fades in after light starts fading, peaks at medium, fades out as heavy starts
+        val mediumVol = if (worldIntensity > lightMax / 2f && worldIntensity < heavyMin + 0.1f) {
+            1.0f - (abs(worldIntensity - 0.55f) / 0.35f)
+        } else {
+            0f
+        }.coerceIn(0f, 1f)
+
+        // Heavy rain: Fades in from heavyMin onwards
+        val heavyVol = ((worldIntensity - heavyMin) / (1.0f - heavyMin)).coerceIn(0f, 1f)
+
+        // Storm ambience: Fades in only during the heaviest rain
+        val stormVol = ((worldIntensity - 0.7f) / 0.3f).coerceIn(0f, 1f)
+
+        // Light Rain
+        if (lightVol > 0.01f && lightRainSoundId == null) {
+            lightRainSoundId = soundManager.playSound("RAIN_LIGHT", camera.position, loop = true)
+        }
+        lightRainSoundId?.let { soundManager.setLoopingSoundVolumeMultiplier(it, lightVol * 1.5f * interiorMuffle) } // Boosted volume
+
+        // Medium Rain
+        if (mediumVol > 0.01f && mediumRainSoundId == null) {
+            mediumRainSoundId = soundManager.playSound("RAIN_MEDIUM", camera.position, loop = true)
+        }
+        mediumRainSoundId?.let { soundManager.setLoopingSoundVolumeMultiplier(it, mediumVol * 1.4f * interiorMuffle) } // Boosted volume
+
+        // Heavy Rain (with random variation switching)
+        if (heavyVol > 0.01f && heavyRainSoundId == null) {
+            currentHeavyRainId = heavyRainSoundIds.random()
+            heavyRainSoundId = soundManager.playSound(currentHeavyRainId!!, camera.position, loop = true)
+        } else if (heavyVol < 0.01f && heavyRainSoundId != null) {
+            soundManager.stopLoopingSound(heavyRainSoundId!!)
+            heavyRainSoundId = null
+            currentHeavyRainId = null
+        }
+        heavyRainSoundId?.let { soundManager.setLoopingSoundVolumeMultiplier(it, heavyVol * interiorMuffle) }
+
+        // Storm Ambience
+        if (stormVol > 0.01f && stormAmbienceSoundId == null) {
+            stormAmbienceSoundId = soundManager.playSound("STORM_AMBIENCE", camera.position, loop = true)
+        }
+        stormAmbienceSoundId?.let { soundManager.setLoopingSoundVolumeMultiplier(it, stormVol * interiorMuffle) }
     }
 
     private fun spawnRainSplash() {
