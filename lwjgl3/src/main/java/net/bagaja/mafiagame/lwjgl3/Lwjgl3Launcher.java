@@ -47,8 +47,8 @@ public class Lwjgl3Launcher {
 // more animations adding
 
 // edge houses
+// update for audio ui for weather effects
 // rain sound starts with game start even so no rain
-// wet footprints in rooms
 // using new animation images
 // rusher stopping in front of the player
 // fire system uses spread fire, fire or flame particle folder

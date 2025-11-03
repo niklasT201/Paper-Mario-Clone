@@ -20,7 +20,7 @@ class SoundManager : Disposable {
     enum class Effect {
         GUNSHOT_REVOLVER,
         FIRE_LOOP,
-        EXPLOSION,          // For dynamite, car explosions, etc.
+        FIRE_SIZZLE,          // For dynamite, car explosions, etc.
         PUNCH_HIT,          // For melee impacts
         ITEM_PICKUP,        // A classic "blip" sound for collecting items
         RELOAD_CLICK,       // A sharp, metallic click for reloading

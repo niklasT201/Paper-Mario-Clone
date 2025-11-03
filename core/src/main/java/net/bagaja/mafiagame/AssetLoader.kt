@@ -97,6 +97,7 @@ object AssetLoader {
         // --- Load Procedural SFX ---
         println("--- Loading Procedural Fallbacks & Effects ---")
         soundManager.load(SoundManager.Effect.GUNSHOT_REVOLVER) // Keep as a final fallback
+        soundManager.load(SoundManager.Effect.FIRE_SIZZLE)
         soundManager.load(SoundManager.Effect.ITEM_PICKUP)
         soundManager.load(SoundManager.Effect.GLASS_BREAK)
         soundManager.load(SoundManager.Effect.CAR_CRASH_HEAVY)

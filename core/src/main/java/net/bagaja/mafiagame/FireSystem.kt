@@ -316,6 +316,17 @@ class FireSystem {
                 if (component.state == WashAwayState.SHRINKING) {
                     val shrinkRate = 0.8f * visualRainIntensity
                     fire.currentScale -= shrinkRate * deltaTime
+
+                    // Play Sizzle Sound
+                    if (Random.nextFloat() < (0.2f * visualRainIntensity)) { // Up to 20% chance per frame in heavy rain
+                        sceneManager.game.soundManager.playSound(
+                            effect = SoundManager.Effect.FIRE_SIZZLE,
+                            position = fire.gameObject.position,
+                            reverbProfile = null, // Sizzle sounds are sharp, no need for reverb
+                            maxRange = 35f,
+                            volumeMultiplier = (fire.currentScale / fire.initialScale).coerceIn(0.2f, 1.0f)
+                        )
+                    }
                 }
             } else {
                 // --- FIRE RECOVERY LOGIC ---

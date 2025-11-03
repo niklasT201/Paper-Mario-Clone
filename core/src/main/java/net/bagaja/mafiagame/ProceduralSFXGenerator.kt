@@ -25,7 +25,7 @@ object ProceduralSFXGenerator : Disposable {
         val pcmData = when (effect) {
             SoundManager.Effect.GUNSHOT_REVOLVER -> generateGunshot()
             SoundManager.Effect.FIRE_LOOP -> generateFireLoop()
-            SoundManager.Effect.EXPLOSION -> generateExplosion()
+            SoundManager.Effect.FIRE_SIZZLE -> generateFireSizzle()
             SoundManager.Effect.PUNCH_HIT -> generatePunchHit()
             SoundManager.Effect.ITEM_PICKUP -> generateItemPickup()
             SoundManager.Effect.RELOAD_CLICK -> generateReloadClick()
@@ -100,25 +100,25 @@ object ProceduralSFXGenerator : Disposable {
         return samples
     }
 
-    private fun generateExplosion(): ShortArray {
-        val durationSeconds = 1.2f
+    private fun generateFireSizzle(): ShortArray {
+        val durationSeconds = 0.4f // Shorter duration
         val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
         val samples = ShortArray(numSamples)
 
         for (i in 0 until numSamples) {
             val progress = i.toFloat() / numSamples
 
-            // 1. A deep, powerful thump that quickly fades
-            val thumpFrequency = 40f * (1.0f - progress).pow(4) // Rapidly falling pitch
-            val thumpEnvelope = (1.0f - progress).pow(2)
-            val thump = sin(2f * PI * i * thumpFrequency / SAMPLE_RATE).toFloat() * thumpEnvelope
-
-            // 2. A long tail of crackling noise
-            val noiseEnvelope = (1.0f - progress).pow(6)
+            // A short burst of higher-frequency noise for the "sizzle"
+            val noiseEnvelope = (1.0f - progress).pow(10) // Very fast decay
             val noise = (Random.nextFloat() * 2f - 1f) * noiseEnvelope
 
-            val mixedSample = ((thump * 0.8f) + (noise * 0.2f)).coerceIn(-1f, 1f)
-            samples[i] = (mixedSample * Short.MAX_VALUE).toInt().toShort()
+            // A subtle, higher-pitched thump for the "puff" of steam
+            val thumpFrequency = 250f * (1.0f - progress).pow(2) // Higher starting pitch
+            val thumpEnvelope = (1.0f - progress).pow(4)
+            val thump = sin(2f * PI * i * thumpFrequency / SAMPLE_RATE).toFloat() * thumpEnvelope
+
+            val mixedSample = ((noise * 0.7f) + (thump * 0.3f)).coerceIn(-1f, 1f)
+            samples[i] = (mixedSample * 0.6f * Short.MAX_VALUE).toInt().toShort() // Slightly quieter overall
         }
         return samples
     }
