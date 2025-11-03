@@ -18,6 +18,7 @@ import kotlin.random.Random
 // Data class to hold the state of a single footprint instance
 data class GameFootprint(
     val id: String = UUID.randomUUID().toString(),
+    val sceneId: String,
     val instance: ModelInstance,
     val position: Vector3,
     var lifetime: Float,
@@ -105,8 +106,10 @@ class FootprintSystem {
         val blendingAttribute = instance.materials.first().get(BlendingAttribute.Type) as BlendingAttribute
 
         val lifetime = lifetimeOverride ?: FOOTPRINT_LIFETIME
+        val sceneId = sceneManager.getCurrentSceneId()
 
         val newFootprint = GameFootprint(
+            sceneId = sceneId,
             instance = instance,
             position = position.cpy().add(0f, 0.06f, 0f), // Place slightly above ground to prevent z-fighting
             lifetime = lifetime,
@@ -141,8 +144,10 @@ class FootprintSystem {
         instance.userData = "effect"
 
         val blendingAttribute = instance.materials.first().get(BlendingAttribute.Type) as BlendingAttribute
+        val sceneId = sceneManager.getCurrentSceneId()
 
         val newFootprint = GameFootprint(
+            sceneId = sceneId,
             instance = instance,
             position = position.cpy().add(0f, 0.06f, 0f),
             lifetime = FOOTPRINT_LIFETIME * 1.5f, // Blood stains last longer
@@ -211,10 +216,18 @@ class FootprintSystem {
         modelBatch.begin(camera)
         renderableInstances.clear()
 
+        val currentSceneId = sceneManager.getCurrentSceneId()
         for (footprint in activeFootprints) {
-            renderableInstances.add(footprint.instance)
+            if (footprint.sceneId == currentSceneId) {
+                renderableInstances.add(footprint.instance)
+            }
         }
-        modelBatch.render(renderableInstances, environment)
+
+        // Only render if there are any valid instances for the current scene
+        if (renderableInstances.notEmpty()) {
+            modelBatch.render(renderableInstances, environment)
+        }
+
         modelBatch.end()
     }
 

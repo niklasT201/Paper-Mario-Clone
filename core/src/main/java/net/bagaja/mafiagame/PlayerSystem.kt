@@ -301,6 +301,11 @@ class PlayerSystem {
     private lateinit var bulletTrailSystem: BulletTrailSystem
     private val waterSplashSoundIds = (1..10).map { i -> "WATER_SPLASH_V$i" }
 
+    fun resetWetnessFromRain() {
+        wetFootprintsTimer = 0f // ONLY reset the timer for wet footprints
+        println("Player's feet are no longer wet from rain.")
+    }
+
     fun getPlayerBounds(): BoundingBox {
         return physicsComponent.bounds
     }

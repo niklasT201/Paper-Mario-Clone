@@ -819,6 +819,8 @@ class SceneManager(
             println("Assigned exit door ID '${house.exitDoorId}' to house '${house.id}' from template.")
         }
 
+        playerSystem.resetWetnessFromRain()
+
         // 7. Finalize the transition
         particleSystem.clearAllParticles()
 
