@@ -136,9 +136,10 @@ class SoundManager : Disposable {
         position: Vector3,
         loop: Boolean = false,
         maxRange: Float = 60f,
-        reverb: Boolean = false
+        reverb: Boolean = false,
+        volumeMultiplier: Float = 1.0f
     ): Long? {
-        return playSoundById(effect.name, position, loop, maxRange, reverb)
+        return playSoundById(effect.name, position, loop, maxRange, reverb, volumeMultiplier)
     }
 
     /** Main function to play any loaded sound by its string ID. Returns the sound instance ID or null. */
@@ -147,9 +148,10 @@ class SoundManager : Disposable {
         position: Vector3,
         loop: Boolean = false,
         maxRange: Float = 60f,
-        reverb: Boolean = false
+        reverb: Boolean = false,
+        volumeMultiplier: Float = 1.0f
     ): Long? {
-        return playSoundById(id, position, loop, maxRange, reverb)
+        return playSoundById(id, position, loop, maxRange, reverb, volumeMultiplier)
     }
 
     private fun playSoundById(
@@ -157,7 +159,8 @@ class SoundManager : Disposable {
         position: Vector3,
         loop: Boolean,
         maxRange: Float,
-        reverb: Boolean
+        reverb: Boolean,
+        volumeMultiplier: Float
     ): Long? {
         val sound = loadedSounds[id]
         if (sound == null) {
@@ -166,6 +169,7 @@ class SoundManager : Disposable {
         }
 
         val (volume, pan) = calculateVolumeAndPan(position, maxRange)
+        val finalVolume = volume * volumeMultiplier
 
         if (loop) {
             // FOR LOOPING SOUNDS: Always play, even at volume 0. The update loop will handle it.
@@ -175,7 +179,7 @@ class SoundManager : Disposable {
             val pitch = 1.0f + (Random.nextFloat() * 0.04f - 0.02f)
 
             // Play the looping sound and get its unique instance ID
-            val soundInstanceId = sound.loop(volume, pitch, pan)
+            val soundInstanceId = sound.loop(finalVolume, pitch, pan)
 
             // Track this active loop so we can stop it later
             activeLoopingSounds.add(ActiveSound(sound, soundInstanceId, id, position))
@@ -190,10 +194,10 @@ class SoundManager : Disposable {
                 val pitch = 1.0f + (Random.nextFloat() * 0.04f - 0.02f)
 
                 // Play the looping sound and get its unique instance ID
-                val soundInstanceId = sound.play(volume, pitch, pan)
+                val soundInstanceId = sound.play(finalVolume, pitch, pan)
 
                 if (reverb) {
-                    playEchoes(sound, volume, pan, pitch)
+                    playEchoes(sound, finalVolume, pan, pitch)
                 }
 
                 // Return the ID for the one-shot sound

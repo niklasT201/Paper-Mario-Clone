@@ -1669,7 +1669,8 @@ class PlayerSystem {
                     effect = SoundManager.Effect.FOOTSTEP,
                     position = getPosition(),
                     reverb = true,
-                    maxRange = 25f // Footsteps shouldn't be heard from too far away
+                    maxRange = 25f,
+                    volumeMultiplier = 0.1f
                 )
 
                 // Find the ground position directly below the player
