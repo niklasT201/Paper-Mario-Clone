@@ -67,6 +67,15 @@ object AssetLoader {
         soundManager.load(SoundManager.Effect.GLASS_BREAK)
         soundManager.load(SoundManager.Effect.CAR_CRASH_HEAVY)
         soundManager.load(SoundManager.Effect.RELOAD_CLICK)
+        soundManager.load(SoundManager.Effect.DOOR_LOCKED)
+        soundManager.load(SoundManager.Effect.CAR_DOOR_OPEN)
+        soundManager.load(SoundManager.Effect.CAR_DOOR_CLOSE)
+        soundManager.load(SoundManager.Effect.PLAYER_HURT)
+        soundManager.load(SoundManager.Effect.MELEE_SWOOSH)
+        soundManager.load(SoundManager.Effect.FOOTSTEP)
+        soundManager.load(SoundManager.Effect.TELEPORT)
+        soundManager.load(SoundManager.Effect.MISSION_START)
+        soundManager.load(SoundManager.Effect.OBJECTIVE_COMPLETE)
 
         println("--- Finished Loading Sounds ---")
     }

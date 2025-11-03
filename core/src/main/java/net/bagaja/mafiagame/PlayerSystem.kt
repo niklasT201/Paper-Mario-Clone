@@ -573,7 +573,7 @@ class PlayerSystem {
 
                 when (equippedWeapon.actionType) {
                     WeaponActionType.SHOOTING -> {
-                       // 1. Determine the intended shooting direction from player input.
+                        // 1. Determine the intended shooting direction from player input.
                         var intendedDirectionX = 0f
                         if (Gdx.input.isKeyPressed(Input.Keys.A)) intendedDirectionX = -1f
                         if (Gdx.input.isKeyPressed(Input.Keys.D)) intendedDirectionX = 1f
@@ -644,23 +644,28 @@ class PlayerSystem {
                             attackTimer = shootingPoseDuration
 
                             if (currentMagazineCount <= 0 && automaticFireSoundId != null) {
-                                soundManager.stopLoopingSound(automaticFireSoundId!!)
+                                sceneManager.game.soundManager.stopLoopingSound(automaticFireSoundId!!)
+                                automaticFireSoundId = null
+                            }
+                        }
+                        else {
+                            if (automaticFireSoundId != null) {
+                                sceneManager.game.soundManager.stopLoopingSound(automaticFireSoundId!!)
                                 automaticFireSoundId = null
                             }
 
-                        } else if (justPressedShoot) {
                             // Play an "empty weapon" sound effect if a gun is equipped
-                            if (equippedWeapon.actionType == WeaponActionType.SHOOTING) {
+                            if (justPressedShoot && !canShoot() && !isReloading) {
                                 sceneManager.game.soundManager.playSound(
                                     id = SoundManager.Effect.RELOAD_CLICK.name,
                                     position = getPosition(),
                                     reverb = false // A dry click usually sounds better for this
                                 )
-                            }
 
-                            // Player tried to shoot but couldn't (e.g., empty magazine)
-                            println("Click! (Out of ammo or empty magazine)")
-                            checkAndRemoveWeaponIfOutOfAmmo()
+                                // Player tried to shoot but couldn't (e.g., empty magazine)
+                                println("Click! (Out of ammo or empty magazine)")
+                                checkAndRemoveWeaponIfOutOfAmmo()
+                            }
                         }
 
                         // Reload logic

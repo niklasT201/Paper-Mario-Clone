@@ -31,6 +31,15 @@ object ProceduralSFXGenerator : Disposable {
             SoundManager.Effect.RELOAD_CLICK -> generateReloadClick()
             SoundManager.Effect.GLASS_BREAK -> generateGlassBreak()
             SoundManager.Effect.CAR_CRASH_HEAVY -> generateCarCrash()
+            SoundManager.Effect.DOOR_LOCKED -> generateDoorLocked()
+            SoundManager.Effect.CAR_DOOR_OPEN -> generateCarDoor(open = true)
+            SoundManager.Effect.CAR_DOOR_CLOSE -> generateCarDoor(open = false)
+            SoundManager.Effect.PLAYER_HURT -> generatePlayerHurt()
+            SoundManager.Effect.MELEE_SWOOSH -> generateMeleeSwoosh()
+            SoundManager.Effect.FOOTSTEP -> generateFootstep()
+            SoundManager.Effect.TELEPORT -> generateTeleport()
+            SoundManager.Effect.MISSION_START -> generateArpeggio(floatArrayOf(261.63f, 329.63f, 392.00f), 0.12f) // C-E-G chord
+            SoundManager.Effect.OBJECTIVE_COMPLETE -> generateArpeggio(floatArrayOf(392.00f, 523.25f, 659.25f), 0.1f) // G-C-E chord (higher)
         }
         val wavData = convertToWav(pcmData)
 
@@ -226,6 +235,145 @@ object ProceduralSFXGenerator : Disposable {
             val noise = (Random.nextFloat() * 2f - 1f) * noiseEnvelope * 0.3f
 
             val mixedSample = (thump + noise).coerceIn(-1f, 1f)
+            samples[i] = (mixedSample * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    private fun generateDoorLocked(): ShortArray {
+        val durationSeconds = 0.15f
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+            // A quick, deep thump for the door impact
+            val thumpFreq = 100f * (1.0f - progress).pow(4)
+            val thumpEnv = (1.0f - progress).pow(6)
+            val thump = sin(2f * PI * i * thumpFreq / SAMPLE_RATE).toFloat() * thumpEnv * 0.7f
+
+            // A short metallic click for the handle rattle
+            val clickEnv = (1.0f - progress).pow(25)
+            val click = (Random.nextFloat() * 2f - 1f) * clickEnv * 0.3f
+
+            val mixedSample = (thump + click).coerceIn(-1f, 1f)
+            samples[i] = (mixedSample * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    private fun generateCarDoor(open: Boolean): ShortArray {
+        val durationSeconds = if (open) 0.2f else 0.25f
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+            // Low-frequency thump
+            val thumpFreq = 80f
+            val thump = sin(2f * PI * i * thumpFreq / SAMPLE_RATE).toFloat()
+            // High-frequency metallic click/latch sound
+            val click = sin(2f * PI * i * 2500f / SAMPLE_RATE).toFloat()
+
+            val envelope = (1.0f - progress).pow(if (open) 8 else 5)
+
+            val mixedSample = ((thump * 0.4f) + (click * 0.6f)) * envelope
+            samples[i] = (mixedSample.coerceIn(-1f, 1f) * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    private fun generatePlayerHurt(): ShortArray {
+        val durationSeconds = 0.12f
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+            // A low sawtooth wave with a rapid pitch drop to simulate an "oof"
+            val freq = 150f * (1.0f - progress).pow(2)
+            val env = (1.0f - progress).pow(3)
+            val saw = (((i.toFloat() / SAMPLE_RATE * freq * 2.0f) % 2.0f) - 1.0f) * env
+
+            val mixedSample = (saw * 0.5f).coerceIn(-1f, 1f)
+            samples[i] = (mixedSample * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    private fun generateMeleeSwoosh(): ShortArray {
+        val durationSeconds = 0.18f
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+        var lowPass = 0f
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+            val noise = Random.nextFloat() * 2f - 1f
+            // Apply a simple low-pass filter to soften it
+            lowPass += (noise - lowPass) * 0.4f
+            // Create an envelope that fades in and out to create the "swoosh" shape
+            val envelope = sin(progress * PI.toFloat())
+
+            val mixedSample = (lowPass * envelope * 0.4f).coerceIn(-1f, 1f)
+            samples[i] = (mixedSample * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    private fun generateFootstep(): ShortArray {
+        val durationSeconds = 0.1f
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+        var lowPass = 0f
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+            val noise = Random.nextFloat() * 2f - 1f
+            // Heavy low-pass filter to make it sound like a soft "thump"
+            lowPass += (noise - lowPass) * 0.7f
+            val envelope = (1.0f - progress).pow(6)
+
+            val mixedSample = (lowPass * envelope * 0.6f).coerceIn(-1f, 1f)
+            samples[i] = (mixedSample * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    private fun generateTeleport(): ShortArray {
+        val durationSeconds = 0.4f
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+            // A sawtooth wave that rapidly sweeps upwards in frequency
+            val freq = 440f + (progress * progress * 1500f)
+            val envelope = (1.0f - progress).pow(2) // Fade out
+            val saw = (((i.toFloat() / SAMPLE_RATE * freq * 2.0f) % 2.0f) - 1.0f) * envelope
+
+            val mixedSample = (saw * 0.4f).coerceIn(-1f, 1f)
+            samples[i] = (mixedSample * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    private fun generateArpeggio(notes: FloatArray, noteDuration: Float): ShortArray {
+        val totalDuration = notes.size * noteDuration
+        val numSamples = (SAMPLE_RATE * totalDuration).toInt()
+        val samples = ShortArray(numSamples)
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+            val noteIndex = (progress * notes.size).toInt().coerceIn(0, notes.size - 1)
+            val freq = notes[noteIndex]
+
+            // Short envelope for each note
+            val progressInNote = (i % (SAMPLE_RATE * noteDuration)) / (SAMPLE_RATE * noteDuration)
+            val noteEnvelope = (1.0f - progressInNote).pow(4)
+
+            val sine = sin(2f * PI * i * freq / SAMPLE_RATE).toFloat()
+            val mixedSample = (sine * noteEnvelope * 0.4f).coerceIn(-1f, 1f)
             samples[i] = (mixedSample * Short.MAX_VALUE).toInt().toShort()
         }
         return samples

@@ -25,7 +25,16 @@ class SoundManager : Disposable {
         ITEM_PICKUP,        // A classic "blip" sound for collecting items
         RELOAD_CLICK,       // A sharp, metallic click for reloading
         GLASS_BREAK,        // For windows or destructible objects
-        CAR_CRASH_HEAVY     // For car collisions
+        CAR_CRASH_HEAVY,     // For car collisions
+        DOOR_LOCKED,
+        CAR_DOOR_OPEN,
+        CAR_DOOR_CLOSE,
+        PLAYER_HURT,
+        MELEE_SWOOSH,
+        FOOTSTEP,
+        TELEPORT,
+        MISSION_START,
+        OBJECTIVE_COMPLETE
     }
 
     private data class ActiveSound(
