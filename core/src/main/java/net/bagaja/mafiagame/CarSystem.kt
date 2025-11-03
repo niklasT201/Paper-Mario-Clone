@@ -768,6 +768,24 @@ data class GameCar(
         if (state != CarState.DRIVABLE) return com.badlogic.gdx.utils.Array()
 
         println("${this.carType.displayName} has been destroyed!")
+
+        // Play Stretched and Enhanced Explosion Sound
+        val carExplosionReverb = SoundManager.ReverbProfile(
+            numEchoes = 5,           // More echoes than dynamite
+            delayStep = 0.15f,       // Longer delay between echoes for a "bigger" feel
+            volumeFalloff = 0.75f    // Slower volume decay for a longer tail
+        )
+
+        // Play the sound with a lower pitch to stretch it and make it deeper.
+        carSystem.sceneManager.game.soundManager.playSound(
+            id = "EXPLOSION_HIGH",
+            position = this.position,
+            reverbProfile = carExplosionReverb, // Use our custom reverb
+            pitch = 0.75f,                      // Lower pitch (stretches sound and deepens it)
+            volumeMultiplier = 1.1f,            // Slightly louder than default
+            maxRange = 150f                     // Can be heard from further away
+        )
+
         state = CarState.WRECKED
         wreckedTimer = WRECKED_DURATION
 
