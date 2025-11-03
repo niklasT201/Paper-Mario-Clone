@@ -247,7 +247,7 @@ class FireSystem {
                 id = randomSoundId,
                 position = newFire.gameObject.position,
                 loop = true,
-                reverb = true,
+                reverbProfile = SoundManager.DEFAULT_REVERB,
                 maxRange = 40f // Fire sound doesn't need to travel across the entire map
             )
             // Store the unique instance ID on the fire object

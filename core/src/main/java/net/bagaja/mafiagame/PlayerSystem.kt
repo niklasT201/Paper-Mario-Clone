@@ -121,7 +121,7 @@ class PlayerSystem {
                 sceneManager.game.soundManager.playSound(
                     effect = SoundManager.Effect.PLAYER_HURT,
                     position = getPosition(),
-                    reverb = false // Hurt sounds are often more impactful without reverb
+                    reverbProfile = null // Hurt sounds are often more impactful without reverb
                 )
             }
 
@@ -146,7 +146,7 @@ class PlayerSystem {
         sceneManager.game.soundManager.playSound(
             effect = SoundManager.Effect.CAR_CRASH_HEAVY, // A good, deep thud sound
             position = getPosition(),
-            reverb = true
+            reverbProfile = SoundManager.DEFAULT_REVERB
         )
 
         state = PlayerState.IDLE
@@ -172,7 +172,7 @@ class PlayerSystem {
         sceneManager.game.soundManager.playSound(
             effect = SoundManager.Effect.TELEPORT, // A fitting sound for reappearing
             position = respawnPosition, // Play the sound where the player will appear
-            reverb = false
+            reverbProfile = null
         )
 
         // 1. Reset player state
@@ -519,7 +519,7 @@ class PlayerSystem {
             sceneManager.game.soundManager.playSound(
                 effect = SoundManager.Effect.RELOAD_CLICK,
                 position = getPosition(), // The sound originates from the player
-                reverb = false // A dry click sounds better without reverb
+                reverbProfile = null // A dry click sounds better without reverb
             )
 
             checkAndRemoveWeaponIfOutOfAmmo()
@@ -535,7 +535,7 @@ class PlayerSystem {
         sceneManager.game.soundManager.playSound(
             id = reloadSoundId,
             position = getPosition(), // Play sound at the player's position
-            reverb = true
+            reverbProfile = SoundManager.DEFAULT_REVERB
         )
 
         println("Reloading... (${equippedWeapon.reloadTime}s)")
@@ -626,7 +626,7 @@ class PlayerSystem {
                             if (equippedWeapon.soundIdAutomaticLoop != null) {
                                 // On the very first press of the trigger, play the distinct single-shot sound.
                                 if (isFirstShotOfBurst && equippedWeapon.soundIdSingleShot != null) {
-                                    soundManager.playSound(id = equippedWeapon.soundIdSingleShot!!, position = getPosition(), reverb = true)
+                                    soundManager.playSound(id = equippedWeapon.soundIdSingleShot!!, position = getPosition(), reverbProfile = SoundManager.DEFAULT_REVERB)
                                 }
 
                                 // If the automatic loop isn't already playing, schedule it to start.
@@ -637,7 +637,7 @@ class PlayerSystem {
                                             if (wasHoldingShootButton) {
                                                 automaticFireSoundId = soundManager.playSound(
                                                     id = equippedWeapon.soundIdAutomaticLoop!!,
-                                                    position = getPosition(), loop = true, reverb = true
+                                                    position = getPosition(), loop = true, reverbProfile = SoundManager.DEFAULT_REVERB
                                                 )
                                             }
                                         }
@@ -657,11 +657,11 @@ class PlayerSystem {
                                     }
 
                                     if (soundIdToPlay != null) {
-                                        soundManager.playSound(id = soundIdToPlay, position = getPosition(), reverb = true)
+                                        soundManager.playSound(id = soundIdToPlay, position = getPosition(), reverbProfile = SoundManager.DEFAULT_REVERB)
                                     } else {
                                         // Ultimate fallback if no sound is defined at all for this weapon.
                                         println("WARN: No sound ID found for ${equippedWeapon.displayName}. Playing procedural fallback.")
-                                        soundManager.playSound(effect = SoundManager.Effect.GUNSHOT_REVOLVER, position = getPosition(), reverb = true)
+                                        soundManager.playSound(effect = SoundManager.Effect.GUNSHOT_REVOLVER, position = getPosition(), reverbProfile = SoundManager.DEFAULT_REVERB)
                                     }
                                 }
                             }
@@ -688,7 +688,7 @@ class PlayerSystem {
                                 sceneManager.game.soundManager.playSound(
                                     id = SoundManager.Effect.RELOAD_CLICK.name,
                                     position = getPosition(),
-                                    reverb = false // A dry click usually sounds better for this
+                                    reverbProfile = null // A dry click usually sounds better for this
                                 )
 
                                 // Player tried to shoot but couldn't (e.g., empty magazine)
@@ -789,7 +789,7 @@ class PlayerSystem {
 
                 if (!hitSomething) {
                     equippedWeapon.soundIdMeleeHit?.randomOrNull()?.let { soundId ->
-                        sceneManager.game.soundManager.playSound(id = soundId, position = enemy.position, reverb = true)
+                        sceneManager.game.soundManager.playSound(id = soundId, position = enemy.position, reverbProfile = SoundManager.DEFAULT_REVERB)
                     }
                     hitSomething = true
                 }
@@ -831,7 +831,7 @@ class PlayerSystem {
                 sceneManager.game.soundManager.playSound(
                     effect = SoundManager.Effect.PUNCH_HIT,
                     position = npc.position, // Play the sound at the NPC's location
-                    reverb = true
+                    reverbProfile = SoundManager.DEFAULT_REVERB
                 )
 
                 println("Melee hit on NPC: ${npc.npcType.displayName}")
@@ -995,7 +995,7 @@ class PlayerSystem {
 
                 com.badlogic.gdx.utils.Timer.schedule(object : com.badlogic.gdx.utils.Timer.Task() {
                     override fun run() {
-                        sceneManager.game.soundManager.playSound(id = pumpSoundId, position = getPosition(), reverb = true)
+                        sceneManager.game.soundManager.playSound(id = pumpSoundId, position = getPosition(), reverbProfile = SoundManager.DEFAULT_REVERB)
                     }
                 }, 0.3f) // 0.3 second delay for the pump sound
             }
@@ -1278,7 +1278,7 @@ class PlayerSystem {
             sceneManager.game.soundManager.playSound(
                 effect = SoundManager.Effect.DOOR_LOCKED,
                 position = car.position, // The sound originates from the car door
-                reverb = true // Reverb helps place the sound in the game world
+                reverbProfile = SoundManager.DEFAULT_REVERB // Reverb helps place the sound in the game world
             )
 
             return // Stop the function here, player cannot enter.
@@ -1557,7 +1557,7 @@ class PlayerSystem {
                 sceneManager.game.soundManager.playSound(
                     effect = SoundManager.Effect.WATER_SPLASH,
                     position = getPosition(),
-                    reverb = true
+                    reverbProfile = SoundManager.DEFAULT_REVERB
                 )
             }
             // If touching a puddle, refresh the timer to its maximum duration
@@ -1668,7 +1668,7 @@ class PlayerSystem {
                 sceneManager.game.soundManager.playSound(
                     effect = SoundManager.Effect.FOOTSTEP,
                     position = getPosition(),
-                    reverb = true,
+                    reverbProfile = SoundManager.DEFAULT_REVERB,
                     maxRange = 25f,
                     volumeMultiplier = 0.1f
                 )
@@ -1766,7 +1766,7 @@ class PlayerSystem {
         sceneManager.game.soundManager.playSound(
             effect = SoundManager.Effect.TELEPORT,
             position = finalDestination,
-            reverb = true
+            reverbProfile = SoundManager.DEFAULT_REVERB
         )
 
         return true // Teleport was successful
@@ -2045,7 +2045,7 @@ class PlayerSystem {
                                 sceneManager.game.soundManager.playSound(
                                     effect = SoundManager.Effect.GLASS_BREAK,
                                     position = gameObject.position,
-                                    reverb = true
+                                    reverbProfile = SoundManager.DEFAULT_REVERB
                                 )
                             }
 
@@ -2243,7 +2243,7 @@ class PlayerSystem {
                 sceneManager.game.soundManager.playSound(
                     effect = SoundManager.Effect.BLOOD_SQUISH,
                     position = getPosition(),
-                    reverb = true
+                    reverbProfile = SoundManager.DEFAULT_REVERB
                 )
             }
             // If touching a blood pool, refresh the timer to its maximum duration
@@ -2313,10 +2313,17 @@ class PlayerSystem {
                     spawnSmokeOnGround = false
                 }
 
+                val dynamiteReverb = SoundManager.ReverbProfile(
+                    numEchoes = 4,           // More echoes
+                    delayStep = 0.12f,       // Longer delay between echoes
+                    volumeFalloff = 0.7f     // Slower volume decay
+                )
+
                 sceneManager.game.soundManager.playSound(
-                    id = "EXPLOSION_HIGH", // Use the ID from AssetLoader
+                    id = "EXPLOSION_HIGH",
                     position = explosionOrigin,
-                    reverb = true,
+                    reverbProfile = dynamiteReverb, // Use our custom profile
+                    pitch = 0.85f,                  // Play at 85% pitch to stretch it
                     maxRange = 120f
                 )
 

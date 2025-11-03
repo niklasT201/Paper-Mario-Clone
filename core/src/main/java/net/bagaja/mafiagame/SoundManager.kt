@@ -39,6 +39,16 @@ class SoundManager : Disposable {
         BLOOD_SQUISH
     }
 
+    data class ReverbProfile(
+        val numEchoes: Int,
+        val delayStep: Float, // Time in seconds between each echo
+        val volumeFalloff: Float // How much quieter each echo gets (e.g., 0.5 = 50% quieter)
+    )
+
+    companion object {
+        val DEFAULT_REVERB = ReverbProfile(numEchoes = 3, delayStep = 0.05f, volumeFalloff = 0.6f)
+    }
+
     private data class ActiveSound(
         val sound: Sound,
         val id: Long,
@@ -136,10 +146,11 @@ class SoundManager : Disposable {
         position: Vector3,
         loop: Boolean = false,
         maxRange: Float = 60f,
-        reverb: Boolean = false,
+        reverbProfile: ReverbProfile? = null,
+        pitch: Float = 1.0f,
         volumeMultiplier: Float = 1.0f
     ): Long? {
-        return playSoundById(effect.name, position, loop, maxRange, reverb, volumeMultiplier)
+        return playSoundById(effect.name, position, loop, maxRange, reverbProfile, pitch, volumeMultiplier) // MODIFIED
     }
 
     /** Main function to play any loaded sound by its string ID. Returns the sound instance ID or null. */
@@ -148,10 +159,11 @@ class SoundManager : Disposable {
         position: Vector3,
         loop: Boolean = false,
         maxRange: Float = 60f,
-        reverb: Boolean = false,
+        reverbProfile: ReverbProfile? = null,
+        pitch: Float = 1.0f,
         volumeMultiplier: Float = 1.0f
     ): Long? {
-        return playSoundById(id, position, loop, maxRange, reverb, volumeMultiplier)
+        return playSoundById(id, position, loop, maxRange, reverbProfile, pitch, volumeMultiplier)
     }
 
     private fun playSoundById(
@@ -159,53 +171,40 @@ class SoundManager : Disposable {
         position: Vector3,
         loop: Boolean,
         maxRange: Float,
-        reverb: Boolean,
+        reverbProfile: ReverbProfile?, // MODIFIED
+        pitch: Float,                  // NEW
         volumeMultiplier: Float
     ): Long? {
         val sound = loadedSounds[id]
         if (sound == null) {
             println("SoundManager WARN: Sound with ID '$id' not loaded.")
-            return null // Sound doesn't exist, return null
+            return null
         }
 
-        val (volume, pan) = calculateVolumeAndPan(position, maxRange)
-        val finalVolume = volume * volumeMultiplier
+        val (baseVolume, pan) = calculateVolumeAndPan(position, maxRange)
+        val finalVolume = baseVolume * volumeMultiplier
+
+        // Add a tiny bit of random pitch variation to make sounds less repetitive
+        val finalPitch = pitch * (1.0f + (Random.nextFloat() * 0.04f - 0.02f))
 
         if (loop) {
-            // FOR LOOPING SOUNDS: Always play, even at volume 0. The update loop will handle it.
             if (activeLoopingSounds.any { it.soundId == id && it.position.epsilonEquals(position, 0.1f) }) {
                 return null
             }
-            val pitch = 1.0f + (Random.nextFloat() * 0.04f - 0.02f)
-
-            // Play the looping sound and get its unique instance ID
-            val soundInstanceId = sound.loop(finalVolume, pitch, pan)
-
-            // Track this active loop so we can stop it later
+            val soundInstanceId = sound.loop(finalVolume, finalPitch, pan)
             activeLoopingSounds.add(ActiveSound(sound, soundInstanceId, id, position))
-
-            // Return the ID so the caller can manage it (e.g., PlayerSystem)
             return soundInstanceId
-
         } else {
-            // This is a one-shot sound effect
-            if (volume > 0.01f) {
-                // Generate a random pitch for this specific sound instance
-                val pitch = 1.0f + (Random.nextFloat() * 0.04f - 0.02f)
-
-                // Play the looping sound and get its unique instance ID
-                val soundInstanceId = sound.play(finalVolume, pitch, pan)
-
-                if (reverb) {
-                    playEchoes(sound, finalVolume, pan, pitch)
+            if (finalVolume > 0.01f) {
+                val soundInstanceId = sound.play(finalVolume, finalPitch, pan)
+                // If a reverb profile was provided, play the echoes
+                if (reverbProfile != null) {
+                    playEchoes(sound, finalVolume, pan, finalPitch, reverbProfile)
                 }
-
-                // Return the ID for the one-shot sound
                 return soundInstanceId
             }
         }
-
-        return null // One-shot sound was too far away to be heard
+        return null
     }
 
     /** Overload for stopping procedural effects. */
@@ -252,20 +251,20 @@ class SoundManager : Disposable {
         return Pair(finalVolume, pan) // Return the final calculated volume
     }
 
-    private fun playEchoes(sound: Sound, initialVolume: Float, initialPan: Float, basePitch: Float) {
-        val echoDelays = listOf(0.05f, 0.1f, 0.15f)
-        val echoVolumeMultipliers = listOf(0.4f, 0.2f, 0.1f)
+    private fun playEchoes(sound: Sound, initialVolume: Float, initialPan: Float, basePitch: Float, profile: ReverbProfile) {
+        var currentVolume = initialVolume
+        for (i in 1..profile.numEchoes) {
+            // Each echo is quieter than the last
+            currentVolume *= profile.volumeFalloff
+            val echoVolume = currentVolume
 
-        for (i in echoDelays.indices) {
             Timer.schedule(object : Timer.Task() {
                 override fun run() {
-                    val echoVolume = initialVolume * echoVolumeMultipliers[i]
-                    val echoPan = initialPan * -0.5f
-                    // Slightly alter the pitch of the echo for more richness
-                    val echoPitch = basePitch * 0.98f
+                    val echoPan = initialPan * -0.5f // Echoes are slightly panned to the opposite side
+                    val echoPitch = basePitch * (1.0f - (i * 0.02f)) // Echoes get slightly deeper
                     sound.play(echoVolume, echoPitch, echoPan)
                 }
-            }, echoDelays[i])
+            }, profile.delayStep * i) // Delay increases for each echo
         }
     }
 
