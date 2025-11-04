@@ -50,6 +50,18 @@ object AssetLoader {
         // Other
         load("EXPLOSION_HIGH", "explosion/explosion_high.ogg")
 
+        // Car Interaction
+        load("CAR_LOCKED_V1", "cars/car_locked.ogg")
+        load("CAR_LOCKED_V2", "cars/car_locked_two.ogg")
+        load("CAR_LOCKED_V3", "cars/car_locked_three.ogg")
+        load("CAR_LOCKED_V4", "cars/car_locked_four.ogg")
+        load("CAR_LOCKED_V5", "cars/car_locked_five.ogg")
+        load("CAR_LOCKED_V6", "cars/car_locked_six.ogg")
+        load("CAR_LOCKED_V7", "cars/car_locked_seven.ogg")
+        load("CAR_LOCKED_V8", "cars/car_locked_eight.ogg")
+        load("CAR_LOCKED_V9", "cars/car_locked_nine.ogg")
+        load("POLICE_CAR_LOCKED", "cars/police_car_locked.ogg")
+
         // Fire Loop
         load("FIRE_BURNING_V1", "fire/burning_fire.ogg")
         load("FIRE_BURNING_V2", "fire/burning_fire_two.ogg")

@@ -48,6 +48,10 @@ public class Lwjgl3Launcher {
 
 // edge houses
 // update for audio ui for weather effects
+// car driving sound
+// tommy gun sound too fast gone
+// car picking random lock sound and saves it
+// atmospheric sound
 // rain sound starts with game start even so no rain
 // using new animation images
 // rusher stopping in front of the player

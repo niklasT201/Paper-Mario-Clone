@@ -301,6 +301,19 @@ class PlayerSystem {
     private lateinit var bulletTrailSystem: BulletTrailSystem
     private val waterSplashSoundIds = (1..10).map { i -> "WATER_SPLASH_V$i" }
 
+    private val lockedCarSounds = listOf(
+        "CAR_LOCKED_V1",
+        "CAR_LOCKED_V2",
+        "CAR_LOCKED_V3",
+        "CAR_LOCKED_V4",
+        "CAR_LOCKED_V5",
+        "CAR_LOCKED_V6",
+        "CAR_LOCKED_V7",
+        "CAR_LOCKED_V8",
+        "CAR_LOCKED_V9",
+        SoundManager.Effect.DOOR_LOCKED.name
+    )
+
     fun resetWetnessFromRain() {
         wetFootprintsTimer = 0f // ONLY reset the timer for wet footprints
         println("Player's feet are no longer wet from rain.")
@@ -1280,12 +1293,22 @@ class PlayerSystem {
         if (car.isLocked && !canBypassLock) {
             println("This car is locked.")
 
-            // Play a procedural "locked door" sound at the car's position.
-            sceneManager.game.soundManager.playSound(
-                effect = SoundManager.Effect.DOOR_LOCKED,
-                position = car.position, // The sound originates from the car door
-                reverbProfile = SoundManager.DEFAULT_REVERB // Reverb helps place the sound in the game world
-            )
+            if (car.carType == CarType.POLICE_CAR) {
+                // If it's a police car, always play the specific sound
+                sceneManager.game.soundManager.playSound(
+                    id = "POLICE_CAR_LOCKED",
+                    position = car.position,
+                    reverbProfile = SoundManager.DEFAULT_REVERB
+                )
+            } else {
+                val randomSoundId = lockedCarSounds.random()
+                // Play a procedural "locked door" sound at the car's position.
+                sceneManager.game.soundManager.playSound(
+                    id = randomSoundId,
+                    position = car.position, // The sound originates from the car door
+                    reverbProfile = SoundManager.DEFAULT_REVERB // Reverb helps place the sound in the game world
+                )
+            }
 
             return // Stop the function here, player cannot enter.
         }
