@@ -225,7 +225,10 @@ class WeatherSystem : Disposable {
         val heavyMin = 0.6f
 
         // --- Calculate Volume for Each Layer ---
-        val lightVol = (1.0f - (worldIntensity / lightMax)).coerceIn(0f, 1f)
+        // BUG FIX & IMPROVEMENT: The original calculation was inverted. This new triangular function
+        // fades IN from intensity 0.0 to 0.2, and then fades OUT from 0.2 to 0.4.
+        // This correctly results in a volume of 0 when worldIntensity is 0.
+        val lightVol = (1.0f - abs(worldIntensity - 0.2f) / 0.2f).coerceIn(0f, 1f)
 
         // Medium rain: Fades in after light starts fading, peaks at medium, fades out as heavy starts
         val mediumVol = if (worldIntensity > lightMax / 2f && worldIntensity < heavyMin + 0.1f) {
@@ -241,33 +244,50 @@ class WeatherSystem : Disposable {
         val stormVol = ((worldIntensity - 0.7f) / 0.3f).coerceIn(0f, 1f)
 
         // Light Rain
-        if (lightVol > 0.01f && lightRainSoundId == null) {
-            lightRainSoundId = soundManager.playSound("RAIN_LIGHT", camera.position, loop = true)
+        if (lightVol > 0.01f) {
+            if (lightRainSoundId == null) {
+                lightRainSoundId = soundManager.playSound("RAIN_LIGHT", camera.position, loop = true)
+            }
+            lightRainSoundId?.let { soundManager.setLoopingSoundVolumeMultiplier(it, lightVol * 1.5f * interiorMuffle) }
+        } else if (lightRainSoundId != null) {
+            soundManager.stopLoopingSound(lightRainSoundId!!)
+            lightRainSoundId = null
         }
-        lightRainSoundId?.let { soundManager.setLoopingSoundVolumeMultiplier(it, lightVol * 1.5f * interiorMuffle) } // Boosted volume
 
         // Medium Rain
-        if (mediumVol > 0.01f && mediumRainSoundId == null) {
-            mediumRainSoundId = soundManager.playSound("RAIN_MEDIUM", camera.position, loop = true)
+        if (mediumVol > 0.01f) {
+            if (mediumRainSoundId == null) {
+                mediumRainSoundId = soundManager.playSound("RAIN_MEDIUM", camera.position, loop = true)
+            }
+            mediumRainSoundId?.let { soundManager.setLoopingSoundVolumeMultiplier(it, mediumVol * 1.4f * interiorMuffle) }
+        } else if (mediumRainSoundId != null) {
+            soundManager.stopLoopingSound(mediumRainSoundId!!)
+            mediumRainSoundId = null
         }
-        mediumRainSoundId?.let { soundManager.setLoopingSoundVolumeMultiplier(it, mediumVol * 1.4f * interiorMuffle) } // Boosted volume
 
-        // Heavy Rain (with random variation switching)
-        if (heavyVol > 0.01f && heavyRainSoundId == null) {
-            currentHeavyRainId = heavyRainSoundIds.random()
-            heavyRainSoundId = soundManager.playSound(currentHeavyRainId!!, camera.position, loop = true)
-        } else if (heavyVol < 0.01f && heavyRainSoundId != null) {
+        // Heavy Rain
+        if (heavyVol > 0.01f) {
+            if (heavyRainSoundId == null) {
+                currentHeavyRainId = heavyRainSoundIds.random()
+                heavyRainSoundId = soundManager.playSound(currentHeavyRainId!!, camera.position, loop = true)
+            }
+            heavyRainSoundId?.let { soundManager.setLoopingSoundVolumeMultiplier(it, heavyVol * interiorMuffle) }
+        } else if (heavyRainSoundId != null) {
             soundManager.stopLoopingSound(heavyRainSoundId!!)
             heavyRainSoundId = null
             currentHeavyRainId = null
         }
-        heavyRainSoundId?.let { soundManager.setLoopingSoundVolumeMultiplier(it, heavyVol * interiorMuffle) }
 
         // Storm Ambience
-        if (stormVol > 0.01f && stormAmbienceSoundId == null) {
-            stormAmbienceSoundId = soundManager.playSound("STORM_AMBIENCE", camera.position, loop = true)
+        if (stormVol > 0.01f) {
+            if (stormAmbienceSoundId == null) {
+                stormAmbienceSoundId = soundManager.playSound("STORM_AMBIENCE", camera.position, loop = true)
+            }
+            stormAmbienceSoundId?.let { soundManager.setLoopingSoundVolumeMultiplier(it, stormVol * interiorMuffle) }
+        } else if (stormAmbienceSoundId != null) {
+            soundManager.stopLoopingSound(stormAmbienceSoundId!!)
+            stormAmbienceSoundId = null
         }
-        stormAmbienceSoundId?.let { soundManager.setLoopingSoundVolumeMultiplier(it, stormVol * interiorMuffle) }
     }
 
     private fun spawnRainSplash() {
