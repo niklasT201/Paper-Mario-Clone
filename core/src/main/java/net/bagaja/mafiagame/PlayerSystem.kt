@@ -607,7 +607,7 @@ class PlayerSystem {
 
         // Stop automatic fire sound when the button is released
         if (justReleasedShoot && automaticFireSoundId != null) {
-            sceneManager.game.soundManager.stopLoopingSound(automaticFireSoundId!!)
+            sceneManager.game.soundManager.fadeOutAndStopLoopingSound(automaticFireSoundId!!, 0.2f)
             automaticFireSoundId = null
         }
 
@@ -692,7 +692,7 @@ class PlayerSystem {
                             attackTimer = shootingPoseDuration
 
                             if (currentMagazineCount <= 0 && automaticFireSoundId != null) {
-                                sceneManager.game.soundManager.stopLoopingSound(automaticFireSoundId!!)
+                                sceneManager.game.soundManager.fadeOutAndStopLoopingSound(automaticFireSoundId!!, 0.2f)
                                 automaticFireSoundId = null
                             }
                         }

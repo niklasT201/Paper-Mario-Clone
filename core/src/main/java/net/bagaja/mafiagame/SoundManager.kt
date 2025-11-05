@@ -55,7 +55,10 @@ class SoundManager : Disposable {
         val id: Long,
         val soundId: String,
         val position: Vector3,
-        var volumeMultiplier: Float = 1.0f
+        var volumeMultiplier: Float = 1.0f,
+        var isFadingOut: Boolean = false,
+        var fadeOutTimer: Float = 0f,
+        var fadeOutDuration: Float = 1.0f
     )
 
     private val loadedSounds = mutableMapOf<String, Sound>()
@@ -131,13 +134,45 @@ class SoundManager : Disposable {
         }, 0f, stepTime, steps)
     }
 
+    fun fadeOutAndStopLoopingSound(instanceId: Long, duration: Float) {
+        val soundToFade = activeLoopingSounds.find { it.id == instanceId }
+        if (soundToFade != null && !soundToFade.isFadingOut) {
+            soundToFade.isFadingOut = true
+            soundToFade.fadeOutTimer = duration
+            soundToFade.fadeOutDuration = duration
+        }
+    }
+
     fun update(listenerPos: Vector3) {
         this.listenerPosition = listenerPos
-        activeLoopingSounds.forEach { activeSound ->
-            // Calculate the base volume from distance and settings
+
+        val iterator = activeLoopingSounds.iterator()
+        // Calculate the base volume from distance and settings
+        while (iterator.hasNext()) {
+            val activeSound = iterator.next()
+
+            // Handle fade out logic
+            if (activeSound.isFadingOut) {
+                activeSound.fadeOutTimer -= Gdx.graphics.deltaTime
+                if (activeSound.fadeOutTimer <= 0f) {
+                    activeSound.sound.stop(activeSound.id)
+                    iterator.remove() // Safely remove the sound from the list
+                    continue // Skip to the next active sound
+                }
+            }
+
+            // Calculate base volume and pan
             val (baseVolume, pan) = calculateVolumeAndPan(activeSound.position)
+
+            // Calculate fade progress if the sound is fading out
+            val fadeMultiplier = if (activeSound.isFadingOut) {
+                (activeSound.fadeOutTimer / activeSound.fadeOutDuration).coerceIn(0f, 1f)
+            } else {
+                1.0f
+            }
+
             // Apply the specific sound's multiplier
-            val finalVolume = baseVolume * activeSound.volumeMultiplier
+            val finalVolume = baseVolume * activeSound.volumeMultiplier * fadeMultiplier
             activeSound.sound.setPan(activeSound.id, pan, finalVolume)
         }
     }

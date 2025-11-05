@@ -48,7 +48,6 @@ public class Lwjgl3Launcher {
 
 // edge houses
 // update for audio ui for weather effects
-// tommy gun sound too fast gone
 // atmospheric sound
 // using new animation images
 // rusher stopping in front of the player
