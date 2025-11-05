@@ -50,7 +50,6 @@ public class Lwjgl3Launcher {
 // update for audio ui for weather effects
 // car driving sound
 // tommy gun sound too fast gone
-// car picking random lock sound and saves it, same for close and open
 // atmospheric sound
 // using new animation images
 // rusher stopping in front of the player

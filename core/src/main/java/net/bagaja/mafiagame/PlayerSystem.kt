@@ -1292,29 +1292,27 @@ class PlayerSystem {
         // Check if the car is locked before entering
         if (car.isLocked && !canBypassLock) {
             println("This car is locked.")
-
-            if (car.carType == CarType.POLICE_CAR) {
-                // If it's a police car, always play the specific sound
-                sceneManager.game.soundManager.playSound(
-                    id = "POLICE_CAR_LOCKED",
-                    position = car.position,
-                    reverbProfile = SoundManager.DEFAULT_REVERB
-                )
+            val soundIdToPlay = if (car.carType == CarType.POLICE_CAR) {
+                "POLICE_CAR_LOCKED"
             } else {
-                val randomSoundId = lockedCarSounds.random()
-                // Play a procedural "locked door" sound at the car's position.
-                sceneManager.game.soundManager.playSound(
-                    id = randomSoundId,
-                    position = car.position, // The sound originates from the car door
-                    reverbProfile = SoundManager.DEFAULT_REVERB // Reverb helps place the sound in the game world
-                )
+                car.assignedLockedSoundId ?: run {
+                    lockedCarSounds.random().also { car.assignedLockedSoundId = it }
+                }
             }
-
+            // Play a procedural "locked door" sound at the car's position.
+            sceneManager.game.soundManager.playSound(id = soundIdToPlay, position = car.position, reverbProfile = SoundManager.DEFAULT_REVERB)
             return // Stop the function here, player cannot enter.
         }
 
         val seat = car.addOccupant(this)
         if (seat != null) {
+            // Play the assigned open sound, with a fallback to a new random sound
+            val soundIdToPlay = car.assignedOpenSoundId ?: run {
+                val openSounds = listOf("CAR_DOOR_OPEN_V1", "CAR_DOOR_OPEN_V2", "CAR_DOOR_OPEN_V3")
+                openSounds.random().also { car.assignedOpenSoundId = it }
+            }
+            sceneManager.game.soundManager.playSound(id = soundIdToPlay, position = car.position)
+
             isDriving = true
             drivingCar = car
             currentSeat = seat
@@ -1334,6 +1332,13 @@ class PlayerSystem {
         if (!isDriving || drivingCar == null) return
 
         val car = drivingCar!!
+
+        // Play the assigned close sound, with a fallback to a new random sound
+        val soundIdToPlay = car.assignedCloseSoundId ?: run {
+            val closeSounds = listOf("CAR_DOOR_CLOSE_V1", "CAR_DOOR_CLOSE_V2", "CAR_DOOR_CLOSE_V3", "CAR_DOOR_CLOSE_V4")
+            closeSounds.random().also { car.assignedCloseSoundId = it }
+        }
+        sceneManager.game.soundManager.playSound(id = soundIdToPlay, position = car.position)
 
         sceneManager.game.missionSystem.playerExitedCar(car.id)
 

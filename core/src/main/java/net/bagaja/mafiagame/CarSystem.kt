@@ -277,6 +277,20 @@ class CarSystem: IFinePositionable {
                 initialVisualRotation = initialVisualRotation
             )
 
+            if (gameCar.isLocked && carType != CarType.POLICE_CAR) {
+                // If the car is locked, pick a random sound ONCE and assign it.
+                val lockedCarSoundIds = listOf(
+                    "CAR_LOCKED_V1", "CAR_LOCKED_V2", "CAR_LOCKED_V3", "CAR_LOCKED_V4",
+                    "CAR_LOCKED_V5", "CAR_LOCKED_V6", "CAR_LOCKED_V7", "CAR_LOCKED_V8", "CAR_LOCKED_V9"
+                )
+                gameCar.assignedLockedSoundId = lockedCarSoundIds.random()
+            }
+
+            val openSounds = listOf("CAR_DOOR_OPEN_V1", "CAR_DOOR_OPEN_V2", "CAR_DOOR_OPEN_V3")
+            val closeSounds = listOf("CAR_DOOR_CLOSE_V1", "CAR_DOOR_CLOSE_V2", "CAR_DOOR_CLOSE_V3", "CAR_DOOR_CLOSE_V4")
+            gameCar.assignedOpenSoundId = openSounds.random()
+            gameCar.assignedCloseSoundId = closeSounds.random()
+
             // Create and attach a unique headlight
             val headlight = sceneManager.game.objectSystem.createLightSource(
                 position = Vector3(), // Position will be updated every frame by the car itself
@@ -507,7 +521,10 @@ data class GameCar(
     val initialVisualRotation: Float = 0f,
     @Transient var headlightLight: LightSource? = null,
     var areHeadlightsOn: Boolean = false,
-    var missionId: String? = null
+    var missionId: String? = null,
+    var assignedLockedSoundId: String? = null,
+    var assignedOpenSoundId: String? = null,
+    var assignedCloseSoundId: String? = null
 ) {
     companion object {
         const val WRECKED_DURATION = 25f

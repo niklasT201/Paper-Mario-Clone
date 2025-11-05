@@ -51,6 +51,14 @@ object AssetLoader {
         load("EXPLOSION_HIGH", "explosion/explosion_high.ogg")
 
         // Car Interaction
+        load("CAR_DOOR_OPEN_V1", "cars/open/car_open.ogg")
+        load("CAR_DOOR_OPEN_V2", "cars/open/car_open_two.ogg")
+        load("CAR_DOOR_OPEN_V3", "cars/open/car_open_three.ogg")
+        load("CAR_DOOR_CLOSE_V1", "cars/closed/car_closed.ogg")
+        load("CAR_DOOR_CLOSE_V2", "cars/closed/car_closed_two.ogg")
+        load("CAR_DOOR_CLOSE_V3", "cars/closed/car_closed_three.ogg")
+        load("CAR_DOOR_CLOSE_V4", "cars/closed/main_car_closed.ogg")
+
         load("CAR_LOCKED_V1", "cars/locked/car_locked.ogg")
         load("CAR_LOCKED_V2", "cars/locked/car_locked_two.ogg")
         load("CAR_LOCKED_V3", "cars/locked/car_locked_three.ogg")

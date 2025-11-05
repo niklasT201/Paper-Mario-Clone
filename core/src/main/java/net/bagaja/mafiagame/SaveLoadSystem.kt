@@ -123,7 +123,10 @@ class SaveLoadSystem(private val game: MafiaGame) {
                 world.cars.add(CarData(c.id, c.carType, c.position, c.health, c.isLocked,
                     (c.seats.first()?.occupant as? GameEnemy)?.id ?: (c.seats.first()?.occupant as? GameNPC)?.id,
                     c.state, c.wreckedTimer, c.fadeOutTimer, c.visualRotationY,
-                    c.areHeadlightsOn
+                    c.areHeadlightsOn,
+                    c.assignedLockedSoundId,
+                    c.assignedOpenSoundId,
+                    c.assignedCloseSoundId
                 ))
             }
             sm.activeEnemies.filter { it.missionId == null }.forEach { e ->
@@ -390,6 +393,9 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     car.fadeOutTimer = data.fadeOutTimer
                     car.areHeadlightsOn = data.areHeadlightsOn
                     // car.visualRotationY is now set during creation
+                    car.assignedLockedSoundId = data.assignedLockedSoundId
+                    car.assignedOpenSoundId = data.assignedOpenSoundId
+                    car.assignedCloseSoundId = data.assignedCloseSoundId
 
                     data.driverId?.let { driverId ->
                         enemyMap[driverId]?.enterCar(car) ?: npcMap[driverId]?.enterCar(car)

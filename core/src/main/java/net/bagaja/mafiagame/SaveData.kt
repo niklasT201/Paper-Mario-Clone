@@ -117,7 +117,10 @@ data class CarData(
     var wreckedTimer: Float = 0f,
     var fadeOutTimer: Float = 0f,
     var visualRotationY: Float = 0f,
-    var areHeadlightsOn: Boolean = false
+    var areHeadlightsOn: Boolean = false,
+    var assignedLockedSoundId: String? = null,
+    var assignedOpenSoundId: String? = null,
+    var assignedCloseSoundId: String? = null
 )
 
 data class EnemyData(
