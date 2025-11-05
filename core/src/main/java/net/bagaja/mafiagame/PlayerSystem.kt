@@ -1313,6 +1313,15 @@ class PlayerSystem {
             }
             sceneManager.game.soundManager.playSound(id = soundIdToPlay, position = car.position)
 
+            if (car.drivingSoundId == null) {
+                car.enginePitch = 0.7f // Reset pitch to idle
+                car.drivingSoundId = sceneManager.game.soundManager.playSound(
+                    id = "CAR_DRIVING_LOOP",
+                    position = car.position,
+                    loop = true
+                )
+            }
+
             isDriving = true
             drivingCar = car
             currentSeat = seat
@@ -1339,6 +1348,11 @@ class PlayerSystem {
             closeSounds.random().also { car.assignedCloseSoundId = it }
         }
         sceneManager.game.soundManager.playSound(id = soundIdToPlay, position = car.position)
+
+        car.drivingSoundId?.let {
+            sceneManager.game.soundManager.stopLoopingSound(it)
+            car.drivingSoundId = null
+        }
 
         sceneManager.game.missionSystem.playerExitedCar(car.id)
 
@@ -1455,6 +1469,10 @@ class PlayerSystem {
         car.updateHeadlight(deltaTime)
 
         if (car.isDestroyed) {
+            car.drivingSoundId?.let {
+                sceneManager.game.soundManager.stopLoopingSound(it)
+                car.drivingSoundId = null
+            }
             car.setDrivingAnimationState(false) // Ensure it doesn't play driving animations
             return false // Return false to indicate no movement occurred
         }
@@ -1472,6 +1490,17 @@ class PlayerSystem {
         if (Gdx.input.isKeyPressed(Input.Keys.D)) { deltaX += moveAmount; horizontalDirection = -1f }
         if (Gdx.input.isKeyPressed(Input.Keys.W)) { deltaZ -= moveAmount }
         if (Gdx.input.isKeyPressed(Input.Keys.S)) { deltaZ += moveAmount }
+
+        val isAccelerating = deltaX != 0f || deltaZ != 0f
+        val targetPitch = if (isAccelerating) 1.2f else 0.7f
+        // Smoothly interpolate the pitch for a nice "vroom" effect
+        car.enginePitch = Interpolation.linear.apply(car.enginePitch, targetPitch, deltaTime * 2.5f)
+
+        // Update the sound position and pitch
+        car.drivingSoundId?.let {
+            sceneManager.game.soundManager.updateLoopingSoundPosition(it, car.position)
+            sceneManager.game.soundManager.setLoopingSoundPitch(it, car.enginePitch)
+        }
 
         car.updateFlipAnimation(horizontalDirection, deltaTime)
 

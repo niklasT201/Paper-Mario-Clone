@@ -102,6 +102,11 @@ class SoundManager : Disposable {
         activeSound?.volumeMultiplier = multiplier.coerceIn(0f, 2f) // Clamp to prevent silence or ear-splitting sound
     }
 
+    fun setLoopingSoundPitch(instanceId: Long, pitch: Float) {
+        val activeSound = activeLoopingSounds.find { it.id == instanceId }
+        activeSound?.sound?.setPitch(activeSound.id, pitch.coerceIn(0.5f, 2.0f))
+    }
+
     fun update(listenerPos: Vector3) {
         this.listenerPosition = listenerPos
         activeLoopingSounds.forEach { activeSound ->

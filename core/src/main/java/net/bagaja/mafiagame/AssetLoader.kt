@@ -51,6 +51,7 @@ object AssetLoader {
         load("EXPLOSION_HIGH", "explosion/explosion_high.ogg")
 
         // Car Interaction
+        load("CAR_DRIVING_LOOP", "cars/driving/car_driving.ogg")
         load("CAR_DOOR_OPEN_V1", "cars/open/car_open.ogg")
         load("CAR_DOOR_OPEN_V2", "cars/open/car_open_two.ogg")
         load("CAR_DOOR_OPEN_V3", "cars/open/car_open_three.ogg")

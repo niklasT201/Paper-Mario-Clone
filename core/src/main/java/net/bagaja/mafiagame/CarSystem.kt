@@ -524,7 +524,9 @@ data class GameCar(
     var missionId: String? = null,
     var assignedLockedSoundId: String? = null,
     var assignedOpenSoundId: String? = null,
-    var assignedCloseSoundId: String? = null
+    var assignedCloseSoundId: String? = null,
+    @Transient var drivingSoundId: Long? = null,
+    @Transient var enginePitch: Float = 0.7f
 ) {
     companion object {
         const val WRECKED_DURATION = 25f
