@@ -36,7 +36,7 @@ class DayNightCycle {
         currentTime %= totalCycleDuration // Use modulo for clean wrapping
     }
 
-    private fun getCurrentTimeOfDay(): TimeOfDay {
+    fun getCurrentTimeOfDay(): TimeOfDay {
         return when {
             currentTime < sunriseTime -> TimeOfDay.SUNRISE
             currentTime < sunsetTime -> TimeOfDay.DAY

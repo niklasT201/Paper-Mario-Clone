@@ -101,6 +101,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var bulletTrailSystem: BulletTrailSystem
     lateinit var weatherSystem: WeatherSystem
     lateinit var musicManager: MusicManager
+    lateinit var ambientSoundSystem: AmbientSoundSystem
     lateinit var soundManager: SoundManager
     lateinit var decalSystem: DecalSystem
     lateinit var waterPuddleSystem: WaterPuddleSystem
@@ -111,6 +112,7 @@ class MafiaGame : ApplicationAdapter() {
 
         musicManager = MusicManager() // Must initialize before setting volume
         soundManager = SoundManager() // Must initialize before setting volume
+        ambientSoundSystem = AmbientSoundSystem()
         musicManager.setMasterVolume(PlayerSettingsManager.current.masterVolume)
         musicManager.setMusicVolume(PlayerSettingsManager.current.musicVolume)
         soundManager.setMasterVolume(PlayerSettingsManager.current.masterVolume)
@@ -228,6 +230,7 @@ class MafiaGame : ApplicationAdapter() {
         weatherSystem.lightingManager = this.lightingManager
         weatherSystem.particleSystem = this.particleSystem
         weatherSystem.sceneManager = this.sceneManager
+        ambientSoundSystem.initialize(soundManager, playerSystem, sceneManager, lightingManager, weatherSystem)
 
         teleporterSystem = TeleporterSystem(objectSystem, uiManager)
 
@@ -1071,6 +1074,7 @@ class MafiaGame : ApplicationAdapter() {
                     val timeMultiplier = if (inputHandler.isTimeSpeedUpActive()) 200f else 1f
                     musicManager.update(deltaTime)
                     soundManager.update(playerSystem.getControlledEntityPosition())
+                    ambientSoundSystem.update(deltaTime)
                     val isSinCityEffect = shaderEffectManager.isEffectsEnabled && shaderEffectManager.getCurrentEffect() == ShaderEffect.SIN_CITY
 
                     lightingManager.setGrayscaleMode(isSinCityEffect)
@@ -1388,6 +1392,7 @@ class MafiaGame : ApplicationAdapter() {
     override fun dispose() {
         if (::soundManager.isInitialized) soundManager.dispose()
         if (::musicManager.isInitialized) musicManager.dispose()
+        if (::ambientSoundSystem.isInitialized) ambientSoundSystem.dispose()
         if (::modelBatch.isInitialized) modelBatch.dispose()
         if (::spriteBatch.isInitialized) spriteBatch.dispose()
         if (::blockSystem.isInitialized) blockSystem.dispose()

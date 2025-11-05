@@ -9,6 +9,14 @@ import com.badlogic.gdx.utils.Disposable
 import com.badlogic.gdx.utils.Timer
 import kotlin.random.Random
 
+data class FadingOneShotSound(
+    val sound: Sound,
+    val id: Long,
+    var timer: Float,
+    val duration: Float,
+    val initialVolume: Float
+)
+
 /**
  * Manages all game sound effects, including 3D positioning, volume attenuation,
  * looping, and a simulated reverb/echo effect. Supports both procedural and file-based sounds.
@@ -63,6 +71,7 @@ class SoundManager : Disposable {
 
     private val loadedSounds = mutableMapOf<String, Sound>()
     private val activeLoopingSounds = Array<ActiveSound>()
+    private val activeFadingSounds = Array<FadingOneShotSound>()
     private var listenerPosition: Vector3 = Vector3.Zero
     private var masterVolume = 1.0f
     private var sfxVolume = 1.0f
@@ -175,6 +184,21 @@ class SoundManager : Disposable {
             val finalVolume = baseVolume * activeSound.volumeMultiplier * fadeMultiplier
             activeSound.sound.setPan(activeSound.id, pan, finalVolume)
         }
+
+        val fadingIterator = activeFadingSounds.iterator()
+        while (fadingIterator.hasNext()) {
+            val fadingSound = fadingIterator.next()
+            fadingSound.timer -= Gdx.graphics.deltaTime
+
+            if (fadingSound.timer <= 0f) {
+                fadingSound.sound.stop(fadingSound.id)
+                fadingIterator.remove()
+            } else {
+                val fadeProgress = (fadingSound.timer / fadingSound.duration).coerceIn(0f, 1f)
+                val currentVolume = fadingSound.initialVolume * Interpolation.fade.apply(fadeProgress)
+                fadingSound.sound.setVolume(fadingSound.id, currentVolume)
+            }
+        }
     }
 
     fun updateLoopingSoundPosition(instanceId: Long, newPosition: Vector3) {
@@ -225,9 +249,10 @@ class SoundManager : Disposable {
         maxRange: Float = 60f,
         reverbProfile: ReverbProfile? = null,
         pitch: Float = 1.0f,
-        volumeMultiplier: Float = 1.0f
+        volumeMultiplier: Float = 1.0f,
+        fadeOutDuration: Float? = null
     ): Long? {
-        return playSoundById(id, position, loop, maxRange, reverbProfile, pitch, volumeMultiplier)
+        return playSoundById(id, position, loop, maxRange, reverbProfile, pitch, volumeMultiplier, fadeOutDuration)
     }
 
     private fun playSoundById(
@@ -235,9 +260,10 @@ class SoundManager : Disposable {
         position: Vector3,
         loop: Boolean,
         maxRange: Float,
-        reverbProfile: ReverbProfile?, // MODIFIED
-        pitch: Float,                  // NEW
-        volumeMultiplier: Float
+        reverbProfile: ReverbProfile?,
+        pitch: Float,
+        volumeMultiplier: Float,
+        fadeOutDuration: Float? = null
     ): Long? {
         val sound = loadedSounds[id]
         if (sound == null) {
@@ -261,7 +287,12 @@ class SoundManager : Disposable {
         } else {
             if (finalVolume > 0.01f) {
                 val soundInstanceId = sound.play(finalVolume, finalPitch, pan)
-                // If a reverb profile was provided, play the echoes
+
+                // NEW LOGIC: If a fade-out is requested, track this sound
+                if (fadeOutDuration != null && fadeOutDuration > 0f) {
+                    activeFadingSounds.add(FadingOneShotSound(sound, soundInstanceId, fadeOutDuration, fadeOutDuration, finalVolume))
+                }
+
                 if (reverbProfile != null) {
                     playEchoes(sound, finalVolume, pan, finalPitch, reverbProfile)
                 }

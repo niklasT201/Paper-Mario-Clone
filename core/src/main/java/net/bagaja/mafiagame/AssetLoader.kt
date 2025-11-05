@@ -14,6 +14,14 @@ object AssetLoader {
         }
     }
 
+    private fun loadMusic(soundManager: SoundManager, id: String, path: String) {
+        try {
+            soundManager.load(id, "music/$path")
+        } catch (e: Exception) {
+            println("ERROR loading music ambience '$id' from '$path': ${e.message}")
+        }
+    }
+
     fun loadGameSounds(soundManager: SoundManager) {
         println("--- Loading All Game Sounds ---")
 
@@ -101,6 +109,39 @@ object AssetLoader {
         load("LIGHTNING_V1", "weather/storm/lightning/lightning_streak.ogg")
         load("LIGHTNING_V2", "weather/storm/lightning/lightning_streak_two.ogg")
         load("LIGHTNING_V3", "weather/storm/lightning/lightning_streak_three.ogg")
+
+        // --- AMBIENCE: Wind ---
+        load("WIND_LOOP", "weather/wind/loop_wind.ogg")
+        load("WIND_MEDIUM_V1", "weather/wind/medium/medium_wind.ogg")
+        load("WIND_MEDIUM_V2", "weather/wind/medium/medium_wind_two.ogg")
+        load("WIND_HEAVY_V1", "weather/wind/heavy/heavy_wind.ogg")
+        load("WIND_HEAVY_V2", "weather/wind/heavy/heavy_wind_two.ogg")
+        load("WIND_HEAVY_V3", "weather/wind/heavy/heavy_wind_three.ogg")
+        load("WIND_HEAVY_V4", "weather/wind/heavy/heavy_wind_five.ogg")
+        load("WIND_HEAVY_V5", "weather/wind/heavy/heavy_wind_six.ogg")
+
+        // --- AMBIENCE: City & Traffic (These are music) ---
+        loadMusic(soundManager, "CITY_AMBIENCE_V1", "ambience/city/ambience_city.ogg")
+        loadMusic(soundManager, "CITY_AMBIENCE_V2", "ambience/city/ambience_city_two.ogg")
+        loadMusic(soundManager, "CITY_AMBIENCE_V3", "ambience/city/ambience_city_three.ogg")
+        loadMusic(soundManager, "CITY_AMBIENCE_V4", "ambience/city/ambience_city_four.ogg")
+        loadMusic(soundManager, "CITY_AMBIENCE_V5", "ambience/city/ambience_city_five.ogg")
+        loadMusic(soundManager, "CITY_AMBIENCE_V6", "ambience/city/ambience_city_six.ogg")
+
+        loadMusic(soundManager, "TRAFFIC_AMBIENCE_V1", "ambience/traffic/driving_ambience_two.ogg")
+        loadMusic(soundManager, "TRAFFIC_AMBIENCE_V2", "ambience/traffic/driving_ambience_three.ogg")
+        loadMusic(soundManager, "TRAFFIC_AMBIENCE_V3", "ambience/traffic/driving_ambience_four.ogg")
+        loadMusic(soundManager, "TRAFFIC_AMBIENCE_V4", "ambience/traffic/driving_ambience_five.ogg")
+
+        // --- AMBIENCE: Vehicles (These are music) ---
+        loadMusic(soundManager, "VEHICLE_CAR_V1", "ambience/vehicles/cars/ambience_car_driving.ogg")
+        loadMusic(soundManager, "VEHICLE_CAR_V2", "ambience/vehicles/cars/ambience_car_driving_three.ogg")
+        loadMusic(soundManager, "VEHICLE_CAR_V3", "ambience/vehicles/cars/car_driving_around.ogg")
+        loadMusic(soundManager, "VEHICLE_CAR_V4", "ambience/vehicles/cars/driving_ambience.ogg")
+
+        loadMusic(soundManager, "VEHICLE_BIKE_V1", "ambience/vehicles/bikes/ambience_bike.ogg")
+        loadMusic(soundManager, "VEHICLE_BIKE_V2", "ambience/vehicles/bikes/ambience_bike_one.ogg")
+        loadMusic(soundManager, "VEHICLE_BIKE_V3", "ambience/vehicles/bikes/ambience_bike_three.ogg")
 
         // Water Splashes
         load("WATER_SPLASH_V1", "weather/water_splash/water_splash.ogg")
