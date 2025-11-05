@@ -860,6 +860,12 @@ class MissionEditorUI(
         val blockTopTextureRotationYField = TextField(existingEvent?.blockTopTextureRotationY?.toString() ?: "0", skin)
         val blockCameraVisibilitySelect = SelectBox<String>(skin).apply { items = GdxArray(CameraVisibility.entries.map { it.getDisplayName() }.toTypedArray()); selected = existingEvent?.blockCameraVisibility?.getDisplayName() ?: CameraVisibility.ALWAYS_VISIBLE.getDisplayName() }
         val dialogIdSelect = SelectBox<String>(skin).apply { items = GdxArray(missionSystem.getAllDialogueIds().toTypedArray()); selected = existingEvent?.dialogId }
+        val particleTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(ParticleEffectType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.particleEffectType?.displayName }
+        val minParticlesField = TextField(existingEvent?.spawnerMinParticles?.toString() ?: "1", skin)
+        val maxParticlesField = TextField(existingEvent?.spawnerMaxParticles?.toString() ?: "3", skin)
+        val spawnerIntervalField = TextField(existingEvent?.spawnInterval?.toString() ?: "5.0", skin)
+        val spawnerMinRangeField = TextField(existingEvent?.minSpawnRange?.toString() ?: "0", skin)
+        val spawnerMaxRangeField = TextField(existingEvent?.maxSpawnRange?.toString() ?: "100", skin)
         val weaponTypeSelect = SelectBox<String>(skin).apply { items = GdxArray(WeaponType.entries.map { it.displayName }.toTypedArray()); selected = existingEvent?.weaponType?.displayName }
         val ammoAmountField = TextField(existingEvent?.ammoAmount?.toString() ?: "0", skin).apply { messageText = "Default" }
         val rainIntensityField = TextField(existingEvent?.rainIntensity?.toString() ?: "0.8", skin)
@@ -982,7 +988,24 @@ class MissionEditorUI(
         npcSettingsTable.add(npcInteractionTable).colspan(2).padTop(10f).row()
 
 
-        val settingsStack = Stack(enemySettingsTable, npcSettingsTable, carSettingsTable, itemSettingsTable, moneySettingsTable, houseSettingsTable, objectSettingsTable, blockSettingsTable, dialogSettingsTable, weaponSettingsTable, weatherSettingsTable)
+        val spawnerSettingsTable = Table(skin)
+        spawnerSettingsTable.add(Label("--- General Spawner Settings ---", skin, "title")).colspan(2).center().padBottom(5f).row()
+        spawnerSettingsTable.add(Label("Spawn Interval (s):", skin)).left()
+        spawnerSettingsTable.add(spawnerIntervalField).width(80f).left().row()
+        val rangeTable = Table(skin)
+        rangeTable.add(Label("Range (Min/Max):", skin)).left()
+        rangeTable.add(spawnerMinRangeField).width(80f).padLeft(5f)
+        rangeTable.add(spawnerMaxRangeField).width(80f).padLeft(5f)
+        spawnerSettingsTable.add(rangeTable).colspan(2).left().row()
+        spawnerSettingsTable.add(Label("--- Particle Settings ---", skin, "title")).colspan(2).center().padTop(10f).row()
+        spawnerSettingsTable.add(Label("Particle Effect:", skin)).left().row()
+        spawnerSettingsTable.add(particleTypeSelect).growX().row()
+        val particleCountTable = Table(skin)
+        particleCountTable.add(Label("Min:", skin)).padRight(5f); particleCountTable.add(minParticlesField).width(60f).padRight(10f)
+        particleCountTable.add(Label("Max:", skin)).padRight(5f); particleCountTable.add(maxParticlesField).width(60f)
+        spawnerSettingsTable.add(particleCountTable).left().padTop(5f).row()
+
+        val settingsStack = Stack(enemySettingsTable, npcSettingsTable, carSettingsTable, itemSettingsTable, moneySettingsTable, houseSettingsTable, objectSettingsTable, blockSettingsTable, dialogSettingsTable, weaponSettingsTable, weatherSettingsTable, spawnerSettingsTable)
 
         content.add("Event Type:"); content.add(typeSelect).row()
         content.add(targetIdTable).colspan(2).growX().row()
@@ -1009,6 +1032,7 @@ class MissionEditorUI(
             dialogSettingsTable.isVisible = type == GameEventType.START_DIALOG
             weaponSettingsTable.isVisible = type in listOf(GameEventType.GIVE_WEAPON, GameEventType.FORCE_EQUIP_WEAPON)
             weatherSettingsTable.isVisible = type == GameEventType.SET_WEATHER
+            spawnerSettingsTable.isVisible = type == GameEventType.SPAWN_SPAWNER
 
             // Dynamic visibility within panels
             lightSettingsTable.isVisible = ObjectType.entries.find { it.displayName == objectTypeSelect.selected } == ObjectType.LIGHT_SOURCE
@@ -1137,6 +1161,15 @@ class MissionEditorUI(
                     GameEventType.GIVE_WEAPON, GameEventType.FORCE_EQUIP_WEAPON -> baseEvent.copy(
                         weaponType = WeaponType.entries.find { it.displayName == weaponTypeSelect.selected },
                         ammoAmount = ammoAmountField.text.toIntOrNull()
+                    )
+                    GameEventType.SPAWN_SPAWNER -> baseEvent.copy(
+                        spawnerType = SpawnerType.PARTICLE, // This dialog is still just for particles
+                        particleEffectType = ParticleEffectType.entries.find { it.displayName == particleTypeSelect.selected },
+                        spawnerMinParticles = minParticlesField.text.toIntOrNull() ?: 1,
+                        spawnerMaxParticles = maxParticlesField.text.toIntOrNull() ?: 3,
+                        spawnInterval = spawnerIntervalField.text.toFloatOrNull() ?: 5.0f,
+                        minSpawnRange = spawnerMinRangeField.text.toFloatOrNull() ?: 0f,
+                        maxSpawnRange = spawnerMaxRangeField.text.toFloatOrNull() ?: 100f
                     )
                     GameEventType.SET_WEATHER -> baseEvent.copy(
                         rainIntensity = rainIntensityField.text.toFloatOrNull()?.coerceIn(0f, 1f),

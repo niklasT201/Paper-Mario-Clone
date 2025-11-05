@@ -39,8 +39,33 @@ enum class ParticleEffectType(
     val sizeRandomnessChance: Float = 1.0f,
     val fadeIn: Float = 0.1f, // Time to fade in
     val fadeOut: Float = 0.5f,  // Time to fade out
-    val collidesWithWorld: Boolean = false
+    val collidesWithWorld: Boolean = false,
+    val randomizeTexture: Boolean = false
 ) {
+    MUSIC_NOTE(
+        displayName = "Music Note",
+        texturePaths = arrayOf(
+            "textures/particles/note/note_1.png",
+            "textures/particles/note/note_2.png",
+            "textures/particles/note/note_3.png",
+            "textures/particles/note/note_4.png",
+            "textures/particles/note/note_5.png"
+        ),
+        frameDuration = 0.1f,   // Not used for animation, but needs a value
+        isLooping = false,      // This is NOT an animation loop
+        particleLifetime = 2f,
+        lifetimeVariance = 0.5f,  // Total lifetime will be between 1.0 and 2.0 seconds
+        particleCount = 1..1,
+        initialSpeed = 1.0f,      // A gentle initial push upwards
+        speedVariance = 0.5f,
+        gravity = 1.5f,           // Positive gravity makes it float up
+        scale = 0.5f,
+        scaleVariance = 0.3f,
+        fadeIn = 0.2f,
+        fadeOut = 0.5f,
+        collidesWithWorld = false,
+        randomizeTexture = true
+    ),
     BLOOD_SPLATTER_1(
         "Blood Splatter 1",
         arrayOf("textures/particles/blood/blood_frame.png"), // Single image
@@ -657,12 +682,18 @@ class ParticleSystem {
 
         for (type in ParticleEffectType.entries) {
             try {
-                val texture = Texture(Gdx.files.internal(type.texturePaths.first()), true).apply {
-                    setFilter(Texture.TextureFilter.MipMapLinearLinear, Texture.TextureFilter.Linear)
+                if (type.texturePaths.isEmpty()) continue // Skip if no textures are defined
+
+                // Load ALL textures for this effect type
+                val texturesForType = type.texturePaths.map { path ->
+                    Texture(Gdx.files.internal(path), true).apply {
+                        setFilter(Texture.TextureFilter.MipMapLinearLinear, Texture.TextureFilter.Linear)
+                    }
                 }
+                effectTextures[type] = texturesForType
 
                 val material = Material(
-                    TextureAttribute.createDiffuse(texture),
+                    TextureAttribute.createDiffuse(texturesForType.first()),
                     BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA, 1.0f),
                     IntAttribute.createCullFace(GL20.GL_NONE)
                 )
@@ -773,11 +804,22 @@ class ParticleSystem {
             val instance = ModelInstance(model)
             instance.userData = "effect"
 
+            if (type.randomizeTexture) {
+                // Get the list of pre-loaded textures for this effect type
+                val texturePool = effectTextures[type]
+                if (!texturePool.isNullOrEmpty()) {
+                    // Pick one texture at random and apply it to this specific particle instance
+                    val randomTexture = texturePool.random()
+                    val material = instance.materials.first()
+                    material.set(TextureAttribute.createDiffuse(randomTexture))
+                }
+            }
+
             val lifeVariance = (Random.nextFloat() - 0.5f) * 2f * type.lifetimeVariance
             val life = (type.particleLifetime + lifeVariance).coerceAtLeast(0.1f)
 
             val animSystem = AnimationSystem()
-            if (type.isAnimated) {
+            if (type.isAnimated && !type.randomizeTexture) {
                 animSystem.createAnimation(type.name, type.texturePaths, type.frameDuration, type.isLooping)
                 animSystem.playAnimation(type.name)
             }

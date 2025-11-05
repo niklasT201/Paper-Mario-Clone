@@ -52,7 +52,6 @@ public class Lwjgl3Launcher {
 // tommy gun sound too fast gone
 // car picking random lock sound and saves it, same for close and open
 // atmospheric sound
-// music note spawner
 // using new animation images
 // rusher stopping in front of the player
 // fire system uses spread fire, fire or flame particle folder
