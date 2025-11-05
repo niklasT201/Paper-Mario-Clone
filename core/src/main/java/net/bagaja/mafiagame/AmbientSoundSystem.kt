@@ -55,6 +55,7 @@ class AmbientSoundSystem : Disposable {
     private val soundDefinitions = listOf(
         // --- CITY AMBIENCE ---
         AmbientSoundDefinition("AMBIENCE_CITY", (1..6).map { "CITY_AMBIENCE_V$it" }, AmbientSoundCategory.CITY, 12f, 28f, 30f, 60f, fadeOutDuration = 2.5f, minPitch = 0.95f, maxPitch = 1.05f),
+        AmbientSoundDefinition("AMBIENCE_FOOTSTEPS", listOf("FOOTSTEP_LOOP"), AmbientSoundCategory.CITY, 20f, 45f, 15f, 30f, isLoop = true, loopDuration = 5.0f, minPitch = 0.9f, maxPitch = 1.1f),
 
         // --- TRAFFIC & VEHICLE SOUNDS ---
         AmbientSoundDefinition("AMBIENCE_TRAFFIC", (1..4).map { "TRAFFIC_AMBIENCE_V$it" }, AmbientSoundCategory.TRAFFIC, 8f, 18f, 15f, 35f, fadeOutDuration = 2.0f, minPitch = 0.9f, maxPitch = 1.1f),
@@ -85,7 +86,7 @@ class AmbientSoundSystem : Disposable {
             updateWindStateMachine(deltaTime, playerPos)
         }
 
-        // --- NEW: Contextual Frequency Multiplier ---
+        // --- Contextual Frequency Multiplier ---
         val timeOfDay = lightingManager.getDayNightCycle().getCurrentTimeOfDay()
         val rainIntensity = weatherSystem.getRainIntensity()
         var trafficFrequencyMultiplier = 1.0f
@@ -108,6 +109,26 @@ class AmbientSoundSystem : Disposable {
             soundInstance.timer -= effectiveDeltaTime
 
             if (soundInstance.timer <= 0) {
+                // --- Special check for Ghost Footsteps ---
+                if (soundInstance.definition.id == "AMBIENCE_FOOTSTEPS") {
+                    var chanceToPlay = 0.4f // 40% base chance
+
+                    // Reduce chance at night
+                    if (timeOfDay == DayNightCycle.TimeOfDay.NIGHT) {
+                        chanceToPlay *= 0.5f // Halve the chance at night (becomes 20%)
+                    }
+
+                    // Reduce chance in heavy rain
+                    if (rainIntensity > 0.7f) {
+                        chanceToPlay *= 0.25f // Quarter the chance in heavy rain (becomes 10% or 5% on a rainy night)
+                    }
+
+                    if (Random.nextFloat() > chanceToPlay) {
+                        // The dice roll failed. Don't play the sound, just reset the timer and continue.
+                        resetTimer(soundInstance)
+                        continue
+                    }
+                }
                 playSound(soundInstance.definition, playerPos)
                 resetTimer(soundInstance)
             }
@@ -168,9 +189,13 @@ class AmbientSoundSystem : Disposable {
         val distance = Random.nextFloat() * (definition.maxSpawnRadius - definition.minSpawnRadius) + definition.minSpawnRadius
         val spawnPos = playerPos.cpy().add(kotlin.math.cos(angle) * distance, 0f, kotlin.math.sin(angle) * distance)
 
-        val volumeMultiplier = 1.0f - (Random.nextFloat() * 0.4f)
+        var volumeMultiplier = 1.0f - (Random.nextFloat() * 0.4f)
 
-        // NEW: Calculate random pitch for this specific sound instance
+        if (definition.id == "AMBIENCE_FOOTSTEPS") {
+            volumeMultiplier *= 0.05f // Make them only 35% as loud as other ambient sounds
+        }
+
+        // Calculate random pitch for this specific sound instance
         val randomPitch = if (definition.minPitch < definition.maxPitch) {
             Random.nextFloat() * (definition.maxPitch - definition.minPitch) + definition.minPitch
         } else {

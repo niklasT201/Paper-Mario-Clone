@@ -156,6 +156,7 @@ object AssetLoader {
         load("WATER_SPLASH_V10", "weather/water_splash/water_splash_ten.ogg")
 
         load("FOOTSTEP_V1", "characters/player/footprint/footstep.ogg")
+        load("FOOTSTEP_LOOP", "characters/player/footprint/footstep.ogg")
         load("FOOTSTEP_V2", "characters/player/footprint/footstep_two.ogg")
         load("FOOTSTEP_V3", "characters/player/footprint/footstep_three.ogg")
         load("FOOTSTEP_V4", "characters/player/footprint/footstep_four.ogg")
