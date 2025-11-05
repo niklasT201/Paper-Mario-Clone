@@ -1318,8 +1318,14 @@ class PlayerSystem {
                 car.drivingSoundId = sceneManager.game.soundManager.playSound(
                     id = "CAR_DRIVING_LOOP",
                     position = car.position,
-                    loop = true
+                    loop = true,
+                    volumeMultiplier = 0.0f // Start silent!
                 )
+
+                // Tell the sound manager to fade it in over 1.2 seconds
+                car.drivingSoundId?.let {
+                    sceneManager.game.soundManager.rampUpLoopingSoundVolume(it, 2f)
+                }
             }
 
             isDriving = true

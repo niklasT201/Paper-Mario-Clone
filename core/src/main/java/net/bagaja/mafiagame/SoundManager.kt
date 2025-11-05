@@ -2,6 +2,7 @@ package net.bagaja.mafiagame
 
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.audio.Sound
+import com.badlogic.gdx.math.Interpolation
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.Disposable
@@ -105,6 +106,29 @@ class SoundManager : Disposable {
     fun setLoopingSoundPitch(instanceId: Long, pitch: Float) {
         val activeSound = activeLoopingSounds.find { it.id == instanceId }
         activeSound?.sound?.setPitch(activeSound.id, pitch.coerceIn(0.5f, 2.0f))
+    }
+
+    fun rampUpLoopingSoundVolume(instanceId: Long, duration: Float) {
+        val activeSound = activeLoopingSounds.find { it.id == instanceId } ?: return
+
+        // Use a Timer to gradually increase the volume multiplier over the specified duration
+        val steps = 20 // Number of steps for a smooth fade
+        val stepTime = duration / steps
+        var currentStep = 0
+
+        Timer.schedule(object : Timer.Task() {
+            override fun run() {
+                currentStep++
+                val progress = currentStep.toFloat() / steps
+                // Interpolate the multiplier from 0 to 1
+                activeSound.volumeMultiplier = Interpolation.fade.apply(progress)
+
+                if (currentStep >= steps) {
+                    activeSound.volumeMultiplier = 1.0f // Ensure it ends at full volume
+                    this.cancel() // Stop the timer
+                }
+            }
+        }, 0f, stepTime, steps)
     }
 
     fun update(listenerPos: Vector3) {
