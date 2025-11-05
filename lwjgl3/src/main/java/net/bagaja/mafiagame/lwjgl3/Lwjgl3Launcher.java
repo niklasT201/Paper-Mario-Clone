@@ -48,6 +48,7 @@ public class Lwjgl3Launcher {
 
 // edge houses
 // update for audio ui for weather effects
+// maybe changing footprint sounds
 // atmospheric sound
 // using new animation images
 // rusher stopping in front of the player

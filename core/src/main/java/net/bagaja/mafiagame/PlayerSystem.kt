@@ -118,10 +118,13 @@ class PlayerSystem {
         if (health > 0) {
             // Play the hurt sound before applying damage if damage will be taken
             if (finalDamage > 0) {
+                // Play the hurt sound with a slight random pitch variation
+                val randomPitch = 1.0f + (Random.nextFloat() * 0.1f - 0.05f) // Varies pitch by +/- 5%
                 sceneManager.game.soundManager.playSound(
-                    effect = SoundManager.Effect.PLAYER_HURT,
+                    id = "PLAYER_HURT",
                     position = getPosition(),
-                    reverbProfile = null // Hurt sounds are often more impactful without reverb
+                    reverbProfile = null,
+                    pitch = randomPitch
                 )
             }
 
@@ -312,6 +315,10 @@ class PlayerSystem {
         "CAR_LOCKED_V8",
         "CAR_LOCKED_V9",
         SoundManager.Effect.DOOR_LOCKED.name
+    )
+     private val footstepSoundIds = listOf(
+        "FOOTSTEP_V1", "FOOTSTEP_V2", "FOOTSTEP_V3",
+        "FOOTSTEP_V4", "FOOTSTEP_V5", "FOOTSTEP_V6"
     )
 
     fun resetWetnessFromRain() {
@@ -1755,13 +1762,15 @@ class PlayerSystem {
                 footprintSpawnTimer = 0f // Reset for the next print
 
                 // Play a footstep sound each time a footprint is due
-                sceneManager.game.soundManager.playSound(
-                    effect = SoundManager.Effect.FOOTSTEP,
-                    position = getPosition(),
-                    reverbProfile = SoundManager.DEFAULT_REVERB,
-                    maxRange = 25f,
-                    volumeMultiplier = 0.1f
-                )
+                footstepSoundIds.randomOrNull()?.let { soundId ->
+                    sceneManager.game.soundManager.playSound(
+                        id = soundId,
+                        position = getPosition(),
+                        reverbProfile = SoundManager.DEFAULT_REVERB,
+                        maxRange = 25f,
+                        volumeMultiplier = 0.4f // Make footsteps a bit quieter
+                    )
+                }
 
                 // Find the ground position directly below the player
                 val groundY = sceneManager.findHighestSupportY(physicsComponent.position.x, physicsComponent.position.z, physicsComponent.position.y, physicsComponent.size.x / 2f, blockSize)

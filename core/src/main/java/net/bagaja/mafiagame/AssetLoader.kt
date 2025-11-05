@@ -114,6 +114,13 @@ object AssetLoader {
         load("WATER_SPLASH_V9", "weather/water_splash/water_splash_nine.ogg")
         load("WATER_SPLASH_V10", "weather/water_splash/water_splash_ten.ogg")
 
+        load("FOOTSTEP_V1", "characters/player/footprint/footstep.ogg")
+        load("FOOTSTEP_V2", "characters/player/footprint/footstep_two.ogg")
+        load("FOOTSTEP_V3", "characters/player/footprint/footstep_three.ogg")
+        load("FOOTSTEP_V4", "characters/player/footprint/footstep_four.ogg")
+        load("FOOTSTEP_V5", "characters/player/footprint/footstep_five.ogg")
+        load("FOOTSTEP_V6", "characters/player/footprint/footstep_six.ogg")
+        load("PLAYER_HURT", "characters/player/damage/player_hurt.ogg")
 
         // --- Load Procedural SFX ---
         println("--- Loading Procedural Fallbacks & Effects ---")
