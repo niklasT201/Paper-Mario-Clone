@@ -633,16 +633,17 @@ class PlayerSystem {
 
                         // 2. Check if the player's visual rotation matches the intended direction.
                         val isFacingCorrectDirection = (intendedDirectionX < 0 && playerCurrentRotationY == 180f) || (intendedDirectionX > 0 && playerCurrentRotationY == 0f)
+                        val soundManager = sceneManager.game.soundManager
 
-                        // 3. The final condition to allow shooting.
-                        val canShootNow = canShoot() && !isReloading && isCurrentlyHoldingShoot && !isRotating && isFacingCorrectDirection
+                        // Case 1: Automatic Weapon
+                        if (equippedWeapon.soundIdAutomaticLoop != null) {
 
-                        if (canShootNow) {
-                            val soundManager = sceneManager.game.soundManager
-                            val isFirstShotOfBurst = justPressedShoot
+                            // 3. The final condition to allow shooting.
+                            val canShootNow = canShoot() && !isReloading && isCurrentlyHoldingShoot && !isRotating && isFacingCorrectDirection
 
-                            // Case 1: Automatic Weapon
-                            if (equippedWeapon.soundIdAutomaticLoop != null) {
+                            if (canShootNow) {
+                                val isFirstShotOfBurst = justPressedShoot
+
                                 // On the very first press of the trigger, play the distinct single-shot sound.
                                 if (isFirstShotOfBurst && equippedWeapon.soundIdSingleShot != null) {
                                     soundManager.playSound(id = equippedWeapon.soundIdSingleShot!!, position = getPosition(), reverbProfile = SoundManager.DEFAULT_REVERB)
@@ -662,55 +663,71 @@ class PlayerSystem {
                                         }
                                     }, 0.1f) // 100ms delay to let the single-shot sound be heard.
                                 }
-                            }
-                            // Case 2: Semi-Automatic Weapon (Revolver, Shotgun, etc.)
-                            else {
-                                // Only play a sound on the initial press for semi-auto weapons.
-                                if (justPressedShoot) {
-                                    // Get the specific sound ID from the equipped gun instance
-                                    val equippedInstance = getEquippedWeaponInstance()
-                                    var soundIdToPlay = equippedInstance?.soundVariationId ?: equippedWeapon.soundIdSingleShot
-                                    if (equippedWeapon.soundId == "GUNSHOT_SHOTGUN") {
-                                        val variation = Random.nextInt(1, equippedWeapon.soundVariations + 1)
-                                        soundIdToPlay = "GUNSHOT_SHOTGUN_V$variation"
-                                    }
 
-                                    if (soundIdToPlay != null) {
-                                        soundManager.playSound(id = soundIdToPlay, position = getPosition(), reverbProfile = SoundManager.DEFAULT_REVERB)
-                                    } else {
-                                        // Ultimate fallback if no sound is defined at all for this weapon.
-                                        println("WARN: No sound ID found for ${equippedWeapon.displayName}. Playing procedural fallback.")
-                                        soundManager.playSound(effect = SoundManager.Effect.GUNSHOT_REVOLVER, position = getPosition(), reverbProfile = SoundManager.DEFAULT_REVERB)
-                                    }
+                                spawnBullet()
+                                fireRateTimer = equippedWeapon.fireCooldown
+                                state = PlayerState.ATTACKING
+                                attackTimer = shootingPoseDuration
+
+                                if (currentMagazineCount <= 0 && automaticFireSoundId != null) {
+                                    sceneManager.game.soundManager.fadeOutAndStopLoopingSound(automaticFireSoundId!!, 0.2f)
+                                    automaticFireSoundId = null
+                                }
+                            } else {
+                                if (automaticFireSoundId != null) {
+                                    sceneManager.game.soundManager.stopLoopingSound(automaticFireSoundId!!)
+                                    automaticFireSoundId = null
+                                }
+                                if (justPressedShoot && !canShoot() && !isReloading) {
+                                    soundManager.playSound(id = SoundManager.Effect.RELOAD_CLICK.name, position = getPosition(), reverbProfile = null)
+                                    println("Click! (Out of ammo or empty magazine)")
+                                    checkAndRemoveWeaponIfOutOfAmmo()
                                 }
                             }
-
-                            // This function will now handle ammo reduction
-                            spawnBullet()
-                            fireRateTimer = equippedWeapon.fireCooldown
-                            state = PlayerState.ATTACKING
-                            attackTimer = shootingPoseDuration
-
-                            if (currentMagazineCount <= 0 && automaticFireSoundId != null) {
-                                sceneManager.game.soundManager.fadeOutAndStopLoopingSound(automaticFireSoundId!!, 0.2f)
-                                automaticFireSoundId = null
-                            }
                         }
+                        // Case 2: Semi-Automatic Weapon (Revolver, Shotgun, etc.)
                         else {
-                            if (automaticFireSoundId != null) {
-                                sceneManager.game.soundManager.stopLoopingSound(automaticFireSoundId!!)
-                                automaticFireSoundId = null
-                            }
+                            val canShootSemiAuto = canShoot() && !isReloading && justPressedShoot && !isRotating && isFacingCorrectDirection
+                            // Only play a sound on the initial press for semi-auto weapons.
+                            if (canShootSemiAuto) {
+                                // Get the specific sound ID from the equipped gun instance
+                                val equippedInstance = getEquippedWeaponInstance()
+                                var soundIdToPlay = equippedInstance?.soundVariationId ?: equippedWeapon.soundIdSingleShot
+                                var volumeMultiplier = 1.0f
+                                var reverb: SoundManager.ReverbProfile? = SoundManager.DEFAULT_REVERB
 
-                            // Play an "empty weapon" sound effect if a gun is equipped
-                            if (justPressedShoot && !canShoot() && !isReloading) {
-                                sceneManager.game.soundManager.playSound(
-                                    id = SoundManager.Effect.RELOAD_CLICK.name,
-                                    position = getPosition(),
-                                    reverbProfile = null // A dry click usually sounds better for this
-                                )
+                                if (equippedWeapon.soundId == "GUNSHOT_SHOTGUN") {
+                                    val variation = Random.nextInt(1, equippedWeapon.soundVariations + 1)
+                                    soundIdToPlay = "GUNSHOT_SHOTGUN_V$variation"
+                                    volumeMultiplier = 0.8f // Make shotguns a bit quieter
+                                    reverb = SoundManager.ReverbProfile( // Give shotguns a custom "boom" echo
+                                        numEchoes = 4,
+                                        delayStep = 0.12f,
+                                        volumeFalloff = 0.65f
+                                    )
+                                }
 
-                                // Player tried to shoot but couldn't (e.g., empty magazine)
+                                if (soundIdToPlay != null) {
+                                    soundManager.playSound(
+                                        id = soundIdToPlay,
+                                        position = getPosition(),
+                                        reverbProfile = reverb,
+                                        volumeMultiplier = volumeMultiplier
+                                    )
+                                } else {
+                                    // Ultimate fallback if no sound is defined at all for this weapon.
+                                    println("WARN: No sound ID found for ${equippedWeapon.displayName}. Playing procedural fallback.")
+                                    soundManager.playSound(effect = SoundManager.Effect.GUNSHOT_REVOLVER, position = getPosition(), reverbProfile = SoundManager.DEFAULT_REVERB)
+                                }
+
+                                // This function will now handle ammo reduction
+                                spawnBullet()
+                                fireRateTimer = equippedWeapon.fireCooldown
+                                state = PlayerState.ATTACKING
+                                attackTimer = shootingPoseDuration
+
+                            } else if (justPressedShoot && !canShoot() && !isReloading) {
+                                soundManager.playSound(id = SoundManager.Effect.RELOAD_CLICK.name, position = getPosition(), reverbProfile = null)
                                 println("Click! (Out of ammo or empty magazine)")
                                 checkAndRemoveWeaponIfOutOfAmmo()
                             }
