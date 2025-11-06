@@ -146,6 +146,7 @@ class HighlightSystem(private val game: MafiaGame, private val blockSize: Float)
             UIManager.Tool.NPC -> updateNPCHighlight(ray, gameNPCs, raycastSystem)
             UIManager.Tool.PARTICLE -> updateParticleHighlight(ray, particleSystem)
             UIManager.Tool.TRIGGER -> updateTriggerHighlight(ray)
+            UIManager.Tool.AUDIO_EMITTER -> updateAudioEmitterHighlight(ray)
         }
         if (uiManager.selectedTool != UIManager.Tool.INTERIOR) {
             interiorSystem.hidePreview()
@@ -659,6 +660,28 @@ class HighlightSystem(private val game: MafiaGame, private val blockSize: Float)
         if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
             // Show the highlight at the exact intersection point, slightly raised to prevent Z-fighting.
             showHighlight(tempVec3.add(0f, 0.1f, 0f), toolColors[UIManager.Tool.TRIGGER]!!)
+        } else {
+            hideHighlight()
+        }
+    }
+
+    private fun updateAudioEmitterHighlight(ray: Ray) {
+        // First, check if the ray is hitting an existing emitter to highlight it for removal/editing
+        val emitterToRemove = game.audioEmitterSystem.activeEmitters.find { Intersector.intersectRayBounds(ray, it.debugInstance.calculateBoundingBox(BoundingBox().mul(it.debugInstance.transform)), null) }
+        if (emitterToRemove != null) {
+            updateHighlightSize(Vector3(1.5f, 1.5f, 0.2f)) // Match the debug model size
+            showHighlight(emitterToRemove.position, removeColor)
+            return
+        }
+
+        // If not hitting an existing one, show a placement highlight on the ground
+        if (Intersector.intersectRayPlane(ray, groundPlane, tempVec3)) {
+            val gridX = floor(tempVec3.x / blockSize) * blockSize + blockSize / 2
+            val surfaceY = game.sceneManager.findHighestSupportY(gridX, tempVec3.z, 1000f, 0.1f, blockSize)
+            val gridZ = floor(tempVec3.z / blockSize) * blockSize + blockSize / 2
+
+            updateHighlightSize(Vector3(1.5f, 1.5f, 0.2f))
+            showHighlight(Vector3(gridX, surfaceY + 1f, gridZ), toolColors[UIManager.Tool.AUDIO_EMITTER] ?: placeColor)
         } else {
             hideHighlight()
         }

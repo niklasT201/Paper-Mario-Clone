@@ -6,6 +6,7 @@ import com.badlogic.gdx.InputAdapter
 import com.badlogic.gdx.InputMultiplexer
 import com.badlogic.gdx.math.Intersector
 import com.badlogic.gdx.math.Vector3
+import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
 import net.bagaja.mafiagame.UIManager.Tool
@@ -28,6 +29,7 @@ class InputHandler(
     lateinit var particleSystem: ParticleSystem
     lateinit var spawnerSystem: SpawnerSystem
     lateinit var teleporterSystem: TeleporterSystem
+    lateinit var audioEmitterSystem: AudioEmitterSystem
     lateinit var sceneManager: SceneManager
     lateinit var roomTemplateManager: RoomTemplateManager
     lateinit var shaderEffectManager: ShaderEffectManager
@@ -216,6 +218,7 @@ class InputHandler(
                                     }
                                     return true // Return true as the action is handled.
                                 }
+                                Tool.AUDIO_EMITTER -> audioEmitterSystem.handlePlaceAction(ray)
                             }
                             // Reset timer and track position for continuous placement
                             continuousActionTimer = 0f
@@ -270,6 +273,14 @@ class InputHandler(
                         if (game.isEditorMode) {
                             // Try to remove a block. If successful, consume the event.
                             val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+
+                            // Check for Audio Emitter right-click first
+                            val emitter = audioEmitterSystem.activeEmitters.find { Intersector.intersectRayBounds(ray, it.debugInstance.calculateBoundingBox(
+                                BoundingBox().mul(it.debugInstance.transform)), null) }
+                            if (emitter != null) {
+                                uiManager.showAudioEmitterUI(emitter)
+                                return true // Consume the click and stop further checks
+                            }
 
                             // HIGHEST PRIORITY: Check if we are right-clicking a light source that belongs to another object.
                             val lightToRemove = game.raycastSystem.getLightSourceAtRay(ray, game.lightingManager)
@@ -454,7 +465,7 @@ class InputHandler(
                                 Tool.ENEMY -> removed = enemySystem.handleRemoveAction(ray)
                                 Tool.NPC -> removed = npcSystem.handleRemoveAction(ray)
                                 Tool.TRIGGER -> removed = game.triggerSystem.removeTriggerForSelectedMission()
-                                Tool.PARTICLE -> { /* No removal action */ }
+                                Tool.PARTICLE, Tool.AUDIO_EMITTER -> { /* No removal action */ }
                             }
 
                             if (removed) {
@@ -746,6 +757,9 @@ class InputHandler(
 
                 // EDITOR MODE CHECK
                 if (game.isEditorMode) {
+                    if (keycode == Input.Keys.NUM_8) {
+                        uiManager.selectedTool = Tool.AUDIO_EMITTER
+                    }
                     if (keycode == Input.Keys.NUM_3) { // Increase Rain
                         val currentIntensity = game.weatherSystem.getRainIntensity()
                         val newIntensity = (currentIntensity + 0.1f).coerceIn(0f, 1f)
@@ -1169,6 +1183,7 @@ class InputHandler(
                                 }
                             }
                         }
+                        Tool.AUDIO_EMITTER -> audioEmitterSystem.handlePlaceAction(ray)
                     }
                     lastPlacementX = currentMouseX
                     lastPlacementY = currentMouseY
@@ -1197,7 +1212,7 @@ class InputHandler(
                         Tool.ENEMY -> removed = enemySystem.handleRemoveAction(ray)
                         Tool.NPC -> removed = npcSystem.handleRemoveAction(ray)
                         Tool.TRIGGER -> removed = game.triggerSystem.removeTriggerForSelectedMission()
-                        Tool.PLAYER, Tool.PARTICLE -> { /* No removal action */ }
+                        Tool.PLAYER, UIManager.Tool.PARTICLE, UIManager.Tool.AUDIO_EMITTER -> { /* No continuous removal action */ }
                     }
 
                     if (removed) {

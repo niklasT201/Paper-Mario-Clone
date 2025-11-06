@@ -83,6 +83,8 @@ class SoundManager : Disposable {
         println("SoundManager initialized. Load sounds using load() methods.")
     }
 
+    fun getAllSoundIds(): List<String> = loadedSounds.keys.toList()
+
     /**
      * Loads a procedural sound effect and stores it by its enum name.
      * @param effect The procedural effect to generate and load.

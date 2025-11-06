@@ -65,6 +65,23 @@ data class FireData(
     var associatedLightId: Int? = null
 )
 
+data class AudioEmitterData(
+    var id: String = "",
+    var position: Vector3 = Vector3(),
+    var soundIds: MutableList<String> = mutableListOf(), // Was soundId: String
+    var volume: Float = 1.0f,
+    var range: Float = 100f,
+    var playbackMode: EmitterPlaybackMode = EmitterPlaybackMode.LOOP_INFINITE,
+    var playlistMode: EmitterPlaylistMode = EmitterPlaylistMode.SEQUENTIAL, // NEW
+    var reactivationMode: EmitterReactivationMode = EmitterReactivationMode.AUTO_RESET, // NEW
+    var interval: Float = 1.0f, // Was oneShotInterval
+    var timedLoopDuration: Float = 30f,
+    var minPitch: Float = 1.0f,
+    var maxPitch: Float = 1.0f,
+    var sceneId: String = "WORLD",
+    var missionId: String? = null
+)
+
 data class WorldStateData(
     var blocks: GdxArray<BlockData> = GdxArray(),
     var cars: GdxArray<CarData> = GdxArray(),
@@ -80,7 +97,8 @@ data class WorldStateData(
     var parallaxImages: GdxArray<ParallaxImageData> = GdxArray(),
     var dayNightCycleTime: Float = 0f,
     var teleporters: GdxArray<TeleporterData> = GdxArray(),
-    var fires: GdxArray<FireData> = GdxArray()
+    var fires: GdxArray<FireData> = GdxArray(),
+    var audioEmitters: GdxArray<AudioEmitterData> = GdxArray()
 )
 
 data class CarPathData(

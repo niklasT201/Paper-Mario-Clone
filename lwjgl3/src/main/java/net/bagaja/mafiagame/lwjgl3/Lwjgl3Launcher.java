@@ -49,6 +49,8 @@ public class Lwjgl3Launcher {
 // edge houses
 // update for audio ui for weather effects
 // ambience steps pausing between loop
+// audio emitter for missions/world/rooms saving working
+// mission stop all sounds, stop specific sounds, all emitters paused/muted
 // maybe changing footprint sounds
 // using new animation images
 // rusher stopping in front of the player

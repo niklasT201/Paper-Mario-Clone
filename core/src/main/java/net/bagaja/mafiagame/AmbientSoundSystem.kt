@@ -55,7 +55,18 @@ class AmbientSoundSystem : Disposable {
     private val soundDefinitions = listOf(
         // --- CITY AMBIENCE ---
         AmbientSoundDefinition("AMBIENCE_CITY", (1..6).map { "CITY_AMBIENCE_V$it" }, AmbientSoundCategory.CITY, 12f, 28f, 30f, 60f, fadeOutDuration = 2.5f, minPitch = 0.95f, maxPitch = 1.05f),
-        AmbientSoundDefinition("AMBIENCE_FOOTSTEPS", listOf("FOOTSTEP_LOOP"), AmbientSoundCategory.CITY, 20f, 45f, 15f, 30f, isLoop = true, loopDuration = 5.0f, minPitch = 0.9f, maxPitch = 1.1f),
+        AmbientSoundDefinition(
+            id = "AMBIENCE_FOOTSTEPS",
+            soundFileIds = listOf("FOOTSTEP_LOOP"), // Still uses your one dedicated sound file
+            category = AmbientSoundCategory.CITY,
+            minTimeBetweenPlays = 0.6f,  // A footstep will play every 0.6 to 0.8 seconds
+            maxTimeBetweenPlays = 0.8f,
+            minSpawnRadius = 15f,
+            maxSpawnRadius = 30f,
+            isLoop = false,              // IMPORTANT: This is no longer a loop
+            minPitch = 0.85f,            // Pitch will vary between 85% (deeper) and 105% (higher)
+            maxPitch = 1.05f
+        ),
 
         // --- TRAFFIC & VEHICLE SOUNDS ---
         AmbientSoundDefinition("AMBIENCE_TRAFFIC", (1..4).map { "TRAFFIC_AMBIENCE_V$it" }, AmbientSoundCategory.TRAFFIC, 8f, 18f, 15f, 35f, fadeOutDuration = 2.0f, minPitch = 0.9f, maxPitch = 1.1f),
@@ -81,10 +92,18 @@ class AmbientSoundSystem : Disposable {
         val currentSceneType = sceneManager.currentScene
         val isInWorld = currentSceneType == SceneType.WORLD
 
-        // --- Wind State Machine ---
-        if (isInWorld) {
-            updateWindStateMachine(deltaTime, playerPos)
+        // If the player is NOT in the outside world
+        if (!isInWorld) {
+            if (activeLoopingSounds.isNotEmpty()) {
+                println("Player entered interior. Stopping all ambient sounds.")
+                activeLoopingSounds.values.forEach { soundManager.stopLoopingSound(it) }
+                activeLoopingSounds.clear()
+            }
+            return
         }
+
+        // --- Wind State Machine ---
+        updateWindStateMachine(deltaTime, playerPos)
 
         // --- Contextual Frequency Multiplier ---
         val timeOfDay = lightingManager.getDayNightCycle().getCurrentTimeOfDay()
@@ -109,26 +128,6 @@ class AmbientSoundSystem : Disposable {
             soundInstance.timer -= effectiveDeltaTime
 
             if (soundInstance.timer <= 0) {
-                // --- Special check for Ghost Footsteps ---
-                if (soundInstance.definition.id == "AMBIENCE_FOOTSTEPS") {
-                    var chanceToPlay = 0.4f // 40% base chance
-
-                    // Reduce chance at night
-                    if (timeOfDay == DayNightCycle.TimeOfDay.NIGHT) {
-                        chanceToPlay *= 0.5f // Halve the chance at night (becomes 20%)
-                    }
-
-                    // Reduce chance in heavy rain
-                    if (rainIntensity > 0.7f) {
-                        chanceToPlay *= 0.25f // Quarter the chance in heavy rain (becomes 10% or 5% on a rainy night)
-                    }
-
-                    if (Random.nextFloat() > chanceToPlay) {
-                        // The dice roll failed. Don't play the sound, just reset the timer and continue.
-                        resetTimer(soundInstance)
-                        continue
-                    }
-                }
                 playSound(soundInstance.definition, playerPos)
                 resetTimer(soundInstance)
             }

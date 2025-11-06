@@ -105,6 +105,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var soundManager: SoundManager
     lateinit var decalSystem: DecalSystem
     lateinit var waterPuddleSystem: WaterPuddleSystem
+    lateinit var audioEmitterSystem: AudioEmitterSystem
 
     override fun create() {
         // --- Part 1: Initialize Core Systems ---
@@ -113,6 +114,7 @@ class MafiaGame : ApplicationAdapter() {
         musicManager = MusicManager() // Must initialize before setting volume
         soundManager = SoundManager() // Must initialize before setting volume
         ambientSoundSystem = AmbientSoundSystem()
+        audioEmitterSystem = AudioEmitterSystem()
         musicManager.setMasterVolume(PlayerSettingsManager.current.masterVolume)
         musicManager.setMusicVolume(PlayerSettingsManager.current.musicVolume)
         soundManager.setMasterVolume(PlayerSettingsManager.current.masterVolume)
@@ -197,6 +199,8 @@ class MafiaGame : ApplicationAdapter() {
 
         // SceneManager depends on many systems, so it's created here.
         faceCullingSystem = FaceCullingSystem(blockSize)
+        weatherSystem = WeatherSystem()
+
         sceneManager = SceneManager(
             playerSystem, blockSystem, objectSystem, itemSystem, interiorSystem,
             enemySystem, npcSystem, roomTemplateManager, cameraManager, houseSystem, transitionSystem,
@@ -207,8 +211,10 @@ class MafiaGame : ApplicationAdapter() {
         pathfindingSystem = PathfindingSystem(sceneManager, blockSize, playerSystem.playerSize)
         characterPhysicsSystem = CharacterPhysicsSystem(sceneManager)
         decalSystem = DecalSystem(sceneManager)
+        teleporterSystem = TeleporterSystem(objectSystem, uiManager)
 
         // --- DEPENDENCY INJECTION FOR UIManager ---
+        audioEmitterSystem.game = this
         uiManager.blockSystem = blockSystem
         uiManager.objectSystem = objectSystem
         uiManager.itemSystem = itemSystem
@@ -225,16 +231,9 @@ class MafiaGame : ApplicationAdapter() {
         uiManager.spawnerSystem = spawnerSystem
         uiManager.dialogueManager = dialogueManager
         uiManager.dialogSystem.itemSystem = itemSystem
-        weatherSystem = WeatherSystem()
-        weatherSystem.initialize(cameraManager.camera)
-        weatherSystem.lightingManager = this.lightingManager
-        weatherSystem.particleSystem = this.particleSystem
-        weatherSystem.sceneManager = this.sceneManager
-        ambientSoundSystem.initialize(soundManager, playerSystem, sceneManager, lightingManager, weatherSystem)
+        uiManager.audioEmitterSystem = this.audioEmitterSystem
 
-        teleporterSystem = TeleporterSystem(objectSystem, uiManager)
-
-        // --- DEPENDENCY INJECTION FOR InputHandler ---
+        inputHandler.audioEmitterSystem = this.audioEmitterSystem
         inputHandler.cameraManager = cameraManager
         inputHandler.blockSystem = blockSystem
         inputHandler.objectSystem = objectSystem
@@ -254,6 +253,10 @@ class MafiaGame : ApplicationAdapter() {
         inputHandler.shaderEffectManager = shaderEffectManager
         inputHandler.carPathSystem = carPathSystem
         inputHandler.characterPathSystem = characterPathSystem
+
+        weatherSystem.lightingManager = this.lightingManager
+        weatherSystem.particleSystem = this.particleSystem
+        weatherSystem.sceneManager = this.sceneManager
 
         sceneManager.raycastSystem = this.raycastSystem
         sceneManager.teleporterSystem = this.teleporterSystem
@@ -282,6 +285,11 @@ class MafiaGame : ApplicationAdapter() {
         spawnerSystem.sceneManager = sceneManager
         bloodPoolSystem.sceneManager = sceneManager
         footprintSystem.sceneManager = sceneManager
+        waterPuddleSystem.sceneManager = sceneManager
+        playerSystem.waterPuddleSystem = this.waterPuddleSystem
+
+        ambientSoundSystem.initialize(soundManager, playerSystem, sceneManager, lightingManager, weatherSystem)
+        weatherSystem.initialize(cameraManager.camera)
 
         highlightSystem.initialize()
         targetingIndicatorSystem.initialize()
@@ -314,9 +322,6 @@ class MafiaGame : ApplicationAdapter() {
         npcSystem.initialize(blockSize, characterPhysicsSystem)
         roomTemplateManager.initialize()
         playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem, footprintSystem, characterPhysicsSystem, sceneManager)
-        playerSystem.waterPuddleSystem = this.waterPuddleSystem
-
-        waterPuddleSystem.sceneManager = sceneManager
 
         // Initialize managers that depend on initialized systems
         transitionSystem.create(cameraManager.findUiCamera())
@@ -1075,6 +1080,7 @@ class MafiaGame : ApplicationAdapter() {
                     musicManager.update(deltaTime)
                     soundManager.update(playerSystem.getControlledEntityPosition())
                     ambientSoundSystem.update(deltaTime)
+                    audioEmitterSystem.update(deltaTime)
                     val isSinCityEffect = shaderEffectManager.isEffectsEnabled && shaderEffectManager.getCurrentEffect() == ShaderEffect.SIN_CITY
 
                     lightingManager.setGrayscaleMode(isSinCityEffect)
@@ -1316,6 +1322,7 @@ class MafiaGame : ApplicationAdapter() {
                 if (isEditorMode) {
                     carPathSystem.render(cameraManager.camera)
                     characterPathSystem.render(cameraManager.camera)
+                    audioEmitterSystem.render(cameraManager.camera)
                 }
 
                 teleporterSystem.renderNameplates(cameraManager.camera, playerSystem)
@@ -1393,6 +1400,7 @@ class MafiaGame : ApplicationAdapter() {
         if (::soundManager.isInitialized) soundManager.dispose()
         if (::musicManager.isInitialized) musicManager.dispose()
         if (::ambientSoundSystem.isInitialized) ambientSoundSystem.dispose()
+        if (::audioEmitterSystem.isInitialized) audioEmitterSystem.dispose()
         if (::modelBatch.isInitialized) modelBatch.dispose()
         if (::spriteBatch.isInitialized) spriteBatch.dispose()
         if (::blockSystem.isInitialized) blockSystem.dispose()

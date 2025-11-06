@@ -143,6 +143,24 @@ object AssetLoader {
         loadMusic(soundManager, "VEHICLE_BIKE_V2", "ambience/vehicles/bikes/ambience_bike_one.ogg")
         loadMusic(soundManager, "VEHICLE_BIKE_V3", "ambience/vehicles/bikes/ambience_bike_three.ogg")
 
+        // --- MUSIC: Instruments & Voice ---
+        loadMusic(soundManager, "PIANO_1", "instruments/piano.ogg")
+        loadMusic(soundManager, "PIANO_LOOP_1", "instruments/piano_loop.ogg")
+        loadMusic(soundManager, "PIANO_LOOP_2", "instruments/piano_loop_two.ogg")
+        loadMusic(soundManager, "SAXOPHONE_1", "instruments/saxophone.ogg")
+        loadMusic(soundManager, "SAXOPHONE_LOOP_1", "instruments/saxophone_loop.ogg")
+        loadMusic(soundManager, "SAXOPHONE_2", "instruments/saxophone_two.ogg")
+        loadMusic(soundManager, "SAXOPHONE_3", "instruments/saxophone_three_part.ogg")
+        loadMusic(soundManager, "SPOOKY_LOOP", "instruments/spooky_background_music_loop.ogg")
+        loadMusic(soundManager, "VIOLIN_1", "instruments/violine.ogg")
+
+        loadMusic(soundManager, "VOICE_1", "instruments/voice/female_voice_singing.ogg")
+        loadMusic(soundManager, "VOICE_2", "instruments/voice/female_voice_singing_two.ogg")
+        loadMusic(soundManager, "VOICE_3", "instruments/voice/female_voice_singing_three.ogg")
+        loadMusic(soundManager, "VOICE_4", "instruments/voice/female_voice_singing_four.ogg")
+        loadMusic(soundManager, "VOICE_5", "instruments/voice/female_voice_singing_five.ogg")
+        loadMusic(soundManager, "VOICE_6", "instruments/voice/female_voice_singing_six.ogg")
+
         // Water Splashes
         load("WATER_SPLASH_V1", "weather/water_splash/water_splash.ogg")
         load("WATER_SPLASH_V2", "weather/water_splash/water_splash_two.ogg")

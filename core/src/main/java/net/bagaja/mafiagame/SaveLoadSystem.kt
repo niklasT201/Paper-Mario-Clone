@@ -273,6 +273,13 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     )
                 )
             }
+                game.audioEmitterSystem.activeEmitters.filter { it.missionId == null }.forEach { e ->
+                    world.audioEmitters.add(AudioEmitterData(
+                        e.id, e.position, e.soundIds, e.volume, e.range, e.playbackMode,
+                        e.playlistMode, e.reactivationMode, e.interval, e.timedLoopDuration,
+                        e.minPitch, e.maxPitch, e.sceneId
+                    ))
+                }
             }
             state.worldState = world
 
@@ -556,6 +563,10 @@ class SaveLoadSystem(private val game: MafiaGame) {
                 if (newFire != null) {
                     sm.activeObjects.add(newFire.gameObject)
                 }
+            }
+
+            state.worldState.audioEmitters.forEach { data ->
+                game.audioEmitterSystem.addEmitterFromData(data)
             }
 
             // 2. Restore Car Paths

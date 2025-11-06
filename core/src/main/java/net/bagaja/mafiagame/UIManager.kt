@@ -71,6 +71,7 @@ class UIManager(
     lateinit var particleSystem: ParticleSystem
     lateinit var spawnerSystem: SpawnerSystem
     lateinit var dialogueManager: DialogueManager
+    lateinit var audioEmitterSystem: AudioEmitterSystem
 
     private lateinit var stage: Stage
     lateinit var skin: Skin
@@ -98,6 +99,7 @@ class UIManager(
     private lateinit var characterInventoryUI: CharacterInventoryUI
     private lateinit var triggerEditorUI: TriggerEditorUI
     private lateinit var dialogueEditorUI: DialogueEditorUI
+    private lateinit var audioEmitterUI: AudioEmitterUI
     private lateinit var mainTable: Table
     private lateinit var letterboxTable: Table
     private lateinit var cinematicBarsTable: Table
@@ -200,7 +202,7 @@ class UIManager(
         private set
 
     enum class Tool {
-        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE, TRIGGER
+        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE, TRIGGER, AUDIO_EMITTER
     }
 
     lateinit var dialogSystem: DialogSystem
@@ -257,6 +259,7 @@ class UIManager(
         shaderEffectUI = ShaderEffectUI(skin, stage, shaderEffectManager); shaderEffectUI.initialize()
         visualSettingsUI = VisualSettingsUI(skin, game.cameraManager, this, game.targetingIndicatorSystem, game.trajectorySystem, game.meleeRangeIndicatorSystem, game.playerSystem)
         audioSettingsUI = AudioSettingsUI(skin, this, game.musicManager, game.soundManager)
+        audioEmitterUI = AudioEmitterUI(skin, stage, game.soundManager, audioEmitterSystem)
         enemyDebugUI = EnemyDebugUI(skin, stage)
 
         // Setup main UI
@@ -1290,6 +1293,10 @@ class UIManager(
             enemiesLeftLabel.color.a = 0f
             enemiesLeftLabel.addAction(Actions.fadeIn(0.5f))
         }
+    }
+
+    fun showAudioEmitterUI(emitter: AudioEmitter) {
+        audioEmitterUI.show(emitter)
     }
 
     // Dialog methods stay the same
