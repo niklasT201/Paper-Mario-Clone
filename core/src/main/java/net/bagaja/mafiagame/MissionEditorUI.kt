@@ -870,6 +870,17 @@ class MissionEditorUI(
         val ammoAmountField = TextField(existingEvent?.ammoAmount?.toString() ?: "0", skin).apply { messageText = "Default" }
         val rainIntensityField = TextField(existingEvent?.rainIntensity?.toString() ?: "0.8", skin)
         val rainDurationField = TextField(existingEvent?.rainDuration?.toString() ?: "", skin).apply { messageText = "Infinite" }
+        val emitterEnabledCheckbox = CheckBox(" Emitter Enabled", skin).apply { isChecked = existingEvent?.emitterIsEnabled ?: true }
+        val emitterSoundIdArea = TextArea(existingEvent?.soundIds?.joinToString("\n") ?: "", skin)
+        val emitterVolumeSlider = Slider(0f, 1f, 0.01f, false, skin).apply { value = existingEvent?.volume ?: 1.0f }
+        val emitterRangeField = TextField(existingEvent?.range?.toString() ?: "100", skin)
+        val emitterPlaybackModeSelect = SelectBox<String>(skin).apply { items = GdxArray(EmitterPlaybackMode.entries.map { it.name }.toTypedArray()); selected = existingEvent?.playbackMode?.name }
+        val emitterPlaylistModeSelect = SelectBox<String>(skin).apply { items = GdxArray(EmitterPlaylistMode.entries.map { it.name }.toTypedArray()); selected = existingEvent?.playlistMode?.name }
+        val emitterReactivationModeSelect = SelectBox<String>(skin).apply { items = GdxArray(EmitterReactivationMode.entries.map { it.name }.toTypedArray()); selected = existingEvent?.reactivationMode?.name }
+        val emitterIntervalField = TextField(existingEvent?.interval?.toString() ?: "1.0", skin)
+        val emitterTimedLoopDurationField = TextField(existingEvent?.timedLoopDuration?.toString() ?: "30", skin)
+        val emitterMinPitchField = TextField(existingEvent?.minPitch?.toString() ?: "1.0", skin)
+        val emitterMaxPitchField = TextField(existingEvent?.maxPitch?.toString() ?: "1.0", skin)
 
         // --- Layout Tables ---
         val targetIdTable = Table(skin).apply { add("Target/Spawn ID:"); add(targetIdField).growX() }
@@ -1005,7 +1016,22 @@ class MissionEditorUI(
         particleCountTable.add(Label("Max:", skin)).padRight(5f); particleCountTable.add(maxParticlesField).width(60f)
         spawnerSettingsTable.add(particleCountTable).left().padTop(5f).row()
 
-        val settingsStack = Stack(enemySettingsTable, npcSettingsTable, carSettingsTable, itemSettingsTable, moneySettingsTable, houseSettingsTable, objectSettingsTable, blockSettingsTable, dialogSettingsTable, weaponSettingsTable, weatherSettingsTable, spawnerSettingsTable)
+        val audioEmitterSettingsTable = Table(skin)
+        audioEmitterSettingsTable.add(Label("--- Modify Audio Emitter ---", skin, "title")).colspan(2).center().padBottom(5f).row()
+        audioEmitterSettingsTable.add(emitterEnabledCheckbox).colspan(2).left().row()
+        audioEmitterSettingsTable.add(Label("Sound IDs (one per line):", skin)).colspan(2).left().row()
+        audioEmitterSettingsTable.add(ScrollPane(emitterSoundIdArea, skin)).growX().height(60f).colspan(2).row()
+        audioEmitterSettingsTable.add("Volume:").left(); audioEmitterSettingsTable.add(emitterVolumeSlider).growX().row()
+        audioEmitterSettingsTable.add("Range:").left(); audioEmitterSettingsTable.add(emitterRangeField).width(100f).row()
+        audioEmitterSettingsTable.add("Playback Mode:").left(); audioEmitterSettingsTable.add(emitterPlaybackModeSelect).row()
+        audioEmitterSettingsTable.add("Playlist Mode:").left(); audioEmitterSettingsTable.add(emitterPlaylistModeSelect).row()
+        audioEmitterSettingsTable.add("Reactivation:").left(); audioEmitterSettingsTable.add(emitterReactivationModeSelect).row()
+        audioEmitterSettingsTable.add("Interval/Delay:").left(); audioEmitterSettingsTable.add(emitterIntervalField).width(100f).row()
+        audioEmitterSettingsTable.add("Timed Loop (s):").left(); audioEmitterSettingsTable.add(emitterTimedLoopDurationField).width(100f).row()
+        val emitterPitchTable = Table(); emitterPitchTable.add(Label("Pitch (Min/Max):", skin)); emitterPitchTable.add(emitterMinPitchField).width(80f); emitterPitchTable.add(emitterMaxPitchField).width(80f); audioEmitterSettingsTable.add(emitterPitchTable).colspan(2).left().row()
+
+
+        val settingsStack = Stack(enemySettingsTable, npcSettingsTable, carSettingsTable, itemSettingsTable, moneySettingsTable, houseSettingsTable, objectSettingsTable, blockSettingsTable, dialogSettingsTable, weaponSettingsTable, weatherSettingsTable, spawnerSettingsTable, audioEmitterSettingsTable)
 
         content.add("Event Type:"); content.add(typeSelect).row()
         content.add(targetIdTable).colspan(2).growX().row()
@@ -1056,6 +1082,8 @@ class MissionEditorUI(
             npcSellItemTable.isVisible = npcOutcomeType == DialogOutcomeType.SELL_ITEM_TO_PLAYER
             npcTradeItemTable.isVisible = npcOutcomeType == DialogOutcomeType.TRADE_ITEM
             npcBuyItemTable.isVisible = npcOutcomeType == DialogOutcomeType.BUY_ITEM_FROM_PLAYER
+            audioEmitterSettingsTable.isVisible = type == GameEventType.MODIFY_AUDIO_EMITTER || type == GameEventType.SPAWN_AUDIO_EMITTER
+            emitterEnabledCheckbox.isVisible = type == GameEventType.MODIFY_AUDIO_EMITTER
 
             dialog.pack()
         }
@@ -1175,6 +1203,32 @@ class MissionEditorUI(
                         rainIntensity = rainIntensityField.text.toFloatOrNull()?.coerceIn(0f, 1f),
                         rainDuration = rainDurationField.text.toFloatOrNull()
                     )
+                    GameEventType.SPAWN_AUDIO_EMITTER -> baseEvent.copy(
+                        soundIds = emitterSoundIdArea.text.split("\n").map { it.trim() }.filter { it.isNotBlank() }.toMutableList(),
+                        volume = emitterVolumeSlider.value,
+                        range = emitterRangeField.text.toFloatOrNull(),
+                        playbackMode = EmitterPlaybackMode.valueOf(emitterPlaybackModeSelect.selected),
+                        playlistMode = EmitterPlaylistMode.valueOf(emitterPlaylistModeSelect.selected),
+                        reactivationMode = EmitterReactivationMode.valueOf(emitterReactivationModeSelect.selected),
+                        interval = emitterIntervalField.text.toFloatOrNull(),
+                        timedLoopDuration = emitterTimedLoopDurationField.text.toFloatOrNull(),
+                        minPitch = emitterMinPitchField.text.toFloatOrNull(),
+                        maxPitch = emitterMaxPitchField.text.toFloatOrNull()
+                    )
+                    GameEventType.MODIFY_AUDIO_EMITTER -> baseEvent.copy(
+                        emitterIsEnabled = emitterEnabledCheckbox.isChecked,
+                        soundIds = emitterSoundIdArea.text.split("\n").map { it.trim() }.filter { it.isNotBlank() }.toMutableList(),
+                        volume = emitterVolumeSlider.value,
+                        range = emitterRangeField.text.toFloatOrNull(),
+                        playbackMode = EmitterPlaybackMode.valueOf(emitterPlaybackModeSelect.selected),
+                        playlistMode = EmitterPlaylistMode.valueOf(emitterPlaylistModeSelect.selected),
+                        reactivationMode = EmitterReactivationMode.valueOf(emitterReactivationModeSelect.selected),
+                        interval = emitterIntervalField.text.toFloatOrNull(),
+                        timedLoopDuration = emitterTimedLoopDurationField.text.toFloatOrNull(),
+                        minPitch = emitterMinPitchField.text.toFloatOrNull(),
+                        maxPitch = emitterMaxPitchField.text.toFloatOrNull()
+                    )
+
                     else -> baseEvent
                 }
                 onSave(finalEvent)
@@ -1236,6 +1290,8 @@ class MissionEditorUI(
                 val durationText = event.rainDuration?.let { "for ${it}s" } ?: "(Infinite)"
                 "SET WEATHER: Rain to %.1f %s".format(intensity, durationText)
             }
+            GameEventType.SPAWN_AUDIO_EMITTER -> "SPAWN Emitter: '${event.targetId}'"
+            GameEventType.MODIFY_AUDIO_EMITTER -> "MODIFY Emitter: '${event.targetId}'"
         }
 
         table.add(Label(text, skin)).growX()

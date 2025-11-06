@@ -70,10 +70,17 @@ class AudioEmitterSystem : Disposable {
     private val modelBatch = ModelBatch()
     private val debugModel: Model
     val activeEmitters = Array<AudioEmitter>()
+    var isVisible = false
 
     init {
         val debugMaterial = Material(ColorAttribute.createDiffuse(Color.CYAN))
         debugModel = modelBuilder.createBox(1.5f, 1.5f, 0.2f, debugMaterial, (VertexAttributes.Usage.Position).toLong())
+    }
+
+    fun toggleVisibility() {
+        isVisible = !isVisible
+        val status = if (isVisible) "ON" else "OFF"
+        game.uiManager.updatePlacementInfo("Audio Emitter Visibility: $status")
     }
 
     fun addEmitterFromData(data: AudioEmitterData): AudioEmitter {
@@ -211,7 +218,7 @@ class AudioEmitterSystem : Disposable {
 
 
     fun render(camera: Camera) {
-        if (!game.isEditorMode) return
+        if (!game.isEditorMode || !isVisible) return
         val currentSceneId = game.sceneManager.getCurrentSceneId()
 
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)

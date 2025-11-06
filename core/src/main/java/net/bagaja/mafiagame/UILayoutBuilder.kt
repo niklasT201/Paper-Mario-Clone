@@ -100,7 +100,15 @@ class UILayoutBuilder(private val skin: Skin) {
         val buttonContainer = Table()
         buttonContainer.pad(12f)
 
-        val toolType = UIToolIconFactory.ToolType.valueOf(tool.name)
+        val toolType = try {
+            UIToolIconFactory.ToolType.valueOf(tool.name)
+        } catch (e: IllegalArgumentException) {
+            // Fallback for any future tools you add to one enum but not the other
+            println("ERROR: Missing ToolType in UIToolIconFactory for '${tool.name}'. Using BLOCK as fallback.")
+            UIToolIconFactory.ToolType.BLOCK
+        }
+
+        // The rest of this function is now safe and does not need to be changed.
         val background = if (isSelected) {
             UIDesignSystem.createSelectedToolBackground(UIToolIconFactory.getToolAccentColor(toolType))
         } else {

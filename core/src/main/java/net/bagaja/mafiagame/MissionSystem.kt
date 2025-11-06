@@ -1588,6 +1588,64 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     fireSystem.nextFireMaxScale = originalMaxScale
                 }
             }
+            GameEventType.SPAWN_AUDIO_EMITTER -> {
+                if (event.spawnPosition != null) {
+                    val data = AudioEmitterData(
+                        id = event.targetId ?: UUID.randomUUID().toString(),
+                        position = event.spawnPosition,
+                        soundIds = event.soundIds ?: mutableListOf("FOOTSTEP_V1"),
+                        volume = event.volume ?: 1.0f,
+                        range = event.range ?: 100f,
+                        playbackMode = event.playbackMode ?: EmitterPlaybackMode.LOOP_INFINITE,
+                        playlistMode = event.playlistMode ?: EmitterPlaylistMode.SEQUENTIAL,
+                        reactivationMode = event.reactivationMode ?: EmitterReactivationMode.AUTO_RESET,
+                        interval = event.interval ?: 1.0f,
+                        timedLoopDuration = event.timedLoopDuration ?: 30f,
+                        minPitch = event.minPitch ?: 1.0f,
+                        maxPitch = event.maxPitch ?: 1.0f,
+                        sceneId = targetSceneId, // Use the correct scene ID
+                        missionId = missionId // Link to the mission for cleanup
+                    )
+                    game.audioEmitterSystem.addEmitterFromData(data)
+                }
+            }
+            GameEventType.MODIFY_AUDIO_EMITTER -> {
+                val emitter = game.audioEmitterSystem.activeEmitters.find { it.id == event.targetId }
+                if (emitter == null) {
+                    println("ERROR: MODIFY_AUDIO_EMITTER event failed. No emitter found with ID: ${event.targetId}")
+                    return
+                }
+
+                println("Executing MODIFY_AUDIO_EMITTER for ID: ${emitter.id}")
+
+                // Apply changes only for properties that are not null in the event
+                event.soundIds?.let { emitter.soundIds = it }
+                event.volume?.let { emitter.volume = it }
+                event.range?.let { emitter.range = it }
+                event.playbackMode?.let { emitter.playbackMode = it }
+                event.playlistMode?.let { emitter.playlistMode = it }
+                event.reactivationMode?.let { emitter.reactivationMode = it }
+                event.interval?.let { emitter.interval = it }
+                event.timedLoopDuration?.let { emitter.timedLoopDuration = it }
+                event.minPitch?.let { emitter.minPitch = it }
+                event.maxPitch?.let { emitter.maxPitch = it }
+
+                // Handle enabling/disabling
+                if (event.emitterIsEnabled != null) {
+                    // Stop any current sound if we are disabling it
+                    if (!event.emitterIsEnabled) {
+                        emitter.soundInstanceId?.let { game.soundManager.stopLoopingSound(it) }
+                        emitter.soundInstanceId = null
+                    }
+                }
+
+                // Reset the emitter's state to apply new settings immediately
+                emitter.soundInstanceId?.let { game.soundManager.stopLoopingSound(it) }
+                emitter.soundInstanceId = null
+                emitter.timer = emitter.interval // Reset timer
+                emitter.isDepleted = false
+                emitter.currentPlaylistIndex = 0
+            }
             GameEventType.DESPAWN_ENTITY -> {
                 event.targetId?.let { id ->
                     // Despawning only makes sense in the currently active scene.
@@ -1613,6 +1671,12 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     val teleporterToRemove = game.teleporterSystem.activeTeleporters.find { it.id == id }
                     if (teleporterToRemove != null) {
                         game.teleporterSystem.removeTeleporter(teleporterToRemove)
+                        wasRemoved = true
+                    }
+
+                    val emitterToRemove = game.audioEmitterSystem.activeEmitters.find { it.id == id }
+                    if (emitterToRemove != null) {
+                        game.audioEmitterSystem.removeEmitter(emitterToRemove)
                         wasRemoved = true
                     }
 

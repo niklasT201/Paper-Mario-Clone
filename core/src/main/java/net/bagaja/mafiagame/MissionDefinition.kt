@@ -258,7 +258,9 @@ enum class GameEventType {
     SPAWN_CAR_PATH_NODE,
     SPAWN_CHARACTER_PATH_NODE,
     CLEAR_INVENTORY,
-    SET_WEATHER
+    SET_WEATHER,
+    SPAWN_AUDIO_EMITTER,
+    MODIFY_AUDIO_EMITTER
 }
 
 data class GameEvent(
@@ -391,6 +393,18 @@ data class GameEvent(
     val isOneWay: Boolean = false,
     val isMissionOnly: Boolean = false,
     val missionId: String? = null,
+
+    val emitterIsEnabled: Boolean? = null,
+    val soundIds: MutableList<String>? = null,
+    val volume: Float? = null,
+    val range: Float? = null,
+    val playbackMode: EmitterPlaybackMode? = null,
+    val playlistMode: EmitterPlaylistMode? = null,
+    val reactivationMode: EmitterReactivationMode? = null,
+    val interval: Float? = null,
+    val timedLoopDuration: Float? = null,
+    val minPitch: Float? = null,
+    val maxPitch: Float? = null
 )
 
 // --- Game State (For Saving/Loading Progress) ---

@@ -103,7 +103,17 @@ data class RoomElement(
     val isOneWay: Boolean = false,
     val isMissionOnly: Boolean = false,
     val missionId: String? = null,
-    val standaloneDialog: StandaloneDialog? = null
+    val standaloneDialog: StandaloneDialog? = null,
+    val soundIds: MutableList<String>? = null,
+    val volume: Float? = null,
+    val range: Float? = null,
+    val playbackMode: EmitterPlaybackMode? = null,
+    val playlistMode: EmitterPlaylistMode? = null,
+    val reactivationMode: EmitterReactivationMode? = null,
+    val interval: Float? = null,
+    val timedLoopDuration: Float? = null,
+    val minPitch: Float? = null,
+    val maxPitch: Float? = null
 )
 
 enum class RoomElementType {
@@ -116,7 +126,8 @@ enum class RoomElementType {
     PARTICLE_SPAWNER,
     TELEPORTER,
     FIRE,
-    CHARACTER_PATH_NODE
+    CHARACTER_PATH_NODE,
+    AUDIO_EMITTER
 }
 
 data class RoomTemplate(

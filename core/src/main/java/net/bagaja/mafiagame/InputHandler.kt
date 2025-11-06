@@ -274,12 +274,29 @@ class InputHandler(
                             // Try to remove a block. If successful, consume the event.
                             val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
 
-                            // Check for Audio Emitter right-click first
-                            val emitter = audioEmitterSystem.activeEmitters.find { Intersector.intersectRayBounds(ray, it.debugInstance.calculateBoundingBox(
-                                BoundingBox().mul(it.debugInstance.transform)), null) }
-                            if (emitter != null) {
-                                uiManager.showAudioEmitterUI(emitter)
-                                return true // Consume the click and stop further checks
+                            // 1. Raycast for an emitter just ONCE using its position property.
+                            val hitEmitter = audioEmitterSystem.activeEmitters.find { emitter ->
+                                // Create a temporary bounding box in world space for the check
+                                val bounds = BoundingBox()
+                                val halfSize = 1.5f / 2f // Based on the debug model size in AudioEmitterSystem
+                                bounds.set(
+                                    emitter.position.cpy().sub(halfSize),
+                                    emitter.position.cpy().add(halfSize)
+                                )
+                                Intersector.intersectRayBounds(ray, bounds, null)
+                            }
+
+                            // 2. If we hit an emitter, decide what to do.
+                            if (hitEmitter != null) {
+                                if (game.isInspectModeEnabled) {
+                                    // 2a. Inspect Mode is ON: Copy the ID.
+                                    Gdx.app.clipboard.contents = hitEmitter.id
+                                    uiManager.showTemporaryMessage("Copied Audio Emitter ID: ${hitEmitter.id}")
+                                } else {
+                                    // 2b. Inspect Mode is OFF: Open the editor UI.
+                                    uiManager.showAudioEmitterUI(hitEmitter)
+                                }
+                                return true // Consume the click event in both cases.
                             }
 
                             // HIGHEST PRIORITY: Check if we are right-clicking a light source that belongs to another object.
@@ -900,6 +917,10 @@ class InputHandler(
                                     characterPathSystem.isVisible = !characterPathSystem.isVisible
                                     val status = if (characterPathSystem.isVisible) "ON" else "OFF"
                                     uiManager.updatePlacementInfo("Character Path Visibility: $status")
+                                    return true
+                                }
+                                if (uiManager.selectedTool == Tool.AUDIO_EMITTER) {
+                                    audioEmitterSystem.toggleVisibility()
                                     return true
                                 }
 

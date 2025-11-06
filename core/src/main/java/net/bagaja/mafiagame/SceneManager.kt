@@ -246,6 +246,16 @@ class SceneManager(
             activeSpawners.removeAll(Array(spawnersToRemove.toTypedArray()), true)
         }
 
+        val emittersToRemove = game.audioEmitterSystem.activeEmitters.filter { it.missionId == missionId }
+        if (emittersToRemove.isNotEmpty()) {
+            println("  - Removing ${emittersToRemove.size} mission audio emitters.")
+            // Create a copy to avoid modification errors while iterating
+            val emittersToRemoveCopy = Array(emittersToRemove.toTypedArray())
+            for (emitter in emittersToRemoveCopy) {
+                game.audioEmitterSystem.removeEmitter(emitter)
+            }
+        }
+
         println("--- Mission cleanup complete ---")
     }
 
@@ -1013,6 +1023,8 @@ class SceneManager(
             *game.characterPathSystem.nodes.values.filter { it.sceneId == id }.toTypedArray()
         )
 
+        currentState.audioEmitters.clear(); currentState.audioEmitters.addAll(game.audioEmitterSystem.activeEmitters)
+
         currentState.lights.clear()
         currentState.lights.putAll(game.lightingManager.getLightSources())
     }
@@ -1037,6 +1049,8 @@ class SceneManager(
         state.characterPathNodes.forEach { game.characterPathSystem.nodes[it.id] = it }
         game.carPathSystem.nodes.clear()
 
+        game.audioEmitterSystem.activeEmitters.addAll(state.audioEmitters)
+
         setSceneLights(state.lights)
     }
 
@@ -1052,6 +1066,7 @@ class SceneManager(
         val newTeleporters = Array<GameTeleporter>()
         val newCharacterPathNodes = Array<CharacterPathNode>()
         val newFires = Array<GameFire>()
+        val newAudioEmitters = Array<AudioEmitter>()
 
         println("Building interior from template: ${template.name}")
 
@@ -1346,8 +1361,27 @@ class SceneManager(
                         newCharacterPathNodes.add(node)
                     }
                 }
+                RoomElementType.AUDIO_EMITTER -> {
+                    val data = AudioEmitterData(
+                        id = element.targetId ?: UUID.randomUUID().toString(),
+                        position = element.position,
+                        soundIds = element.soundIds ?: mutableListOf("FOOTSTEP_V1"),
+                        volume = element.volume ?: 1.0f,
+                        range = element.range ?: 100f,
+                        playbackMode = element.playbackMode ?: EmitterPlaybackMode.LOOP_INFINITE,
+                        playlistMode = element.playlistMode ?: EmitterPlaylistMode.SEQUENTIAL,
+                        reactivationMode = element.reactivationMode ?: EmitterReactivationMode.AUTO_RESET,
+                        interval = element.interval ?: 1.0f,
+                        timedLoopDuration = element.timedLoopDuration ?: 30f,
+                        minPitch = element.minPitch ?: 1.0f,
+                        maxPitch = element.maxPitch ?: 1.0f,
+                        sceneId = house.id // Set the scene to the current house
+                    )
+                    newAudioEmitters.add(game.audioEmitterSystem.addEmitterFromData(data))
+                }
             }
         }
+
         // After all blocks are created, run face culling on the entire collection
         faceCullingSystem.recalculateAllFaces(newBlocks)
 
@@ -1701,6 +1735,24 @@ class SceneManager(
             ))
         }
 
+        game.audioEmitterSystem.activeEmitters.forEach { emitter ->
+            elements.add(RoomElement(
+                position = emitter.position.cpy(),
+                elementType = RoomElementType.AUDIO_EMITTER,
+                targetId = emitter.id,
+                soundIds = emitter.soundIds,
+                volume = emitter.volume,
+                range = emitter.range,
+                playbackMode = emitter.playbackMode,
+                playlistMode = emitter.playlistMode,
+                reactivationMode = emitter.reactivationMode,
+                interval = emitter.interval,
+                timedLoopDuration = emitter.timedLoopDuration,
+                minPitch = emitter.minPitch,
+                maxPitch = emitter.maxPitch
+            ))
+        }
+
         val newTemplate = RoomTemplate(
             id = id,
             name = name,
@@ -1728,6 +1780,12 @@ class SceneManager(
     fun loadTemplateIntoCurrentInterior(templateId: String) {
         if (currentScene != SceneType.HOUSE_INTERIOR) {
             println("Error: Must be in an interior to load a template.")
+            return
+        }
+
+        val houseId = currentInteriorId
+        if (houseId == null) {
+            println("Error: Cannot find current house data to load template into.")
             return
         }
 
@@ -1938,6 +1996,25 @@ class SceneManager(
                         tempPathNodes[node.id] = node // Add to temp map
                     }
                 }
+                RoomElementType.AUDIO_EMITTER -> {
+                    val data = AudioEmitterData(
+                        id = element.targetId ?: UUID.randomUUID().toString(),
+                        position = element.position,
+                        soundIds = element.soundIds ?: mutableListOf("FOOTSTEP_V1"),
+                        volume = element.volume ?: 1.0f,
+                        range = element.range ?: 100f,
+                        playbackMode = element.playbackMode ?: EmitterPlaybackMode.LOOP_INFINITE,
+                        playlistMode = element.playlistMode ?: EmitterPlaylistMode.SEQUENTIAL,
+                        reactivationMode = element.reactivationMode ?: EmitterReactivationMode.AUTO_RESET,
+                        interval = element.interval ?: 1.0f,
+                        timedLoopDuration = element.timedLoopDuration ?: 30f,
+                        minPitch = element.minPitch ?: 1.0f,
+                        maxPitch = element.maxPitch ?: 1.0f,
+                        sceneId = houseId // Assign the emitter to the current house scene
+                    )
+                    // This function adds the emitter to the active list directly.
+                    game.audioEmitterSystem.addEmitterFromData(data)
+                }
             }
         }
 
@@ -2037,7 +2114,8 @@ data class InteriorState(
     val bullets: Array<Bullet> = Array(),
     val throwables: Array<ThrowableEntity> = Array(),
     val carPathNodes: Array<CharacterPathNode> = Array(),
-    val characterPathNodes: Array<CharacterPathNode> = Array()
+    val characterPathNodes: Array<CharacterPathNode> = Array(),
+    val audioEmitters: Array<AudioEmitter> = Array()
 )
 
 data class InteriorLayout(
