@@ -69,6 +69,7 @@ class SoundManager : Disposable {
         var fadeOutDuration: Float = 1.0f
     )
 
+    private val mutedSoundIds = mutableSetOf<String>()
     private val loadedSounds = mutableMapOf<String, Sound>()
     private val activeLoopingSounds = Array<ActiveSound>()
     private val activeFadingSounds = Array<FadingOneShotSound>()
@@ -267,6 +268,11 @@ class SoundManager : Disposable {
         volumeMultiplier: Float,
         fadeOutDuration: Float? = null
     ): Long? {
+        if (id in mutedSoundIds) {
+            println("SoundManager: Suppressed playback of muted sound '$id'.")
+            return null
+        }
+
         val sound = loadedSounds[id]
         if (sound == null) {
             println("SoundManager WARN: Sound with ID '$id' not loaded.")
@@ -302,6 +308,34 @@ class SoundManager : Disposable {
             }
         }
         return null
+    }
+
+    fun stopAllSounds() {
+        println("SoundManager: Stopping all active looping sounds.")
+        val iterator = activeLoopingSounds.iterator()
+        while (iterator.hasNext()) {
+            val activeSound = iterator.next()
+            activeSound.sound.stop(activeSound.id)
+            iterator.remove()
+        }
+        // We can also stop one-shot sounds that are fading out
+        val fadingIterator = activeFadingSounds.iterator()
+        while(fadingIterator.hasNext()) {
+            val fadingSound = fadingIterator.next()
+            fadingSound.sound.stop(fadingSound.id)
+            fadingIterator.remove()
+        }
+    }
+
+    fun muteSound(soundId: String) {
+        mutedSoundIds.add(soundId)
+        // Also stop any currently playing instance of this sound
+        val soundsToStop = activeLoopingSounds.filter { it.soundId == soundId }
+        soundsToStop.forEach { stopLoopingSound(it.id) }
+    }
+
+    fun unmuteAllSounds() {
+        mutedSoundIds.clear()
     }
 
     /** Overload for stopping procedural effects. */

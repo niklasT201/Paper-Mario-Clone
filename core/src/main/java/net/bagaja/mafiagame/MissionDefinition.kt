@@ -229,7 +229,12 @@ data class MissionModifiers(
     var enemiesHaveOneHitKills: Boolean = false,
     var overrideRainIntensity: Float? = null, // e.g., 0.8 for heavy rain
     var rainDuration: Float? = null,          // in seconds, null for infinite
-    var rainStartDelay: Float? = null         // in seconds, null for immediate
+    var rainStartDelay: Float? = null, // in seconds, null for immediate
+
+    var stopAllSounds: Boolean = false,
+    var stopSpecificSounds: MutableList<String> = mutableListOf(),
+    var disableAllAudioEmitters: Boolean = false,
+    var disableEmittersWithSounds: MutableList<String> = mutableListOf()
 )
 
 // --- Events ---

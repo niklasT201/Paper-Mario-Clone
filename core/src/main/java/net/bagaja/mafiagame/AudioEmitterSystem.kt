@@ -71,6 +71,8 @@ class AudioEmitterSystem : Disposable {
     private val debugModel: Model
     val activeEmitters = Array<AudioEmitter>()
     var isVisible = false
+    var isGloballyDisabled: Boolean = false
+    private val mutedSoundIds = mutableSetOf<String>()
 
     init {
         val debugMaterial = Material(ColorAttribute.createDiffuse(Color.CYAN))
@@ -128,13 +130,35 @@ class AudioEmitterSystem : Disposable {
         activeEmitters.removeValue(emitter, true)
     }
 
+    fun setMutedSounds(soundIds: List<String>) {
+        mutedSoundIds.clear()
+        mutedSoundIds.addAll(soundIds)
+    }
+
+    fun clearMutedSounds() {
+        mutedSoundIds.clear()
+    }
+
     fun update(deltaTime: Float) {
+        // --- ADD THIS GLOBAL CHECK AT THE TOP ---
+        if (isGloballyDisabled) {
+            // If the system is disabled, make sure no emitters are playing.
+            for (emitter in activeEmitters) {
+                if (emitter.soundInstanceId != null) {
+                    game.soundManager.stopLoopingSound(emitter.soundInstanceId!!)
+                    emitter.soundInstanceId = null
+                }
+            }
+            return // Stop all further processing for this frame
+        }
+
         val playerPos = game.playerSystem.getControlledEntityPosition()
         val currentSceneId = game.sceneManager.getCurrentSceneId()
 
         for (emitter in activeEmitters) {
-            if (emitter.sceneId != currentSceneId) {
-                // If emitter is in wrong scene and playing, stop it.
+            // If emitter is in wrong scene and playing, stop it.
+            val isMuted = emitter.soundIds.any { it in mutedSoundIds }
+            if (isMuted) {
                 if (emitter.soundInstanceId != null) {
                     game.soundManager.stopLoopingSound(emitter.soundInstanceId!!)
                     emitter.soundInstanceId = null

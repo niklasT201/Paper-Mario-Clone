@@ -538,11 +538,28 @@ class MissionEditorUI(
         worldTable.add(freezeTimeCheckbox).colspan(2).left().row()
         worldTable.add(timeSliderTable).colspan(2).fillX().row()
 
-        // Assemble main layout
+        val audioTable = Table(skin)
+        audioTable.add(Label("[ORANGE]--- Audio Modifiers ---", skin)).colspan(2).left().padTop(10f).padBottom(5f).row()
+
+        val stopAllSoundsCheckbox = CheckBox(" Stop All Sounds on Start", skin).apply { isChecked = mission.modifiers.stopAllSounds }
+        val disableAllEmittersCheckbox = CheckBox(" Disable All Audio Emitters", skin).apply { isChecked = mission.modifiers.disableAllAudioEmitters }
+
+        val stopSpecificSoundsArea = TextArea(mission.modifiers.stopSpecificSounds.joinToString("\n"), skin)
+        val disableEmittersArea = TextArea(mission.modifiers.disableEmittersWithSounds.joinToString("\n"), skin)
+
+        audioTable.add(stopAllSoundsCheckbox).colspan(2).left().row()
+        audioTable.add(disableAllEmittersCheckbox).colspan(2).left().row()
+        audioTable.add(Label("Mute Specific Sound IDs (one per line):", skin)).colspan(2).left().padTop(8f).row()
+        audioTable.add(ScrollPane(stopSpecificSoundsArea, skin)).colspan(2).growX().height(60f).row()
+        audioTable.add(Label("Disable Emitters with Sound IDs (one per line):", skin)).colspan(2).left().padTop(8f).row()
+        audioTable.add(ScrollPane(disableEmittersArea, skin)).colspan(2).growX().height(60f).row()
+
+        // --- ASSEMBLE MAIN LAYOUT ---
         content.add(playerTable).top().padRight(15f)
         content.add(vehicleTable).top().padRight(15f)
-        content.add(worldTable).top().row() // Add a .row() here
-        content.add(weatherTable).top().colspan(3)
+        content.add(worldTable).top().row()
+        content.add(weatherTable).top().colspan(3).row() // Add a .row() here
+        content.add(audioTable).top().colspan(3)
 
         val scrollPane = ScrollPane(content, skin)
         scrollPane.fadeScrollBars = false
@@ -580,7 +597,6 @@ class MissionEditorUI(
                 mission.modifiers.playerHasOneHitKills = playerOneHitKills.isChecked
                 mission.modifiers.enemiesHaveOneHitKills = enemyOneHitKills.isChecked
 
-                // ADD THIS NEW LOGIC TO SAVE WEATHER MODIFIERS
                 if (overrideWeatherCheckbox.isChecked) {
                     mission.modifiers.overrideRainIntensity = intensityField.text.toFloatOrNull()?.coerceIn(0f, 1f) ?: 0f
                     mission.modifiers.rainDuration = durationField.text.toFloatOrNull()
@@ -590,6 +606,21 @@ class MissionEditorUI(
                     mission.modifiers.rainDuration = null
                     mission.modifiers.rainStartDelay = null
                 }
+
+                mission.modifiers.stopAllSounds = stopAllSoundsCheckbox.isChecked
+                mission.modifiers.disableAllAudioEmitters = disableAllEmittersCheckbox.isChecked
+
+                mission.modifiers.stopSpecificSounds = stopSpecificSoundsArea.text
+                    .split("\n")
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() }
+                    .toMutableList()
+
+                mission.modifiers.disableEmittersWithSounds = disableEmittersArea.text
+                    .split("\n")
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() }
+                    .toMutableList()
 
                 uiManager.showTemporaryMessage("Modifiers updated for '${mission.title}'")
                 dialog.hide()

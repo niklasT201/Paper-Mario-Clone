@@ -829,6 +829,27 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         activeModifiers = missionDef.modifiers
 
         activeModifiers?.let { mods ->
+            if (mods.stopAllSounds) {
+                println("Mission Modifier: Muting all sounds.")
+                game.soundManager.stopAllSounds() // This stops currently playing sounds.
+                game.musicManager.stop()
+
+                val allSoundIds = game.soundManager.getAllSoundIds()
+                allSoundIds.forEach { soundId -> game.soundManager.muteSound(soundId) }
+
+            }
+            if (mods.stopSpecificSounds.isNotEmpty()) {
+                println("Mission Modifier: Muting specific sounds: ${mods.stopSpecificSounds.joinToString()}")
+                mods.stopSpecificSounds.forEach { soundId -> game.soundManager.muteSound(soundId) }
+            }
+            if (mods.disableAllAudioEmitters) {
+                println("Mission Modifier: Disabling all audio emitters.")
+                game.audioEmitterSystem.isGloballyDisabled = true
+            }
+            if (mods.disableEmittersWithSounds.isNotEmpty()) {
+                println("Mission Modifier: Disabling emitters with sounds: ${mods.disableEmittersWithSounds.joinToString()}")
+                game.audioEmitterSystem.setMutedSounds(mods.disableEmittersWithSounds)
+            }
             if (mods.overrideRainIntensity != null) {
                 game.weatherSystem.setMissionWeather(
                     intensity = mods.overrideRainIntensity!!,
@@ -943,13 +964,25 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             playerInventorySnapshot = null // Clear the snapshot
         }
 
-        activeModifiers?.let {
+        activeModifiers?.let { mods ->
             // Reset player speed back to its default value if it was changed.
             game.playerSystem.physicsComponent.speed = game.playerSystem.basePlayerSpeed
+
+            // Re-enable systems that were disabled
+            if (mods.disableAllAudioEmitters) {
+                game.audioEmitterSystem.isGloballyDisabled = false
+            }
+            if (mods.disableEmittersWithSounds.isNotEmpty()) {
+                game.audioEmitterSystem.clearMutedSounds()
+            }
+
+            // Unmute sounds if EITHER of the muting modifiers were active.
+            if (mods.stopAllSounds || mods.stopSpecificSounds.isNotEmpty()) {
+                game.soundManager.unmuteAllSounds()
+            }
         }
 
         game.uiManager.updateEnemiesLeft(-1)
-
         game.weatherSystem.clearMissionOverride()
 
         // Deactivate modifiers when the mission ends

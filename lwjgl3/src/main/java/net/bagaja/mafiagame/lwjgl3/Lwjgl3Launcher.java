@@ -49,7 +49,6 @@ public class Lwjgl3Launcher {
 // edge houses
 // update for audio ui for weather effects
 // ambience steps pausing between loop
-// mission stop all sounds, stop specific sounds, all emitters paused/muted
 // using new animation images
 // rusher stopping in front of the player
 // fire system uses spread fire, fire or flame particle folder
