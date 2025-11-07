@@ -125,7 +125,8 @@ data class GameNPC(
     var missionId: String? = null,
     var standaloneDialog: StandaloneDialog? = null,
     var standaloneDialogCompleted: Boolean = false,
-    var scheduledForDespawn: Boolean = false
+    var scheduledForDespawn: Boolean = false,
+    @Transient var baseTexture: Texture? = null
 ) {
     var isOnFire: Boolean = false
     var onFireTimer: Float = 0f
@@ -506,6 +507,8 @@ class NPCSystem : IFinePositionable {
             standaloneDialog = config.standaloneDialog
         )
 
+        newNpc.baseTexture = npcTextures[config.npcType]
+
         newNpc.physics = PhysicsComponent(
             position = config.position.cpy(),
             size = Vector3(config.npcType.width, config.npcType.height, config.npcType.width),
@@ -564,6 +567,31 @@ class NPCSystem : IFinePositionable {
         itemsToRemove.forEach {
             sceneManager.activeItems.removeValue(it, true)
         }
+    }
+
+    fun updateNpcVisuals(npc: GameNPC) {
+        npc.modelInstance.transform.idt()
+        npc.modelInstance.transform.setTranslation(npc.position)
+
+        // For NPCs, we don't have weapon textures yet, so it's simpler
+        val baseTex = npc.baseTexture
+        if (baseTex != null) {
+            val textureToApply = npcTextures[npc.npcType] ?: baseTex
+
+            val material = npc.modelInstance.materials.first()
+            val texAttr = material.get(TextureAttribute.Diffuse) as? TextureAttribute
+            if (texAttr?.textureDescription?.texture != textureToApply) {
+                material.set(TextureAttribute.createDiffuse(textureToApply))
+            }
+
+            val baseAspect = baseTex.width.toFloat() / baseTex.height.toFloat()
+            val currentAspect = textureToApply.width.toFloat() / textureToApply.height.toFloat()
+            val scaleX = currentAspect / baseAspect
+            npc.modelInstance.transform.scale(scaleX, 1f, 1f)
+        }
+
+        npc.modelInstance.transform.rotate(Vector3.Y, npc.facingRotationY)
+        npc.modelInstance.transform.rotate(Vector3.Z, npc.wobbleAngle)
     }
 
     fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float, weatherSystem: WeatherSystem, isInInterior: Boolean) {
@@ -756,7 +784,7 @@ class NPCSystem : IFinePositionable {
             npc.wobbleAngle = npc.physics.wobbleAngle
             npc.facingRotationY = npc.physics.facingRotationY // The AI now controls this via the component
 
-            npc.updateVisuals()
+            updateNpcVisuals(npc)
         }
     }
 

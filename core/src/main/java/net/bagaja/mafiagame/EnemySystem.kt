@@ -72,7 +72,8 @@ data class GameEnemy(
     var missionId: String? = null,
     var standaloneDialog: StandaloneDialog? = null,
     var standaloneDialogCompleted: Boolean = false,
-    var scheduledForDespawn: Boolean = false
+    var scheduledForDespawn: Boolean = false,
+    @Transient var baseTexture: Texture? = null
 ) {
     fun isInteractive(): Boolean {
         return standaloneDialog?.outcome?.type != DialogOutcomeType.NONE
@@ -454,6 +455,8 @@ class EnemySystem : IFinePositionable {
         // Set current behavior from the config
         enemy.currentBehavior = config.behavior
 
+        enemy.baseTexture = enemyTextures[config.enemyType]
+
         // Add initial weapon and set ammo based on UI config
         if (config.initialWeapon != WeaponType.UNARMED) {
             val ammoInReserve = when (config.ammoSpawnMode) {
@@ -529,6 +532,36 @@ class EnemySystem : IFinePositionable {
         if (!enemy.isInCar) {
             enemy.physics.knockbackVelocity.set(force)
         }
+    }
+
+    private fun updateEnemyVisuals(enemy: GameEnemy) {
+        // 1. Determine the correct texture
+        val weaponTexture = enemyWeaponTextures[enemy.enemyType]?.get(enemy.equippedWeapon)
+        val textureToApply = weaponTexture ?: enemy.baseTexture
+
+        if (textureToApply != null) {
+            val material = enemy.modelInstance.materials.first()
+            val texAttr = material.get(TextureAttribute.Diffuse) as? TextureAttribute
+            if (texAttr?.textureDescription?.texture != textureToApply) {
+                material.set(TextureAttribute.createDiffuse(textureToApply))
+            }
+
+            // 2. Apply dynamic scaling
+            enemy.modelInstance.transform.idt() // Reset transform
+            enemy.modelInstance.transform.setTranslation(enemy.position) // Apply position
+
+            val baseTex = enemy.baseTexture
+            if (baseTex != null) {
+                val baseAspect = baseTex.width.toFloat() / baseTex.height.toFloat()
+                val currentAspect = textureToApply.width.toFloat() / textureToApply.height.toFloat()
+                val scaleX = currentAspect / baseAspect
+                enemy.modelInstance.transform.scale(scaleX, 1f, 1f)
+            }
+        }
+
+        // 3. Apply rotation and wobble
+        enemy.modelInstance.transform.rotate(Vector3.Y, enemy.facingRotationY)
+        enemy.modelInstance.transform.rotate(Vector3.Z, enemy.wobbleAngle)
     }
 
     fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float, weatherSystem: WeatherSystem, isInInterior: Boolean) {
@@ -712,7 +745,7 @@ class EnemySystem : IFinePositionable {
             enemy.facingRotationY = enemy.physics.facingRotationY
 
             // Update the enemy's visual transform.
-            enemy.updateVisuals()
+            updateEnemyVisuals(enemy)
         }
     }
 

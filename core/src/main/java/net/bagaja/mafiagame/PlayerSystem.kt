@@ -54,6 +54,8 @@ class PlayerSystem {
     lateinit var playerInstance: ModelInstance
     private var currentSeat: CarSeat? = null
     private lateinit var playerMaterial: Material
+    private var baseTextureWidth: Float = 1f
+    private var baseTextureHeight: Float = 1f
 
     // Custom shader for billboard lighting
     private lateinit var billboardShaderProvider: BillboardShaderProvider
@@ -404,14 +406,15 @@ class PlayerSystem {
 
         // Baseball Bat Animation (updated)
         animationSystem.createAnimation(
-            "attack_baseball_bat",
-            arrayOf(
+            name = "attack_baseball_bat",
+            texturePaths = arrayOf(
                 "textures/player/weapons/baseball_bat/player_baseball_bat.png",
                 "textures/player/weapons/baseball_bat/player_baseball_bat_two.png",
                 "textures/player/weapons/baseball_bat/player_baseball_bat_three.png"
             ),
-            0.15f,
-            false
+            frameDuration = 0.15f,
+            isLooping = false,
+            frameOffsetsX = floatArrayOf(0f, 0.245f, 0.34f)
         )
 
         // Knife Animation (updated)
@@ -436,7 +439,10 @@ class PlayerSystem {
         // Get initial texture from animation system
         playerTexture = animationSystem.getCurrentTexture() ?: Texture(Gdx.files.internal("textures/player/pig_character.png"))
 
-        // Create player material with the texture
+        // --- STORE BASE DIMENSIONS ---
+        baseTextureWidth = playerTexture.width.toFloat()
+        baseTextureHeight = playerTexture.height.toFloat()
+
         playerMaterial = Material(
             TextureAttribute.createDiffuse(playerTexture),
             BlendingAttribute(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA),
@@ -2937,11 +2943,34 @@ class PlayerSystem {
         // Set position
         playerInstance.transform.setTranslation(physicsComponent.position)
 
+        val currentTexture = animationSystem.getCurrentTexture() ?: playerTexture
+        val currentWidth = currentTexture.width.toFloat()
+        val currentHeight = currentTexture.height.toFloat()
+
+        // Only apply scaling if the dimensions are valid and different from the base
+        if (baseTextureWidth > 0 && baseTextureHeight > 0 && currentWidth > 0 && currentHeight > 0) {
+            val baseAspect = baseTextureWidth / baseTextureHeight
+            val currentAspect = currentWidth / currentHeight
+
+            val scaleX = currentAspect / baseAspect
+            playerInstance.transform.scale(scaleX, 1f, 1f)
+        }
+
+        // Get the offset for the current frame
+        val frameOffsetX = animationSystem.getCurrentFrameOffsetX()
+
+        // Determine the direction the player is facing
+        val facingDirection = if (playerCurrentRotationY == 180f) -1.0f else 1.0f
+
+        playerInstance.transform.translate(frameOffsetX * facingDirection, 0f, 0f)
+
         // Apply Y-axis rotation for Paper Mario effect
         playerInstance.transform.rotate(Vector3.Y, playerCurrentRotationY)
     }
 
     fun render(camera: Camera, environment: Environment) {
+        updatePlayerTransform()
+
         // Do not render the player separately if they are driving
         if (isDriving) return
         // Set the environment for the billboard shader so it knows about the lights

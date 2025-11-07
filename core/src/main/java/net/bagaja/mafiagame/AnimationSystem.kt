@@ -9,19 +9,27 @@ class AnimationSystem {
     private val animations = ObjectMap<String, Animation>()
     var currentAnimation: Animation? = null
     private var currentAnimationTime = 0f
-    private var currentTexture: Texture? = null
+    private var currentFrame: AnimationFrame? = null
 
     fun addAnimation(animation: Animation) {
         animations.put(animation.name, animation)
     }
 
-    fun createAnimation(name: String, texturePaths: kotlin.Array<String>, frameDuration: Float, isLooping: Boolean = true): Animation {
+    fun createAnimation(
+        name: String,
+        texturePaths: kotlin.Array<String>,
+        frameDuration: Float,
+        isLooping: Boolean = true,
+        frameOffsetsX: FloatArray? = null
+    ): Animation {
         val frames = Array<AnimationFrame>()
 
-        for (path in texturePaths) {
+        for (i in texturePaths.indices) {
+            val path = texturePaths[i]
             try {
                 val texture = Texture(Gdx.files.internal(path))
-                frames.add(AnimationFrame(texture, frameDuration))
+                val offsetX = frameOffsetsX?.getOrNull(i) ?: 0f
+                frames.add(AnimationFrame(texture, frameDuration, offsetX))
             } catch (e: Exception) {
                 println("Warning: Could not load texture: $path")
                 // Continue with other frames
@@ -32,7 +40,7 @@ class AnimationSystem {
             println("Error: No valid frames found for animation: $name")
             // Create a dummy animation with a fallback texture
             val fallbackTexture = Texture(Gdx.files.internal("textures/player/pig_character.png"))
-            frames.add(AnimationFrame(fallbackTexture, frameDuration))
+            frames.add(AnimationFrame(fallbackTexture, frameDuration, 0f)) // <-- Add offset here too
         }
 
         val animation = Animation(name, frames, isLooping)
@@ -55,12 +63,16 @@ class AnimationSystem {
     fun update(deltaTime: Float) {
         currentAnimation?.let { animation ->
             currentAnimationTime += deltaTime
-            currentTexture = animation.getFrameAtTime(currentAnimationTime)
+            currentFrame = animation.getFrameAtTime(currentAnimationTime)
         }
     }
 
     fun getCurrentTexture(): Texture? {
-        return currentTexture
+        return currentFrame?.texture
+    }
+
+    fun getCurrentFrameOffsetX(): Float {
+        return currentFrame?.offsetX ?: 0f
     }
 
     fun isAnimationFinished(): Boolean {
