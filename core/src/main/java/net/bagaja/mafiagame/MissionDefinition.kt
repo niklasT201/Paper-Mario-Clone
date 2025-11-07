@@ -265,7 +265,8 @@ enum class GameEventType {
     CLEAR_INVENTORY,
     SET_WEATHER,
     SPAWN_AUDIO_EMITTER,
-    MODIFY_AUDIO_EMITTER
+    MODIFY_AUDIO_EMITTER,
+    PLAY_SOUND
 }
 
 data class GameEvent(
@@ -409,7 +410,11 @@ data class GameEvent(
     val interval: Float? = null,
     val timedLoopDuration: Float? = null,
     val minPitch: Float? = null,
-    val maxPitch: Float? = null
+    val maxPitch: Float? = null,
+    val falloffMode: EmitterFalloffMode? = null,
+    val soundId: String? = null,
+    val soundVolume: Float? = null,
+    val soundPitch: Float? = null
 )
 
 // --- Game State (For Saving/Loading Progress) ---

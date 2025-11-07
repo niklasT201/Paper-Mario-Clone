@@ -20,6 +20,7 @@ class AudioEmitterUI(
     private val volumeSlider: Slider
     private val rangeField: TextField
     private val playbackModeSelect: SelectBox<String>
+    private val falloffModeSelect: SelectBox<String>
     private val playlistModeSelect: SelectBox<String>
     private val reactivationModeSelect: SelectBox<String>
     private val intervalField: TextField
@@ -38,6 +39,7 @@ class AudioEmitterUI(
         rangeField = TextField("", skin)
         playbackModeSelect = SelectBox<String>(skin).apply { items = GdxArray(EmitterPlaybackMode.entries.map { it.name }.toTypedArray()) }
         playlistModeSelect = SelectBox<String>(skin).apply { items = GdxArray(EmitterPlaylistMode.entries.map { it.name }.toTypedArray()) }
+        falloffModeSelect = SelectBox<String>(skin).apply { items = GdxArray(EmitterFalloffMode.entries.map { it.name }.toTypedArray()) }
         reactivationModeSelect = SelectBox<String>(skin).apply { items = GdxArray(EmitterReactivationMode.entries.map { it.name }.toTypedArray()) }
         intervalField = TextField("", skin)
         timedLoopDurationField = TextField("", skin)
@@ -51,6 +53,7 @@ class AudioEmitterUI(
         // *** FIX: Wrap each row in its own container Table ***
         val playbackTable = Table(); playbackTable.add(Label("Playback Mode:", skin)); playbackTable.add(playbackModeSelect); content.add(playbackTable).colspan(2).left().row()
         val playlistTable = Table(); playlistTable.add(Label("Playlist Mode:", skin)); playlistTable.add(playlistModeSelect); content.add(playlistTable).colspan(2).left().row()
+        val falloffTable = Table(); falloffTable.add(Label("Volume Falloff:", skin)); falloffTable.add(falloffModeSelect); content.add(falloffTable).colspan(2).left().row()
         val reactivationTable = Table(); reactivationTable.add(Label("Reactivation:", skin)); reactivationTable.add(reactivationModeSelect); content.add(reactivationTable).colspan(2).left().row()
         val intervalTable = Table(); intervalTable.add(Label("Interval/Delay (s):", skin)); intervalTable.add(intervalField).width(100f); content.add(intervalTable).colspan(2).left().row()
         val timedLoopTable = Table(); timedLoopTable.add(Label("Timed Loop Duration (s):", skin)); timedLoopTable.add(timedLoopDurationField).width(100f); content.add(timedLoopTable).colspan(2).left().row()
@@ -99,6 +102,7 @@ class AudioEmitterUI(
         rangeField.text = emitter.range.toString()
         playbackModeSelect.selected = emitter.playbackMode.name
         playlistModeSelect.selected = emitter.playlistMode.name
+        falloffModeSelect.selected = emitter.falloffMode.name
         reactivationModeSelect.selected = emitter.reactivationMode.name
         intervalField.text = emitter.interval.toString()
         timedLoopDurationField.text = emitter.timedLoopDuration.toString()
@@ -118,6 +122,7 @@ class AudioEmitterUI(
             it.range = rangeField.text.toFloatOrNull() ?: 100f
             it.playbackMode = EmitterPlaybackMode.valueOf(playbackModeSelect.selected)
             it.playlistMode = EmitterPlaylistMode.valueOf(playlistModeSelect.selected)
+            it.falloffMode = EmitterFalloffMode.valueOf(falloffModeSelect.selected)
             it.reactivationMode = EmitterReactivationMode.valueOf(reactivationModeSelect.selected)
             it.interval = intervalField.text.toFloatOrNull() ?: 1.0f
             it.timedLoopDuration = timedLoopDurationField.text.toFloatOrNull() ?: 30f

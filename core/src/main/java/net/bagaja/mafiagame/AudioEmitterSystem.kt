@@ -53,6 +53,7 @@ data class AudioEmitter(
     var timedLoopDuration: Float = 30f,
     var minPitch: Float = 1.0f,
     var maxPitch: Float = 1.0f,
+    var falloffMode: EmitterFalloffMode = EmitterFalloffMode.LINEAR,
 
     // --- STATE ---
     @Transient var soundInstanceId: Long? = null,
@@ -63,6 +64,11 @@ data class AudioEmitter(
     var sceneId: String = "WORLD",
     var missionId: String? = null
 )
+
+enum class EmitterFalloffMode {
+    LINEAR,  // Sound fades with distance (current behavior)
+    NONE     // Sound is at constant volume within its range
+}
 
 class AudioEmitterSystem : Disposable {
     lateinit var game: MafiaGame
@@ -100,6 +106,7 @@ class AudioEmitterSystem : Disposable {
             timedLoopDuration = data.timedLoopDuration,
             minPitch = data.minPitch,
             maxPitch = data.maxPitch,
+            falloffMode = data.falloffMode,
             sceneId = data.sceneId,
             missionId = data.missionId
         )
@@ -214,8 +221,14 @@ class AudioEmitterSystem : Disposable {
         val volume = emitter.volume * (1.0f - (Random.nextFloat() * 0.4f))
 
         val instanceId = when (emitter.playbackMode) {
-            EmitterPlaybackMode.ONE_SHOT -> game.soundManager.playSound(id = soundIdToPlay, position = emitter.position, pitch = pitch, maxRange = emitter.range, volumeMultiplier = volume)
-            EmitterPlaybackMode.LOOP_INFINITE, EmitterPlaybackMode.LOOP_TIMED -> game.soundManager.playSound(id = soundIdToPlay, position = emitter.position, loop = true, pitch = pitch, maxRange = emitter.range, volumeMultiplier = volume)
+            EmitterPlaybackMode.ONE_SHOT -> game.soundManager.playSound(
+                id = soundIdToPlay, position = emitter.position, pitch = pitch, maxRange = emitter.range,
+                volumeMultiplier = volume, falloffMode = emitter.falloffMode
+            )
+            EmitterPlaybackMode.LOOP_INFINITE, EmitterPlaybackMode.LOOP_TIMED -> game.soundManager.playSound(
+                id = soundIdToPlay, position = emitter.position, loop = true, pitch = pitch, maxRange = emitter.range,
+                volumeMultiplier = volume, falloffMode = emitter.falloffMode
+            )
         }
 
         emitter.soundInstanceId = instanceId

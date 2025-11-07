@@ -63,6 +63,8 @@ class SoundManager : Disposable {
         val id: Long,
         val soundId: String,
         val position: Vector3,
+        val maxRange: Float,
+        val falloffMode: EmitterFalloffMode,
         var volumeMultiplier: Float = 1.0f,
         var isFadingOut: Boolean = false,
         var fadeOutTimer: Float = 0f,
@@ -174,7 +176,7 @@ class SoundManager : Disposable {
             }
 
             // Calculate base volume and pan
-            val (baseVolume, pan) = calculateVolumeAndPan(activeSound.position)
+            val (baseVolume, pan) = calculateVolumeAndPan(activeSound.position, activeSound.maxRange, activeSound.falloffMode)
 
             // Calculate fade progress if the sound is fading out
             val fadeMultiplier = if (activeSound.isFadingOut) {
@@ -253,9 +255,10 @@ class SoundManager : Disposable {
         reverbProfile: ReverbProfile? = null,
         pitch: Float = 1.0f,
         volumeMultiplier: Float = 1.0f,
-        fadeOutDuration: Float? = null
+        fadeOutDuration: Float? = null,
+        falloffMode: EmitterFalloffMode = EmitterFalloffMode.LINEAR
     ): Long? {
-        return playSoundById(id, position, loop, maxRange, reverbProfile, pitch, volumeMultiplier, fadeOutDuration)
+        return playSoundById(id, position, loop, maxRange, reverbProfile, pitch, volumeMultiplier, fadeOutDuration, falloffMode)
     }
 
     private fun playSoundById(
@@ -266,7 +269,8 @@ class SoundManager : Disposable {
         reverbProfile: ReverbProfile?,
         pitch: Float,
         volumeMultiplier: Float,
-        fadeOutDuration: Float? = null
+        fadeOutDuration: Float? = null,
+        falloffMode: EmitterFalloffMode = EmitterFalloffMode.LINEAR
     ): Long? {
         if (id in mutedSoundIds) {
             println("SoundManager: Suppressed playback of muted sound '$id'.")
@@ -279,7 +283,7 @@ class SoundManager : Disposable {
             return null
         }
 
-        val (baseVolume, pan) = calculateVolumeAndPan(position, maxRange)
+        val (baseVolume, pan) = calculateVolumeAndPan(position, maxRange, falloffMode)
         val finalVolume = baseVolume * volumeMultiplier
 
         // Add a tiny bit of random pitch variation to make sounds less repetitive
@@ -290,7 +294,7 @@ class SoundManager : Disposable {
                 return null
             }
             val soundInstanceId = sound.loop(finalVolume, finalPitch, pan)
-            activeLoopingSounds.add(ActiveSound(sound, soundInstanceId, id, position))
+            activeLoopingSounds.add(ActiveSound(sound, soundInstanceId, id, position, maxRange, falloffMode))
             return soundInstanceId
         } else {
             if (finalVolume > 0.01f) {
@@ -370,16 +374,23 @@ class SoundManager : Disposable {
         sfxVolume = volume.coerceIn(0f, 1f)
     }
 
-    private fun calculateVolumeAndPan(soundPosition: Vector3, maxRange: Float = 60f): Pair<Float, Float> {
+    private fun calculateVolumeAndPan(soundPosition: Vector3, maxRange: Float = 60f, falloffMode: EmitterFalloffMode): Pair<Float, Float> {
         val distance = listenerPosition.dst(soundPosition)
-        val distanceVolume = (1.0f - (distance / maxRange)).coerceIn(0f, 1f)
 
-        // NEW: Calculate final volume by multiplying all factors
+        val distanceVolume = when (falloffMode) {
+            EmitterFalloffMode.LINEAR -> {
+                // Your original smooth fade logic
+                (1.0f - (distance / maxRange)).coerceIn(0f, 1f)
+            }
+            EmitterFalloffMode.NONE -> {
+                // New logic: 100% volume if in range, 0% if out of range
+                if (distance < maxRange) 1.0f else 0.0f
+            }
+        }
+
         val finalVolume = distanceVolume * masterVolume * sfxVolume
-
-        val direction = soundPosition.x - listenerPosition.x
-        val pan = (direction / (maxRange * 0.5f)).coerceIn(-1.0f, 1.0f)
-        return Pair(finalVolume, pan) // Return the final calculated volume
+        val pan = (soundPosition.x - listenerPosition.x) / (maxRange * 0.5f).coerceIn(-1.0f, 1.0f)
+        return Pair(finalVolume, pan)
     }
 
     private fun playEchoes(sound: Sound, initialVolume: Float, initialPan: Float, basePitch: Float, profile: ReverbProfile) {

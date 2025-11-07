@@ -277,7 +277,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     world.audioEmitters.add(AudioEmitterData(
                         e.id, e.position, e.soundIds, e.volume, e.range, e.playbackMode,
                         e.playlistMode, e.reactivationMode, e.interval, e.timedLoopDuration,
-                        e.minPitch, e.maxPitch, e.sceneId
+                        e.minPitch, e.maxPitch, e.falloffMode, e.sceneId
                     ))
                 }
             }

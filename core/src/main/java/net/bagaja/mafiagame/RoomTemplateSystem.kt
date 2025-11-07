@@ -104,6 +104,7 @@ data class RoomElement(
     val isMissionOnly: Boolean = false,
     val missionId: String? = null,
     val standaloneDialog: StandaloneDialog? = null,
+    val falloffMode: EmitterFalloffMode? = null,
     val soundIds: MutableList<String>? = null,
     val volume: Float? = null,
     val range: Float? = null,

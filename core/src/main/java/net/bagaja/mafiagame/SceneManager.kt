@@ -1375,9 +1375,11 @@ class SceneManager(
                         timedLoopDuration = element.timedLoopDuration ?: 30f,
                         minPitch = element.minPitch ?: 1.0f,
                         maxPitch = element.maxPitch ?: 1.0f,
-                        sceneId = house.id // Set the scene to the current house
+                        falloffMode = element.falloffMode ?: EmitterFalloffMode.LINEAR,
+                        sceneId = house.id
                     )
-                    newAudioEmitters.add(game.audioEmitterSystem.addEmitterFromData(data))
+                    val newEmitter = game.audioEmitterSystem.addEmitterFromData(data)
+                    newAudioEmitters.add(newEmitter)
                 }
             }
         }
@@ -1749,7 +1751,8 @@ class SceneManager(
                 interval = emitter.interval,
                 timedLoopDuration = emitter.timedLoopDuration,
                 minPitch = emitter.minPitch,
-                maxPitch = emitter.maxPitch
+                maxPitch = emitter.maxPitch,
+                falloffMode = emitter.falloffMode
             ))
         }
 

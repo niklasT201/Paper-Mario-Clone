@@ -1047,6 +1047,11 @@ class MissionEditorUI(
         particleCountTable.add(Label("Max:", skin)).padRight(5f); particleCountTable.add(maxParticlesField).width(60f)
         spawnerSettingsTable.add(particleCountTable).left().padTop(5f).row()
 
+        val emitterFalloffModeSelect = SelectBox<String>(skin).apply {
+            items = GdxArray(EmitterFalloffMode.entries.map { it.name }.toTypedArray())
+            selected = existingEvent?.falloffMode?.name
+        }
+
         val audioEmitterSettingsTable = Table(skin)
         audioEmitterSettingsTable.add(Label("--- Modify Audio Emitter ---", skin, "title")).colspan(2).center().padBottom(5f).row()
         audioEmitterSettingsTable.add(emitterEnabledCheckbox).colspan(2).left().row()
@@ -1056,13 +1061,28 @@ class MissionEditorUI(
         audioEmitterSettingsTable.add("Range:").left(); audioEmitterSettingsTable.add(emitterRangeField).width(100f).row()
         audioEmitterSettingsTable.add("Playback Mode:").left(); audioEmitterSettingsTable.add(emitterPlaybackModeSelect).row()
         audioEmitterSettingsTable.add("Playlist Mode:").left(); audioEmitterSettingsTable.add(emitterPlaylistModeSelect).row()
+        audioEmitterSettingsTable.add("Volume Falloff:").left(); audioEmitterSettingsTable.add(emitterFalloffModeSelect).row()
         audioEmitterSettingsTable.add("Reactivation:").left(); audioEmitterSettingsTable.add(emitterReactivationModeSelect).row()
         audioEmitterSettingsTable.add("Interval/Delay:").left(); audioEmitterSettingsTable.add(emitterIntervalField).width(100f).row()
         audioEmitterSettingsTable.add("Timed Loop (s):").left(); audioEmitterSettingsTable.add(emitterTimedLoopDurationField).width(100f).row()
         val emitterPitchTable = Table(); emitterPitchTable.add(Label("Pitch (Min/Max):", skin)); emitterPitchTable.add(emitterMinPitchField).width(80f); emitterPitchTable.add(emitterMaxPitchField).width(80f); audioEmitterSettingsTable.add(emitterPitchTable).colspan(2).left().row()
 
 
-        val settingsStack = Stack(enemySettingsTable, npcSettingsTable, carSettingsTable, itemSettingsTable, moneySettingsTable, houseSettingsTable, objectSettingsTable, blockSettingsTable, dialogSettingsTable, weaponSettingsTable, weatherSettingsTable, spawnerSettingsTable, audioEmitterSettingsTable)
+        val soundIdSelectBox = SelectBox<String>(skin).apply {
+            items = GdxArray(missionSystem.getAllDialogueIds().toTypedArray()) // Reusing this function is fine
+            selected = existingEvent?.soundId
+        }
+        val soundVolumeField = TextField(existingEvent?.soundVolume?.toString() ?: "1.0", skin)
+        val soundPitchField = TextField(existingEvent?.soundPitch?.toString() ?: "1.0", skin)
+
+        // --- ADD A NEW LAYOUT TABLE FOR PLAY_SOUND ---
+        val playSoundSettingsTable = Table(skin)
+        playSoundSettingsTable.add(Label("--- Play One-Shot Sound ---", skin, "title")).colspan(2).center().padBottom(5f).row()
+        playSoundSettingsTable.add("Sound ID:").left(); playSoundSettingsTable.add(soundIdSelectBox).growX().row()
+        playSoundSettingsTable.add("Volume (0-1):").left(); playSoundSettingsTable.add(soundVolumeField).width(80f).row()
+        playSoundSettingsTable.add("Pitch (0.5-2):").left(); playSoundSettingsTable.add(soundPitchField).width(80f).row()
+
+        val settingsStack = Stack(enemySettingsTable, npcSettingsTable, carSettingsTable, itemSettingsTable, moneySettingsTable, houseSettingsTable, objectSettingsTable, blockSettingsTable, dialogSettingsTable, weaponSettingsTable, weatherSettingsTable, spawnerSettingsTable, audioEmitterSettingsTable, playSoundSettingsTable)
 
         content.add("Event Type:"); content.add(typeSelect).row()
         content.add(targetIdTable).colspan(2).growX().row()
@@ -1076,7 +1096,7 @@ class MissionEditorUI(
 
             keepAfterMissionCheckbox.isVisible = isSpawn
 
-            posTable.isVisible = isSpawn || type == GameEventType.DESPAWN_BLOCK_AT_POS
+            posTable.isVisible = isSpawn || type == GameEventType.DESPAWN_BLOCK_AT_POS || type == GameEventType.PLAY_SOUND
             targetIdTable.isVisible = type in listOf(GameEventType.DESPAWN_ENTITY, GameEventType.ENABLE_SPAWNER, GameEventType.DISABLE_SPAWNER, GameEventType.LOCK_HOUSE, GameEventType.UNLOCK_HOUSE, GameEventType.SPAWN_ENEMY, GameEventType.SPAWN_NPC)
             enemySettingsTable.isVisible = type == GameEventType.SPAWN_ENEMY
             npcSettingsTable.isVisible = type == GameEventType.SPAWN_NPC
@@ -1090,6 +1110,8 @@ class MissionEditorUI(
             weaponSettingsTable.isVisible = type in listOf(GameEventType.GIVE_WEAPON, GameEventType.FORCE_EQUIP_WEAPON)
             weatherSettingsTable.isVisible = type == GameEventType.SET_WEATHER
             spawnerSettingsTable.isVisible = type == GameEventType.SPAWN_SPAWNER
+            playSoundSettingsTable.isVisible = type == GameEventType.PLAY_SOUND
+
 
             // Dynamic visibility within panels
             lightSettingsTable.isVisible = ObjectType.entries.find { it.displayName == objectTypeSelect.selected } == ObjectType.LIGHT_SOURCE
@@ -1244,7 +1266,8 @@ class MissionEditorUI(
                         interval = emitterIntervalField.text.toFloatOrNull(),
                         timedLoopDuration = emitterTimedLoopDurationField.text.toFloatOrNull(),
                         minPitch = emitterMinPitchField.text.toFloatOrNull(),
-                        maxPitch = emitterMaxPitchField.text.toFloatOrNull()
+                        maxPitch = emitterMaxPitchField.text.toFloatOrNull(),
+                        falloffMode = EmitterFalloffMode.valueOf(emitterFalloffModeSelect.selected)
                     )
                     GameEventType.MODIFY_AUDIO_EMITTER -> baseEvent.copy(
                         emitterIsEnabled = emitterEnabledCheckbox.isChecked,
@@ -1257,7 +1280,13 @@ class MissionEditorUI(
                         interval = emitterIntervalField.text.toFloatOrNull(),
                         timedLoopDuration = emitterTimedLoopDurationField.text.toFloatOrNull(),
                         minPitch = emitterMinPitchField.text.toFloatOrNull(),
-                        maxPitch = emitterMaxPitchField.text.toFloatOrNull()
+                        maxPitch = emitterMaxPitchField.text.toFloatOrNull(),
+                        falloffMode = EmitterFalloffMode.valueOf(emitterFalloffModeSelect.selected)
+                    )
+                    GameEventType.PLAY_SOUND -> baseEvent.copy(
+                        soundId = soundIdSelectBox.selected,
+                        soundVolume = soundVolumeField.text.toFloatOrNull(),
+                        soundPitch = soundPitchField.text.toFloatOrNull()
                     )
 
                     else -> baseEvent
@@ -1323,6 +1352,7 @@ class MissionEditorUI(
             }
             GameEventType.SPAWN_AUDIO_EMITTER -> "SPAWN Emitter: '${event.targetId}'"
             GameEventType.MODIFY_AUDIO_EMITTER -> "MODIFY Emitter: '${event.targetId}'"
+            GameEventType.PLAY_SOUND -> "PLAY SOUND: '${event.soundId}'"
         }
 
         table.add(Label(text, skin)).growX()
@@ -1883,6 +1913,9 @@ class MissionEditorUI(
             GameEventType.LOCK_HOUSE -> "Lock House: ${event.targetId}"
             GameEventType.UNLOCK_HOUSE -> "Unlock House: ${event.targetId}"
             GameEventType.START_DIALOG -> "Start Dialog: ${event.dialogId}"
+            GameEventType.SPAWN_AUDIO_EMITTER -> "SPAWN Emitter: '${event.targetId}'"
+            GameEventType.MODIFY_AUDIO_EMITTER -> "MODIFY Emitter: '${event.targetId}'"
+            GameEventType.PLAY_SOUND -> "PLAY SOUND: '${event.soundId}'"
             else -> event.type.name // Fallback for other types
         }
     }

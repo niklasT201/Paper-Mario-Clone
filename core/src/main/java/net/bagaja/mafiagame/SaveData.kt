@@ -72,12 +72,13 @@ data class AudioEmitterData(
     var volume: Float = 1.0f,
     var range: Float = 100f,
     var playbackMode: EmitterPlaybackMode = EmitterPlaybackMode.LOOP_INFINITE,
-    var playlistMode: EmitterPlaylistMode = EmitterPlaylistMode.SEQUENTIAL, // NEW
-    var reactivationMode: EmitterReactivationMode = EmitterReactivationMode.AUTO_RESET, // NEW
-    var interval: Float = 1.0f, // Was oneShotInterval
+    var playlistMode: EmitterPlaylistMode = EmitterPlaylistMode.SEQUENTIAL,
+    var reactivationMode: EmitterReactivationMode = EmitterReactivationMode.AUTO_RESET,
+    var interval: Float = 1.0f,
     var timedLoopDuration: Float = 30f,
     var minPitch: Float = 1.0f,
     var maxPitch: Float = 1.0f,
+    var falloffMode: EmitterFalloffMode = EmitterFalloffMode.LINEAR,
     var sceneId: String = "WORLD",
     var missionId: String? = null
 )

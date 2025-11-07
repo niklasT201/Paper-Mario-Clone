@@ -84,7 +84,6 @@ public class Lwjgl3Launcher {
 // bones can be moved by character and explosions
 // pulling out characters from vehicles
 // add event button automatically adds new event without saving button press
-// new events: PLAY_SOUND
 // fixing enemy reloading bug
 // fixing flickering character image
 // SEQUENCE, LOSE_THE_COPS, INFLUENCE_NPC, CAPTURE_TERRITORY

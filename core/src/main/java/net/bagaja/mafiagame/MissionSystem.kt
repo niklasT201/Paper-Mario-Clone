@@ -1636,6 +1636,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         timedLoopDuration = event.timedLoopDuration ?: 30f,
                         minPitch = event.minPitch ?: 1.0f,
                         maxPitch = event.maxPitch ?: 1.0f,
+                        falloffMode = event.falloffMode ?: EmitterFalloffMode.LINEAR,
                         sceneId = targetSceneId, // Use the correct scene ID
                         missionId = missionId // Link to the mission for cleanup
                     )
@@ -1662,6 +1663,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 event.timedLoopDuration?.let { emitter.timedLoopDuration = it }
                 event.minPitch?.let { emitter.minPitch = it }
                 event.maxPitch?.let { emitter.maxPitch = it }
+                event.falloffMode?.let { emitter.falloffMode = it }
 
                 // Handle enabling/disabling
                 if (event.emitterIsEnabled != null) {
@@ -1798,6 +1800,20 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     )
                 }
             }
+            GameEventType.PLAY_SOUND -> {
+                if (event.soundId != null && event.spawnPosition != null) {
+                    game.soundManager.playSound(
+                        id = event.soundId,
+                        position = event.spawnPosition,
+                        volumeMultiplier = event.soundVolume ?: 1.0f,
+                        pitch = event.soundPitch ?: 1.0f
+                    )
+                    println("Mission event played sound '${event.soundId}' at ${event.spawnPosition}")
+                } else {
+                    println("ERROR: PLAY_SOUND event is missing a soundId or spawnPosition.")
+                }
+            }
+
             else -> println("Event type ${event.type} not yet implemented.")
         }
     }
