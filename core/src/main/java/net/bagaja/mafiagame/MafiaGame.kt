@@ -1481,6 +1481,19 @@ class MafiaGame : ApplicationAdapter() {
         shaderEffectManager.resize(width, height)
     }
 
+    override fun pause() {
+        if (currentGameMode != GameMode.IN_GAME) return
+
+        if (!uiManager.isPauseMenuVisible()) {
+            println("Game window lost focus. Auto-pausing.")
+            uiManager.togglePauseMenu() // This function already handles pausing sounds and music
+        }
+    }
+
+    override fun resume() {
+        println("Game window regained focus.")
+    }
+
     override fun dispose() {
         if (::soundManager.isInitialized) soundManager.dispose()
         if (::musicManager.isInitialized) musicManager.dispose()

@@ -1703,8 +1703,14 @@ class PlayerSystem {
         // 5. The rest of the logic for animations and effects remains the same.
         isMoving = physicsComponent.isMoving
 
-        if (isMoving && !lastIsMoving) animationSystem.playAnimation("walking")
-        else if (!isMoving && lastIsMoving) animationSystem.playAnimation("idle")
+        if (state != PlayerState.ATTACKING) {
+            if (isMoving && !lastIsMoving) {
+                animationSystem.playAnimation("walking")
+            } else if (!isMoving && lastIsMoving) {
+                animationSystem.playAnimation("idle")
+            }
+        }
+
         lastIsMoving = isMoving
 
         // 6. Resolve Y-axis movement (Gravity and Grounding) with MULTI-POINT CHECK
