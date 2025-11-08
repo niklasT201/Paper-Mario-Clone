@@ -601,6 +601,7 @@ class PlayerSystem {
 
     private fun handleWeaponInput(deltaTime: Float, sceneManager: SceneManager) {
         if (isDead) return
+        if (isDriving) return
 
         // State tracking for button presses
         val isCurrentlyHoldingShoot = Gdx.input.isButtonPressed(Input.Buttons.LEFT)

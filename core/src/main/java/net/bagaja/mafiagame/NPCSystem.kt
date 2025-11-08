@@ -616,11 +616,6 @@ class NPCSystem : IFinePositionable {
                 continue // Skip the rest of the update for this despawned NPC
             }
 
-            val isObjectiveTarget = sceneManager.game.missionSystem.activeMission?.getCurrentObjective()?.completionCondition?.targetId == npc.id
-            if (playerSystem.isDriving && !npc.isInCar && !isObjectiveTarget) {
-                continue // Skip this NPC, move to the next one in the loop.
-            }
-
             // First, handle AI logic (either driving or on-foot)
             if (!finePosMode) {
                 updateAI(npc, playerPos, deltaTime, sceneManager)

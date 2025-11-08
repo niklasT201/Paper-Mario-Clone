@@ -609,11 +609,6 @@ class EnemySystem : IFinePositionable {
                 continue // Skip the rest of the update for this despawned enemy
             }
 
-            val isObjectiveTarget = sceneManager.game.missionSystem.activeMission?.getCurrentObjective()?.completionCondition?.targetId == enemy.id
-            if (playerSystem.isDriving && !enemy.isInCar && !isObjectiveTarget) {
-                continue // Skip this specific on-foot enemy, but continue the loop for others.
-            }
-
             // First, handle AI logic (either driving or on-foot)
             if (!finePosMode) {
                 updateAI(enemy, playerSystem, deltaTime, sceneManager)
