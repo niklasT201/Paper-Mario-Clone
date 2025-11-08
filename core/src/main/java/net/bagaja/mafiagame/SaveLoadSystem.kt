@@ -138,7 +138,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     e.equippedWeapon,
                     e.currentState, e.currentMagazineCount, e.provocationLevel,
                     e.standaloneDialog,
-                    e.standaloneDialogCompleted
+                    e.standaloneDialogCompleted,
+                    e.canBePulledFromCar
                 ))
             }
             sm.activeNPCs.filter { it.missionId == null }.forEach { n ->
@@ -152,7 +153,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     n.canCollectItems,
                     n.pathFollowingStyle,
                     n.standaloneDialog,
-                    n.standaloneDialogCompleted
+                    n.standaloneDialogCompleted,
+                    n.canBePulledFromCar
                 ))
             }
             sm.activeItems.filter { it.missionId == null }.forEach { i -> world.items.add(ItemData(i.id, i.itemType, i.position, i.ammo, i.value)) }
@@ -342,6 +344,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     behavior = data.behaviorType,
                     position = data.position,
                     assignedPathId = data.assignedPathId,
+                    canBePulledFromCar = data.canBePulledFromCar,
                     standaloneDialog = data.standaloneDialog
                 )
                 game.enemySystem.createEnemy(config)?.let {
@@ -370,6 +373,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     canCollectItems = data.canCollectItems,
                     pathFollowingStyle = data.pathFollowingStyle,
                     assignedPathId = data.assignedPathId,
+                    canBePulledFromCar = data.canBePulledFromCar,
                     standaloneDialog = data.standaloneDialog
                 )
                 game.npcSystem.createNPC(config)?.let {

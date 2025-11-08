@@ -290,6 +290,7 @@ data class GameEvent(
     val setAmmoValue: Int? = null,
     val weaponCollectionPolicy: WeaponCollectionPolicy? = null,
     val canCollectItems: Boolean? = null,
+    val canBePulledFromCar: Boolean? = null,
     val enemyInitialMoney: Int? = null,
 
     // NPC-specific

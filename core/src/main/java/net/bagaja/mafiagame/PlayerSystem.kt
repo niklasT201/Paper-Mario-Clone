@@ -239,7 +239,7 @@ class PlayerSystem {
         }
 
     // Animation system
-    private lateinit var animationSystem: AnimationSystem
+    lateinit var animationSystem: AnimationSystem
     private var isMoving = false
     private var lastIsMoving = false
 

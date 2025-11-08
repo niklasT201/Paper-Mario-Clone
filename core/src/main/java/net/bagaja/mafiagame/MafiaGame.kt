@@ -700,10 +700,43 @@ class MafiaGame : ApplicationAdapter() {
             when (sceneManager.currentScene) {
                 SceneType.WORLD -> {
                     val playerPos = playerSystem.getPosition()
-                    val closestCar = sceneManager.activeCars.minByOrNull { it.position.dst(playerPos) }
+                    val closestCar = sceneManager.activeCars.minByOrNull { it.position.dst2(playerPos) }
 
                     // Check if a car is found and is close enough
                     if (closestCar != null && playerPos.dst(closestCar.position) < 8f) {
+
+                        // CARJACKING
+                        val driverSeat = closestCar.seats.firstOrNull()
+                        val driver = driverSeat?.occupant
+
+                        if (driver != null) {
+                            var canPullDriver = false
+                            when (driver) {
+                                is GameEnemy -> canPullDriver = driver.canBePulledFromCar
+                                is GameNPC -> canPullDriver = driver.canBePulledFromCar
+                            }
+
+                            if (canPullDriver) {
+                                // Success! Pull the driver out.
+                                println("Player is pulling the driver out of the car!")
+
+                                val soundIdToPlay = closestCar.assignedOpenSoundId ?: "CAR_DOOR_OPEN_V1"
+                                sceneManager.game.soundManager.playSound(id = soundIdToPlay, position = closestCar.position)
+
+                                when (driver) {
+                                    is GameEnemy -> sceneManager.enemySystem.handleEjectionFromCar(driver, sceneManager)
+                                    is GameNPC -> sceneManager.npcSystem.handleEjectionFromCar(driver, sceneManager)
+                                }
+                            } else {
+                                // Failed! Driver resists.
+                                println("Driver is resisting! Can't open the door.")
+                                val soundIdToPlay = closestCar.assignedLockedSoundId ?: "CAR_LOCKED_V1"
+                                sceneManager.game.soundManager.playSound(id = soundIdToPlay, position = closestCar.position)
+                            }
+                            return // Interaction handled, stop here.
+                        }
+
+                        // If the car was empty, this logic will now correctly run
                         playerSystem.enterCar(closestCar)
                         return // Interaction handled, stop here.
                     }

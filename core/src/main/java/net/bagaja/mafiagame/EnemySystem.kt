@@ -73,6 +73,7 @@ data class GameEnemy(
     var standaloneDialog: StandaloneDialog? = null,
     var standaloneDialogCompleted: Boolean = false,
     var scheduledForDespawn: Boolean = false,
+    var canBePulledFromCar: Boolean = true,
     @Transient var baseTexture: Texture? = null
 ) {
     fun isInteractive(): Boolean {
@@ -747,6 +748,40 @@ class EnemySystem : IFinePositionable {
             // Update the enemy's visual transform.
             updateEnemyVisuals(enemy)
         }
+    }
+
+    fun handleEjectionFromCar(enemy: GameEnemy, sceneManager: SceneManager) {
+        // 1. Physically remove the enemy from the car
+        handleCarExit(enemy, sceneManager)
+
+        // 2. Set their AI state to IDLE and give them a short "stun" timer.
+        enemy.currentState = AIState.IDLE
+        enemy.stateTimer = 1.5f // 1.5 seconds of confusion
+
+        // 3. Schedule the AI to make a decision after the stun wears off.
+        com.badlogic.gdx.utils.Timer.schedule(object : com.badlogic.gdx.utils.Timer.Task() {
+            override fun run() {
+                // Check if the enemy is still alive and in the scene before making a decision
+                if (enemy.health <= 0 || !sceneManager.activeEnemies.contains(enemy, true)) return
+
+                val choice = Random.nextInt(3) // Generates 0, 1, or 2
+                when (choice) {
+                    0 -> { // Re-enter and Flee
+                        println("${enemy.enemyType.displayName} is trying to get back in the car to flee!")
+                        enemy.currentState = AIState.FLEEING
+                    }
+                    1 -> { // Fight Back
+                        println("${enemy.enemyType.displayName} is enraged and attacking the player!")
+                        enemy.currentBehavior = EnemyBehavior.AGGRESSIVE_RUSHER
+                        enemy.currentState = AIState.CHASING
+                    }
+                    else -> { // Flee on Foot
+                        println("${enemy.enemyType.displayName} is fleeing on foot!")
+                        enemy.currentState = AIState.FLEEING
+                    }
+                }
+            }
+        }, enemy.stateTimer)
     }
 
     private fun handleWeaponSwitch(enemy: GameEnemy) {

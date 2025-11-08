@@ -126,6 +126,7 @@ data class GameNPC(
     var standaloneDialog: StandaloneDialog? = null,
     var standaloneDialogCompleted: Boolean = false,
     var scheduledForDespawn: Boolean = false,
+    var canBePulledFromCar: Boolean = true,
     @Transient var baseTexture: Texture? = null
 ) {
     var isOnFire: Boolean = false
@@ -786,6 +787,44 @@ class NPCSystem : IFinePositionable {
 
             updateNpcVisuals(npc)
         }
+    }
+
+    fun handleEjectionFromCar(npc: GameNPC, sceneManager: SceneManager) {
+        // 1. Physically remove the NPC from the car
+        handleCarExit(npc, sceneManager)
+
+        // 2. Set their AI state to IDLE and give them a "stun" timer.
+        npc.currentState = NPCState.IDLE
+        npc.stateTimer = 2.0f // NPCs are a bit more confused
+
+        // 3. Schedule the AI to make a decision after the stun wears off.
+        com.badlogic.gdx.utils.Timer.schedule(object : com.badlogic.gdx.utils.Timer.Task() {
+            override fun run() {
+                if (npc.health <= 0) return
+
+                // NPCs are less aggressive than enemies
+                val choice = Random.nextInt(4) // Generates 0, 1, 2, 3
+                when (choice) {
+                    0 -> { // Re-enter and Flee (less likely)
+                        println("${npc.npcType.displayName} is trying to get back in the car.")
+                        npc.currentState = NPCState.FLEEING
+                    }
+                    1 -> { // Fight Back (only if they have a hostile reaction type)
+                        if (npc.reactionToDamage == DamageReaction.FIGHT_BACK) {
+                            println("${npc.npcType.displayName} is fighting back!")
+                            npc.currentState = NPCState.PROVOKED
+                        } else {
+                            println("${npc.npcType.displayName} is fleeing on foot.")
+                            npc.currentState = NPCState.FLEEING
+                        }
+                    }
+                    else -> { // Flee on Foot (most likely outcome)
+                        println("${npc.npcType.displayName} is fleeing on foot!")
+                        npc.currentState = NPCState.FLEEING
+                    }
+                }
+            }
+        }, npc.stateTimer)
     }
 
     fun toggleRotation() {

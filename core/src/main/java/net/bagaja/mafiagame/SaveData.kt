@@ -156,7 +156,8 @@ data class EnemyData(
     var currentMagazineCount: Int = 0,
     var provocationLevel: Float = 0f,
     var standaloneDialog: StandaloneDialog? = null,
-    var standaloneDialogCompleted: Boolean = false
+    var standaloneDialogCompleted: Boolean = false,
+    var canBePulledFromCar: Boolean = true
 )
 
 data class NpcData(
@@ -173,7 +174,8 @@ data class NpcData(
     var canCollectItems: Boolean = true,
     var pathFollowingStyle: PathFollowingStyle = PathFollowingStyle.CONTINUOUS,
     var standaloneDialog: StandaloneDialog? = null,
-    var standaloneDialogCompleted: Boolean = false
+    var standaloneDialogCompleted: Boolean = false,
+    var canBePulledFromCar: Boolean = true
 )
 
 data class ItemData(

@@ -36,6 +36,7 @@ class NPCSelectionUI(
     private val loadedTextures = mutableMapOf<String, Texture>()
     private lateinit var canCollectItemsCheckbox: CheckBox
     private lateinit var isHonestCheckbox: CheckBox
+    private lateinit var canBePulledCheckbox: CheckBox
     private lateinit var pathStyleSelectBox: SelectBox<String>
     private lateinit var pathStyleTable: Table
     private lateinit var pathIdField: TextField
@@ -178,8 +179,12 @@ class NPCSelectionUI(
         isHonestCheckbox = CheckBox(" Is Honest (Returns Items)", skin)
         isHonestCheckbox.isChecked = true // Default
 
+        canBePulledCheckbox = CheckBox(" Can be pulled from car", skin)
+        canBePulledCheckbox.isChecked = true
+
         optionsTable.add(canCollectItemsCheckbox).left().padRight(20f)
-        optionsTable.add(isHonestCheckbox).left()
+        optionsTable.add(isHonestCheckbox).left().padRight(20f)
+        optionsTable.add(canBePulledCheckbox).left()
         settingsContainer.add(optionsTable).row()
 
         // --- Standalone Interaction Section ---
@@ -300,6 +305,7 @@ class NPCSelectionUI(
             behavior = npcSystem.currentSelectedBehavior,
             position = position,
             canCollectItems = canCollectItemsCheckbox.isChecked,
+            canBePulledFromCar = canBePulledCheckbox.isChecked,
             isHonest = isHonestCheckbox.isChecked,
             pathFollowingStyle = selectedStyle,
             assignedPathId = pathId,

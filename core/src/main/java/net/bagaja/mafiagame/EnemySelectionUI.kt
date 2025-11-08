@@ -37,6 +37,7 @@ class EnemySelectionUI(
     private lateinit var maxHealthField: TextField
     private lateinit var weaponPolicySelectBox: SelectBox<String>
     private lateinit var canCollectItemsCheckbox: CheckBox
+    private lateinit var canBePulledCheckbox: CheckBox
     private lateinit var healthFieldsTable: Table
     private lateinit var initialWeaponSelectBox: SelectBox<String>
     private lateinit var ammoModeSelectBox: SelectBox<String>
@@ -259,6 +260,10 @@ class EnemySelectionUI(
         canCollectItemsCheckbox.isChecked = true
         configTable.add(canCollectItemsCheckbox).colspan(2).left().padTop(5f).row()
 
+        canBePulledCheckbox = CheckBox(" Can be pulled from car", skin)
+        canBePulledCheckbox.isChecked = true
+        configTable.add(canBePulledCheckbox).colspan(2).left().padTop(5f).row()
+
         enemyInitialMoneyField = TextField("0", skin); addUnfocusListeners(enemyInitialMoneyField)
         configTable.add(Label("Initial Money:", skin)).left().padTop(5f)
         configTable.add(enemyInitialMoneyField).width(80f).left().row()
@@ -449,6 +454,7 @@ class EnemySelectionUI(
             ammoSpawnMode = ammoMode,
             setAmmoValue = setAmmo,
             enemyInitialMoney = enemyInitialMoneyField.text.toIntOrNull() ?: 0,
+            canBePulledFromCar = canBePulledCheckbox.isChecked,
             standaloneDialog = standaloneDialog
         )
     }

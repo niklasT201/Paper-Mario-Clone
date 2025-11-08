@@ -36,6 +36,7 @@ data class EnemySpawnConfig(
     val weaponCollectionPolicy: WeaponCollectionPolicy = WeaponCollectionPolicy.CANNOT_COLLECT,
     val canCollectItems: Boolean = true,
     val assignedPathId: String? = null,
+    val canBePulledFromCar: Boolean = true,
     val standaloneDialog: StandaloneDialog? = null
 )
 
@@ -48,5 +49,6 @@ data class NPCSpawnConfig(
     val canCollectItems: Boolean = true,
     val pathFollowingStyle: PathFollowingStyle = PathFollowingStyle.CONTINUOUS,
     val assignedPathId: String? = null,
-    val standaloneDialog: StandaloneDialog? = null // <-- NEW PROPERTY
+    val canBePulledFromCar: Boolean = true,
+    val standaloneDialog: StandaloneDialog? = null
 )

@@ -1240,6 +1240,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         setAmmoValue = event.setAmmoValue ?: 30,
                         weaponCollectionPolicy = event.weaponCollectionPolicy ?: WeaponCollectionPolicy.CANNOT_COLLECT,
                         canCollectItems = event.canCollectItems ?: true,
+                        canBePulledFromCar = event.canBePulledFromCar ?: true,
                         enemyInitialMoney = event.enemyInitialMoney ?: 0,
                         standaloneDialog = event.standaloneDialog
                     )
@@ -1258,6 +1259,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         behavior = event.npcBehavior ?: NPCBehavior.STATIONARY,
                         position = event.spawnPosition,
                         id = event.targetId,
+                        canBePulledFromCar = event.canBePulledFromCar ?: true,
                         pathFollowingStyle = event.pathFollowingStyle ?: PathFollowingStyle.CONTINUOUS,
                         standaloneDialog = event.standaloneDialog
                     )

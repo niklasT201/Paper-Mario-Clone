@@ -912,6 +912,9 @@ class MissionEditorUI(
         val emitterTimedLoopDurationField = TextField(existingEvent?.timedLoopDuration?.toString() ?: "30", skin)
         val emitterMinPitchField = TextField(existingEvent?.minPitch?.toString() ?: "1.0", skin)
         val emitterMaxPitchField = TextField(existingEvent?.maxPitch?.toString() ?: "1.0", skin)
+        val canBePulledCheckbox = CheckBox(" Can be pulled from car", skin).apply {
+            isChecked = existingEvent?.canBePulledFromCar ?: true
+        }
 
         // --- Layout Tables ---
         val targetIdTable = Table(skin).apply { add("Target/Spawn ID:"); add(targetIdField).growX() }
@@ -931,13 +934,16 @@ class MissionEditorUI(
             val ammoRow = Table(skin); ammoRow.add("Ammo Mode:"); ammoRow.add(enemyAmmoModeSelectBox); ammoRow.add("Set Ammo:").padLeft(10f); ammoRow.add(enemySetAmmoField).width(80f); add(ammoRow).colspan(2).left().row()
             add("Pickup Policy:"); add(enemyWeaponCollectionPolicySelectBox).growX().row()
             add(enemyCanCollectItemsCheckbox).colspan(2).left().row()
+            add(canBePulledCheckbox).colspan(2).left().row()
             add(Label("Initial Money:", skin)).left(); add(enemyInitialMoneyField).width(80f).left().row()
         }
         val npcSettingsTable = Table(skin).apply {
-            add("NPC Type:"); add(npcTypeSelect).growX().row()
-            add("Behavior:"); add(npcBehaviorSelectBox).growX().row()
-            add("Rotation:"); add(npcRotationField).width(80f).row()
-            add("Path Style:"); add(npcPathFollowingStyleSelectBox).growX().row()
+            add("NPC Type:").left(); add(npcTypeSelect).growX().row()
+            add("Behavior:").left(); add(npcBehaviorSelectBox).growX().row()
+            add("Rotation:").left(); add(npcRotationField).width(80f).row()
+            add("Path Style:").left(); add(npcPathFollowingStyleSelectBox).growX().row()
+
+            add(canBePulledCheckbox).colspan(2).left().padTop(5f).row()
         }
         val carEnemyDriverRow = Table(skin).apply { add("Enemy Driver:"); add(carEnemyDriverTypeSelect).growX() }
         val carNpcDriverRow = Table(skin).apply { add("NPC Driver:"); add(carNpcDriverTypeSelect).growX() }
@@ -1191,6 +1197,7 @@ class MissionEditorUI(
                         setAmmoValue = enemySetAmmoField.text.toIntOrNull(),
                         weaponCollectionPolicy = WeaponCollectionPolicy.entries.find { it.displayName == enemyWeaponCollectionPolicySelectBox.selected },
                         canCollectItems = enemyCanCollectItemsCheckbox.isChecked,
+                        canBePulledFromCar = canBePulledCheckbox.isChecked,
                         enemyInitialMoney = enemyInitialMoneyField.text.toIntOrNull(),
                         standaloneDialog = dialogInfo
                     )
@@ -1199,6 +1206,7 @@ class MissionEditorUI(
                         npcBehavior = NPCBehavior.entries.find { it.displayName == npcBehaviorSelectBox.selected },
                         npcRotation = npcRotationField.text.toFloatOrNull() ?: 0f,
                         pathFollowingStyle = PathFollowingStyle.entries.find { it.displayName == npcPathFollowingStyleSelectBox.selected },
+                        canBePulledFromCar = canBePulledCheckbox.isChecked,
                         standaloneDialog = dialogInfo
                     )
                     GameEventType.SPAWN_CAR -> baseEvent.copy(
