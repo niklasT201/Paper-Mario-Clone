@@ -700,7 +700,8 @@ data class GameCar(
         val deltaZ = desiredMovement.z * moveAmount
         val horizontalDirection = if (deltaX > 0) -1f else if (deltaX < 0) 1f else 0f
 
-        updateFlipAnimation(horizontalDirection, deltaTime)
+        setTargetRotationFromInput(horizontalDirection)
+
         setDrivingAnimationState(deltaX != 0f || deltaZ != 0f)
 
         // 2. Resolve X-axis movement
@@ -1000,25 +1001,22 @@ data class GameCar(
         return newFireObjects
     }
 
-    fun updateFlipAnimation(horizontalDirection: Float, deltaTime: Float) {
+    fun setTargetRotationFromInput(horizontalDirection: Float) {
         // Only update target rotation if there's actual horizontal movement
         if (horizontalDirection != 0f && horizontalDirection != lastHorizontalDirection) {
             targetRotationY = if (horizontalDirection < 0f) 180f else 0f
             lastHorizontalDirection = horizontalDirection
         }
-
-        // Smoothly interpolate current rotation towards target rotation
-        updateVisualRotation(deltaTime)
     }
 
     private fun updateVisualRotation(deltaTime: Float) {
-        // Calculate the shortest rotation path
+        // This function ONLY handles the smooth animation. It remains unchanged.
         var rotationDifference = targetRotationY - visualRotationY
         if (rotationDifference > 180f) rotationDifference -= 360f
         else if (rotationDifference < -180f) rotationDifference += 360f
 
         if (kotlin.math.abs(rotationDifference) > 1f) {
-            isFlipping = true // Set the flag to true because we are in motion
+            isFlipping = true
             val rotationStep = rotationSpeed * deltaTime
             if (rotationDifference > 0f) {
                 visualRotationY += kotlin.math.min(rotationStep, rotationDifference)
@@ -1026,12 +1024,10 @@ data class GameCar(
                 visualRotationY += kotlin.math.max(-rotationStep, rotationDifference)
             }
 
-            // Keep rotation in 0-360 range
             if (visualRotationY >= 360f) visualRotationY -= 360f
             else if (visualRotationY < 0f) visualRotationY += 360f
         } else {
-            isFlipping = false // Set the flag to false
-            // Snap to target if close enough
+            isFlipping = false
             visualRotationY = targetRotationY
         }
     }
@@ -1049,6 +1045,8 @@ data class GameCar(
     }
 
     fun update(deltaTime: Float) {
+        updateVisualRotation(deltaTime)
+
         when (state) {
             CarState.DRIVABLE -> {
                 // Animation logic is now disabled

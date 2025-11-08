@@ -1391,9 +1391,6 @@ class PlayerSystem {
             car.drivingSoundId = null
         }
 
-        car.updateFlipAnimation(0f, 1f)
-        car.updateTransform()
-
         sceneManager.game.missionSystem.playerExitedCar(car.id)
 
         // Remove player from the car's occupant list
@@ -1544,7 +1541,7 @@ class PlayerSystem {
             sceneManager.game.soundManager.setLoopingSoundPitch(it, car.enginePitch)
         }
 
-        car.updateFlipAnimation(horizontalDirection, deltaTime)
+        car.setTargetRotationFromInput(horizontalDirection)
 
         // Tell the car to play the correct animation based on input
         car.setDrivingAnimationState(deltaX != 0f || deltaZ != 0f)

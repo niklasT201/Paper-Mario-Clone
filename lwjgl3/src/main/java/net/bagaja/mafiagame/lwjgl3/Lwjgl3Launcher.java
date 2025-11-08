@@ -55,7 +55,6 @@ public class Lwjgl3Launcher {
 // alt and tab not pausing the game
 // update for audio ui for weather effects
 // characters only follow player in a range
-// enemies and npcs knowing if a car is locked so no entering
 // ambience steps pausing between loop
 // rusher stopping in front of the player
 // fire system uses spread fire, fire or flame particle folder
