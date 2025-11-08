@@ -710,6 +710,18 @@ class MafiaGame : ApplicationAdapter() {
                         val driver = driverSeat?.occupant
 
                         if (driver != null) {
+                            val modifiers = sceneManager.game.missionSystem.activeModifiers
+                            val isCarEffectivelyLocked = closestCar.isLocked && modifiers?.allCarsUnlocked != true
+
+                            if (isCarEffectivelyLocked) {
+                                // Car is locked, play the locked sound and stop.
+                                println("Cannot pull driver out. The car is locked.")
+                                val soundIdToPlay = closestCar.assignedLockedSoundId ?: "CAR_LOCKED_V1"
+                                sceneManager.game.soundManager.playSound(id = soundIdToPlay, position = closestCar.position)
+                                return // Stop the interaction here.
+                            }
+
+                            // If the car is not locked
                             var canPullDriver = false
                             when (driver) {
                                 is GameEnemy -> canPullDriver = driver.canBePulledFromCar
@@ -737,6 +749,14 @@ class MafiaGame : ApplicationAdapter() {
                         }
 
                         // If the car was empty, this logic will now correctly run
+                        val modifiers = sceneManager.game.missionSystem.activeModifiers
+                        if (closestCar.isLocked && modifiers?.allCarsUnlocked != true) {
+                            println("This car is locked.")
+                            val soundIdToPlay = closestCar.assignedLockedSoundId ?: "CAR_LOCKED_V1"
+                            sceneManager.game.soundManager.playSound(id = soundIdToPlay, position = closestCar.position)
+                            return
+                        }
+
                         playerSystem.enterCar(closestCar)
                         return // Interaction handled, stop here.
                     }

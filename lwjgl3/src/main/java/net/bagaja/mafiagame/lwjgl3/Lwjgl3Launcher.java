@@ -49,6 +49,9 @@ public class Lwjgl3Launcher {
 // edge houses
 // update for audio ui for weather effects
 // ambience steps pausing between loop
+// player can be pulled out of the car
+// car can be locked by player
+// characters in locked car can be annoyed and unlock their car to beat player
 // rusher stopping in front of the player
 // fire system uses spread fire, fire or flame particle folder
 // blocks being visible behind transparent enemies etc.
