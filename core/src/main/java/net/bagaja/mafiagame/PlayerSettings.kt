@@ -17,7 +17,14 @@ data class PlayerSettingsData(
     var muzzleFlashLight: Boolean = true,
     var masterVolume: Float = 0.8f, // Default to 80%
     var musicVolume: Float = 0.7f,  // Default to 70%
-    var sfxVolume: Float = 0.9f     // Default to 90%
+    var sfxVolume: Float = 0.9f,     // Default to 90%
+    var playMusic: Boolean = true,
+    var playAmbience: Boolean = true,
+    var playWeather: Boolean = true,
+    var playWeapons: Boolean = true,
+    var playVehicles: Boolean = true,
+    var playCharacter: Boolean = true,
+    var playUiGeneral: Boolean = true
 )
 
 // A manager class to handle loading and saving the settings

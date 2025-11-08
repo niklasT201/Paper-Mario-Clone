@@ -28,36 +28,59 @@ class AudioSettingsUI(
     private lateinit var overlay: Image
     private var isVisible = false
 
+    // UI Elements
     lateinit var backButton: TextButton
     private lateinit var masterVolumeSlider: Slider
     private lateinit var musicVolumeSlider: Slider
     private lateinit var sfxVolumeSlider: Slider
 
+    // New Checkboxes for categories
+    private val categoryCheckboxes = mutableMapOf<SoundCategory, CheckBox>()
+
     init {
         initialize()
         setupListeners()
+        applyAllAudioSettings() // Apply settings once on initialization
+    }
+
+    /**
+     * Applies all audio settings from PlayerSettingsManager.
+     * Crucially, this should be called once when the game starts.
+     */
+    fun applyAllAudioSettings() {
+        val settings = PlayerSettingsManager.current
+
+        // Apply master volume
+        musicManager.setMasterVolume(settings.masterVolume)
+        soundManager.setMasterVolume(settings.masterVolume)
+
+        // Apply individual volumes (or mute if category is disabled)
+        musicManager.setMusicVolume(if (settings.playMusic) settings.musicVolume else 0f)
+        soundManager.setSfxVolume(settings.sfxVolume)
+
+        // Apply category mutes
+        for (category in SoundCategory.entries) {
+            val isEnabled = when (category) {
+                SoundCategory.MUSIC -> settings.playMusic
+                SoundCategory.AMBIENCE -> settings.playAmbience
+                SoundCategory.WEATHER -> settings.playWeather
+                SoundCategory.WEAPONS -> settings.playWeapons
+                SoundCategory.VEHICLES -> settings.playVehicles
+                SoundCategory.CHARACTER -> settings.playCharacter
+                SoundCategory.UI_GENERAL -> settings.playUiGeneral
+            }
+            val ids = SoundCategoryManager.getSoundIdsForCategory(category)
+            if (isEnabled) {
+                soundManager.unmuteCategory(ids)
+            } else {
+                soundManager.muteCategory(ids)
+            }
+        }
     }
 
     private fun initialize() {
         createSmokyOverlay()
         createNewspaperSettings()
-    }
-
-    private fun createSmokyOverlay() {
-        val pixmap = Pixmap(100, 100, Pixmap.Format.RGBA8888)
-        for (y in 0 until 100) {
-            for (x in 0 until 100) {
-                val waveEffect = sin((x + y) * 0.1) * 0.1f
-                val smokeIntensity = (y / 100f) * 0.4f + waveEffect
-                val alpha = 0.7f + smokeIntensity
-                pixmap.setColor(0.1f, 0.08f, 0.06f, alpha.coerceIn(0.0, 0.85).toFloat())
-                pixmap.drawPixel(x, y)
-            }
-        }
-        overlay = Image(Texture(pixmap))
-        pixmap.dispose()
-        overlay.setFillParent(true)
-        overlay.isVisible = false
     }
 
     private fun createNewspaperSettings() {
@@ -66,49 +89,38 @@ class AudioSettingsUI(
         mainContainer.center()
         mainContainer.isVisible = false
 
-        // Main newspaper/wanted poster container
         val newspaperTable = Table()
         newspaperTable.background = createNewspaperBackground()
         newspaperTable.pad(50f, 60f, 40f, 60f)
 
-        // Vintage header with art deco styling
         val headerTable = Table()
         headerTable.add(createArtDecoDecoration("left")).padRight(25f)
-
         val titleLabel = Label("⦿ AUDIO SETTINGS ⦿", skin, "title")
         titleLabel.setAlignment(Align.center)
-        titleLabel.color = Color.valueOf("#1A0F0A") // Dark ink black
+        titleLabel.color = Color.valueOf("#1A0F0A")
         headerTable.add(titleLabel)
-
         headerTable.add(createArtDecoDecoration("right")).padLeft(25f)
-
         newspaperTable.add(headerTable).padBottom(35f).row()
 
-        // Vintage subtitle
         val subtitleLabel = Label("~ Tune Your Listening Experience ~", skin, "default")
         subtitleLabel.setAlignment(Align.center)
         subtitleLabel.color = Color.valueOf("#3D2817")
         newspaperTable.add(subtitleLabel).padBottom(30f).row()
 
-        // Settings section with vintage newspaper styling
         val scrollContentTable = Table()
         scrollContentTable.pad(25f)
 
-        // Settings header
-        val settingsHeaderLabel = Label("═══ VOLUME CONTROLS ═══", skin, "default")
-        settingsHeaderLabel.setAlignment(Align.center)
-        settingsHeaderLabel.color = Color.valueOf("#2C1810")
-        scrollContentTable.add(settingsHeaderLabel).padBottom(20f).row()
+        // --- VOLUME CONTROLS ---
+        scrollContentTable.add(Label("═══ VOLUME CONTROLS ═══", skin, "default").apply {
+            setAlignment(Align.center); color = Color.valueOf("#2C1810")
+        }).padBottom(20f).row()
 
-        // Sliders section
         val slidersTable = Table()
         slidersTable.defaults().left().padBottom(15f)
-
         masterVolumeSlider = Slider(0f, 1f, 0.01f, false, skin)
         musicVolumeSlider = Slider(0f, 1f, 0.01f, false, skin)
         sfxVolumeSlider = Slider(0f, 1f, 0.01f, false, skin)
-
-        val labelColor = Color.valueOf("#3D2817") // A dark, thematic brown from your subtitle
+        val labelColor = Color.valueOf("#3D2817")
 
         slidersTable.add(Label("Master Volume", skin, "default").also { it.color = labelColor }).left().row()
         slidersTable.add(masterVolumeSlider).width(320f).padBottom(20f).row()
@@ -118,32 +130,42 @@ class AudioSettingsUI(
 
         slidersTable.add(Label("Sound FX Volume", skin, "default").also { it.color = labelColor }).left().row()
         slidersTable.add(sfxVolumeSlider).width(320f).row()
+        scrollContentTable.add(slidersTable).fillX().padBottom(30f).row()
 
-        scrollContentTable.add(slidersTable).fillX().row()
+        // --- CATEGORY TOGGLES ---
+        scrollContentTable.add(Label("═══ CATEGORY TOGGLES ═══", skin, "default").apply {
+            setAlignment(Align.center); color = Color.valueOf("#2C1810")
+        }).padBottom(20f).row()
 
-        // Create the ScrollPane and put the scrollContentTable inside it
+        val categoriesTable = Table()
+        categoriesTable.defaults().left().padBottom(10f)
+        var count = 0
+        for (category in SoundCategory.entries) {
+            val checkbox = createVintageCheckbox(" ${category.displayName}")
+            categoryCheckboxes[category] = checkbox
+
+            // Add the checkbox to a cell and explicitly align it to the left
+            categoriesTable.add(checkbox).width(180f).left()
+
+            if (++count % 2 == 0) categoriesTable.row()
+        }
+        scrollContentTable.add(categoriesTable).fillX().row()
+
         val scrollPane = ScrollPane(scrollContentTable, skin, "vintage-newspaper")
         scrollPane.setScrollingDisabled(true, false)
         scrollPane.fadeScrollBars = false
-        scrollPane.variableSizeKnobs = false
+        newspaperTable.add(scrollPane).width(420f).height(450f).padBottom(25f).row() // Increased height
 
-        newspaperTable.add(scrollPane).width(420f).height(350f).padBottom(25f).row()
-
-        // Back button with vintage styling
         backButton = createVintageButton("⬅ RETURN TO PAUSE MENU ⬅", Color.valueOf("#8B0000"))
         newspaperTable.add(backButton).width(320f).height(50f).row()
 
-        // Bottom art deco decoration
-        val bottomDecoration = createBottomBanner()
-        newspaperTable.add(bottomDecoration).padTop(20f)
-
+        newspaperTable.add(createBottomBanner()).padTop(20f)
         mainContainer.add(newspaperTable)
     }
 
     private fun setupListeners() {
         backButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
-                PlayerSettingsManager.save()
                 uiManager.returnToPauseMenu()
             }
         })
@@ -152,22 +174,20 @@ class AudioSettingsUI(
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 when (actor) {
                     masterVolumeSlider -> {
-                        musicManager.setMasterVolume(masterVolumeSlider.value)
-                        soundManager.setMasterVolume(masterVolumeSlider.value)
                         PlayerSettingsManager.current.masterVolume = masterVolumeSlider.value
                     }
                     musicVolumeSlider -> {
-                        musicManager.setMusicVolume(musicVolumeSlider.value)
                         PlayerSettingsManager.current.musicVolume = musicVolumeSlider.value
                     }
                     sfxVolumeSlider -> {
-                        soundManager.setSfxVolume(sfxVolumeSlider.value)
                         PlayerSettingsManager.current.sfxVolume = sfxVolumeSlider.value
                     }
                 }
+                applyAllAudioSettings() // Re-apply all settings whenever a slider moves
             }
         }
 
+        // Save settings when the user releases the slider
         val saveOnUpListener = object : ClickListener() {
             override fun touchUp(event: InputEvent?, x: Float, y: Float, pointer: Int, button: Int) {
                 super.touchUp(event, x, y, pointer, button)
@@ -178,16 +198,43 @@ class AudioSettingsUI(
         masterVolumeSlider.addListener(sliderListener)
         musicVolumeSlider.addListener(sliderListener)
         sfxVolumeSlider.addListener(sliderListener)
-
         masterVolumeSlider.addListener(saveOnUpListener)
         musicVolumeSlider.addListener(saveOnUpListener)
         sfxVolumeSlider.addListener(saveOnUpListener)
+
+        // Add listeners for the new category checkboxes
+        for ((category, checkbox) in categoryCheckboxes) {
+            checkbox.addListener(object : ChangeListener() {
+                override fun changed(event: ChangeEvent?, actor: Actor?) {
+                    when (category) {
+                        SoundCategory.MUSIC -> PlayerSettingsManager.current.playMusic = checkbox.isChecked
+                        SoundCategory.AMBIENCE -> PlayerSettingsManager.current.playAmbience = checkbox.isChecked
+                        SoundCategory.WEATHER -> PlayerSettingsManager.current.playWeather = checkbox.isChecked
+                        SoundCategory.WEAPONS -> PlayerSettingsManager.current.playWeapons = checkbox.isChecked
+                        SoundCategory.VEHICLES -> PlayerSettingsManager.current.playVehicles = checkbox.isChecked
+                        SoundCategory.CHARACTER -> PlayerSettingsManager.current.playCharacter = checkbox.isChecked
+                        SoundCategory.UI_GENERAL -> PlayerSettingsManager.current.playUiGeneral = checkbox.isChecked
+                    }
+                    applyAllAudioSettings() // Re-apply settings to mute/unmute
+                    PlayerSettingsManager.save()
+                }
+            })
+        }
     }
 
     fun show(stage: Stage) {
-        masterVolumeSlider.value = PlayerSettingsManager.current.masterVolume
-        musicVolumeSlider.value = PlayerSettingsManager.current.musicVolume
-        sfxVolumeSlider.value = PlayerSettingsManager.current.sfxVolume
+        val settings = PlayerSettingsManager.current
+        masterVolumeSlider.value = settings.masterVolume
+        musicVolumeSlider.value = settings.musicVolume
+        sfxVolumeSlider.value = settings.sfxVolume
+
+        categoryCheckboxes[SoundCategory.MUSIC]?.isChecked = settings.playMusic
+        categoryCheckboxes[SoundCategory.AMBIENCE]?.isChecked = settings.playAmbience
+        categoryCheckboxes[SoundCategory.WEATHER]?.isChecked = settings.playWeather
+        categoryCheckboxes[SoundCategory.WEAPONS]?.isChecked = settings.playWeapons
+        categoryCheckboxes[SoundCategory.VEHICLES]?.isChecked = settings.playVehicles
+        categoryCheckboxes[SoundCategory.CHARACTER]?.isChecked = settings.playCharacter
+        categoryCheckboxes[SoundCategory.UI_GENERAL]?.isChecked = settings.playUiGeneral
 
         stage.addActor(overlay)
         stage.addActor(mainContainer)
@@ -199,9 +246,7 @@ class AudioSettingsUI(
         overlay.color.a = 0f
         overlay.addAction(Actions.fadeIn(0.6f, Interpolation.fade))
 
-        mainContainer.scaleX = 0.1f
-        mainContainer.scaleY = 0.8f
-        mainContainer.color.a = 0f
+        mainContainer.scaleX = 0.1f; mainContainer.scaleY = 0.8f; mainContainer.color.a = 0f
         mainContainer.addAction(
             Actions.parallel(
                 Actions.fadeIn(0.5f, Interpolation.fade),
@@ -227,32 +272,56 @@ class AudioSettingsUI(
 
     fun isVisible(): Boolean = isVisible
 
-    // --- HELPER FUNCTIONS (matching VisualSettingsUI) ---
+    // --- HELPER FUNCTIONS for vintage theme ---
+    private fun createVintageCheckbox(text: String): CheckBox {
+        // This is a simplified version. You can copy the full styled version from VisualSettingsUI
+        val checkbox = CheckBox(text, skin)
+        checkbox.label.color = Color.valueOf("#2C1810")
+        return checkbox
+    }
+
+    // Copy the rest of the helper functions (createNewspaperBackground, createVintageButton, etc.)
+    // from your VisualSettingsUI.kt file here to maintain the consistent theme. I've omitted them
+    // for brevity, but you should paste them below this line.
+
+    // ... PASTE HELPER FUNCTIONS FROM VisualSettingsUI.kt HERE ...
+    private fun createSmokyOverlay() {
+        val pixmap = Pixmap(100, 100, Pixmap.Format.RGBA8888)
+        for (y in 0 until 100) {
+            for (x in 0 until 100) {
+                val waveEffect = sin((x + y) * 0.1) * 0.1f
+                val smokeIntensity = (y / 100f) * 0.4f + waveEffect
+                val alpha = 0.7f + smokeIntensity
+                pixmap.setColor(0.1f, 0.08f, 0.06f, alpha.coerceIn(0.0, 0.85).toFloat())
+                pixmap.drawPixel(x, y)
+            }
+        }
+        overlay = Image(Texture(pixmap))
+        pixmap.dispose()
+        overlay.setFillParent(true)
+        overlay.isVisible = false
+    }
 
     private fun createNewspaperBackground(): TextureRegionDrawable {
-        val pixmap = Pixmap(420, 520, Pixmap.Format.RGBA8888)
+        val pixmap = Pixmap(420, 600, Pixmap.Format.RGBA8888) // Increased height
         val paperColor = Color.valueOf("#F5F1E8")
         pixmap.setColor(paperColor)
         pixmap.fill()
 
         val inkSpots = Color.valueOf("#E8E0D6")
-        for (i in 0 until 350) {
-            val x = Random.nextInt(420)
-            val y = Random.nextInt(520)
-            val size = Random.nextInt(2) + 1
+        for (i in 0 until 400) {
             pixmap.setColor(inkSpots)
-            pixmap.fillCircle(x, y, size)
+            pixmap.fillCircle(Random.nextInt(420), Random.nextInt(600), Random.nextInt(2) + 1)
         }
 
         val borderColor = Color.valueOf("#2C1810")
         pixmap.setColor(borderColor)
-
         for (i in 0 until 6) {
-            pixmap.drawRectangle(i, i, 420 - i * 2, 520 - i * 2)
+            pixmap.drawRectangle(i, i, 420 - i * 2, 600 - i * 2)
         }
 
-        drawArtDecoCorners(pixmap, 420, 520)
-        drawVintageElements(pixmap, 420, 520)
+        drawArtDecoCorners(pixmap, 420, 600)
+        drawVintageElements(pixmap, 420, 600)
 
         val texture = Texture(pixmap)
         pixmap.dispose()
@@ -262,84 +331,49 @@ class AudioSettingsUI(
     private fun drawArtDecoCorners(pixmap: Pixmap, width: Int, height: Int) {
         val accentColor = Color.valueOf("#8B6914")
         pixmap.setColor(accentColor)
-
         val cornerSize = 25
-
         for (i in 10 until cornerSize) {
-            pixmap.drawLine(10, i, i, 10)
-            pixmap.drawLine(12, i, i, 12)
-
-            pixmap.drawLine(width - 10, i, width - i, 10)
-            pixmap.drawLine(width - 12, i, width - i, 12)
-
-            pixmap.drawLine(10, height - i, i, height - 10)
-            pixmap.drawLine(12, height - i, i, height - 12)
-
-            pixmap.drawLine(width - 10, height - i, width - i, height - 10)
-            pixmap.drawLine(width - 12, height - i, width - i, height - 12)
+            pixmap.drawLine(10, i, i, 10); pixmap.drawLine(12, i, i, 12)
+            pixmap.drawLine(width - 10, i, width - i, 10); pixmap.drawLine(width - 12, i, width - i, 12)
+            pixmap.drawLine(10, height - i, i, height - 10); pixmap.drawLine(12, height - i, i, height - 12)
+            pixmap.drawLine(width - 10, height - i, width - i, height - 10); pixmap.drawLine(width - 12, height - i, width - i, height - 12)
         }
     }
 
     private fun drawVintageElements(pixmap: Pixmap, width: Int, height: Int) {
         val accentColor = Color.valueOf("#8B6914")
         pixmap.setColor(accentColor)
-
         for (y in 120 until height - 120 step 50) {
-            pixmap.fillCircle(20, y, 4)
-            pixmap.drawRectangle(16, y - 2, 8, 4)
-
-            pixmap.fillCircle(width - 20, y, 4)
-            pixmap.drawRectangle(width - 24, y - 2, 8, 4)
+            pixmap.fillCircle(20, y, 4); pixmap.drawRectangle(16, y - 2, 8, 4)
+            pixmap.fillCircle(width - 20, y, 4); pixmap.drawRectangle(width - 24, y - 2, 8, 4)
         }
     }
 
     private fun createVintageButton(text: String, bgColor: Color): TextButton {
         val button = TextButton(text, skin, "default")
-
         val buttonPixmap = Pixmap(320, 45, Pixmap.Format.RGBA8888)
-
         val baseColor = Color(bgColor.r * 0.8f, bgColor.g * 0.8f, bgColor.b * 0.8f, 1f)
-        buttonPixmap.setColor(baseColor)
-        buttonPixmap.fill()
-
+        buttonPixmap.setColor(baseColor); buttonPixmap.fill()
         val textureColor = Color(bgColor.r * 0.6f, bgColor.g * 0.6f, bgColor.b * 0.6f, 0.7f)
         for (i in 0 until 90) {
-            val x = Random.nextInt(320)
-            val y = Random.nextInt(45)
-            val size = Random.nextInt(3) + 1
             buttonPixmap.setColor(textureColor)
-            buttonPixmap.fillCircle(x, y, size)
+            buttonPixmap.fillCircle(Random.nextInt(320), Random.nextInt(45), Random.nextInt(3) + 1)
         }
-
         val borderColor = Color.valueOf("#1A0F0A")
         buttonPixmap.setColor(borderColor)
-
-        buttonPixmap.drawRectangle(0, 0, 320, 45)
-        buttonPixmap.drawRectangle(1, 1, 318, 43)
-        buttonPixmap.drawRectangle(2, 2, 316, 41)
-
+        buttonPixmap.drawRectangle(0, 0, 320, 45); buttonPixmap.drawRectangle(1, 1, 318, 43); buttonPixmap.drawRectangle(2, 2, 316, 41)
         val highlightColor = Color.valueOf("#CD7F32")
-        buttonPixmap.setColor(highlightColor)
-        buttonPixmap.drawLine(3, 3, 316, 3)
-        buttonPixmap.drawLine(3, 3, 3, 41)
-
+        buttonPixmap.setColor(highlightColor); buttonPixmap.drawLine(3, 3, 316, 3); buttonPixmap.drawLine(3, 3, 3, 41)
         for (i in 0 until 8) {
-            buttonPixmap.drawPixel(5 + i, 5)
-            buttonPixmap.drawPixel(5, 5 + i)
-            buttonPixmap.drawPixel(314 - i, 5)
-            buttonPixmap.drawPixel(314, 5 + i)
-            buttonPixmap.drawPixel(5 + i, 39)
-            buttonPixmap.drawPixel(5, 39 - i)
-            buttonPixmap.drawPixel(314 - i, 39)
-            buttonPixmap.drawPixel(314, 39 - i)
+            buttonPixmap.drawPixel(5 + i, 5); buttonPixmap.drawPixel(5, 5 + i)
+            buttonPixmap.drawPixel(314 - i, 5); buttonPixmap.drawPixel(314, 5 + i)
+            buttonPixmap.drawPixel(5 + i, 39); buttonPixmap.drawPixel(5, 39 - i)
+            buttonPixmap.drawPixel(314 - i, 39); buttonPixmap.drawPixel(314, 39 - i)
         }
-
         val buttonTexture = Texture(buttonPixmap)
         buttonPixmap.dispose()
-
         button.style.up = TextureRegionDrawable(TextureRegion(buttonTexture))
         button.label.color = Color.valueOf("#F5F1E8")
-
         return button
     }
 
@@ -347,21 +381,14 @@ class AudioSettingsUI(
         val pixmap = Pixmap(45, 45, Pixmap.Format.RGBA8888)
         val decorColor = Color.valueOf("#8B6914")
         pixmap.setColor(decorColor)
-
         val center = 22
-
         for (i in 0 until 20) {
             val offset = i / 2
             pixmap.drawLine(center - offset, center - i/2, center + offset, center - i/2)
-            if (i < 15) {
-                pixmap.drawLine(center - offset, center + i/2, center + offset, center + i/2)
-            }
+            if (i < 15) pixmap.drawLine(center - offset, center + i/2, center + offset, center + i/2)
         }
-
         pixmap.fillCircle(center, center, 6)
-        pixmap.setColor(Color.valueOf("#CD7F32"))
-        pixmap.fillCircle(center, center, 3)
-
+        pixmap.setColor(Color.valueOf("#CD7F32")); pixmap.fillCircle(center, center, 3)
         val texture = Texture(pixmap)
         pixmap.dispose()
         return Image(texture)
@@ -370,20 +397,13 @@ class AudioSettingsUI(
     private fun createBottomBanner(): Image {
         val pixmap = Pixmap(200, 30, Pixmap.Format.RGBA8888)
         val bannerColor = Color.valueOf("#2C1810")
-        pixmap.setColor(bannerColor)
-
-        pixmap.fill()
-
+        pixmap.setColor(bannerColor); pixmap.fill()
         for (i in 0 until 8) {
             pixmap.setColor(Color.CLEAR)
-            pixmap.drawLine(i, 15 + i, i, 30)
-            pixmap.drawLine(199 - i, 15 + i, 199 - i, 30)
+            pixmap.drawLine(i, 15 + i, i, 30); pixmap.drawLine(199 - i, 15 + i, 199 - i, 30)
         }
-
         pixmap.setColor(Color.valueOf("#CD7F32"))
-        pixmap.drawRectangle(0, 0, 200, 30)
-        pixmap.drawRectangle(1, 1, 198, 28)
-
+        pixmap.drawRectangle(0, 0, 200, 30); pixmap.drawRectangle(1, 1, 198, 28)
         val texture = Texture(pixmap)
         pixmap.dispose()
         return Image(texture)

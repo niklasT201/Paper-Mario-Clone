@@ -110,8 +110,6 @@ class MafiaGame : ApplicationAdapter() {
 
     override fun create() {
         // --- Part 1: Initialize Core Systems ---
-        PlayerSettingsManager.load()
-
         musicManager = MusicManager() // Must initialize before setting volume
         soundManager = SoundManager() // Must initialize before setting volume
         ambientSoundSystem = AmbientSoundSystem()
@@ -131,6 +129,9 @@ class MafiaGame : ApplicationAdapter() {
         // --- SOUND MANAGER SETUP ---
         soundManager.initialize()
         AssetLoader.loadGameSounds(soundManager)
+        SoundCategoryManager.initialize()
+
+        PlayerSettingsManager.load()
 
         // SONG 1: The new slow, dramatic Mafia Theme
         musicManager.registerSong(MusicSource.Procedural("mafia_theme") { ProceduralSongLibrary.getMafiaTheme() })

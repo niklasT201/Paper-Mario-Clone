@@ -314,6 +314,16 @@ class SoundManager : Disposable {
         return null
     }
 
+    fun muteCategory(soundIdsToMute: List<String>) {
+        mutedSoundIds.addAll(soundIdsToMute)
+        println("Muted ${soundIdsToMute.size} sounds.")
+    }
+
+    fun unmuteCategory(soundIdsToUnmute: List<String>) {
+        mutedSoundIds.removeAll(soundIdsToUnmute.toSet())
+        println("Unmuted ${soundIdsToUnmute.size} sounds.")
+    }
+
     fun stopAllSounds() {
         println("SoundManager: Stopping all active looping sounds.")
         val iterator = activeLoopingSounds.iterator()

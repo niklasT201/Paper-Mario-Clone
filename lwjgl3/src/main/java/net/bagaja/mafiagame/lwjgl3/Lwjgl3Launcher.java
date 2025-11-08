@@ -53,6 +53,7 @@ public class Lwjgl3Launcher {
 
 // edge houses
 // alt and tab not pausing the game
+// audio ui checkboxes not being centered
 // update for audio ui for weather effects
 // characters only follow player in a range
 // ambience steps pausing between loop
