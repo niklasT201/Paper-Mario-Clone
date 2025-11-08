@@ -763,8 +763,24 @@ class InputHandler(
                             if (game.playerSystem.isDriving) {
                                 val car = game.playerSystem.drivingCar
                                 if (car != null && !car.isDestroyed) {
-                                    car.areHeadlightsOn = !car.areHeadlightsOn
-                                    println("Player toggled headlights ${if (car.areHeadlightsOn) "ON" else "OFF"}.")
+                                    // Check if the car is moving. We can check the player's physics component's velocity.
+                                    val isMoving = game.playerSystem.physicsComponent.velocity.len2() > 0.1f
+
+                                    if (isMoving) {
+                                        // If the car is moving, toggle the headlights.
+                                        car.areHeadlightsOn = !car.areHeadlightsOn
+                                        println("Player toggled headlights ${if (car.areHeadlightsOn) "ON" else "OFF"}.")
+                                    } else {
+                                        // If the car is stationary, toggle the lock.
+                                        car.isLocked = !car.isLocked
+                                        val lockStatus = if (car.isLocked) "LOCKED" else "UNLOCKED"
+                                        game.uiManager.showTemporaryMessage("Car is now $lockStatus")
+                                        println("Player toggled car lock. Status: $lockStatus")
+
+                                        // Play a lock/unlock sound
+                                        val soundToPlay = if (car.isLocked) "CAR_LOCKED_V1" else "CAR_DOOR_CLOSE_V1"
+                                        game.soundManager.playSound(id = soundToPlay, position = car.position)
+                                    }
                                     return true // Consume the key press
                                 }
                             }

@@ -516,7 +516,7 @@ data class GameCar(
     val sceneManager: SceneManager,
     var id: String = UUID.randomUUID().toString(),
     var direction: Float = 0f,
-    val isLocked: Boolean = false,
+    var isLocked: Boolean = false,
     var health: Float = carType.baseHealth,
     val initialVisualRotation: Float = 0f,
     @Transient var headlightLight: LightSource? = null,

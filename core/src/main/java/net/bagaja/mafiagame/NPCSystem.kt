@@ -127,7 +127,8 @@ data class GameNPC(
     var standaloneDialogCompleted: Boolean = false,
     var scheduledForDespawn: Boolean = false,
     var canBePulledFromCar: Boolean = true,
-    @Transient var baseTexture: Texture? = null
+    @Transient var baseTexture: Texture? = null,
+    @Transient var carProvocation: Float = 0f
 ) {
     var isOnFire: Boolean = false
     var onFireTimer: Float = 0f
@@ -602,6 +603,12 @@ class NPCSystem : IFinePositionable {
 
         while(iterator.hasNext()) {
             val npc = iterator.next()
+
+            // Decay car provocation if they are in a car
+            if (npc.isInCar && npc.carProvocation > 0) {
+                npc.carProvocation -= 5f * deltaTime
+                if (npc.carProvocation < 0) npc.carProvocation = 0f
+            }
 
             if (npc.scheduledForDespawn && npc.position.dst2(playerPos) > 4900f) { // 70 units
                 iterator.remove()

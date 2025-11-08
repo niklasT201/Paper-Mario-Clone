@@ -48,6 +48,8 @@ public class Lwjgl3Launcher {
 
 // edge houses
 // update for audio ui for weather effects
+// player cam shoot in cars
+// enemies and npcs knowing if a car is locked so no entering
 // ambience steps pausing between loop
 // player can be pulled out of the car
 // car can be locked by player

@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.g3d.utils.DefaultShaderProvider
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.utils.Array
+import kotlin.random.Random
 
 enum class GameMode {
     START_MENU,
@@ -714,10 +715,41 @@ class MafiaGame : ApplicationAdapter() {
                             val isCarEffectivelyLocked = closestCar.isLocked && modifiers?.allCarsUnlocked != true
 
                             if (isCarEffectivelyLocked) {
-                                // Car is locked, play the locked sound and stop.
+                                // Car is locked, play the locked sound and PROVOKE the driver.
                                 println("Cannot pull driver out. The car is locked.")
                                 val soundIdToPlay = closestCar.assignedLockedSoundId ?: "CAR_LOCKED_V1"
                                 sceneManager.game.soundManager.playSound(id = soundIdToPlay, position = closestCar.position)
+
+                                val provocationAmount = 15f // Each attempt makes them 15% angrier
+                                var shouldExitAndFight = false
+
+                                when (driver) {
+                                    is GameEnemy -> {
+                                        driver.carProvocation += provocationAmount
+                                        println("${driver.enemyType.displayName} provocation is now ${driver.carProvocation}")
+                                        // Enemies have a high chance to fight back if provoked enough
+                                        if (driver.carProvocation >= 100f && Random.nextFloat() < 0.8f) {
+                                            shouldExitAndFight = true
+                                        }
+                                    }
+                                    is GameNPC -> {
+                                        driver.carProvocation += provocationAmount
+                                        println("${driver.npcType.displayName} provocation is now ${driver.carProvocation}")
+                                        // NPCs only fight back if their personality allows it, and it's a small chance
+                                        if (driver.carProvocation >= 100f && driver.reactionToDamage == DamageReaction.FIGHT_BACK && Random.nextFloat() < 0.25f) {
+                                            shouldExitAndFight = true
+                                        }
+                                    }
+                                }
+
+                                if (shouldExitAndFight) {
+                                    println("Driver has been provoked and is exiting the car to fight!")
+                                    when (driver) {
+                                        is GameEnemy -> sceneManager.enemySystem.handleEjectionFromCar(driver, sceneManager)
+                                        is GameNPC -> sceneManager.npcSystem.handleEjectionFromCar(driver, sceneManager)
+                                    }
+                                }
+
                                 return // Stop the interaction here.
                             }
 

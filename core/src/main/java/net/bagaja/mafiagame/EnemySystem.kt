@@ -74,7 +74,8 @@ data class GameEnemy(
     var standaloneDialogCompleted: Boolean = false,
     var scheduledForDespawn: Boolean = false,
     var canBePulledFromCar: Boolean = true,
-    @Transient var baseTexture: Texture? = null
+    @Transient var baseTexture: Texture? = null,
+    @Transient var carProvocation: Float = 0f
 ) {
     fun isInteractive(): Boolean {
         return standaloneDialog?.outcome?.type != DialogOutcomeType.NONE
@@ -572,6 +573,35 @@ class EnemySystem : IFinePositionable {
 
         while (iterator.hasNext()) {
             val enemy = iterator.next()
+            val distanceToPlayer = enemy.physics.position.dst(playerPos)
+
+            // Decay car provocation if they are in a car
+            if (enemy.isInCar && enemy.carProvocation > 0) {
+                enemy.carProvocation -= 5f * deltaTime // Loses 5 provocation points per second
+                if (enemy.carProvocation < 0) enemy.carProvocation = 0f
+            }
+
+            // If the player is driving and this enemy is on foot
+            if (playerSystem.isDriving && !enemy.isInCar) {
+                // High-priority check: Can this enemy try to carjack the player?
+                val playerCar = playerSystem.drivingCar
+                if (playerCar != null && !playerCar.isLocked && distanceToPlayer < 8f) {
+                    // Enemy is close to the player's unlocked car. Give it a chance to act.
+                    if (Random.nextFloat() < 0.01f) { // 1% chance per frame to attempt carjacking
+                        println("${enemy.enemyType.displayName} is attempting to pull the player out of their car!")
+                        sceneManager.game.soundManager.playSound(id = playerCar.assignedOpenSoundId ?: "CAR_DOOR_OPEN_V1", position = playerCar.position)
+                        playerSystem.exitCar(sceneManager)
+                        enemy.enterCar(playerCar)
+                        enemy.currentState = AIState.FLEEING
+                        continue // AI action for this frame is complete.
+                    }
+                }
+
+                // If the enemy is too far away to be relevant, just skip its complex AI for this frame.
+                if (distanceToPlayer > activationRange) {
+                    continue
+                }
+            }
 
             if (enemy.scheduledForDespawn && enemy.physics.position.dst2(playerPos) > 4900f) { // 70 units
                 iterator.remove()
@@ -591,6 +621,7 @@ class EnemySystem : IFinePositionable {
 
             // If the enemy is in a car, their update is complete. Skip on-foot logic.
             if (enemy.isInCar) {
+                updateAI(enemy, playerSystem, deltaTime, sceneManager)
                 continue
             }
 
@@ -726,7 +757,6 @@ class EnemySystem : IFinePositionable {
             }
 
             // If the enemy is outside our activation range, skip its update entirely.
-            val distanceToPlayer = enemy.physics.position.dst(playerPos)
             if (distanceToPlayer > activationRange) {
                 if (enemy.currentState != AIState.IDLE && enemy.currentState != AIState.DYING) {
                     enemy.currentState = AIState.IDLE
@@ -1067,6 +1097,34 @@ class EnemySystem : IFinePositionable {
     }
 
     private fun updateAI(enemy: GameEnemy, playerSystem: PlayerSystem, deltaTime: Float, sceneManager: SceneManager) {
+        // Check if the player is driving and this enemy is on foot
+        if (playerSystem.isDriving && !enemy.isInCar) {
+            val playerCar = playerSystem.drivingCar
+            if (playerCar != null && !playerCar.isLocked) {
+                // Check if the enemy is close enough to the car to attempt to pull the player out
+                if (enemy.position.dst(playerCar.position) < 8f) {
+
+                    // Add a chance to attempt the carjacking (e.g., 1% chance per frame when close)
+                    if (Random.nextFloat() < 0.01f) {
+                        println("${enemy.enemyType.displayName} is attempting to pull the player out of their car!")
+
+                        // Play the car door open sound
+                        val soundIdToPlay = playerCar.assignedOpenSoundId ?: "CAR_DOOR_OPEN_V1"
+                        sceneManager.game.soundManager.playSound(id = soundIdToPlay, position = playerCar.position)
+
+                        // Immediately eject the player
+                        playerSystem.exitCar(sceneManager)
+
+                        // The enemy now enters the car
+                        enemy.enterCar(playerCar)
+                        enemy.currentState = AIState.FLEEING // Make the enemy flee with the stolen car
+
+                        return // End this enemy's AI update for this frame
+                    }
+                }
+            }
+        }
+
         if (enemy.currentState == AIState.DYING) {
             return
         }
