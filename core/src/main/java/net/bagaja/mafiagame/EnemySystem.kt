@@ -616,7 +616,6 @@ class EnemySystem : IFinePositionable {
 
             // If the enemy is in a car, their update is complete. Skip on-foot logic.
             if (enemy.isInCar) {
-                updateAI(enemy, playerSystem, deltaTime, sceneManager)
                 continue
             }
 

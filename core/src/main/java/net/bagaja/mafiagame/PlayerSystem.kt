@@ -1405,6 +1405,8 @@ class PlayerSystem {
 
         if (characterPhysicsSystem.isPositionValid(finalExitPos, this.physicsComponent)) {
             setPosition(finalExitPos)
+            sceneManager.cameraManager.setPlayerPosition(finalExitPos, isDriving = false, forceSnap = true)
+
             println("Player exited car. Placed at $finalExitPos")
             isDriving = false
             drivingCar = null

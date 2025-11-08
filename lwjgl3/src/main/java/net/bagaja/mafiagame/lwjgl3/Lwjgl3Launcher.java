@@ -46,14 +46,17 @@ public class Lwjgl3Launcher {
 // industrial assets
 // more animations adding
 
+
+// currently it works so, that when the player gets pulled out of the car, the character will always steal the car, never doing anything else. then drives a bit away, leaves it and moves to the player finally. the thing is, i really like this idea, that it steals the car and then comes back so it takes away the way to leave for the player, but this shouldnt happen only. i want that the character can choose between this and just kicking the player out and beating it
+
+
+
 // edge houses
+// alt and tab not pausing the game
 // update for audio ui for weather effects
-// camera update when exit car
-// player cam shoot in cars
+// characters only follow player in a range
 // enemies and npcs knowing if a car is locked so no entering
 // ambience steps pausing between loop
-// player can be pulled out of the car
-// characters in locked car can be annoyed and unlock their car to beat player
 // rusher stopping in front of the player
 // fire system uses spread fire, fire or flame particle folder
 // blocks being visible behind transparent enemies etc.
