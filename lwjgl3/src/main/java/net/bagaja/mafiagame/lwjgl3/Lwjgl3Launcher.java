@@ -1,7 +1,9 @@
 package net.bagaja.mafiagame.lwjgl3;
 
+import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application;
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration;
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3WindowListener;
 import net.bagaja.mafiagame.MafiaGame;
 
 /** Launches the desktop (LWJGL3) application. */
@@ -31,6 +33,46 @@ public class Lwjgl3Launcher {
         configuration.setWindowedMode(640, 480);
         //// You can change these files; they are in lwjgl3/src/main/resources/ .
         configuration.setWindowIcon("libgdx128.png", "libgdx64.png", "libgdx32.png", "libgdx16.png");
+
+//        configuration.setWindowListener(new Lwjgl3WindowListener() {
+//            @Override
+//            public void focusLost() {
+//                // This is called when you Alt+Tab or click another window.
+//                // We get the running game instance and call its pause() method.
+//                if (Gdx.app != null && Gdx.app.getApplicationListener() instanceof MafiaGame) {
+//                    ((MafiaGame) Gdx.app.getApplicationListener()).pause();
+//                }
+//            }
+//
+//            @Override
+//            public void focusGained() {
+//                // This is called when you click back into the game window.
+//                // We get the running game instance and call its resume() method.
+//                if (Gdx.app != null && Gdx.app.getApplicationListener() instanceof MafiaGame) {
+//                    ((MafiaGame) Gdx.app.getApplicationListener()).resume();
+//                }
+//            }
+//
+//            // --- Other listener methods (can be left empty) ---
+//            @Override
+//            public void created(com.badlogic.gdx.backends.lwjgl3.Lwjgl3Window window) {}
+//
+//            @Override
+//            public void iconified(boolean isIconified) {}
+//
+//            @Override
+//            public void maximized(boolean isMaximized) {}
+//
+//            @Override
+//            public boolean closeRequested() { return true; }
+//
+//            @Override
+//            public void filesDropped(String[] files) {}
+//
+//            @Override
+//            public void refreshRequested() {}
+//        });
+
         return configuration;
     }
 }
@@ -49,14 +91,14 @@ public class Lwjgl3Launcher {
 
 // currently it works so, that when the player gets pulled out of the car, the character will always steal the car, never doing anything else. then drives a bit away, leaves it and moves to the player finally. the thing is, i really like this idea, that it steals the car and then comes back so it takes away the way to leave for the player, but this shouldnt happen only. i want that the character can choose between this and just kicking the player out and beating it
 
+//  i thought about a small and optional reward for the player, barrels. i thought about that there can be barrels, im not sure if they are objects or interiors, objects should already be able for this, but interiors would need an update, that you can shoot or hit barrels, and they CAN, NOT must, drop items. money or weapons. if you use dynamite to destroy them, the barrel should NEVER drop items, as it should imply that explosions destroy the items in the barrels. and not too much items, i dont want that barrels give better rewards than the actual missions. and i want that in object selection can have 3 options, random items, selected items or no items. in default no items. so i can say they are useless, select the items i want to give, or when im too bored to select, just have a loot pool the game can randomly choose from and i want that its always random, not that you have save this, and remove the random factor
 
 
 // edge houses
-// alt and tab not pausing the game
 // audio ui checkboxes not being centered
-// update for audio ui for weather effects
-// characters only follow player in a range
 // ambience steps pausing between loop
+// character stepping out of locked car gives sound
+// npc following car
 // rusher stopping in front of the player
 // fire system uses spread fire, fire or flame particle folder
 // blocks being visible behind transparent enemies etc.

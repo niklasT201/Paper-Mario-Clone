@@ -237,6 +237,7 @@ class EnemySystem : IFinePositionable {
     private val FIRE_FLEE_DISTANCE = 15f
     private val SHOOTER_IDEAL_DISTANCE = 15f
     private val SHOOTER_MIN_DISTANCE = 8f
+    private val MAX_CHASE_DISTANCE = 80f
 
     private val minShotScale = 0.7f
     private val maxShotScale = 2.0f
@@ -780,7 +781,7 @@ class EnemySystem : IFinePositionable {
 
         // 2. Set their AI state to IDLE and give them a short "stun" timer.
         enemy.currentState = AIState.IDLE
-        enemy.stateTimer = 1.5f // 1.5 seconds of confusion
+        enemy.stateTimer = 1.0f // 1 second of confusion before deciding
 
         // 3. Schedule the AI to make a decision after the stun wears off.
         com.badlogic.gdx.utils.Timer.schedule(object : com.badlogic.gdx.utils.Timer.Task() {
@@ -788,21 +789,29 @@ class EnemySystem : IFinePositionable {
                 // Check if the enemy is still alive and in the scene before making a decision
                 if (enemy.health <= 0 || !sceneManager.activeEnemies.contains(enemy, true)) return
 
-                val choice = Random.nextInt(3) // Generates 0, 1, or 2
-                when (choice) {
-                    0 -> { // Re-enter and Flee
-                        println("${enemy.enemyType.displayName} is trying to get back in the car to flee!")
-                        enemy.currentState = AIState.FLEEING
+                // 50/50 chance to either steal the car or just fight.
+                if (Random.nextFloat() < 0.5f) {
+                    // CHOICE 1: Steal the car and flee.
+                    println("${enemy.enemyType.displayName} is enraged and stealing the car back!")
+
+                    val stolenCar = sceneManager.activeCars.find { car ->
+                        car.seats.any { it.occupant == null } && car.position.dst2(enemy.position) < 25f
                     }
-                    1 -> { // Fight Back
-                        println("${enemy.enemyType.displayName} is enraged and attacking the player!")
+
+                    if (stolenCar != null) {
+                        enemy.enterCar(stolenCar)
+                        enemy.currentState = AIState.FLEEING
+                    } else {
+                        // Failsafe: if the car is gone, just fight.
+                        println("${enemy.enemyType.displayName} couldn't find the car, so it's attacking!")
                         enemy.currentBehavior = EnemyBehavior.AGGRESSIVE_RUSHER
                         enemy.currentState = AIState.CHASING
                     }
-                    else -> { // Flee on Foot
-                        println("${enemy.enemyType.displayName} is fleeing on foot!")
-                        enemy.currentState = AIState.FLEEING
-                    }
+                } else {
+                    // CHOICE 2: Forget the car and fight the player immediately.
+                    println("${enemy.enemyType.displayName} is enraged and attacking the player on foot!")
+                    enemy.currentBehavior = EnemyBehavior.AGGRESSIVE_RUSHER // Make them aggressive
+                    enemy.currentState = AIState.CHASING               // Start chasing immediately
                 }
             }
         }, enemy.stateTimer)
@@ -1091,6 +1100,21 @@ class EnemySystem : IFinePositionable {
     }
 
     private fun updateAI(enemy: GameEnemy, playerSystem: PlayerSystem, deltaTime: Float, sceneManager: SceneManager) {
+        val playerPos = playerSystem.getPosition() // Get player position once
+
+        // --- PROBLEM 2 SOLUTION: CHECK CHASE DISTANCE ---
+        val distanceToPlayer = enemy.position.dst(playerPos)
+        if (distanceToPlayer > MAX_CHASE_DISTANCE) {
+            // If the player is too far away, the enemy gives up the chase.
+            if (enemy.currentState == AIState.CHASING || enemy.currentState == AIState.FLEEING_AFTER_ATTACK) {
+                println("${enemy.enemyType.displayName} lost the player and is returning to IDLE.")
+                enemy.currentState = AIState.IDLE
+                enemy.targetPosition = null // Clear any old pathfinding target
+                enemy.path.clear()
+                enemy.waypoint = null
+            }
+        }
+
         // Check if the player is driving and this enemy is on foot
         if (playerSystem.isDriving && !enemy.isInCar) {
             val playerCar = playerSystem.drivingCar

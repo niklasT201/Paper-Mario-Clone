@@ -343,6 +343,7 @@ class NPCSystem : IFinePositionable {
     internal val CAR_FLEE_CHANCE = 0.20f
     internal val CAR_SEARCH_RADIUS = 5f
     private val FLEE_EXIT_DISTANCE = 60f
+    private val MAX_CHASE_DISTANCE = 60f
 
     fun initialize(blockSize: Float, characterPhysicsSystem: CharacterPhysicsSystem) {
         this.blockSize = blockSize
@@ -797,19 +798,29 @@ class NPCSystem : IFinePositionable {
 
         // 2. Set their AI state to IDLE and give them a "stun" timer.
         npc.currentState = NPCState.IDLE
-        npc.stateTimer = 2.0f // NPCs are a bit more confused
+        npc.stateTimer = 1.5f // NPCs are a bit more confused
 
         // 3. Schedule the AI to make a decision after the stun wears off.
         com.badlogic.gdx.utils.Timer.schedule(object : com.badlogic.gdx.utils.Timer.Task() {
             override fun run() {
-                if (npc.health <= 0) return
+                if (npc.health <= 0 || !sceneManager.activeNPCs.contains(npc, true)) return
 
                 // NPCs are less aggressive than enemies
-                val choice = Random.nextInt(4) // Generates 0, 1, 2, 3
+                val choice = Random.nextInt(3) // 0=Steal, 1=Fight, 2=Flee on foot
                 when (choice) {
-                    0 -> { // Re-enter and Flee (less likely)
-                        println("${npc.npcType.displayName} is trying to get back in the car.")
-                        npc.currentState = NPCState.FLEEING
+                    0 -> { // Steal Car
+                        println("${npc.npcType.displayName} is trying to get the car back.")
+
+                        val stolenCar = sceneManager.activeCars.find { car ->
+                            car.seats.any { it.occupant == null } && car.position.dst2(npc.position) < 25f
+                        }
+
+                        if (stolenCar != null) {
+                            npc.enterCar(stolenCar)
+                            npc.currentState = NPCState.FLEEING
+                        } else {
+                            npc.currentState = NPCState.FLEEING // Flee on foot as a fallback
+                        }
                     }
                     1 -> { // Fight Back (only if they have a hostile reaction type)
                         if (npc.reactionToDamage == DamageReaction.FIGHT_BACK) {
@@ -817,10 +828,10 @@ class NPCSystem : IFinePositionable {
                             npc.currentState = NPCState.PROVOKED
                         } else {
                             println("${npc.npcType.displayName} is fleeing on foot.")
-                            npc.currentState = NPCState.FLEEING
+                            npc.currentState = NPCState.FLEEING // Default to fleeing if they're not a fighter
                         }
                     }
-                    else -> { // Flee on Foot (most likely outcome)
+                    else -> { // Flee on Foot
                         println("${npc.npcType.displayName} is fleeing on foot!")
                         npc.currentState = NPCState.FLEEING
                     }
@@ -977,6 +988,16 @@ class NPCSystem : IFinePositionable {
     }
 
     private fun updateAI(npc: GameNPC, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {
+        val distanceToPlayer = npc.position.dst(playerPos)
+        if (distanceToPlayer > MAX_CHASE_DISTANCE) {
+            // If player is too far, stop being provoked or following.
+            if (npc.currentState == NPCState.PROVOKED || npc.currentState == NPCState.FOLLOWING) {
+                println("${npc.npcType.displayName} lost interest and is returning to IDLE.")
+                npc.currentState = NPCState.IDLE
+                npc.targetPosition = null
+            }
+        }
+
         if (npc.currentState == NPCState.DYING) {
             return // A dead NPC should not think.
         }

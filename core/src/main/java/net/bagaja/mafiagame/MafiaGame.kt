@@ -1485,7 +1485,7 @@ class MafiaGame : ApplicationAdapter() {
     override fun pause() {
         if (currentGameMode != GameMode.IN_GAME) return
 
-        if (!uiManager.isPauseMenuVisible()) {
+        if (!uiManager.isGamePaused()) {
             println("Game window lost focus. Auto-pausing.")
             uiManager.togglePauseMenu() // This function already handles pausing sounds and music
         }
