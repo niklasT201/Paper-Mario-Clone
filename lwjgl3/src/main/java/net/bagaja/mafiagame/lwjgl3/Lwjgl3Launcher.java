@@ -97,7 +97,6 @@ public class Lwjgl3Launcher {
 // ambience steps pausing between loop
 // enemy range visible in fist fights
 // character stepping out of locked car gives sound
-// npc following car
 // fire system uses spread fire, fire or flame particle folder
 // blocks being visible behind transparent enemies etc.
 // car maybe be able to step up half a block

@@ -752,7 +752,7 @@ class MafiaGame : ApplicationAdapter() {
                                     println("Driver has been provoked and is exiting the car to fight!")
                                     when (driver) {
                                         is GameEnemy -> sceneManager.enemySystem.handleEjectionFromCar(driver, sceneManager)
-                                        is GameNPC -> sceneManager.npcSystem.handleEjectionFromCar(driver, sceneManager)
+                                        is GameNPC -> sceneManager.npcSystem.handleEjectionFromCar(driver, closestCar, sceneManager)
                                     }
                                 }
 
@@ -775,7 +775,7 @@ class MafiaGame : ApplicationAdapter() {
 
                                 when (driver) {
                                     is GameEnemy -> sceneManager.enemySystem.handleEjectionFromCar(driver, sceneManager)
-                                    is GameNPC -> sceneManager.npcSystem.handleEjectionFromCar(driver, sceneManager)
+                                    is GameNPC -> sceneManager.npcSystem.handleEjectionFromCar(driver, closestCar, sceneManager)
                                 }
                             } else {
                                 // Failed! Driver resists.
