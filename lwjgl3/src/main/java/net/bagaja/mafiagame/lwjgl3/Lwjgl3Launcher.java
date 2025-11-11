@@ -89,12 +89,13 @@ public class Lwjgl3Launcher {
 // more animations adding
 
 
-//  i thought about a small and optional reward for the player, barrels. i thought about that there can be barrels, im not sure if they are objects or interiors, objects should already be able for this, but interiors would need an update, that you can shoot or hit barrels, and they CAN, NOT must, drop items. money or weapons. if you use dynamite to destroy them, the barrel should NEVER drop items, as it should imply that explosions destroy the items in the barrels. and not too much items, i dont want that barrels give better rewards than the actual missions. and i want that in object selection can have 3 options, random items, selected items or no items. in default no items. so i can say they are useless, select the items i want to give, or when im too bored to select, just have a loot pool the game can randomly choose from and i want that its always random, not that you have save this, and remove the random factor
-
-
 // edge houses
 // audio ui checkboxes not being centered
 // ambience steps pausing between loop
+// explosion decail on invisible blocks
+// player stuck on walls again
+// barrels not breaking with guns
+// choosing item count
 // enemy range visible in fist fights
 // character stepping out of locked car gives sound
 // fire system uses spread fire, fire or flame particle folder
@@ -118,7 +119,6 @@ public class Lwjgl3Launcher {
 // nickelodeons having real short films
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // characters change behaviour in rain
-// loot in barrels
 // enemy cover up ai
 // minimap for open world mode
 // Civilian npc that just follows paths. They should flee from gunfire and call the police if they see a crime
@@ -128,7 +128,6 @@ public class Lwjgl3Launcher {
 // silent takedowns (melee from behind) and the ability to hide bodies
 // dead enemy flying behind players back
 // bones can be moved by character and explosions
-// pulling out characters from vehicles
 // add event button automatically adds new event without saving button press
 // fixing enemy reloading bug
 // fixing flickering character image

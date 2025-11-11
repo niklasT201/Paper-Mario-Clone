@@ -30,7 +30,7 @@ class SceneManager(
     val playerSystem: PlayerSystem,
     private val blockSystem: BlockSystem,
     private val objectSystem: ObjectSystem,
-    private val itemSystem: ItemSystem,
+    val itemSystem: ItemSystem,
     private val interiorSystem: InteriorSystem,
     val enemySystem: EnemySystem,
     val npcSystem: NPCSystem,

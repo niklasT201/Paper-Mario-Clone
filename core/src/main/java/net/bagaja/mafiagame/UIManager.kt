@@ -1652,6 +1652,10 @@ class UIManager(
         }
     }
 
+    fun getBarrelLootConfig(): Triple<BarrelLootMode, List<ItemType>, () -> Unit> {
+        return interiorSelectionUI.getBarrelLootConfig()
+    }
+
     fun applyAllSettingsFromManager() {
         // This function will be called once at startup to apply all loaded settings.
         if (::visualSettingsUI.isInitialized) {

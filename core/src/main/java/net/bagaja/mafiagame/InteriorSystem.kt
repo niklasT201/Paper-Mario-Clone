@@ -21,6 +21,12 @@ import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.JsonReader
 import java.util.*
 
+enum class BarrelLootMode {
+    NONE,      // Drops nothing
+    RANDOM,    // Drops a random item from a predefined loot pool
+    SPECIFIC   // Drops specific items configured in the editor
+}
+
 // Interior object types with their properties
 enum class InteriorType(
     val displayName: String,
@@ -34,11 +40,12 @@ enum class InteriorType(
     val groundOffset: Float = 0f,
     val isRandomizer: Boolean = false,
     val defaultScale: Vector3 = Vector3(2f, 2f, 2f),
-    val isFloorObject: Boolean = false
+    val isFloorObject: Boolean = false,
+    val isDestructible: Boolean = false
 ) {
     // 2D Billboard objects
     BAR("Bar", "textures/interior/bar.png", null, 2f, 1.5f, 0.5f, true, InteriorCategory.FURNITURE, 1f),
-    BARREL("Barrel", "textures/interior/barrel.png", null, 1f, 1.5f, 0.5f, true, InteriorCategory.FURNITURE, 1f),
+    BARREL("Barrel", "textures/interior/barrel.png", null, 1f, 1.5f, 0.5f, true, InteriorCategory.FURNITURE, 1f, isDestructible = true),
     BOARD("Board", "textures/interior/board.png", null, 2f, 1.5f, 0.1f, false, InteriorCategory.DECORATION, 1f),
     BROKEN_LAMP("Broken Lamp", "textures/interior/broken_lamp.png", null, 0.8f, 2f, 0.8f, false, InteriorCategory.LIGHTING, 1f),
     CHAIR("Chair", "textures/interior/chair.png", null, 1f, 2f, 0.5f, true, InteriorCategory.FURNITURE, 1f),
@@ -284,6 +291,14 @@ class InteriorSystem : IFinePositionable {
         } else {
             newInterior.position.y += interiorType.height / 2f
         }
+
+        if (interiorType == InteriorType.BARREL) {
+            val (lootMode, specificItems, resetAction) = sceneManager.game.uiManager.getBarrelLootConfig()
+            newInterior.lootMode = lootMode
+            newInterior.specificLoot.addAll(specificItems)
+            resetAction() // Clear the UI list for the next placement
+        }
+        
         newInterior.rotation = currentRotation
         newInterior.updateTransform()
 
@@ -428,7 +443,10 @@ data class GameInterior(
     var rotation: Float = 0f,
     val scale: Vector3,
     val id: String = UUID.randomUUID().toString(),
-    var missionId: String? = null
+    var missionId: String? = null,
+    var health: Float = if (interiorType.isDestructible) 30f else 100f, // Barrels have 30 HP
+    var lootMode: BarrelLootMode = BarrelLootMode.NONE,
+    val specificLoot: MutableList<ItemType> = mutableListOf()
 ) {
     // For 3D collision detection (same as GameHouse)
     private val mesh = instance.model?.meshes?.firstOrNull()
@@ -469,6 +487,12 @@ data class GameInterior(
         }
 
         updateTransform()
+    }
+
+    fun takeDamage(amount: Float): Boolean {
+        if (!interiorType.isDestructible || health <= 0) return false
+        health -= amount
+        return health <= 0
     }
 
     fun getBoundingBoxForDoor(): BoundingBox {

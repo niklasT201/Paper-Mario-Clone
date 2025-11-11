@@ -814,7 +814,7 @@ class NPCSystem : IFinePositionable {
                     println("${npc.npcType.displayName} is chasing their stolen car!")
                     npc.carToChaseId = ejectedFromCar.id
                     npc.currentState = NPCState.CHASING_STOLEN_CAR
-                    npc.chaseTimer = 12f // Give them 12 seconds to chase before giving up
+                    npc.chaseTimer = 25f // Give them 12 seconds to chase before giving up
                 } else {
                     // CHOICE 2: Don't chase, just flee on foot.
                     println("${npc.npcType.displayName} is scared and running away on foot.")

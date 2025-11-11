@@ -6,14 +6,17 @@ import com.badlogic.gdx.graphics.Pixmap
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.graphics.g2d.TextureRegion
 import com.badlogic.gdx.math.Interpolation
+import com.badlogic.gdx.scenes.scene2d.Actor
 import com.badlogic.gdx.scenes.scene2d.InputEvent
 import com.badlogic.gdx.scenes.scene2d.Stage
 import com.badlogic.gdx.scenes.scene2d.actions.Actions
 import com.badlogic.gdx.scenes.scene2d.ui.*
+import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener
 import com.badlogic.gdx.scenes.scene2d.utils.Drawable
 import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
+import javax.swing.event.ChangeEvent
 
 class InteriorSelectionUI(
     private val interiorSystem: InteriorSystem,
@@ -35,6 +38,14 @@ class InteriorSelectionUI(
     private lateinit var placementInfoLabel: Label
     private lateinit var rotationLabel: Label
     private lateinit var finePosLabel: Label
+
+    private lateinit var barrelSettingsTable: Table
+    private lateinit var lootModeSelectBox: SelectBox<BarrelLootMode>
+    private lateinit var specificLootTable: Table
+    private lateinit var specificLootSelectBox: SelectBox<String>
+    private lateinit var addLootItemButton: TextButton
+    private lateinit var specificLootLabel: Label
+    private var currentSpecificLoot = mutableListOf<ItemType>()
 
     private data class InteriorSelectionItem(
         val container: Table,
@@ -77,6 +88,8 @@ class InteriorSelectionUI(
 
         // Placement Information Section
         setupPlacementInfo(mainContainer)
+
+        setupBarrelSettings(mainContainer)
 
         // Instructions
         setupInstructions(mainContainer)
@@ -624,12 +637,80 @@ class InteriorSelectionUI(
         }
     }
 
+    private fun setupBarrelSettings(mainContainer: Table) {
+        barrelSettingsTable = Table()
+        barrelSettingsTable.padTop(10f)
+        barrelSettingsTable.isVisible = false // Hidden by default
+
+        barrelSettingsTable.add(Label("Barrel Loot Settings", skin, "section-header")).colspan(2).padBottom(5f).row()
+
+        // Loot Mode Selection
+        lootModeSelectBox = SelectBox(skin)
+        lootModeSelectBox.setItems(*BarrelLootMode.values())
+        barrelSettingsTable.add(Label("Loot Mode:", skin)).padRight(10f)
+        barrelSettingsTable.add(lootModeSelectBox).row()
+
+        // Specific Loot Selection (initially hidden)
+        specificLootTable = Table()
+        specificLootSelectBox = SelectBox(skin)
+        specificLootSelectBox.setItems(*ItemType.entries.map { it.displayName }.toTypedArray())
+        addLootItemButton = TextButton("Add", skin)
+        specificLootLabel = Label("Contains: None", skin, "small")
+
+        specificLootTable.add(specificLootSelectBox).padRight(5f)
+        specificLootTable.add(addLootItemButton).row()
+        specificLootTable.add(specificLootLabel).colspan(2).padTop(5f).growX().row()
+
+        barrelSettingsTable.add(specificLootTable).colspan(2).padTop(10f).row()
+
+        mainContainer.add(barrelSettingsTable).row()
+
+        // --- LISTENERS ---
+        lootModeSelectBox.addListener(object: ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                specificLootTable.isVisible = lootModeSelectBox.selected == BarrelLootMode.SPECIFIC
+            }
+        })
+
+        addLootItemButton.addListener(object: ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                val selectedItem = ItemType.entries.find { it.displayName == specificLootSelectBox.selected }
+                if (selectedItem != null) {
+                    currentSpecificLoot.add(selectedItem)
+                    updateSpecificLootLabel()
+                }
+            }
+        })
+    }
+
+    private fun updateSpecificLootLabel() {
+        if (currentSpecificLoot.isEmpty()) {
+            specificLootLabel.setText("Contains: None")
+        } else {
+            // Display counts of each item type
+            val itemCounts = currentSpecificLoot.groupingBy { it.displayName }.eachCount()
+            val text = itemCounts.entries.joinToString(", ") { "${it.key} (x${it.value})" }
+            specificLootLabel.setText("Contains: $text")
+        }
+    }
+
     fun update() {
         // Update info labels
         placementInfoLabel.setText("Selected: ${interiorSystem.currentSelectedInterior.displayName}")
         rotationLabel.setText("Rotation: ${interiorSystem.currentRotation}°")
         finePosLabel.setText("Fine Positioning: ${if (interiorSystem.finePosMode) "ON" else "OFF"}")
         finePosLabel.color = if (interiorSystem.finePosMode) Color.GREEN else Color.GRAY
+
+        val isBarrelSelected = interiorSystem.currentSelectedInterior == InteriorType.BARREL
+        barrelSettingsTable.isVisible = isBarrelSelected
+
+        // Reset specific loot when switching to a barrel
+        if (isBarrelSelected && !barrelSettingsTable.isVisible) {
+            currentSpecificLoot.clear()
+            updateSpecificLootLabel()
+            lootModeSelectBox.selected = BarrelLootMode.NONE
+            specificLootTable.isVisible = false
+        }
 
         // Animate all interior items
         interiorItems.forEachIndexed { i, item ->
@@ -667,6 +748,16 @@ class InteriorSelectionUI(
 
         // Auto-scroll to the selected item
         scrollToSelectedItem()
+    }
+
+    fun getBarrelLootConfig(): Triple<BarrelLootMode, List<ItemType>, () -> Unit> {
+        val mode = lootModeSelectBox.selected
+        val specificItems = currentSpecificLoot.toList() // Create a copy
+        val resetAction = {
+            currentSpecificLoot.clear()
+            updateSpecificLootLabel()
+        }
+        return Triple(mode, specificItems, resetAction)
     }
 
     fun show() {

@@ -217,6 +217,16 @@ class PlayerSystem {
         const val FALL_SPEED = 25f
         const val MAX_STEP_HEIGHT = 1.1f
         const val CAR_MAX_STEP_HEIGHT = 4.1f
+
+        private data class LootItem(val type: ItemType, val weight: Int)
+
+        // Define the random loot pool for barrels
+        private val barrelLootPool = listOf(
+            LootItem(ItemType.MONEY_STACK, 40), // 40% chance for money
+            LootItem(ItemType.REVOLVER, 15),    // 15% chance for revolver ammo
+            LootItem(ItemType.SHOTGUN, 10),     // 10% chance for shotgun ammo
+            LootItem(ItemType.KNIFE, 5)         // 5% chance for a knife
+        )
     }
 
     private lateinit var characterPhysicsSystem: CharacterPhysicsSystem
@@ -919,6 +929,22 @@ class PlayerSystem {
                 }
 
                 car.takeDamage(damageToDeal, DamageType.MELEE)
+            }
+        }
+
+        // --- ADD THIS BLOCK: Check against Interiors (Barrels) ---
+        val interiorIterator = sceneManager.activeInteriors.iterator()
+        while(interiorIterator.hasNext()) {
+            val interior = interiorIterator.next()
+            // Check if the interior object is destructible and intersects the hitbox
+            if (interior.interiorType.isDestructible && hitBox.intersects(interior.getBoundingBox(BoundingBox()))) {
+                if (interior.takeDamage(equippedWeapon.damage)) {
+                    println("Player destroyed a ${interior.interiorType.displayName} with melee!")
+                    dropLootFromBarrel(interior, sceneManager, canDropLoot = true)
+                    interiorIterator.remove() // Remove the barrel from the scene
+                }
+                // You can add a "hit barrel" sound effect here if you have one
+                hitSomething = true // To prevent playing the swoosh sound
             }
         }
     }
@@ -1918,6 +1944,53 @@ class PlayerSystem {
         }
     }
 
+    private fun dropLootFromBarrel(barrel: GameInterior, sceneManager: SceneManager, canDropLoot: Boolean) {
+        if (!canDropLoot) return // Exit if destroyed by an explosion
+
+        // 50% chance to drop anything at all if in RANDOM mode
+        if (barrel.lootMode == BarrelLootMode.RANDOM && Random.nextFloat() > 0.5f) {
+            return
+        }
+
+        val itemsToDrop = mutableListOf<ItemType>()
+        when (barrel.lootMode) {
+            BarrelLootMode.NONE -> { /* Do nothing */ }
+            BarrelLootMode.RANDOM -> {
+                val totalWeight = barrelLootPool.sumOf { it.weight }
+                var randomRoll = Random.nextInt(100) // Roll from 0 to 99
+
+                for (lootItem in barrelLootPool) {
+                    if (randomRoll < lootItem.weight) {
+                        itemsToDrop.add(lootItem.type)
+                        break // We found our item, stop checking
+                    }
+                    randomRoll -= lootItem.weight
+                }
+            }
+            BarrelLootMode.SPECIFIC -> {
+                itemsToDrop.addAll(barrel.specificLoot)
+            }
+        }
+
+        // Spawn the items
+        for (itemType in itemsToDrop) {
+            val dropPosition = barrel.position.cpy().add(
+                (Random.nextFloat() - 0.5f) * 1.5f,
+                0.5f,
+                (Random.nextFloat() - 0.5f) * 1.5f
+            )
+            val newItem = sceneManager.itemSystem.createItem(dropPosition, itemType)
+            if (newItem != null) {
+                // Special handling for money stacks
+                if (newItem.itemType == ItemType.MONEY_STACK) {
+                    newItem.value = (1..5).random() * 10 // Give a random amount from $10 to $50
+                }
+                sceneManager.activeItems.add(newItem)
+                println("Barrel dropped ${newItem.itemType.displayName}")
+            }
+        }
+    }
+
     fun update(deltaTime: Float, sceneManager: SceneManager, weatherSystem: WeatherSystem, isInInterior: Boolean) {
 
         // HANDLE ON FIRE STATE (DAMAGE & VISUALS)
@@ -2151,6 +2224,13 @@ class PlayerSystem {
                     HitObjectType.INTERIOR -> {
                         // Spawn dust/sparks for static objects
                         particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_MEDIUM, particleSpawnPos)
+
+                        val interior = collisionResult.hitObject as GameInterior
+                        if (interior.takeDamage(bullet.damage)) {
+                            println("Player shot and destroyed a ${interior.interiorType.displayName}!")
+                            dropLootFromBarrel(interior, sceneManager, canDropLoot = true)
+                            sceneManager.activeInteriors.removeValue(interior, true)
+                        }
                     }
                     HitObjectType.OBJECT -> {
                         val gameObject = collisionResult.hitObject as GameObject
@@ -2661,6 +2741,22 @@ class PlayerSystem {
                     }
                 }
 
+                val interiorIterator = sceneManager.activeInteriors.iterator()
+                while(interiorIterator.hasNext()) {
+                    val interior = interiorIterator.next()
+                    if (interior.interiorType.isDestructible) {
+                        val distanceToInterior = interior.position.dst(validGroundPosition)
+                        if (distanceToInterior < explosionRadius) {
+                            val actualDamage = calculateFalloffDamage(baseDamageToDeal, distanceToInterior, explosionRadius)
+                            if (interior.takeDamage(actualDamage)) {
+                                println("Explosion destroyed a ${interior.interiorType.displayName}!")
+                                dropLootFromBarrel(interior, sceneManager, canDropLoot = false)
+                                interiorIterator.remove()
+                            }
+                        }
+                    }
+                }
+
                 // Affect Ash
                 val ashIterator = particleSystem.getActiveParticles().iterator()
                 while (ashIterator.hasNext()) {
@@ -2849,7 +2945,8 @@ class PlayerSystem {
         val simpleObjects = sceneManager.activeEnemies.map { it to HitObjectType.ENEMY } +
             sceneManager.activeNPCs.map { it to HitObjectType.NPC } +
             sceneManager.activeObjects.filter { !it.objectType.isInvisible }.map { it to HitObjectType.OBJECT } +
-            sceneManager.activeCars.map { it to HitObjectType.CAR }
+            sceneManager.activeCars.map { it to HitObjectType.CAR } +
+            sceneManager.activeInteriors.filter { it.interiorType.isDestructible }.map { it to HitObjectType.INTERIOR }
 
         for ((obj, type) in simpleObjects) {
             val bounds = when(obj) {
@@ -2857,6 +2954,7 @@ class PlayerSystem {
                 is GameNPC -> if (obj.currentState == NPCState.DYING) continue else obj.physics.bounds
                 is GameObject -> obj.getBoundingBox()
                 is GameCar -> obj.getBoundingBox()
+                is GameInterior -> obj.getBoundingBox(BoundingBox())
                 else -> continue
             }
 
