@@ -1489,6 +1489,7 @@ class EnemySystem : IFinePositionable {
         val attackRange = enemy.equippedWeapon.meleeRange
         val attackWidth = 3f
         val directionX = if (enemy.physics.facingRotationY == 0f) 1f else -1f
+
         val enemyRadius = enemy.enemyType.width / 2f
         val hitboxCenterOffset = enemyRadius + (attackRange / 2f)
         val hitBoxCenter = enemy.position.cpy().add(directionX * hitboxCenterOffset, 0f, 0f)
@@ -1501,7 +1502,15 @@ class EnemySystem : IFinePositionable {
 
         if (hitBox.intersects(playerSystem.getPlayerBounds())) {
             println("${enemy.enemyType.displayName} hit player with melee attack!")
-            playerSystem.takeDamage(enemy.equippedWeapon.damage)
+
+            val baseDamage = enemy.equippedWeapon.damage
+
+            // Calculate a random multiplier, e.g., between 70% and 130% of base damage.
+            val damageMultiplier = Random.nextFloat() * 0.6f + 0.7f // Results in a range of 0.7 to 1.3
+            val finalDamage = baseDamage * damageMultiplier
+
+            // Apply the randomized final damage to the player.
+            playerSystem.takeDamage(finalDamage)
         }
     }
 
@@ -1541,6 +1550,11 @@ class EnemySystem : IFinePositionable {
         // 3. Calculate the spawn position based on the horizontal direction
         val velocity = finalDirection.cpy().scl(enemy.equippedWeapon.bulletSpeed)
         val bulletRotation = if (directionX < 0) 180f else 0f
+        val baseDamage = enemy.equippedWeapon.damage
+
+        // Calculate a random multiplier (e.g., 70% to 130%).
+        val damageMultiplier = Random.nextFloat() * 0.6f + 0.7f
+        val finalDamage = baseDamage * damageMultiplier
 
         val bullet = Bullet(
             position = bulletSpawnPos,
@@ -1549,7 +1563,7 @@ class EnemySystem : IFinePositionable {
             lifetime = enemy.equippedWeapon.bulletLifetime,
             rotationY = bulletRotation,
             owner = enemy,
-            damage = enemy.equippedWeapon.damage
+            damage = finalDamage
         )
 
         sceneManager.activeBullets.add(bullet)
