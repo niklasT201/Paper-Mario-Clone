@@ -90,8 +90,8 @@ public class Lwjgl3Launcher {
 
 
 // edge houses
-// audio ui checkboxes not being centered
 // ambience steps pausing between loop
+// audio ui two items in a row
 // explosion decail on invisible blocks
 // player stuck on walls again
 // barrels not breaking with guns

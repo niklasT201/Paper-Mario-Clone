@@ -137,24 +137,23 @@ class AudioSettingsUI(
             setAlignment(Align.center); color = Color.valueOf("#2C1810")
         }).padBottom(20f).row()
 
+        // Create checkbox table with vertical layout (one per row, left-aligned)
         val categoriesTable = Table()
         categoriesTable.defaults().left().padBottom(10f)
-        var count = 0
+
+        // Add all checkboxes vertically, one per row, left-aligned
         for (category in SoundCategory.entries) {
             val checkbox = createVintageCheckbox(" ${category.displayName}")
             categoryCheckboxes[category] = checkbox
-
-            // Add the checkbox to a cell and explicitly align it to the left
-            categoriesTable.add(checkbox).width(180f).left()
-
-            if (++count % 2 == 0) categoriesTable.row()
+            categoriesTable.add(checkbox).left().row()
         }
-        scrollContentTable.add(categoriesTable).fillX().row()
+
+        scrollContentTable.add(categoriesTable).left().padLeft(20f).row()
 
         val scrollPane = ScrollPane(scrollContentTable, skin, "vintage-newspaper")
         scrollPane.setScrollingDisabled(true, false)
         scrollPane.fadeScrollBars = false
-        newspaperTable.add(scrollPane).width(420f).height(450f).padBottom(25f).row() // Increased height
+        newspaperTable.add(scrollPane).width(420f).height(450f).padBottom(25f).row()
 
         backButton = createVintageButton("⬅ RETURN TO PAUSE MENU ⬅", Color.valueOf("#8B0000"))
         newspaperTable.add(backButton).width(320f).height(50f).row()
@@ -272,19 +271,85 @@ class AudioSettingsUI(
 
     fun isVisible(): Boolean = isVisible
 
-    // --- HELPER FUNCTIONS for vintage theme ---
     private fun createVintageCheckbox(text: String): CheckBox {
-        // This is a simplified version. You can copy the full styled version from VisualSettingsUI
         val checkbox = CheckBox(text, skin)
-        checkbox.label.color = Color.valueOf("#2C1810")
+
+        // Style the checkbox with vintage colors
+        checkbox.label.color = Color.valueOf("#2C1810") // Dark brown text
+
+        // Create custom checkbox style
+        val checkboxPixmap = Pixmap(20, 20, Pixmap.Format.RGBA8888)
+
+        // Unchecked state - vintage box
+        val boxColor = Color.valueOf("#F5F1E8") // Cream
+        checkboxPixmap.setColor(boxColor)
+        checkboxPixmap.fill()
+
+        // Border
+        val borderColor = Color.valueOf("#2C1810") // Dark brown
+        checkboxPixmap.setColor(borderColor)
+        checkboxPixmap.drawRectangle(0, 0, 20, 20)
+        checkboxPixmap.drawRectangle(1, 1, 18, 18)
+
+        // Corner details
+        val accentColor = Color.valueOf("#8B6914") // Dark gold
+        checkboxPixmap.setColor(accentColor)
+        for (i in 0 until 4) {
+            checkboxPixmap.drawPixel(3 + i, 3)
+            checkboxPixmap.drawPixel(3, 3 + i)
+            checkboxPixmap.drawPixel(16 - i, 3)
+            checkboxPixmap.drawPixel(16, 3 + i)
+            checkboxPixmap.drawPixel(3 + i, 16)
+            checkboxPixmap.drawPixel(3, 16 - i)
+            checkboxPixmap.drawPixel(16 - i, 16)
+            checkboxPixmap.drawPixel(16, 16 - i)
+        }
+
+        val uncheckedTexture = Texture(checkboxPixmap)
+        checkboxPixmap.dispose()
+
+        // Checked state - add vintage checkmark
+        val checkedPixmap = Pixmap(20, 20, Pixmap.Format.RGBA8888)
+        checkedPixmap.setColor(boxColor)
+        checkedPixmap.fill()
+
+        // Border
+        checkedPixmap.setColor(borderColor)
+        checkedPixmap.drawRectangle(0, 0, 20, 20)
+        checkedPixmap.drawRectangle(1, 1, 18, 18)
+
+        // Corner details
+        checkedPixmap.setColor(accentColor)
+        for (i in 0 until 4) {
+            checkedPixmap.drawPixel(3 + i, 3)
+            checkedPixmap.drawPixel(3, 3 + i)
+            checkedPixmap.drawPixel(16 - i, 3)
+            checkedPixmap.drawPixel(16, 3 + i)
+            checkedPixmap.drawPixel(3 + i, 16)
+            checkedPixmap.drawPixel(3, 16 - i)
+            checkedPixmap.drawPixel(16 - i, 16)
+            checkedPixmap.drawPixel(16, 16 - i)
+        }
+
+        // Vintage checkmark - art deco style
+        val checkColor = Color.valueOf("#2C1810")
+        checkedPixmap.setColor(checkColor)
+        // Draw art deco checkmark
+        for (i in 0 until 6) {
+            checkedPixmap.drawLine(6, 10 + i, 8 + i, 12 + i)
+            checkedPixmap.drawLine(8 + i, 12 + i, 14, 6 + i)
+        }
+
+        val checkedTexture = Texture(checkedPixmap)
+        checkedPixmap.dispose()
+
+        // Apply textures to checkbox style
+        checkbox.style.checkboxOff = TextureRegionDrawable(TextureRegion(uncheckedTexture))
+        checkbox.style.checkboxOn = TextureRegionDrawable(TextureRegion(checkedTexture))
+
         return checkbox
     }
 
-    // Copy the rest of the helper functions (createNewspaperBackground, createVintageButton, etc.)
-    // from your VisualSettingsUI.kt file here to maintain the consistent theme. I've omitted them
-    // for brevity, but you should paste them below this line.
-
-    // ... PASTE HELPER FUNCTIONS FROM VisualSettingsUI.kt HERE ...
     private fun createSmokyOverlay() {
         val pixmap = Pixmap(100, 100, Pixmap.Format.RGBA8888)
         for (y in 0 until 100) {
@@ -303,7 +368,7 @@ class AudioSettingsUI(
     }
 
     private fun createNewspaperBackground(): TextureRegionDrawable {
-        val pixmap = Pixmap(420, 600, Pixmap.Format.RGBA8888) // Increased height
+        val pixmap = Pixmap(420, 600, Pixmap.Format.RGBA8888)
         val paperColor = Color.valueOf("#F5F1E8")
         pixmap.setColor(paperColor)
         pixmap.fill()
