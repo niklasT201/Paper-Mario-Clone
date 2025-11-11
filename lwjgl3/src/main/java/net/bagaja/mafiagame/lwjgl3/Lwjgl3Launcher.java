@@ -97,9 +97,10 @@ public class Lwjgl3Launcher {
 // edge houses
 // audio ui checkboxes not being centered
 // ambience steps pausing between loop
+// visual updates happening only after opened visual ui once
+// enemy range visible in fist fights
 // character stepping out of locked car gives sound
 // npc following car
-// rusher stopping in front of the player
 // fire system uses spread fire, fire or flame particle folder
 // blocks being visible behind transparent enemies etc.
 // car maybe be able to step up half a block

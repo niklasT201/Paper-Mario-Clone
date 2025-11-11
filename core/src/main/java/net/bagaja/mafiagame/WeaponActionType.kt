@@ -110,7 +110,7 @@ enum class WeaponType(
         actionType = WeaponActionType.MELEE,
         fireRatePerSecond = 1.5f,
         damage = 35f, // Slower but higher damage and longer range than knife
-        meleeRange = 7.0f,
+        meleeRange = 5f,
         magazineSize = 0,
         requiresReload = false,
         reloadTime = 0.0f,

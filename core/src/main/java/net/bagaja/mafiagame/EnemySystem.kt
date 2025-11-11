@@ -1357,12 +1357,21 @@ class EnemySystem : IFinePositionable {
         val playerPos = playerSystem.getPosition()
         var desiredMovement = Vector3.Zero
         val distanceToPlayer = enemy.position.dst(playerPos)
-        val meleeRange = enemy.equippedWeapon.meleeRange
+
+        val playerRadius = playerSystem.playerSize.x / 2f
+        val enemyRadius = enemy.enemyType.width / 2f
+        val effectiveMeleeRange = enemy.equippedWeapon.meleeRange + playerRadius + enemyRadius
 
         // MELEE ATTACK LOGIC
-        if (distanceToPlayer < meleeRange && enemy.attackTimer <= 0f) {
+        if (distanceToPlayer < effectiveMeleeRange && enemy.attackTimer <= 0f) {
             performEnemyMeleeAttack(enemy, playerSystem)
+
+            // Reset the base weapon cooldown
             enemy.attackTimer = enemy.equippedWeapon.fireCooldown
+
+            val reactionDelay = Random.nextFloat() * 0.4f + 0.2f // Add 0.2 to 0.6 seconds of delay
+            enemy.attackTimer += reactionDelay
+
             characterPhysicsSystem.update(enemy.physics, Vector3.Zero, deltaTime) // Stop moving to attack
             return // End AI update for this frame
         }
@@ -1480,8 +1489,11 @@ class EnemySystem : IFinePositionable {
         val attackRange = enemy.equippedWeapon.meleeRange
         val attackWidth = 3f
         val directionX = if (enemy.physics.facingRotationY == 0f) 1f else -1f
+        val enemyRadius = enemy.enemyType.width / 2f
+        val hitboxCenterOffset = enemyRadius + (attackRange / 2f)
+        val hitBoxCenter = enemy.position.cpy().add(directionX * hitboxCenterOffset, 0f, 0f)
 
-        val hitBoxCenter = enemy.position.cpy().add(directionX * (attackRange / 2f), 0f, 0f)
+        // The size of the hitbox is based on the weapon's range.
         val hitBox = BoundingBox(
             Vector3(hitBoxCenter.x - (attackRange / 2f), hitBoxCenter.y - (enemy.enemyType.height / 2f), hitBoxCenter.z - (attackWidth / 2f)),
             Vector3(hitBoxCenter.x + (attackRange / 2f), hitBoxCenter.y + (enemy.enemyType.height / 2f), hitBoxCenter.z + (attackWidth / 2f))
