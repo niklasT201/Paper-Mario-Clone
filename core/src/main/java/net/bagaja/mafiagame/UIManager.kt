@@ -1652,6 +1652,16 @@ class UIManager(
         }
     }
 
+    fun applyAllSettingsFromManager() {
+        // This function will be called once at startup to apply all loaded settings.
+        if (::visualSettingsUI.isInitialized) {
+            visualSettingsUI.applyAllVisualSettings()
+        }
+        if (::audioSettingsUI.isInitialized) {
+            audioSettingsUI.applyAllAudioSettings()
+        }
+    }
+
     fun hidePauseMenu() {
         if (::pauseMenuUI.isInitialized && pauseMenuUI.isVisible()) {
             pauseMenuUI.hide()

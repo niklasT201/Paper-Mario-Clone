@@ -89,15 +89,12 @@ public class Lwjgl3Launcher {
 // more animations adding
 
 
-// currently it works so, that when the player gets pulled out of the car, the character will always steal the car, never doing anything else. then drives a bit away, leaves it and moves to the player finally. the thing is, i really like this idea, that it steals the car and then comes back so it takes away the way to leave for the player, but this shouldnt happen only. i want that the character can choose between this and just kicking the player out and beating it
-
 //  i thought about a small and optional reward for the player, barrels. i thought about that there can be barrels, im not sure if they are objects or interiors, objects should already be able for this, but interiors would need an update, that you can shoot or hit barrels, and they CAN, NOT must, drop items. money or weapons. if you use dynamite to destroy them, the barrel should NEVER drop items, as it should imply that explosions destroy the items in the barrels. and not too much items, i dont want that barrels give better rewards than the actual missions. and i want that in object selection can have 3 options, random items, selected items or no items. in default no items. so i can say they are useless, select the items i want to give, or when im too bored to select, just have a loot pool the game can randomly choose from and i want that its always random, not that you have save this, and remove the random factor
 
 
 // edge houses
 // audio ui checkboxes not being centered
 // ambience steps pausing between loop
-// visual updates happening only after opened visual ui once
 // enemy range visible in fist fights
 // character stepping out of locked car gives sound
 // npc following car

@@ -795,6 +795,28 @@ class VisualSettingsUI(
         return TextureRegionDrawable(TextureRegion(texture))
     }
 
+    fun applyAllVisualSettings() {
+        val settings = PlayerSettingsManager.current
+
+        // Apply all visual settings to their respective systems
+        cameraManager.setDisplayMode(if(settings.fullscreen) CameraManager.DisplayMode.FULLSCREEN else CameraManager.DisplayMode.WINDOWED)
+
+        // Use an 'if' check to avoid toggling unnecessarily, which can be cleaner
+        if (uiManager.isLetterboxEnabled() != settings.letterbox) uiManager.toggleLetterbox()
+        if (uiManager.isCinematicBarsEnabled() != settings.cinematicBars) uiManager.toggleCinematicBars()
+        if (targetingIndicatorSystem.isEnabled() != settings.targetingIndicator) targetingIndicatorSystem.toggle()
+        if (trajectorySystem.isEnabled() != settings.trajectoryArc) trajectorySystem.toggle()
+        if (meleeRangeIndicatorSystem.isEnabled() != settings.meleeRangeIndicator) meleeRangeIndicatorSystem.toggle()
+        if (playerSystem.isMuzzleFlashLightEnabled() != settings.muzzleFlashLight) playerSystem.toggleMuzzleFlashLight()
+
+        uiManager.setHudStyle(settings.hudStyle)
+        uiManager.setViolenceLevel(settings.violenceLevel)
+        meleeRangeIndicatorSystem.setStyle(settings.meleeIndicatorStyle)
+        uiManager.shaderEffectManager.setEffect(settings.selectedShader)
+
+        println("All visual settings have been applied from PlayerSettingsManager.")
+    }
+
     fun show(stage: Stage) {
         // Update checkbox states
         val settings = PlayerSettingsManager.current

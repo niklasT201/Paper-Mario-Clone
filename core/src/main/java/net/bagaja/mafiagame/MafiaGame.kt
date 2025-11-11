@@ -151,6 +151,9 @@ class MafiaGame : ApplicationAdapter() {
         if (isEditorMode) {
             println("Editor mode detected. Starting game directly.")
             loadAllGameSystems() // This will now also assign dependencies to uiManager and inputHandler
+
+            uiManager.applyAllSettingsFromManager() // Apply all loaded settings now that systems exist
+
             saveLoadSystem.loadGame(null)
             currentGameMode = GameMode.IN_GAME
         } else {
@@ -349,6 +352,7 @@ class MafiaGame : ApplicationAdapter() {
         if (!initialSystemsLoaded) {
             loadAllGameSystems()
             inputHandler.initialize() // Fully initialize input handler now that systems exist
+            uiManager.applyAllSettingsFromManager()
         }
 
         Gdx.app.postRunnable {
@@ -378,6 +382,7 @@ class MafiaGame : ApplicationAdapter() {
         if (!initialSystemsLoaded) {
             loadAllGameSystems()
             inputHandler.initialize()
+            uiManager.applyAllSettingsFromManager()
         }
 
         Gdx.app.postRunnable {
