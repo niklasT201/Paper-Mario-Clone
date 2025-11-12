@@ -1449,6 +1449,10 @@ class MafiaGame : ApplicationAdapter() {
                     meleeRangeIndicatorSystem.render(cameraManager.camera, environment)
                 }
 
+                if (showBlockCollisionOutlines) { // We can reuse this toggle for convenience
+                    blockDebugRenderer.renderBoundingBox(cameraManager.camera, playerSystem.getPlayerBounds(), Color.CYAN)
+                }
+
                 // Transition to 2D UI Rendering
                 Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
                 Gdx.gl.glDepthMask(false)

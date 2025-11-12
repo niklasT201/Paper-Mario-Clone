@@ -11,6 +11,7 @@ import com.badlogic.gdx.graphics.g3d.ModelInstance
 import com.badlogic.gdx.graphics.g3d.attributes.ColorAttribute
 import com.badlogic.gdx.graphics.g3d.utils.MeshPartBuilder
 import com.badlogic.gdx.graphics.g3d.utils.ModelBuilder
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.BoundingBox
 import com.badlogic.gdx.utils.Array
@@ -19,6 +20,7 @@ import com.badlogic.gdx.utils.Disposable
 class BlockDebugRenderer : Disposable {
 
     private lateinit var modelBatch: ModelBatch
+    private lateinit var shapeRenderer: ShapeRenderer
     private val modelBuilder = ModelBuilder()
     private val lineMaterial = Material(ColorAttribute.createDiffuse(Color.YELLOW))
     private val tempBounds = BoundingBox()
@@ -28,8 +30,12 @@ class BlockDebugRenderer : Disposable {
 
     fun initialize() {
         modelBatch = ModelBatch()
+        shapeRenderer = ShapeRenderer() // --- ADDED: Initialize the ShapeRenderer
     }
 
+    /**
+     * Renders wireframes for all collidable blocks in the scene.
+     */
     fun render(camera: Camera, environment: Environment, blocks: Array<GameBlock>) {
         if (blocks.isEmpty) return
 
@@ -58,8 +64,29 @@ class BlockDebugRenderer : Disposable {
             modelBatch.begin(camera)
             modelBatch.render(ModelInstance(combinedModel), environment)
             modelBatch.end()
-            combinedModel.dispose() // Dispose the temporary model immediately
+            combinedModel.dispose()
         }
+    }
+
+    fun renderBoundingBox(camera: Camera, box: BoundingBox, color: Color) {
+        shapeRenderer.projectionMatrix = camera.combined
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Line)
+        shapeRenderer.color = color
+
+        val center = Vector3()
+        box.getCenter(center)
+        val dimensions = Vector3()
+        box.getDimensions(dimensions)
+
+        shapeRenderer.box(
+            center.x - dimensions.x / 2f,
+            center.y - dimensions.y / 2f,
+            center.z + dimensions.z / 2f,
+            dimensions.x,
+            dimensions.y,
+            -dimensions.z
+        )
+        shapeRenderer.end()
     }
 
     private fun addBoundingBoxLinesToPart(part: MeshPartBuilder, bounds: BoundingBox) {
@@ -82,7 +109,7 @@ class BlockDebugRenderer : Disposable {
 
     private fun addMeshWireframeToPart(part: MeshPartBuilder, instance: ModelInstance): Boolean {
         val mesh = instance.model.meshes.firstOrNull() ?: return false
-        if (mesh.numIndices == 0) return false // CRITICAL: This prevents the crash
+        if (mesh.numIndices == 0) return false
 
         val vertices = FloatArray(mesh.numVertices * mesh.vertexAttributes.vertexSize / 4)
         val indices = ShortArray(mesh.numIndices)
@@ -108,5 +135,6 @@ class BlockDebugRenderer : Disposable {
 
     override fun dispose() {
         modelBatch.dispose()
+        shapeRenderer.dispose()
     }
 }

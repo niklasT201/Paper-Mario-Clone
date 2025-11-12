@@ -233,7 +233,7 @@ class PlayerSystem {
     lateinit var physicsComponent: PhysicsComponent
 
     // Player position and movement
-    val playerSize = Vector3(3f, 4f, 3f) //z = thickness
+    val playerSize = Vector3(3f, 4f, 1f) //z = thickness
 
     // Player rotation for Paper Mario effect
     private var playerTargetRotationY = 0f
@@ -356,7 +356,7 @@ class PlayerSystem {
 
         physicsComponent = PhysicsComponent(
             position = Vector3(0f, 2f, 0f), // Default start position
-            size = this.playerSize,
+            size = this.playerSize.cpy(),
             speed = 8f // Player's specific speed
         )
 
@@ -2333,6 +2333,8 @@ class PlayerSystem {
 
                             // Apply directly to physics to work even on dying enemies
                             enemy.physics.knockbackVelocity.set(knockbackVector)
+
+                            println("Knocked ${enemy.enemyType.displayName} with force: ${knockbackVector.len()} (${if(willDie) "FATAL" else "survived"})")
                         }
                     }
                     HitObjectType.NPC -> {
@@ -2377,6 +2379,8 @@ class PlayerSystem {
                             val knockbackVector = knockbackDirection.scl(forcePerPellet * ragdollMultiplier)
 
                             npc.physics.knockbackVelocity.set(knockbackVector)
+
+                            println("Knocked ${npc.npcType.displayName} with force: ${knockbackVector.len()} (${if(willDie) "FATAL" else "survived"})")
                         }
                     }
                     HitObjectType.PLAYER -> {
