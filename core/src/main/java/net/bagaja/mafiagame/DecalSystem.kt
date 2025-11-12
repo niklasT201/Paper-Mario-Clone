@@ -133,6 +133,21 @@ class DecalSystem(private val sceneManager: SceneManager) : Disposable {
             val blockBounds = block.getBoundingBox(sceneManager.game.blockSize, tempBounds)
             if (!decalBounds.intersects(blockBounds)) return@forEach
 
+           // 1. Explicitly ignore invisible blocks as requested.
+            if (block.blockType == BlockType.INVISIBLE) {
+                return@forEach // Skip this block entirely, don't draw a decal on it.
+            }
+
+            // 2. Check if there is another solid block directly on top of this one.
+            val positionAbove = block.position.cpy().add(0f, sceneManager.game.blockSize, 0f)
+            val blockAbove = sceneManager.activeChunkManager.getBlockAtWorld(positionAbove)
+
+            // If a block exists above and it has collision properties, this top face is covered.
+            if (blockAbove != null && blockAbove.blockType.hasCollision) {
+                return@forEach // Skip this block, as its top face is not visible.
+            }
+
+            // If we passed the checks, proceed with generating the decal mesh for this block face.
             if (block.shape == BlockShape.FULL_BLOCK) {
                 val halfSize = sceneManager.game.blockSize / 2f
                 val topY = block.position.y + halfSize * block.blockType.height + DECAL_Y_OFFSET // Keep small offset
@@ -155,11 +170,7 @@ class DecalSystem(private val sceneManager: SceneManager) : Disposable {
                         val idx2 = partBuilder.vertex(p2, Vector3.Y, null, calculateUV(p2, decalBounds))
                         val idx3 = partBuilder.vertex(p3, Vector3.Y, null, calculateUV(p3, decalBounds))
 
-                        // --- THE FIX IS HERE ---
-                        // The order is now (idx1, idx2, idx3) for counter-clockwise winding.
                         partBuilder.triangle(idx1, idx2, idx3)
-                        // --- END OF FIX ---
-
                         verticesAdded += 3
                     }
                 }
