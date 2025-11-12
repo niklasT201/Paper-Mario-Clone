@@ -132,8 +132,8 @@ class CharacterPhysicsSystem(private val sceneManager: SceneManager) {
 
         val boundsFor3D = BoundingBox()
         boundsFor3D.set(
-            Vector3(x - (component.size.x / 2 - shrinkFor3D), y - component.size.y / 2, z - (component.size.z / 2 - shrinkFor3D)),
-            Vector3(x + (component.size.x / 2 - shrinkFor3D), y + component.size.y / 2, z + (component.size.z / 2 - shrinkFor3D))
+            Vector3(x - component.size.x / 2, y - component.size.y / 2, z - component.size.z / 2),
+            Vector3(x + component.size.x / 2, y + component.size.y / 2, z + component.size.z / 2)
         )
 
         // 1. Check against Blocks
@@ -153,7 +153,7 @@ class CharacterPhysicsSystem(private val sceneManager: SceneManager) {
             if (house.collidesWithMesh(boundsFor3D)) return false
         }
 
-        // 3. Check against Interior Objects (RE-ADDED AND CORRECTED)
+        // 3. Check against Interior Objects
         for (interior in sceneManager.activeInteriors) {
             // Skip any interior objects that don't have collision enabled.
             if (!interior.interiorType.hasCollision) continue

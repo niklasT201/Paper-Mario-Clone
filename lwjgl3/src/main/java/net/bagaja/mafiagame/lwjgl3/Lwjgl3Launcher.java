@@ -91,9 +91,9 @@ public class Lwjgl3Launcher {
 
 // edge houses
 // ambience steps pausing between loop
+// block faces marked when player collides with them
 // audio ui two items in a row
 // explosion decail on invisible blocks
-// player stuck on walls again
 // barrels not breaking with guns
 // choosing item count
 // enemy range visible in fist fights
