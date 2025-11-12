@@ -91,6 +91,7 @@ public class Lwjgl3Launcher {
 
 // edge houses
 // ambience steps pausing between loop
+// decal separating world and room
 // audio ui two items in a row
 // barrels not breaking with guns
 // choosing item count

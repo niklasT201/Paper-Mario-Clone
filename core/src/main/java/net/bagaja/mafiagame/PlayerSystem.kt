@@ -2225,6 +2225,13 @@ class PlayerSystem {
                         // Spawn dust/sparks for static objects
                         particleSystem.spawnEffect(ParticleEffectType.DUST_SMOKE_MEDIUM, particleSpawnPos)
 
+                        sceneManager.game.soundManager.playSound(
+                            effect = SoundManager.Effect.WOOD_SPLINTER,
+                            position = collisionResult.hitPoint,
+                            reverbProfile = SoundManager.DEFAULT_REVERB,
+                            pitch = 1.0f + (Random.nextFloat() * 0.2f - 0.1f) // Add a little random pitch
+                        )
+
                         val interior = collisionResult.hitObject as GameInterior
                         if (interior.takeDamage(bullet.damage)) {
                             println("Player shot and destroyed a ${interior.interiorType.displayName}!")

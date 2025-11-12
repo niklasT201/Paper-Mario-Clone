@@ -44,7 +44,8 @@ object SoundCategoryManager {
             "TOMMY_GUN_AUTO", "GUNSHOT_SHOTGUN_V1", "GUNSHOT_SHOTGUN_V2", "SHOTGUN_PUMP_V1",
             "SHOTGUN_PUMP_V2", "SHOTGUN_RELOAD", "MACHINE_GUN_SINGLE", "MACHINE_GUN_AUTO",
             "EXPLOSION_HIGH", SoundManager.Effect.GUNSHOT_REVOLVER.name, SoundManager.Effect.RELOAD_CLICK.name,
-            SoundManager.Effect.MELEE_SWOOSH.name, SoundManager.Effect.PUNCH_HIT.name
+            SoundManager.Effect.MELEE_SWOOSH.name, SoundManager.Effect.PUNCH_HIT.name,
+            SoundManager.Effect.WOOD_SPLINTER.name
         )
         categoryMap[SoundCategory.VEHICLES] = listOf(
             "CAR_DRIVING_LOOP", "CAR_DOOR_OPEN_V1", "CAR_DOOR_OPEN_V2", "CAR_DOOR_OPEN_V3",

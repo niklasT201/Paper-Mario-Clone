@@ -42,6 +42,7 @@ object ProceduralSFXGenerator : Disposable {
             SoundManager.Effect.OBJECTIVE_COMPLETE -> generateArpeggio(floatArrayOf(392.00f, 523.25f, 659.25f), 0.1f) // G-C-E chord (higher)
             SoundManager.Effect.WATER_SPLASH -> generateWaterSplash()
             SoundManager.Effect.BLOOD_SQUISH -> generateBloodSquish()
+            SoundManager.Effect.WOOD_SPLINTER -> generateWoodSplinter()
         }
         val wavData = convertToWav(pcmData)
 
@@ -427,6 +428,32 @@ object ProceduralSFXGenerator : Disposable {
 
             val mixedSample = lowPass * envelope
             samples[i] = (mixedSample.coerceIn(-1f, 1f) * 0.5f * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    private fun generateWoodSplinter(): ShortArray {
+        val durationSeconds = 0.1f // Very short and sharp
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+
+            // High-frequency noise for the "crack"
+            val noiseEnvelope = (1.0f - progress).pow(12) // Very rapid decay
+            val noise = (Random.nextFloat() * 2f - 1f) * noiseEnvelope
+
+            // A quick, downward-pitching tone for the "splinter" sound
+            val toneFrequency = 2000f * (1.0f - progress).pow(4) // Starts high, drops fast
+            val toneEnvelope = (1.0f - progress).pow(8)
+            val tone = sin(2f * PI * i * toneFrequency / SAMPLE_RATE).toFloat() * toneEnvelope
+
+            // Mix them, giving more weight to the noisy crackle
+            val mixedSample = ((noise * 0.7f) + (tone * 0.3f)).coerceIn(-1f, 1f)
+
+            // Make it relatively quiet
+            samples[i] = (mixedSample * 0.4f * Short.MAX_VALUE).toInt().toShort()
         }
         return samples
     }

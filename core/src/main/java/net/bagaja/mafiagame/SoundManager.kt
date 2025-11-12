@@ -45,7 +45,8 @@ class SoundManager : Disposable {
         MISSION_START,
         OBJECTIVE_COMPLETE,
         WATER_SPLASH,
-        BLOOD_SQUISH
+        BLOOD_SQUISH,
+        WOOD_SPLINTER
     }
 
     data class ReverbProfile(
