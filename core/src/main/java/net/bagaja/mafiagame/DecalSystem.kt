@@ -18,10 +18,11 @@ import com.badlogic.gdx.utils.Disposable
 // Data class to hold a decal and its associated resources
 data class GameDecal(
     val modelInstance: ModelInstance,
-    val model: Model, // We need to hold onto the model to dispose of it
+    val model: Model,
     var lifetime: Float,
     val initialLifetime: Float,
-    private val blendingAttribute: BlendingAttribute
+    private val blendingAttribute: BlendingAttribute,
+    val sceneId: String
 ) : Disposable {
     fun update(deltaTime: Float): Boolean {
         lifetime -= deltaTime
@@ -76,10 +77,16 @@ class DecalSystem(private val sceneManager: SceneManager) : Disposable {
         Gdx.gl.glBlendFunc(GL20.GL_SRC_ALPHA, GL20.GL_ONE_MINUS_SRC_ALPHA)
         Gdx.gl.glDepthMask(false)
 
-        // MODIFIED: Set the environment for the shader
         billboardShaderProvider.setEnvironment(environment)
         modelBatch.begin(camera)
-        activeDecals.forEach { modelBatch.render(it.modelInstance, environment) }
+
+        val currentSceneId = sceneManager.getCurrentSceneId()
+        activeDecals.forEach { decal ->
+            if (decal.sceneId == currentSceneId) {
+                modelBatch.render(decal.modelInstance, environment)
+            }
+        }
+
         modelBatch.end()
 
         Gdx.gl.glDepthMask(true)
@@ -108,7 +115,8 @@ class DecalSystem(private val sceneManager: SceneManager) : Disposable {
         val decalInstance = ModelInstance(decalModel)
         val blendingAttribute = decalInstance.materials.first().get(BlendingAttribute.Type) as BlendingAttribute
 
-        val gameDecal = GameDecal(decalInstance, decalModel, lifetime, lifetime, blendingAttribute)
+        val currentSceneId = sceneManager.getCurrentSceneId()
+        val gameDecal = GameDecal(decalInstance, decalModel, lifetime, lifetime, blendingAttribute, currentSceneId)
         activeDecals.add(gameDecal)
     }
 

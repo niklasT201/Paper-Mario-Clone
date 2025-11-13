@@ -92,6 +92,10 @@ public class Lwjgl3Launcher {
 // edge houses
 // ambience steps pausing between loop
 // decal separating world and room
+// blob sound for dropped items
+// audio emitter not making sound quit
+// audi emitter ui not having female voice sound
+// audio emitter cutting off sounds
 // rotating for animation images only after hit
 // audio ui two items in a row
 // enemy range visible in fist fights
