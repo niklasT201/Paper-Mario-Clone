@@ -932,12 +932,14 @@ class PlayerSystem {
             }
         }
 
-        // --- ADD THIS BLOCK: Check against Interiors (Barrels) ---
+        // Check against destructible Interiors (like Barrels)
         val interiorIterator = sceneManager.activeInteriors.iterator()
         while(interiorIterator.hasNext()) {
             val interior = interiorIterator.next()
             // Check if the interior object is destructible and intersects the hitbox
             if (interior.interiorType.isDestructible && hitBox.intersects(interior.getBoundingBox(BoundingBox()))) {
+                println("DEBUG: Melee hit box INTERSECTED with ${interior.interiorType.displayName}")
+                println("DEBUG: Applying ${equippedWeapon.damage} melee damage to ${interior.interiorType.displayName}. Current HP: ${interior.health}")
                 if (interior.takeDamage(equippedWeapon.damage)) {
                     println("Player destroyed a ${interior.interiorType.displayName} with melee!")
                     dropLootFromBarrel(interior, sceneManager, canDropLoot = true)
@@ -2976,6 +2978,10 @@ class PlayerSystem {
                     // If the bullet's owner is an enemy, and it hits that SAME enemy, ignore the collision.
                     if (bullet.owner is GameEnemy && obj is GameEnemy && bullet.owner.id == obj.id) {
                         continue // Skip this collision, it's the enemy shooting itself.
+                    }
+
+                    if (type == HitObjectType.INTERIOR) {
+                        println("DEBUG: Bullet ray INTERSECTED with interior object: ${ (obj as GameInterior).interiorType.displayName }")
                     }
 
                     val normal = bullet.velocity.cpy().nor().scl(-1f)

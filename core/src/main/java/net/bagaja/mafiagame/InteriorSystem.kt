@@ -298,7 +298,7 @@ class InteriorSystem : IFinePositionable {
             newInterior.specificLoot.addAll(specificItems)
             resetAction() // Clear the UI list for the next placement
         }
-        
+
         newInterior.rotation = currentRotation
         newInterior.updateTransform()
 
@@ -468,8 +468,16 @@ data class GameInterior(
         get() = this.instance
 
     fun getBoundingBox(out: BoundingBox): BoundingBox {
-        // Calculate and return the world-space bounding box
-        return instance.calculateBoundingBox(out)
+        val halfWidth = (interiorType.width * scale.x) / 2f
+        val halfHeight = (interiorType.height * scale.y) / 2f
+        val halfDepth = (interiorType.depth * scale.z) / 2f // Use the defined depth
+
+        // The position is the center of the object
+        out.set(
+            position.cpy().sub(halfWidth, halfHeight, halfDepth),
+            position.cpy().add(halfWidth, halfHeight, halfDepth)
+        )
+        return out
     }
 
     init {
