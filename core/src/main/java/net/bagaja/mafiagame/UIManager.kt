@@ -1652,8 +1652,8 @@ class UIManager(
         }
     }
 
-    fun getBarrelLootConfig(): Triple<BarrelLootMode, List<ItemType>, () -> Unit> {
-        return interiorSelectionUI.getBarrelLootConfig()
+    fun getDestructibleConfig(): DestructibleConfig {
+        return interiorSelectionUI.getDestructibleConfig()
     }
 
     fun applyAllSettingsFromManager() {

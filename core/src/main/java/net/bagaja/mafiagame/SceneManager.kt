@@ -1200,6 +1200,12 @@ class SceneManager(
                                 gameInterior.position.set(element.position)
                                 gameInterior.rotation = element.rotation
                                 gameInterior.scale.set(element.scale)
+
+                                element.isDestructible?.let { gameInterior.isDestructible = it }
+                                element.health?.let { gameInterior.health = it }
+                                element.lootMode?.let { gameInterior.lootMode = it }
+                                element.specificLoot?.let { gameInterior.specificLoot.addAll(it) }
+
                                 gameInterior.updateTransform()
                                 newInteriors.add(gameInterior)
                             }
@@ -1533,7 +1539,10 @@ class SceneManager(
                 elementType = RoomElementType.INTERIOR,
                 interiorType = interior.interiorType,
                 rotation = interior.rotation,
-                scale = interior.scale.cpy()
+                scale = interior.scale.cpy(),
+                isDestructible = interior.isDestructible,
+                lootMode = interior.lootMode,
+                specificLoot = interior.specificLoot.toList()
             ))
         }
 

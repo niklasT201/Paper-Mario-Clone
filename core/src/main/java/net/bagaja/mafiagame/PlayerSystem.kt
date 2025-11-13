@@ -937,15 +937,15 @@ class PlayerSystem {
         while(interiorIterator.hasNext()) {
             val interior = interiorIterator.next()
             // Check if the interior object is destructible and intersects the hitbox
-            if (interior.interiorType.isDestructible && hitBox.intersects(interior.getBoundingBox(BoundingBox()))) {
+            if (interior.isDestructible && hitBox.intersects(interior.getBoundingBox(BoundingBox()))) {
                 println("DEBUG: Melee hit box INTERSECTED with ${interior.interiorType.displayName}")
                 println("DEBUG: Applying ${equippedWeapon.damage} melee damage to ${interior.interiorType.displayName}. Current HP: ${interior.health}")
                 if (interior.takeDamage(equippedWeapon.damage)) {
                     println("Player destroyed a ${interior.interiorType.displayName} with melee!")
-                    dropLootFromBarrel(interior, sceneManager, canDropLoot = true)
+                    dropLootFromInterior(interior, sceneManager, canDropLoot = true)
                     interiorIterator.remove() // Remove the barrel from the scene
                 }
-                // You can add a "hit barrel" sound effect here if you have one
+                // You can add a "hit object" sound effect here if you have one
                 hitSomething = true // To prevent playing the swoosh sound
             }
         }
@@ -1946,18 +1946,21 @@ class PlayerSystem {
         }
     }
 
-    private fun dropLootFromBarrel(barrel: GameInterior, sceneManager: SceneManager, canDropLoot: Boolean) {
+    private fun dropLootFromInterior(interior: GameInterior, sceneManager: SceneManager, canDropLoot: Boolean = true) {
         if (!canDropLoot) return // Exit if destroyed by an explosion
 
         // 50% chance to drop anything at all if in RANDOM mode
-        if (barrel.lootMode == BarrelLootMode.RANDOM && Random.nextFloat() > 0.5f) {
+        if (interior.lootMode == LootMode.RANDOM && Random.nextFloat() > 0.5f) {
             return
         }
 
         val itemsToDrop = mutableListOf<ItemType>()
-        when (barrel.lootMode) {
-            BarrelLootMode.NONE -> { /* Do nothing */ }
-            BarrelLootMode.RANDOM -> {
+        when (interior.lootMode) {
+            LootMode.NONE -> { /* Do nothing */ }
+            LootMode.RANDOM -> {
+                // 50% chance to drop anything at all
+                if (Random.nextFloat() > 0.5f) return
+
                 val totalWeight = barrelLootPool.sumOf { it.weight }
                 var randomRoll = Random.nextInt(100) // Roll from 0 to 99
 
@@ -1969,14 +1972,24 @@ class PlayerSystem {
                     randomRoll -= lootItem.weight
                 }
             }
-            BarrelLootMode.SPECIFIC -> {
-                itemsToDrop.addAll(barrel.specificLoot)
+            LootMode.SPECIFIC -> {
+                // Handle specific loot with quantities
+                for (lootDrop in interior.specificLoot) {
+                    val count = if (lootDrop.minCount >= lootDrop.maxCount) {
+                        lootDrop.minCount
+                    } else {
+                        Random.nextInt(lootDrop.minCount, lootDrop.maxCount + 1)
+                    }
+                    repeat(count) {
+                        itemsToDrop.add(lootDrop.itemType)
+                    }
+                }
             }
         }
 
         // Spawn the items
         for (itemType in itemsToDrop) {
-            val dropPosition = barrel.position.cpy().add(
+            val dropPosition = interior.position.cpy().add(
                 (Random.nextFloat() - 0.5f) * 1.5f,
                 0.5f,
                 (Random.nextFloat() - 0.5f) * 1.5f
@@ -1988,7 +2001,7 @@ class PlayerSystem {
                     newItem.value = (1..5).random() * 10 // Give a random amount from $10 to $50
                 }
                 sceneManager.activeItems.add(newItem)
-                println("Barrel dropped ${newItem.itemType.displayName}")
+                println("${interior.interiorType.displayName} dropped ${newItem.itemType.displayName}")
             }
         }
     }
@@ -2237,7 +2250,8 @@ class PlayerSystem {
                         val interior = collisionResult.hitObject as GameInterior
                         if (interior.takeDamage(bullet.damage)) {
                             println("Player shot and destroyed a ${interior.interiorType.displayName}!")
-                            dropLootFromBarrel(interior, sceneManager, canDropLoot = true)
+                            // MODIFIED: Call the new function, bullets CAN drop loot
+                            dropLootFromInterior(interior, sceneManager, canDropLoot = true)
                             sceneManager.activeInteriors.removeValue(interior, true)
                         }
                     }
@@ -2757,13 +2771,13 @@ class PlayerSystem {
                 val interiorIterator = sceneManager.activeInteriors.iterator()
                 while(interiorIterator.hasNext()) {
                     val interior = interiorIterator.next()
-                    if (interior.interiorType.isDestructible) {
+                    if (interior.isDestructible) {
                         val distanceToInterior = interior.position.dst(validGroundPosition)
                         if (distanceToInterior < explosionRadius) {
                             val actualDamage = calculateFalloffDamage(baseDamageToDeal, distanceToInterior, explosionRadius)
                             if (interior.takeDamage(actualDamage)) {
                                 println("Explosion destroyed a ${interior.interiorType.displayName}!")
-                                dropLootFromBarrel(interior, sceneManager, canDropLoot = false)
+                                dropLootFromInterior(interior, sceneManager, canDropLoot = false)
                                 interiorIterator.remove()
                             }
                         }

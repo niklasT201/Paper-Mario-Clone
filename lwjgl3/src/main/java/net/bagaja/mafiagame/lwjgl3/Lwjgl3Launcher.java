@@ -94,7 +94,6 @@ public class Lwjgl3Launcher {
 // decal separating world and room
 // rotating for animation images only after hit
 // audio ui two items in a row
-// choosing item count
 // enemy range visible in fist fights
 // character stepping out of locked car gives sound
 // fire system uses spread fire, fire or flame particle folder

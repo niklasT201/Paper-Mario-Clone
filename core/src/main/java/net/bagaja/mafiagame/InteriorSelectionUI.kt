@@ -18,6 +18,14 @@ import com.badlogic.gdx.scenes.scene2d.utils.TextureRegionDrawable
 import com.badlogic.gdx.utils.Align
 import javax.swing.event.ChangeEvent
 
+data class DestructibleConfig(
+    val isDestructible: Boolean,
+    val health: Float,
+    val lootMode: LootMode,
+    val specificLoot: List<LootDrop>,
+    val resetAction: () -> Unit // Action to reset UI state after placement
+)
+
 class InteriorSelectionUI(
     private val interiorSystem: InteriorSystem,
     private val skin: Skin,
@@ -39,13 +47,17 @@ class InteriorSelectionUI(
     private lateinit var rotationLabel: Label
     private lateinit var finePosLabel: Label
 
-    private lateinit var barrelSettingsTable: Table
-    private lateinit var lootModeSelectBox: SelectBox<BarrelLootMode>
+    private lateinit var destructibleSettingsTable: Table
+    private lateinit var isDestructibleCheckbox: CheckBox
+    private lateinit var healthField: TextField
+    private lateinit var lootModeSelectBox: SelectBox<LootMode>
     private lateinit var specificLootTable: Table
     private lateinit var specificLootSelectBox: SelectBox<String>
     private lateinit var addLootItemButton: TextButton
+    private lateinit var minCountField: TextField // NEW
+    private lateinit var maxCountField: TextField // NEW
     private lateinit var specificLootLabel: Label
-    private var currentSpecificLoot = mutableListOf<ItemType>()
+    private var currentSpecificLoot = mutableListOf<LootDrop>()
 
     private data class InteriorSelectionItem(
         val container: Table,
@@ -89,7 +101,7 @@ class InteriorSelectionUI(
         // Placement Information Section
         setupPlacementInfo(mainContainer)
 
-        setupBarrelSettings(mainContainer)
+        setupDestructibleSettings(mainContainer)
 
         // Instructions
         setupInstructions(mainContainer)
@@ -637,46 +649,80 @@ class InteriorSelectionUI(
         }
     }
 
-    private fun setupBarrelSettings(mainContainer: Table) {
-        barrelSettingsTable = Table()
-        barrelSettingsTable.padTop(10f)
-        barrelSettingsTable.isVisible = false // Hidden by default
+    private fun setupDestructibleSettings(mainContainer: Table) {
+        destructibleSettingsTable = Table()
+        destructibleSettingsTable.padTop(10f)
+        destructibleSettingsTable.isVisible = false // Start hidden
 
-        barrelSettingsTable.add(Label("Barrel Loot Settings", skin, "section-header")).colspan(2).padBottom(5f).row()
+        // --- Main Checkbox ---
+        isDestructibleCheckbox = CheckBox(" Is Destructible", skin)
+        destructibleSettingsTable.add(isDestructibleCheckbox).colspan(2).left().padBottom(8f).row()
+
+        // Health Field
+        healthField = TextField("30", skin)
+        destructibleSettingsTable.add(Label("Health:", skin)).padRight(10f)
+        destructibleSettingsTable.add(healthField).width(80f).left().row()
+
+        destructibleSettingsTable.add(Label("Loot Settings", skin, "section-header")).colspan(2).pad(15f, 0f, 5f, 0f).row()
 
         // Loot Mode Selection
         lootModeSelectBox = SelectBox(skin)
-        lootModeSelectBox.setItems(*BarrelLootMode.values())
-        barrelSettingsTable.add(Label("Loot Mode:", skin)).padRight(10f)
-        barrelSettingsTable.add(lootModeSelectBox).row()
+        lootModeSelectBox.setItems(*LootMode.values())
+        destructibleSettingsTable.add(Label("Loot Mode:", skin)).padRight(10f)
+        destructibleSettingsTable.add(lootModeSelectBox).row()
 
-        // Specific Loot Selection (initially hidden)
+        // Specific Loot Selection Table
         specificLootTable = Table()
         specificLootSelectBox = SelectBox(skin)
         specificLootSelectBox.setItems(*ItemType.entries.map { it.displayName }.toTypedArray())
         addLootItemButton = TextButton("Add", skin)
         specificLootLabel = Label("Contains: None", skin, "small")
+        minCountField = TextField("1", skin)
+        maxCountField = TextField("1", skin)
 
-        specificLootTable.add(specificLootSelectBox).padRight(5f)
-        specificLootTable.add(addLootItemButton).row()
+        val addLootRow = Table()
+        addLootRow.add(specificLootSelectBox).width(150f).padRight(5f)
+        addLootRow.add(Label("Qty:", skin)).padRight(5f)
+        addLootRow.add(minCountField).width(40f)
+        addLootRow.add(Label("-", skin)).pad(0f, 5f, 0f, 5f)
+        addLootRow.add(maxCountField).width(40f).padRight(10f)
+        addLootRow.add(addLootItemButton)
+
+        specificLootTable.add(addLootRow).colspan(2).row()
         specificLootTable.add(specificLootLabel).colspan(2).padTop(5f).growX().row()
+        destructibleSettingsTable.add(specificLootTable).colspan(2).padTop(10f).row()
 
-        barrelSettingsTable.add(specificLootTable).colspan(2).padTop(10f).row()
-
-        mainContainer.add(barrelSettingsTable).row()
+        mainContainer.add(destructibleSettingsTable).row()
 
         // --- LISTENERS ---
-        lootModeSelectBox.addListener(object: ChangeListener() {
+        val subSettingsActors = listOf(healthField, lootModeSelectBox, specificLootTable)
+
+        isDestructibleCheckbox.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
-                specificLootTable.isVisible = lootModeSelectBox.selected == BarrelLootMode.SPECIFIC
+                val isChecked = isDestructibleCheckbox.isChecked
+                // Enable/Disable sub-settings instead of hiding them
+                subSettingsActors.forEach {
+                    it.color.a = if (isChecked) 1f else 0.5f
+                    (it as? Actor)?.touchable = if (isChecked) com.badlogic.gdx.scenes.scene2d.Touchable.enabled else com.badlogic.gdx.scenes.scene2d.Touchable.disabled
+                }
+                // Visibility of specific loot table still depends on loot mode
+                specificLootTable.isVisible = isChecked && lootModeSelectBox.selected == LootMode.SPECIFIC
             }
         })
 
-        addLootItemButton.addListener(object: ClickListener() {
+        lootModeSelectBox.addListener(object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                specificLootTable.isVisible = isDestructibleCheckbox.isChecked && lootModeSelectBox.selected == LootMode.SPECIFIC
+            }
+        })
+
+        addLootItemButton.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 val selectedItem = ItemType.entries.find { it.displayName == specificLootSelectBox.selected }
+                val min = minCountField.text.toIntOrNull() ?: 1
+                val max = maxCountField.text.toIntOrNull() ?: 1
                 if (selectedItem != null) {
-                    currentSpecificLoot.add(selectedItem)
+                    currentSpecificLoot.add(LootDrop(selectedItem, min, max))
                     updateSpecificLootLabel()
                 }
             }
@@ -687,9 +733,10 @@ class InteriorSelectionUI(
         if (currentSpecificLoot.isEmpty()) {
             specificLootLabel.setText("Contains: None")
         } else {
-            // Display counts of each item type
-            val itemCounts = currentSpecificLoot.groupingBy { it.displayName }.eachCount()
-            val text = itemCounts.entries.joinToString(", ") { "${it.key} (x${it.value})" }
+            val text = currentSpecificLoot.joinToString(", ") { drop ->
+                val countText = if (drop.minCount == drop.maxCount) "x${drop.minCount}" else "(${drop.minCount}-${drop.maxCount})"
+                "${drop.itemType.displayName} $countText"
+            }
             specificLootLabel.setText("Contains: $text")
         }
     }
@@ -701,16 +748,32 @@ class InteriorSelectionUI(
         finePosLabel.setText("Fine Positioning: ${if (interiorSystem.finePosMode) "ON" else "OFF"}")
         finePosLabel.color = if (interiorSystem.finePosMode) Color.GREEN else Color.GRAY
 
-        val isBarrelSelected = interiorSystem.currentSelectedInterior == InteriorType.BARREL
-        barrelSettingsTable.isVisible = isBarrelSelected
+        val selectedType = interiorSystem.currentSelectedInterior
+        val previousSelectedType = interiorItems.find { it.container.background == it.selectedBackground }?.interiorType
 
-        // Reset specific loot when switching to a barrel
-        if (isBarrelSelected && !barrelSettingsTable.isVisible) {
+        // --- LOGIC CORRECTION ---
+        val canBeMadeDestructible = selectedType != InteriorType.DOOR_INTERIOR && !selectedType.isRandomizer
+        destructibleSettingsTable.isVisible = canBeMadeDestructible
+
+        // If switching to a new item, reset the destructible UI to match the new item's defaults.
+        if (previousSelectedType != selectedType) {
+            val isDefaultDestructible = selectedType.isDestructible
+            isDestructibleCheckbox.isChecked = isDefaultDestructible
+            healthField.text = "30"
+            lootModeSelectBox.selected = if (isDefaultDestructible) LootMode.RANDOM else LootMode.NONE
             currentSpecificLoot.clear()
             updateSpecificLootLabel()
-            lootModeSelectBox.selected = BarrelLootMode.NONE
-            specificLootTable.isVisible = false
+
+            // Manually trigger the listener logic to set the initial enabled/disabled state
+            val isChecked = isDestructibleCheckbox.isChecked
+            val subSettingsActors = listOf(healthField, lootModeSelectBox, specificLootTable)
+            subSettingsActors.forEach {
+                it.color.a = if (isChecked) 1f else 0.5f
+                (it as? Actor)?.touchable = if (isChecked) com.badlogic.gdx.scenes.scene2d.Touchable.enabled else com.badlogic.gdx.scenes.scene2d.Touchable.disabled
+            }
+            specificLootTable.isVisible = isChecked && lootModeSelectBox.selected == LootMode.SPECIFIC
         }
+
 
         // Animate all interior items
         interiorItems.forEachIndexed { i, item ->
@@ -727,9 +790,13 @@ class InteriorSelectionUI(
                 Actions.parallel(
                     Actions.scaleTo(targetScale, targetScale, 0.2f, Interpolation.smooth),
                     Actions.run {
-                        item.container.background = targetBackground
-                        item.nameLabel.color = targetColor
-                        item.typeLabel.color = targetColor
+                        // Only update background and colors if they are not already set, to avoid flicker
+                        if (item.container.background != targetBackground) {
+                            item.container.background = targetBackground
+                        }
+                        if (item.nameLabel.color != targetColor) {
+                            item.nameLabel.color = targetColor
+                        }
                     }
                 )
             )
@@ -750,14 +817,16 @@ class InteriorSelectionUI(
         scrollToSelectedItem()
     }
 
-    fun getBarrelLootConfig(): Triple<BarrelLootMode, List<ItemType>, () -> Unit> {
+    fun getDestructibleConfig(): DestructibleConfig {
         val mode = lootModeSelectBox.selected
+        val isDestructible = isDestructibleCheckbox.isChecked
+        val health = healthField.text.toFloatOrNull() ?: 30f
         val specificItems = currentSpecificLoot.toList() // Create a copy
         val resetAction = {
             currentSpecificLoot.clear()
             updateSpecificLootLabel()
         }
-        return Triple(mode, specificItems, resetAction)
+        return DestructibleConfig(isDestructible, health, mode, specificItems, resetAction)
     }
 
     fun show() {

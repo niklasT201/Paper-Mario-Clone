@@ -114,7 +114,11 @@ data class RoomElement(
     val interval: Float? = null,
     val timedLoopDuration: Float? = null,
     val minPitch: Float? = null,
-    val maxPitch: Float? = null
+    val maxPitch: Float? = null,
+    val isDestructible: Boolean? = null,
+    val health: Float? = null,
+    val lootMode: LootMode? = null,
+    val specificLoot: List<LootDrop>? = null
 )
 
 enum class RoomElementType {

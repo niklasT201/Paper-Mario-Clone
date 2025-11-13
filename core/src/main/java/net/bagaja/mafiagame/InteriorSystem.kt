@@ -21,11 +21,17 @@ import com.badlogic.gdx.utils.Array
 import com.badlogic.gdx.utils.JsonReader
 import java.util.*
 
-enum class BarrelLootMode {
+enum class LootMode {
     NONE,      // Drops nothing
     RANDOM,    // Drops a random item from a predefined loot pool
     SPECIFIC   // Drops specific items configured in the editor
 }
+
+data class LootDrop(
+    val itemType: ItemType,
+    val minCount: Int = 1,
+    val maxCount: Int = 1
+)
 
 // Interior object types with their properties
 enum class InteriorType(
@@ -292,12 +298,17 @@ class InteriorSystem : IFinePositionable {
             newInterior.position.y += interiorType.height / 2f
         }
 
-        if (interiorType == InteriorType.BARREL) {
-            val (lootMode, specificItems, resetAction) = sceneManager.game.uiManager.getBarrelLootConfig()
-            newInterior.lootMode = lootMode
-            newInterior.specificLoot.addAll(specificItems)
-            resetAction() // Clear the UI list for the next placement
+        val destructibleConfig = sceneManager.game.uiManager.getDestructibleConfig()
+        if (destructibleConfig.isDestructible) {
+            newInterior.isDestructible = true
+            newInterior.health = destructibleConfig.health
+            newInterior.lootMode = destructibleConfig.lootMode
+            newInterior.specificLoot.addAll(destructibleConfig.specificLoot)
+        } else {
+            // If the checkbox is off, ensure it's not destructible, even if the enum default is true
+            newInterior.isDestructible = false
         }
+        destructibleConfig.resetAction()
 
         newInterior.rotation = currentRotation
         newInterior.updateTransform()
@@ -444,9 +455,10 @@ data class GameInterior(
     val scale: Vector3,
     val id: String = UUID.randomUUID().toString(),
     var missionId: String? = null,
-    var health: Float = if (interiorType.isDestructible) 30f else 100f, // Barrels have 30 HP
-    var lootMode: BarrelLootMode = BarrelLootMode.NONE,
-    val specificLoot: MutableList<ItemType> = mutableListOf()
+    var isDestructible: Boolean = false,
+    var health: Float = if (isDestructible) 30f else 100f,
+    var lootMode: LootMode = if (isDestructible) LootMode.RANDOM else LootMode.NONE, // Barrels default to RANDOM
+    val specificLoot: MutableList<LootDrop> = mutableListOf()
 ) {
     // For 3D collision detection (same as GameHouse)
     private val mesh = instance.model?.meshes?.firstOrNull()
@@ -498,7 +510,7 @@ data class GameInterior(
     }
 
     fun takeDamage(amount: Float): Boolean {
-        if (!interiorType.isDestructible || health <= 0) return false
+        if (!isDestructible || health <= 0) return false
         health -= amount
         return health <= 0
     }
