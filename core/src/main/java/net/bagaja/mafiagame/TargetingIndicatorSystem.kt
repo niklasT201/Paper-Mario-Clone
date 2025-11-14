@@ -102,10 +102,10 @@ class TargetingIndicatorSystem {
     ) {
         val equippedWeapon = playerSystem.equippedWeapon
         val shouldBeVisible = equippedWeapon.actionType == WeaponActionType.SHOOTING ||
-            (equippedWeapon.actionType == WeaponActionType.MELEE && equippedWeapon != WeaponType.UNARMED)
+            equippedWeapon.actionType == WeaponActionType.THROWABLE
 
         // First, check all conditions for the indicator to be visible.
-        if (!isEnabledByUser || !shouldBeVisible || playerSystem.isDead()) {
+        if (!isEnabledByUser || !shouldBeVisible || playerSystem.isDead() || playerSystem.isDriving) {
             isVisible = false
             return
         }
@@ -160,7 +160,12 @@ class TargetingIndicatorSystem {
         val hitCar = raycastSystem.getCarAtRay(ray, sceneManager.activeCars)
         if (hitCar != null && !hitCar.isDestroyed) {
             // Snap the indicator to the ground directly below the car's center
-            val groundY = sceneManager.findHighestSupportY(hitCar.position.x, hitCar.position.z, hitCar.position.y, 0.1f, sceneManager.game.blockSize)
+            var groundY = sceneManager.findHighestSupportY(hitCar.position.x, hitCar.position.z, hitCar.position.y, 0.1f, sceneManager.game.blockSize)
+
+            if (groundY < -500f) { // Check for the large negative fallback value
+                groundY = 0f // Correct it to the ground plane
+            }
+
             indicatorPosition.set(hitCar.position.x, groundY + GROUND_OFFSET, hitCar.position.z)
             isVisible = true
             updateTransform()
