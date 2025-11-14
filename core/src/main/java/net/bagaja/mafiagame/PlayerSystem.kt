@@ -1999,7 +1999,19 @@ class PlayerSystem {
         }
 
         // Spawn the items
+        var soundPlayed = false // Flag to ensure we only play the sound once
         for (itemType in itemsToDrop) {
+            if (!soundPlayed) {
+                sceneManager.game.soundManager.playSound(
+                    effect = SoundManager.Effect.LOOT_DROP,
+                    position = interior.position,
+                    reverbProfile = null, // A clean "pop" sound doesn't need reverb
+                    volumeMultiplier = 0.8f,
+                    maxRange = 40f
+                )
+                soundPlayed = true
+            }
+
             val dropPosition = interior.position.cpy().add(
                 (Random.nextFloat() - 0.5f) * 1.5f,
                 0.5f,

@@ -66,7 +66,8 @@ object SoundCategoryManager {
         categoryMap[SoundCategory.UI_GENERAL] = listOf(
             SoundManager.Effect.ITEM_PICKUP.name, SoundManager.Effect.GLASS_BREAK.name,
             SoundManager.Effect.TELEPORT.name, SoundManager.Effect.MISSION_START.name,
-            SoundManager.Effect.OBJECTIVE_COMPLETE.name
+            SoundManager.Effect.OBJECTIVE_COMPLETE.name,
+            SoundManager.Effect.LOOT_DROP.name
         )
         println("SoundCategoryManager initialized with ${categoryMap.size} categories.")
     }

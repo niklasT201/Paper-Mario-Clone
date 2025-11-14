@@ -43,6 +43,7 @@ object ProceduralSFXGenerator : Disposable {
             SoundManager.Effect.WATER_SPLASH -> generateWaterSplash()
             SoundManager.Effect.BLOOD_SQUISH -> generateBloodSquish()
             SoundManager.Effect.WOOD_SPLINTER -> generateWoodSplinter()
+            SoundManager.Effect.LOOT_DROP -> generateLootDrop()
         }
         val wavData = convertToWav(pcmData)
 
@@ -454,6 +455,35 @@ object ProceduralSFXGenerator : Disposable {
 
             // Make it relatively quiet
             samples[i] = (mixedSample * 0.4f * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    private fun generateLootDrop(): ShortArray {
+        val durationSeconds = 0.3f // Slightly longer than a pickup sound
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+
+            // --- Main Tone (Falling Pitch) ---
+            val startFreq = 700f
+            val endFreq = 350f
+            // A sine wave that sweeps from a high pitch to a lower one
+            val frequency = startFreq - (progress * (startFreq - endFreq))
+            val envelope = (1.0f - progress).pow(3) // Let it ring out a little
+            val mainTone = sin(2f * PI * i * frequency / SAMPLE_RATE).toFloat() * envelope
+
+            // --- Sparkle Effect (Quick burst of high-frequency noise) ---
+            val sparkleEnvelope = (1.0f - progress).pow(10) // Decays very quickly
+            val sparkleNoise = (Random.nextFloat() * 2f - 1f) * sparkleEnvelope * 0.2f // Keep it subtle
+
+            // Mix the two sounds together
+            val mixedSample = (mainTone * 0.8f + sparkleNoise).coerceIn(-1f, 1f)
+
+            // Set final volume
+            samples[i] = (mixedSample * 0.5f * Short.MAX_VALUE).toInt().toShort()
         }
         return samples
     }
