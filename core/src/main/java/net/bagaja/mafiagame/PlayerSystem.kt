@@ -1414,6 +1414,17 @@ class PlayerSystem {
         }
         sceneManager.game.soundManager.playSound(id = soundIdToPlay, position = car.position)
 
+        // --- ADD THIS BLOCK ---
+        // If the car is locked, play a "lock" sound after a short delay
+        if (car.isLocked) {
+            com.badlogic.gdx.utils.Timer.schedule(object : com.badlogic.gdx.utils.Timer.Task() {
+                override fun run() {
+                    val lockedSoundId = car.assignedLockedSoundId ?: "CAR_LOCKED_V1"
+                    sceneManager.game.soundManager.playSound(id = lockedSoundId, position = car.position)
+                }
+            }, 0.3f) // 0.3-second delay
+        }
+
         car.drivingSoundId?.let {
             sceneManager.game.soundManager.stopLoopingSound(it)
             car.drivingSoundId = null

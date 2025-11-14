@@ -127,6 +127,10 @@ data class GameEnemy(
     fun enterCar(car: GameCar) {
         val seat = car.addOccupant(this)
         if (seat != null) {
+            val soundManager = car.sceneManager.game.soundManager
+            val soundIdToPlay = car.assignedOpenSoundId ?: "CAR_DOOR_OPEN_V1"
+            soundManager.playSound(id = soundIdToPlay, position = car.position)
+
             isInCar = true
             drivingCar = car
             currentSeat = seat
@@ -137,6 +141,21 @@ data class GameEnemy(
 
     fun exitCar() {
         val car = drivingCar ?: return
+        
+        val soundManager = car.sceneManager.game.soundManager
+        val closeSoundId = car.assignedCloseSoundId ?: "CAR_DOOR_CLOSE_V1"
+        soundManager.playSound(id = closeSoundId, position = car.position)
+
+        // If the car is locked, play a "lock" sound after a short delay
+        if (car.isLocked) {
+            com.badlogic.gdx.utils.Timer.schedule(object : com.badlogic.gdx.utils.Timer.Task() {
+                override fun run() {
+                    val lockedSoundId = car.assignedLockedSoundId ?: "CAR_LOCKED_V1"
+                    soundManager.playSound(id = lockedSoundId, position = car.position)
+                }
+            }, 0.3f) // 0.3-second delay
+        }
+
         car.removeOccupant(this)
         drivingCar?.modelInstance?.userData = null
         isInCar = false
