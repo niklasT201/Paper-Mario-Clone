@@ -141,7 +141,7 @@ data class GameEnemy(
 
     fun exitCar() {
         val car = drivingCar ?: return
-        
+
         val soundManager = car.sceneManager.game.soundManager
         val closeSoundId = car.assignedCloseSoundId ?: "CAR_DOOR_CLOSE_V1"
         soundManager.playSound(id = closeSoundId, position = car.position)
@@ -1054,7 +1054,8 @@ class EnemySystem : IFinePositionable {
         val potentialExitPos = car.position.cpy().add(exitOffset)
 
         // Find the ground level at this potential exit spot
-        val groundY = sceneManager.findHighestSupportY(potentialExitPos.x, potentialExitPos.z, car.position.y, 0.1f, sceneManager.game.blockSize)
+        var groundY = sceneManager.findHighestSupportY(potentialExitPos.x, potentialExitPos.z, car.position.y, 0.1f, sceneManager.game.blockSize)
+        if (groundY < -500f) groundY = 0f
 
         // Set the character's new position
         enemy.position.set(potentialExitPos.x, groundY + (enemy.enemyType.height / 2f), potentialExitPos.z)

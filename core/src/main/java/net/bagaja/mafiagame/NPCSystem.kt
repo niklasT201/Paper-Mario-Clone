@@ -855,7 +855,8 @@ class NPCSystem : IFinePositionable {
         val potentialExitPos = car.position.cpy().add(exitOffset)
 
         // Find the ground level at this potential exit spot
-        val groundY = sceneManager.findHighestSupportY(potentialExitPos.x, potentialExitPos.z, car.position.y, 0.1f, sceneManager.game.blockSize)
+        var groundY = sceneManager.findHighestSupportY(potentialExitPos.x, potentialExitPos.z, car.position.y, 0.1f, sceneManager.game.blockSize)
+        if (groundY < -500f) groundY = 0f
 
         // Set the character's new position
         npc.position.set(potentialExitPos.x, groundY + (npc.npcType.height / 2f), potentialExitPos.z)
