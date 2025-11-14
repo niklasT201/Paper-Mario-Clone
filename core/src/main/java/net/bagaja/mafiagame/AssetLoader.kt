@@ -203,6 +203,7 @@ object AssetLoader {
         soundManager.load(SoundManager.Effect.BLOOD_SQUISH)
         soundManager.load(SoundManager.Effect.WOOD_SPLINTER)
         soundManager.load(SoundManager.Effect.LOOT_DROP)
+        soundManager.load(SoundManager.Effect.THROWABLE_WHOOSH)
 
         println("--- Finished Loading Sounds ---")
     }

@@ -44,6 +44,7 @@ object ProceduralSFXGenerator : Disposable {
             SoundManager.Effect.BLOOD_SQUISH -> generateBloodSquish()
             SoundManager.Effect.WOOD_SPLINTER -> generateWoodSplinter()
             SoundManager.Effect.LOOT_DROP -> generateLootDrop()
+            SoundManager.Effect.THROWABLE_WHOOSH -> generateThrowableWhoosh()
         }
         val wavData = convertToWav(pcmData)
 
@@ -484,6 +485,29 @@ object ProceduralSFXGenerator : Disposable {
 
             // Set final volume
             samples[i] = (mixedSample * 0.5f * Short.MAX_VALUE).toInt().toShort()
+        }
+        return samples
+    }
+
+    private fun generateThrowableWhoosh(): ShortArray {
+        val durationSeconds = 1.0f
+        val numSamples = (SAMPLE_RATE * durationSeconds).toInt()
+        val samples = ShortArray(numSamples)
+        var lowPass = 0f
+
+        for (i in 0 until numSamples) {
+            val progress = i.toFloat() / numSamples
+            val noise = Random.nextFloat() * 2f - 1f
+
+            // A low-pass filter that "opens up" over time to simulate a pitch increase
+            val filterCutoff = 0.1f + (progress * 0.4f)
+            lowPass += (noise - lowPass) * filterCutoff
+
+            // An envelope that fades in and out to create the "swoosh" shape
+            val envelope = sin(progress * PI.toFloat())
+
+            val mixedSample = (lowPass * envelope * 0.3f).coerceIn(-1f, 1f)
+            samples[i] = (mixedSample * Short.MAX_VALUE).toInt().toShort()
         }
         return samples
     }

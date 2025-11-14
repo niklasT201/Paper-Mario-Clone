@@ -984,9 +984,25 @@ class PlayerSystem {
             lifetime = 3.0f // 3-second fuse for dynamite
         )
 
+        // 1. Define the pitch range. 0.7 is slower/deeper, 1.5 is faster/higher.
+        val minPitch = 0.7f
+        val maxPitch = 1.5f
+
+        // 2. Calculate the pitch based on the throw power (chargeRatio).
+        val finalPitch = minPitch + (maxPitch - minPitch) * chargeRatio
+
+        // 3. Play the sound ONCE with the calculated pitch.
+        sceneManager.game.soundManager.playSound(
+            effect = SoundManager.Effect.THROWABLE_WHOOSH,
+            position = throwable.position,
+            loop = false, // Play it only once
+            pitch = finalPitch,
+            maxRange = 40f
+        )
+
         sceneManager.activeThrowables.add(throwable)
 
-        println("Threw ${equippedWeapon.displayName} with power $throwPower")
+        println("Threw ${equippedWeapon.displayName} with power $throwPower and pitch $finalPitch")
 
         // After throwing, check if that was the last one.
         checkAndRemoveWeaponIfOutOfAmmo()

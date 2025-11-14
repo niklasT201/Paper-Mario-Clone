@@ -47,7 +47,8 @@ class SoundManager : Disposable {
         WATER_SPLASH,
         BLOOD_SQUISH,
         WOOD_SPLINTER,
-        LOOT_DROP
+        LOOT_DROP,
+        THROWABLE_WHOOSH
     }
 
     data class ReverbProfile(
