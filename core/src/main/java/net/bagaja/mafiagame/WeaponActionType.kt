@@ -67,6 +67,7 @@ enum class WeaponType(
     val bulletLifetime: Float = 0f,
     val pelletCount: Int = 1,
     val knockbackForce: Float = 0f,
+    val damageFrameIndex: Int? = null,
     val soundId: String? = null,
     val soundVariations: Int = 0,
     val soundIdSingleShot: String? = null,
@@ -89,6 +90,7 @@ enum class WeaponType(
         bulletTexturePath = null,
         pelletCount = 0,
         knockbackForce = 5f,
+        damageFrameIndex = 1,
         soundIdMeleeHit = listOf("PUNCH_FIST", "PUNCH_BOXING", "PUNCH_GENERIC")
     ),
     KNIFE(
@@ -103,7 +105,8 @@ enum class WeaponType(
         allowsMovementWhileShooting = true, // Can move while knifing
         playerPoseTexturePath = "textures/player/weapons/knife/player_knife.png",
         bulletTexturePath = null,
-        pelletCount = 0
+        pelletCount = 0,
+        damageFrameIndex = 1
     ),
     BASEBALL_BAT(
         displayName = "Baseball Bat",
@@ -119,6 +122,7 @@ enum class WeaponType(
         bulletTexturePath = null,
         pelletCount = 0,
         knockbackForce = 12f,
+        damageFrameIndex = 2,
         soundIdMeleeHit = listOf("BASEBALL_BAT_HIT")
     ),
     TOMMY_GUN(

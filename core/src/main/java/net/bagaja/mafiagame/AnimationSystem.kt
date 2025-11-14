@@ -3,11 +3,13 @@ package net.bagaja.mafiagame
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Texture
 import com.badlogic.gdx.utils.Array
+import com.badlogic.gdx.utils.Disposable
 import com.badlogic.gdx.utils.ObjectMap
 
-class AnimationSystem {
+class AnimationSystem : Disposable {
     private val animations = ObjectMap<String, Animation>()
     var currentAnimation: Animation? = null
+        private set
     private var currentAnimationTime = 0f
     private var currentFrame: AnimationFrame? = null
 
@@ -85,7 +87,11 @@ class AnimationSystem {
         return currentAnimation?.name
     }
 
-    fun dispose() {
+    fun getCurrentFrameIndex(): Int {
+        return currentAnimation?.getFrameIndexAtTime(currentAnimationTime) ?: -1
+    }
+
+    override fun dispose() {
         animations.values().forEach { animation ->
             animation.frames.forEach { frame ->
                 frame.texture.dispose()

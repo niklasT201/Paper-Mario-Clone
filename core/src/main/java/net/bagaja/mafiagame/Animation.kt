@@ -37,4 +37,24 @@ class Animation(
         // Fallback to last frame
         return frames.last()
     }
+
+    fun getFrameIndexAtTime(time: Float): Int {
+        if (frames.isEmpty) return -1
+
+        var currentTime = if (isLooping) {
+            time % getTotalDuration()
+        } else {
+            time.coerceAtMost(getTotalDuration() - 0.001f)
+        }
+
+        for (i in 0 until frames.size) {
+            val frame = frames[i]
+            if (currentTime < frame.duration) {
+                return i
+            }
+            currentTime -= frame.duration
+        }
+        // Fallback to the last frame index if something goes wrong
+        return frames.size - 1
+    }
 }

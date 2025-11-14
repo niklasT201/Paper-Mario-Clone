@@ -297,6 +297,7 @@ class PlayerSystem {
 
     private var muzzleFlashLight: LightSource? = null
     private var muzzleFlashTimer = 0f
+    private var hasDealtMeleeDamageThisSwing = false
 
     // Caches for weapon assets to avoid loading them repeatedly
     private val poseTextures = mutableMapOf<String, Texture>()
@@ -422,7 +423,7 @@ class PlayerSystem {
                 "textures/player/weapons/baseball_bat/player_baseball_bat_two.png",
                 "textures/player/weapons/baseball_bat/player_baseball_bat_three.png"
             ),
-            frameDuration = 0.15f,
+            frameDuration = 0.1f,
             isLooping = false,
             frameOffsetsX = floatArrayOf(0f, 0.245f, 0.34f)
         )
@@ -777,7 +778,7 @@ class PlayerSystem {
                                 attackTimer = animationSystem.currentAnimation?.getTotalDuration() ?: 0.3f
                                 fireRateTimer = equippedWeapon.fireCooldown
 
-                                performMeleeAttack(sceneManager)
+                                hasDealtMeleeDamageThisSwing = false
                             }
                         }
                     }
@@ -1744,10 +1745,17 @@ class PlayerSystem {
         if (Gdx.input.isKeyPressed(Input.Keys.S)) desiredMovement.z += 1f
 
         // 2. Update rotation based on the raw input
-        if (desiredMovement.x != 0f) {
-            lastMovementDirection = desiredMovement.x
+        val isLockedInMeleeAnimation = (state == PlayerState.ATTACKING &&
+            equippedWeapon.actionType == WeaponActionType.MELEE &&
+            !animationSystem.isAnimationFinished())
+
+        if (!isLockedInMeleeAnimation) {
+            if (desiredMovement.x != 0f) {
+                lastMovementDirection = desiredMovement.x
+            }
+            playerTargetRotationY = if (lastMovementDirection < 0f) 180f else 0f
         }
-        playerTargetRotationY = if (lastMovementDirection < 0f) 180f else 0f
+
         updatePlayerRotation(deltaTime)
 
         // 3. NOW, check if movement should be cancelled due to a heavy weapon.
@@ -2147,6 +2155,17 @@ class PlayerSystem {
 
         automaticFireSoundId?.let { soundId ->
             sceneManager.game.soundManager.updateLoopingSoundPosition(soundId, getPosition())
+        }
+
+        if (state == PlayerState.ATTACKING && equippedWeapon.actionType == WeaponActionType.MELEE && !hasDealtMeleeDamageThisSwing) {
+            val damageFrame = equippedWeapon.damageFrameIndex
+            if (damageFrame != null) {
+                val currentFrame = animationSystem.getCurrentFrameIndex()
+                if (currentFrame >= damageFrame) {
+                    performMeleeAttack(sceneManager)
+                    hasDealtMeleeDamageThisSwing = true // Mark damage as dealt for this swing
+                }
+            }
         }
 
         // Player interaction with ash

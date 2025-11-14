@@ -95,7 +95,6 @@ public class Lwjgl3Launcher {
 // music spawner and audio emitter connected to characters
 // audi emitter ui not having female voice sound
 // audio emitter cutting off sounds
-// rotating for animation images only after hit
 // whosh sound for melee weapons
 // update melee images
 // shooting sound echo doesnt move with player
