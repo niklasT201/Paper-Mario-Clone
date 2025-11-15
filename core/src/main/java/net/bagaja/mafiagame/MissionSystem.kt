@@ -1514,6 +1514,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         newSpawner.carEnemyDriverType = event.spawnerCarEnemyDriverType ?: newSpawner.carEnemyDriverType
                         newSpawner.carNpcDriverType = event.spawnerCarNpcDriverType ?: newSpawner.carNpcDriverType
                         newSpawner.carSpawnDirection = event.spawnerCarSpawnDirection ?: newSpawner.carSpawnDirection
+                        newSpawner.parentId = event.parentId
 
                         addEntityToScene(newSpawner, game.sceneManager.activeSpawners, { game.sceneManager.worldState?.spawners }) {
                             game.sceneManager.interiorStates[it]?.spawners
@@ -1639,6 +1640,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         minPitch = event.minPitch ?: 1.0f,
                         maxPitch = event.maxPitch ?: 1.0f,
                         falloffMode = event.falloffMode ?: EmitterFalloffMode.LINEAR,
+                        parentId = event.parentId,
                         sceneId = targetSceneId, // Use the correct scene ID
                         missionId = missionId // Link to the mission for cleanup
                     )

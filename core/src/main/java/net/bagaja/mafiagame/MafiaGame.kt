@@ -71,7 +71,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var playerSystem: PlayerSystem
     private lateinit var characterPhysicsSystem: CharacterPhysicsSystem
 
-    private lateinit var spawnerSystem: SpawnerSystem
+    lateinit var spawnerSystem: SpawnerSystem
 
     // Game objects
     var lastPlacedInstance: Any? = null

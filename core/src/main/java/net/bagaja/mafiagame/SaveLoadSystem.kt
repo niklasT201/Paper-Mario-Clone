@@ -232,7 +232,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     carEnemyDriverType = s.carEnemyDriverType,
                     carNpcDriverType = s.carNpcDriverType,
                     carSpawnDirection = s.carSpawnDirection,
-                    upgradedWeapon = s.upgradedWeapon
+                    upgradedWeapon = s.upgradedWeapon,
+                    parentId = s.parentId
                 ))
             }
 
@@ -277,9 +278,21 @@ class SaveLoadSystem(private val game: MafiaGame) {
             }
                 game.audioEmitterSystem.activeEmitters.filter { it.missionId == null }.forEach { e ->
                     world.audioEmitters.add(AudioEmitterData(
-                        e.id, e.position, e.soundIds, e.volume, e.range, e.playbackMode,
-                        e.playlistMode, e.reactivationMode, e.interval, e.timedLoopDuration,
-                        e.minPitch, e.maxPitch, e.falloffMode, e.sceneId
+                        id = e.id,
+                        position = e.position,
+                        soundIds = e.soundIds,
+                        volume = e.volume,
+                        range = e.range,
+                        playbackMode = e.playbackMode,
+                        playlistMode = e.playlistMode,
+                        reactivationMode = e.reactivationMode,
+                        interval = e.interval,
+                        timedLoopDuration = e.timedLoopDuration,
+                        minPitch = e.minPitch,
+                        maxPitch = e.maxPitch,
+                        falloffMode = e.falloffMode,
+                        sceneId = e.sceneId,
+                        parentId = e.parentId
                     ))
                 }
             }
@@ -520,6 +533,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                         carSpawnDirection = data.carSpawnDirection
                     )
                     newSpawner.upgradedWeapon = data.upgradedWeapon
+                    newSpawner.parentId = data.parentId
 
                     sm.activeSpawners.add(newSpawner)
                 }
@@ -570,7 +584,25 @@ class SaveLoadSystem(private val game: MafiaGame) {
             }
 
             state.worldState.audioEmitters.forEach { data ->
-                game.audioEmitterSystem.addEmitterFromData(data)
+                val emitter = game.audioEmitterSystem.addEmitterFromData(data)
+                emitter.parentId = data.parentId
+            }
+
+            sm.activeSpawners.forEach { spawner ->
+                if (spawner.parentId != null) {
+                    val parentNPC = sm.activeNPCs.find { it.id == spawner.parentId }
+                    if (parentNPC != null) {
+                        spawner.offsetFromParent = spawner.position.cpy().sub(parentNPC.position)
+                    }
+                }
+            }
+            game.audioEmitterSystem.activeEmitters.forEach { emitter ->
+                if (emitter.parentId != null) {
+                    val parentNPC = sm.activeNPCs.find { it.id == emitter.parentId }
+                    if (parentNPC != null) {
+                        emitter.offsetFromParent = emitter.position.cpy().sub(parentNPC.position)
+                    }
+                }
             }
 
             // 2. Restore Car Paths

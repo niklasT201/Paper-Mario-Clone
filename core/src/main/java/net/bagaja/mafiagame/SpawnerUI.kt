@@ -97,6 +97,7 @@ class SpawnerUI(
     private val carDriverTypeSelectBox: SelectBox<String>
     private val carEnemyDriverSelectBox: SelectBox<String>
     private val carNpcDriverSelectBox: SelectBox<String>
+    private val parentIdField: TextField
 
     init {
         // Pre-load all preview textures for performance. This was the missing part.
@@ -263,6 +264,8 @@ class SpawnerUI(
         // --- General Settings ---
         val generalTable = Table()
         generalTable.add(Label("--- GENERAL ---", skin, "title")).colspan(4).center().padBottom(10f).row()
+        parentIdField = TextField("", skin).apply { messageText = "Optional NPC ID" }
+        generalTable.add(Label("Parent NPC ID:", skin)).right(); generalTable.add(parentIdField).left().colspan(3).growX().row()
         intervalField = TextField("", skin); minRangeField = TextField("", skin); maxRangeField = TextField("", skin)
         spawnOnlyWhenGoneCheckbox = CheckBox(" Respawn Only If Previous Gone", skin)
         spawnerModeSelectBox = SelectBox(skin); spawnerModeSelectBox.items = GdxArray(SpawnerMode.entries.map { it.name }.toTypedArray())
@@ -409,7 +412,8 @@ class SpawnerUI(
             spawnerCarDriverType = spawner.carDriverType,
             spawnerCarEnemyDriverType = spawner.carEnemyDriverType,
             spawnerCarNpcDriverType = spawner.carNpcDriverType,
-            spawnerCarSpawnDirection = spawner.carSpawnDirection
+            spawnerCarSpawnDirection = spawner.carSpawnDirection,
+            parentId = spawner.parentId
         )
 
         // Add the event to the mission and save it
@@ -428,6 +432,8 @@ class SpawnerUI(
     fun show(spawner: GameSpawner) {
         currentSpawner = spawner
         convertToEventButton.isVisible = (uiManager.currentEditorMode == EditorMode.MISSION)
+
+        parentIdField.text = spawner.parentId ?: ""
 
         // General
         spawnerModeSelectBox.selected = spawner.spawnerMode.name
@@ -495,6 +501,24 @@ class SpawnerUI(
 
     private fun applyChanges() {
         val spawner = currentSpawner ?: return
+
+        val newParentId = parentIdField.text.trim().ifBlank { null }
+        spawner.parentId = newParentId
+
+        if (newParentId != null) {
+            val parentNPC = uiManager.game.sceneManager.activeNPCs.find { it.id == newParentId }
+            if (parentNPC != null) {
+                spawner.offsetFromParent = spawner.position.cpy().sub(parentNPC.position)
+                println("Linked spawner ${spawner.id} to NPC ${parentNPC.id}. Offset: ${spawner.offsetFromParent}")
+            } else {
+                spawner.parentId = null
+                spawner.offsetFromParent = null
+                println("Warning: NPC with ID '$newParentId' not found for spawner. Link cleared.")
+            }
+        } else {
+            spawner.offsetFromParent = null
+        }
+
         // General settings
         spawner.spawnerMode = SpawnerMode.valueOf(spawnerModeSelectBox.selected)
         spawner.spawnInterval = intervalField.text.toFloatOrNull()?.coerceAtLeast(0.1f) ?: spawner.spawnInterval

@@ -25,11 +25,12 @@ class AudioEmitterUI(
     private val playlistModeSelect: SelectBox<String>
     private val reactivationModeSelect: SelectBox<String>
     private val intervalField: TextField
+    private val timedLoopDurationField: TextField
     private val minPitchField: TextField
     private val maxPitchField: TextField
     private val playbackLengthSelect: SelectBox<String>
     private val customLengthField: TextField
-    private val timedLoopDurationField: TextField // This field is now repurposed
+    private val parentIdField: TextField // NEW: Field for parent ID
 
     // Table wrappers for controlling visibility of entire rows
     private val intervalTable: Table
@@ -37,7 +38,7 @@ class AudioEmitterUI(
     private val reactivationTable: Table
     private val customLengthTable: Table
     private val playbackLengthTable: Table
-    private val timedLoopTable: Table // Re-added this for the repurposed field
+    private val timedLoopTable: Table
 
     init {
         window.isMovable = true
@@ -59,20 +60,20 @@ class AudioEmitterUI(
         maxPitchField = TextField("", skin)
         playbackLengthSelect = SelectBox<String>(skin).apply { items = GdxArray(PlaybackLengthMode.entries.map { it.name }.toTypedArray()) }
         customLengthField = TextField("", skin)
+        parentIdField = TextField("", skin).apply { messageText = "Optional NPC ID" } // NEW
 
         // --- Layout ---
         content.add(Label("Sound IDs (one per line):", skin)).colspan(2).left().row()
         content.add(ScrollPane(soundIdArea, skin)).growX().height(80f).colspan(2).row()
         content.add(browseButton).colspan(2).left().row()
 
+        // NEW: Add parent ID field to the layout
+        val parentTable = Table(); parentTable.add(Label("Parent NPC ID:", skin)).padRight(5f); parentTable.add(parentIdField).growX(); content.add(parentTable).colspan(2).left().row()
+
         val playbackModeTable = Table(); playbackModeTable.add(Label("Playback Mode:", skin)).padRight(5f); playbackModeTable.add(playbackModeSelect); content.add(playbackModeTable).colspan(2).left().row()
         playbackLengthTable = Table(); playbackLengthTable.add(Label("Playback Length:", skin)).padRight(5f); playbackLengthTable.add(playbackLengthSelect); content.add(playbackLengthTable).colspan(2).left().row()
-
-        // This table is for the repurposed "Full Duration" input
         timedLoopTable = Table(); timedLoopTable.add(Label("Full Playback Length (s):", skin)).padRight(5f); timedLoopTable.add(timedLoopDurationField).width(100f); content.add(timedLoopTable).colspan(2).left().row()
-
         customLengthTable = Table(); customLengthTable.add(Label("Custom Length (s):", skin)).padRight(5f); customLengthTable.add(customLengthField).width(100f); content.add(customLengthTable).colspan(2).left().row()
-
         playlistTable = Table(); playlistTable.add(Label("Playlist Mode:", skin)).padRight(5f); playlistTable.add(playlistModeSelect); content.add(playlistTable).colspan(2).left().row()
         val falloffTable = Table(); falloffTable.add(Label("Volume Falloff:", skin)).padRight(5f); falloffTable.add(falloffModeSelect); content.add(falloffTable).colspan(2).left().row()
         reactivationTable = Table(); reactivationTable.add(Label("Reactivation:", skin)).padRight(5f); reactivationTable.add(reactivationModeSelect); content.add(reactivationTable).colspan(2).left().row()
@@ -99,10 +100,9 @@ class AudioEmitterUI(
 
     private fun showSoundBrowser() {
         val dialog = Dialog("Select a Sound", skin, "dialog")
-        // Reverted to get simple list of IDs
         val soundIds = soundManager.getAllSoundIds().sorted()
         val list = List<String>(skin)
-        list.setItems(*soundIds.toTypedArray()) // Set items directly
+        list.setItems(*soundIds.toTypedArray())
 
         val scroll = ScrollPane(list, skin); scroll.setFadeScrollBars(false)
         dialog.contentTable.add(scroll).width(400f).height(300f)
@@ -110,7 +110,7 @@ class AudioEmitterUI(
         dialog.button("Add to Playlist").addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
                 val currentText = soundIdArea.text
-                val selected = list.selected ?: return // Get selected ID directly
+                val selected = list.selected ?: return
 
                 if (currentText.isBlank()) {
                     soundIdArea.text = selected
@@ -126,6 +126,7 @@ class AudioEmitterUI(
     fun show(emitter: AudioEmitter) {
         currentEmitter = emitter
         soundIdArea.text = emitter.soundIds.joinToString("\n")
+        parentIdField.text = emitter.parentId ?: "" // NEW
         volumeSlider.value = emitter.volume
         rangeField.text = emitter.range.toString()
         playbackModeSelect.selected = emitter.playbackMode.name
@@ -135,7 +136,7 @@ class AudioEmitterUI(
         falloffModeSelect.selected = emitter.falloffMode.name
         reactivationModeSelect.selected = emitter.reactivationMode.name
         intervalField.text = emitter.interval.toString()
-        timedLoopDurationField.text = emitter.timedLoopDuration.toString() // Load the value for the repurposed field
+        timedLoopDurationField.text = emitter.timedLoopDuration.toString()
         minPitchField.text = emitter.minPitch.toString()
         maxPitchField.text = emitter.maxPitch.toString()
 
@@ -144,28 +145,47 @@ class AudioEmitterUI(
     }
 
     private fun applyChanges() {
-        currentEmitter?.let {
-            it.soundIds = soundIdArea.text.split("\n").map { s -> s.trim() }.filter { s -> s.isNotBlank() }.toMutableList()
-            if (it.soundIds.isEmpty()) it.soundIds.add("FOOTSTEP_V1")
+        currentEmitter?.let { emitter ->
+            emitter.soundIds = soundIdArea.text.split("\n").map { s -> s.trim() }.filter { s -> s.isNotBlank() }.toMutableList()
+            if (emitter.soundIds.isEmpty()) emitter.soundIds.add("FOOTSTEP_V1")
 
-            it.volume = volumeSlider.value
-            it.range = rangeField.text.toFloatOrNull() ?: 100f
-            it.playbackMode = EmitterPlaybackMode.valueOf(playbackModeSelect.selected)
-            it.playbackLengthMode = PlaybackLengthMode.valueOf(playbackLengthSelect.selected)
-            it.customPlaybackLength = customLengthField.text.toFloatOrNull() ?: 2.0f
-            it.playlistMode = EmitterPlaylistMode.valueOf(playlistModeSelect.selected)
-            it.falloffMode = EmitterFalloffMode.valueOf(falloffModeSelect.selected)
-            it.reactivationMode = EmitterReactivationMode.valueOf(reactivationModeSelect.selected)
-            it.interval = intervalField.text.toFloatOrNull() ?: 1.0f
-            it.timedLoopDuration = timedLoopDurationField.text.toFloatOrNull() ?: 30f // Save the repurposed value
-            it.minPitch = minPitchField.text.toFloatOrNull() ?: 1.0f
-            it.maxPitch = maxPitchField.text.toFloatOrNull() ?: 1.0f
+            emitter.volume = volumeSlider.value
+            emitter.range = rangeField.text.toFloatOrNull() ?: 100f
+            emitter.playbackMode = EmitterPlaybackMode.valueOf(playbackModeSelect.selected)
+            emitter.playbackLengthMode = PlaybackLengthMode.valueOf(playbackLengthSelect.selected)
+            emitter.customPlaybackLength = customLengthField.text.toFloatOrNull() ?: 2.0f
+            emitter.playlistMode = EmitterPlaylistMode.valueOf(playlistModeSelect.selected)
+            emitter.falloffMode = EmitterFalloffMode.valueOf(falloffModeSelect.selected)
+            emitter.reactivationMode = EmitterReactivationMode.valueOf(reactivationModeSelect.selected)
+            emitter.interval = intervalField.text.toFloatOrNull() ?: 1.0f
+            emitter.timedLoopDuration = timedLoopDurationField.text.toFloatOrNull() ?: 30f
+            emitter.minPitch = minPitchField.text.toFloatOrNull() ?: 1.0f
+            emitter.maxPitch = maxPitchField.text.toFloatOrNull() ?: 1.0f
 
-            it.soundInstanceId?.let { id -> soundManager.stopLoopingSound(id) }
-            it.soundInstanceId = null
-            it.isDepleted = false
-            it.currentPlaylistIndex = 0
-            it.timer = 0f
+            // --- NEW: Linking Logic ---
+            val newParentId = parentIdField.text.trim().ifBlank { null }
+            emitter.parentId = newParentId
+
+            if (newParentId != null) {
+                val parentNPC = audioEmitterSystem.game.sceneManager.activeNPCs.find { it.id == newParentId }
+                if (parentNPC != null) {
+                    emitter.offsetFromParent = emitter.position.cpy().sub(parentNPC.position)
+                    println("Linked emitter ${emitter.id} to NPC ${parentNPC.id}. Offset: ${emitter.offsetFromParent}")
+                } else {
+                    emitter.parentId = null
+                    emitter.offsetFromParent = null
+                    println("Warning: NPC with ID '$newParentId' not found. Link cleared.")
+                }
+            } else {
+                emitter.offsetFromParent = null
+            }
+            // --- END NEW ---
+
+            emitter.soundInstanceId?.let { id -> soundManager.stopLoopingSound(id) }
+            emitter.soundInstanceId = null
+            emitter.isDepleted = false
+            emitter.currentPlaylistIndex = 0
+            emitter.timer = 0f
         }
     }
 
@@ -182,13 +202,8 @@ class AudioEmitterUI(
         playlistTable.isVisible = isLoop
         reactivationTable.isVisible = isLoop && playlistMode == EmitterPlaylistMode.SEQUENTIAL
 
-        // Playback length controls are NOT relevant for infinite loops
         playbackLengthTable.isVisible = playbackMode != EmitterPlaybackMode.LOOP_INFINITE
-
-        // The custom length field is only visible when CUSTOM_DURATION is selected and it's not an infinite loop
         customLengthTable.isVisible = lengthMode == PlaybackLengthMode.CUSTOM_DURATION && playbackMode != EmitterPlaybackMode.LOOP_INFINITE
-
-        // The repurposed "Full Playback Length" field is visible for FULL_DURATION mode (but not for infinite loops)
         timedLoopTable.isVisible = lengthMode == PlaybackLengthMode.FULL_DURATION && playbackMode != EmitterPlaybackMode.LOOP_INFINITE
 
         window.pack()

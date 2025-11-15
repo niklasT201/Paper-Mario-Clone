@@ -95,6 +95,7 @@ data class RoomElement(
     val spawnerCarEnemyDriverType: EnemyType? = null,
     val spawnerCarNpcDriverType: NPCType? = null,
     val spawnerCarSpawnDirection: CarSpawnDirection? = null,
+    val parentId: String? = null,
 
     val pathNodeId: String? = null,
     val nextNodeId: String? = null,

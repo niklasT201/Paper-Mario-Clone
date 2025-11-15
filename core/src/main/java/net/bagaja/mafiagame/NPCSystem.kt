@@ -250,6 +250,8 @@ data class GameNPC(
 
         if (health <= 0) return true
 
+        sceneManager.npcSystem.destroyLinkedObjects(this.id)
+
         // Apply damage first, regardless of reaction
         health -= damage
 
@@ -545,8 +547,28 @@ class NPCSystem : IFinePositionable {
         return newNpc
     }
 
+    fun destroyLinkedObjects(npcId: String) {
+        // Find and remove linked spawners
+        val spawnersToRemove = sceneManager.game.spawnerSystem.sceneManager.activeSpawners.filter { it.parentId == npcId }
+        if (spawnersToRemove.isNotEmpty()) {
+            println("NPC $npcId was damaged/killed, removing ${spawnersToRemove.size} linked spawner(s).")
+            spawnersToRemove.forEach { sceneManager.game.spawnerSystem.removeSpawner(it) }
+        }
+
+        // Find and remove linked audio emitters
+        val emittersToRemove = sceneManager.game.audioEmitterSystem.activeEmitters.filter { it.parentId == npcId }
+        if (emittersToRemove.isNotEmpty()) {
+            println("NPC $npcId was damaged/killed, removing ${emittersToRemove.size} linked audio emitter(s).")
+            // Create a copy to avoid ConcurrentModificationException while iterating and removing
+            val emittersCopy = com.badlogic.gdx.utils.Array(emittersToRemove.toTypedArray())
+            emittersCopy.forEach { sceneManager.game.audioEmitterSystem.removeEmitter(it) }
+        }
+    }
+
     fun startDeathSequence(npc: GameNPC, sceneManager: SceneManager) {
         if (npc.currentState == NPCState.DYING) return
+
+        destroyLinkedObjects(npc.id)
 
         npc.currentState = NPCState.DYING
         npc.fadeOutTimer = FADE_OUT_DURATION

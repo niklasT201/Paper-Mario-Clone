@@ -32,6 +32,9 @@ data class GameSpawner(
     val gameObject: GameObject, // The visible purple cube in the world
     var sceneId: String = "WORLD",
 
+    var parentId: String? = null,
+    @Transient var offsetFromParent: Vector3? = null,
+
     // --- General Spawner Settings ---
     var spawnerType: SpawnerType = SpawnerType.PARTICLE,
     var spawnInterval: Float = 5.0f,
@@ -139,6 +142,30 @@ class SpawnerSystem(
         }
 
         for (spawner in activeSpawners) {
+            // --- ROTATION FIX: UPDATE POSITION FROM PARENT ---
+            if (spawner.parentId != null && spawner.offsetFromParent != null) {
+                val parentNPC = sceneManager.activeNPCs.find { it.id == spawner.parentId }
+                if (parentNPC != null) {
+                    // 1. Create a transform matrix from the NPC's current rotation
+                    val transform = com.badlogic.gdx.math.Matrix4().setToRotation(Vector3.Y, parentNPC.facingRotationY)
+
+                    // 2. Rotate the stored offset vector by the NPC's rotation
+                    val rotatedOffset = spawner.offsetFromParent!!.cpy().mul(transform)
+
+                    // 3. Add the rotated offset to the NPC's current position
+                    spawner.position.set(parentNPC.position).add(rotatedOffset)
+
+                    // Also update the underlying game object for rendering the debug cube
+                    spawner.gameObject.position.set(spawner.position)
+                    spawner.gameObject.modelInstance.transform.setTranslation(spawner.position)
+                    spawner.gameObject.debugInstance?.transform?.setTranslation(spawner.position)
+                } else {
+                    // Parent is gone, break the link
+                    spawner.parentId = null
+                    spawner.offsetFromParent = null
+                }
+            }
+
             // Skip one-shot spawners that have already fired
             if (spawner.isDepleted) continue
 

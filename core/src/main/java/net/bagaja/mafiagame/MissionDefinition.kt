@@ -310,7 +310,7 @@ data class GameEvent(
     val carDriverType: String? = null,
     val carEnemyDriverType: EnemyType? = null,
     val carNpcDriverType: NPCType? = null,
-
+    val parentId: String? = null,
 
     // Item/Money-specific properties
     val itemType: ItemType? = null,

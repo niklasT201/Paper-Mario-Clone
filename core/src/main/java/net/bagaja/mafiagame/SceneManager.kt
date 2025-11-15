@@ -1331,6 +1331,7 @@ class SceneManager(
                         newSpawner.enemyCanCollectItems = element.canCollectItems ?: newSpawner.enemyCanCollectItems
                         newSpawner.enemyInitialMoney = element.enemyInitialMoney ?: newSpawner.enemyInitialMoney
 
+                        newSpawner.parentId = element.parentId
                         newParticleSpawners.add(newSpawner)
                     }
                 }
@@ -1382,6 +1383,7 @@ class SceneManager(
                         minPitch = element.minPitch ?: 1.0f,
                         maxPitch = element.maxPitch ?: 1.0f,
                         falloffMode = element.falloffMode ?: EmitterFalloffMode.LINEAR,
+                        parentId = element.parentId,
                         sceneId = house.id
                     )
                     val newEmitter = game.audioEmitterSystem.addEmitterFromData(data)
@@ -1650,7 +1652,8 @@ class SceneManager(
                 initialWeapon = spawner.enemyInitialWeapon,
                 weaponCollectionPolicy = spawner.enemyWeaponCollectionPolicy,
                 canCollectItems = spawner.enemyCanCollectItems,
-                enemyInitialMoney = spawner.enemyInitialMoney
+                enemyInitialMoney = spawner.enemyInitialMoney,
+                parentId = spawner.parentId
             ))
         }
 
@@ -1761,7 +1764,8 @@ class SceneManager(
                 timedLoopDuration = emitter.timedLoopDuration,
                 minPitch = emitter.minPitch,
                 maxPitch = emitter.maxPitch,
-                falloffMode = emitter.falloffMode
+                falloffMode = emitter.falloffMode,
+                parentId = emitter.parentId
             ))
         }
 

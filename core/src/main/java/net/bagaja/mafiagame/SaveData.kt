@@ -79,6 +79,7 @@ data class AudioEmitterData(
     var minPitch: Float = 1.0f,
     var maxPitch: Float = 1.0f,
     var falloffMode: EmitterFalloffMode = EmitterFalloffMode.LINEAR,
+    var parentId: String? = null,
     var sceneId: String = "WORLD",
     var missionId: String? = null
 )
@@ -278,7 +279,9 @@ data class SpawnerData(
     var carEnemyDriverType: EnemyType = EnemyType.MOUSE_THUG,
     var carNpcDriverType: NPCType = NPCType.GEORGE_MELES,
     var carSpawnDirection: CarSpawnDirection = CarSpawnDirection.LEFT,
-    var upgradedWeapon: WeaponType? = null
+    var parentId: String? = null,
+    var upgradedWeapon: WeaponType? = null,
+    var missionId: String? = null
 )
 
 data class CarPathNodeData(

@@ -65,6 +65,9 @@ data class AudioEmitter(
     var maxPitch: Float = 1.0f,
     var falloffMode: EmitterFalloffMode = EmitterFalloffMode.LINEAR,
 
+    var parentId: String? = null,
+    @Transient var offsetFromParent: Vector3? = null,
+
     // --- STATE ---
     @Transient var soundInstanceId: Long? = null,
     @Transient var timer: Float = 0f, // --- FIX: Timer now consistently means "time until next event"
@@ -175,6 +178,25 @@ class AudioEmitterSystem : Disposable {
         val currentSceneId = game.sceneManager.getCurrentSceneId()
 
         for (emitter in activeEmitters) {
+            // --- ROTATION FIX: UPDATE POSITION FROM PARENT ---
+            if (emitter.parentId != null && emitter.offsetFromParent != null) {
+                val parentNPC = game.sceneManager.activeNPCs.find { it.id == emitter.parentId }
+                if (parentNPC != null) {
+                    // 1. Create a transform matrix from the NPC's current rotation
+                    val transform = com.badlogic.gdx.math.Matrix4().setToRotation(Vector3.Y, parentNPC.facingRotationY)
+
+                    // 2. Rotate the stored offset vector by the NPC's rotation
+                    val rotatedOffset = emitter.offsetFromParent!!.cpy().mul(transform)
+
+                    // 3. Add the rotated offset to the NPC's current position
+                    emitter.position.set(parentNPC.position).add(rotatedOffset)
+                } else {
+                    // Parent is gone, break the link
+                    emitter.parentId = null
+                    emitter.offsetFromParent = null
+                }
+            }
+
             if (emitter.sceneId != currentSceneId || emitter.soundIds.any { it in mutedSoundIds }) {
                 if (emitter.soundInstanceId != null) {
                     game.soundManager.stopLoopingSound(emitter.soundInstanceId!!)
@@ -192,7 +214,6 @@ class AudioEmitterSystem : Disposable {
                     emitter.isDepleted = false
                     emitter.currentPlaylistIndex = 0
                 }
-                // Stop any playing sound when leaving the range
                 if (emitter.soundInstanceId != null) {
                     game.soundManager.stopLoopingSound(emitter.soundInstanceId!!)
                     emitter.soundInstanceId = null
@@ -204,8 +225,6 @@ class AudioEmitterSystem : Disposable {
                 continue
             }
 
-            // --- NEW PLAYBACK LOGIC ---
-            // If no sound is playing, the timer is the delay *until* the next sound starts.
             if (emitter.soundInstanceId == null) {
                 emitter.timer -= deltaTime
                 if (emitter.timer <= 0f) {
