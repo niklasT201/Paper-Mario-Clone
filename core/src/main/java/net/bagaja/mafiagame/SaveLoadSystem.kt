@@ -188,7 +188,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     l.parentObjectId
                 ))
             }
-            sm.activeSpawners.forEach { s ->
+            sm.activeSpawners.filter { it.missionId == null }.forEach { s ->
                 world.spawners.add(SpawnerData(
                     id = s.id,
                     position = s.position,
@@ -233,9 +233,11 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     carNpcDriverType = s.carNpcDriverType,
                     carSpawnDirection = s.carSpawnDirection,
                     upgradedWeapon = s.upgradedWeapon,
-                    parentId = s.parentId
+                    parentId = s.parentId,
+                    missionId = s.missionId
                 ))
             }
+
 
             game.teleporterSystem.activeTeleporters.filter { it.missionId == null }.forEach { tp ->
                 world.teleporters.add(TeleporterData(tp.id, tp.name, tp.linkedTeleporterId, tp.gameObject.position))
@@ -292,7 +294,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                         maxPitch = e.maxPitch,
                         falloffMode = e.falloffMode,
                         sceneId = e.sceneId,
-                        parentId = e.parentId
+                        parentId = e.parentId,
+                        missionId = e.missionId
                     ))
                 }
             }
@@ -534,7 +537,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     )
                     newSpawner.upgradedWeapon = data.upgradedWeapon
                     newSpawner.parentId = data.parentId
-
+                    newSpawner.missionId = data.missionId
                     sm.activeSpawners.add(newSpawner)
                 }
             }
