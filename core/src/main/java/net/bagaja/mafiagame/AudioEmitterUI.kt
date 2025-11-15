@@ -28,6 +28,12 @@ class AudioEmitterUI(
     private val minPitchField: TextField
     private val maxPitchField: TextField
 
+    // --- FIX: References to the parent tables for visibility toggling ---
+    private val intervalTable: Table
+    private val timedLoopTable: Table
+    private val playlistTable: Table
+    private val reactivationTable: Table
+
     init {
         window.isMovable = true
         val content = window.contentTable
@@ -50,16 +56,16 @@ class AudioEmitterUI(
         content.add(ScrollPane(soundIdArea, skin)).growX().height(80f).colspan(2).row()
         content.add(browseButton).colspan(2).left().row()
 
-        // *** FIX: Wrap each row in its own container Table ***
-        val playbackTable = Table(); playbackTable.add(Label("Playback Mode:", skin)); playbackTable.add(playbackModeSelect); content.add(playbackTable).colspan(2).left().row()
-        val playlistTable = Table(); playlistTable.add(Label("Playlist Mode:", skin)); playlistTable.add(playlistModeSelect); content.add(playlistTable).colspan(2).left().row()
-        val falloffTable = Table(); falloffTable.add(Label("Volume Falloff:", skin)); falloffTable.add(falloffModeSelect); content.add(falloffTable).colspan(2).left().row()
-        val reactivationTable = Table(); reactivationTable.add(Label("Reactivation:", skin)); reactivationTable.add(reactivationModeSelect); content.add(reactivationTable).colspan(2).left().row()
-        val intervalTable = Table(); intervalTable.add(Label("Interval/Delay (s):", skin)); intervalTable.add(intervalField).width(100f); content.add(intervalTable).colspan(2).left().row()
-        val timedLoopTable = Table(); timedLoopTable.add(Label("Timed Loop Duration (s):", skin)); timedLoopTable.add(timedLoopDurationField).width(100f); content.add(timedLoopTable).colspan(2).left().row()
-        val volumeTable = Table(); volumeTable.add(Label("Volume:", skin)); volumeTable.add(volumeSlider).growX(); content.add(volumeTable).colspan(2).left().row()
-        val rangeTable = Table(); rangeTable.add(Label("Range:", skin)); rangeTable.add(rangeField).width(100f); content.add(rangeTable).colspan(2).left().row()
-        val pitchTable = Table(); pitchTable.add(Label("Pitch (Min/Max):", skin)); pitchTable.add(minPitchField).width(80f).padLeft(10f); pitchTable.add(maxPitchField).width(80f).padLeft(5f); content.add(pitchTable).colspan(2).left().row()
+        // --- FIX: Wrap each row in its own container Table for proper layout and visibility control ---
+        val playbackTable = Table(); playbackTable.add(Label("Playback Mode:", skin)).padRight(5f); playbackTable.add(playbackModeSelect); content.add(playbackTable).colspan(2).left().row()
+        playlistTable = Table(); playlistTable.add(Label("Playlist Mode:", skin)).padRight(5f); playlistTable.add(playlistModeSelect); content.add(playlistTable).colspan(2).left().row()
+        val falloffTable = Table(); falloffTable.add(Label("Volume Falloff:", skin)).padRight(5f); falloffTable.add(falloffModeSelect); content.add(falloffTable).colspan(2).left().row()
+        reactivationTable = Table(); reactivationTable.add(Label("Reactivation:", skin)).padRight(5f); reactivationTable.add(reactivationModeSelect); content.add(reactivationTable).colspan(2).left().row()
+        intervalTable = Table(); intervalTable.add(Label("Interval/Delay (s):", skin)).padRight(5f); intervalTable.add(intervalField).width(100f); content.add(intervalTable).colspan(2).left().row()
+        timedLoopTable = Table(); timedLoopTable.add(Label("Timed Loop Duration (s):", skin)).padRight(5f); timedLoopTable.add(timedLoopDurationField).width(100f); content.add(timedLoopTable).colspan(2).left().row()
+        val volumeTable = Table(); volumeTable.add(Label("Volume:", skin)).padRight(5f); volumeTable.add(volumeSlider).growX(); content.add(volumeTable).colspan(2).left().row()
+        val rangeTable = Table(); rangeTable.add(Label("Range:", skin)).padRight(5f); rangeTable.add(rangeField).width(100f); content.add(rangeTable).colspan(2).left().row()
+        val pitchTable = Table(); pitchTable.add(Label("Pitch (Min/Max):", skin)).padRight(5f); pitchTable.add(minPitchField).width(80f); pitchTable.add(maxPitchField).width(80f).padLeft(5f); content.add(pitchTable).colspan(2).left().row()
 
         val saveButton = TextButton("Save", skin)
         val removeButton = TextButton("Remove", skin)
@@ -76,6 +82,7 @@ class AudioEmitterUI(
 
     private fun showSoundBrowser() {
         val dialog = Dialog("Select a Sound", skin, "dialog")
+        // --- FIX: This now correctly gets ALL loaded sounds ---
         val soundIds = (soundManager.getAllSoundIds()).sorted()
         val list = List<String>(skin); list.setItems(*soundIds.toTypedArray())
         val scroll = ScrollPane(list, skin); scroll.setFadeScrollBars(false)
@@ -129,11 +136,12 @@ class AudioEmitterUI(
             it.minPitch = minPitchField.text.toFloatOrNull() ?: 1.0f
             it.maxPitch = maxPitchField.text.toFloatOrNull() ?: 1.0f
 
+            // --- FIX: Reset the emitter's state completely to apply new settings ---
             it.soundInstanceId?.let { id -> soundManager.stopLoopingSound(id) }
             it.soundInstanceId = null
             it.isDepleted = false
             it.currentPlaylistIndex = 0
-            it.timer = it.interval
+            it.timer = 0f // Reset timer to 0 so it plays immediately if in range
         }
     }
 
@@ -143,15 +151,14 @@ class AudioEmitterUI(
 
         val isLoop = playbackMode == EmitterPlaybackMode.LOOP_INFINITE || playbackMode == EmitterPlaybackMode.LOOP_TIMED
 
-        // *** FIX: Target the correct parent (the wrapper Table) ***
-        intervalField.parent.isVisible = !isLoop || (playlistMode == EmitterPlaylistMode.SEQUENTIAL)
-
-        val intervalLabel = (intervalField.parent as Table).children.find { it is Label } as? Label
+        // --- FIX: Target the correct parent (the wrapper Table) and update label ---
+        intervalTable.isVisible = true // The interval/delay field is now always relevant
+        val intervalLabel = intervalTable.children.find { it is Label } as? Label
         intervalLabel?.setText(if(isLoop) "Delay (s):" else "Interval (s):")
 
-        timedLoopDurationField.parent.isVisible = playbackMode == EmitterPlaybackMode.LOOP_TIMED
-        playlistModeSelect.parent.isVisible = isLoop
-        reactivationModeSelect.parent.isVisible = isLoop && playlistMode == EmitterPlaylistMode.SEQUENTIAL
+        timedLoopTable.isVisible = playbackMode == EmitterPlaybackMode.LOOP_TIMED
+        playlistTable.isVisible = isLoop
+        reactivationTable.isVisible = isLoop && playlistMode == EmitterPlaylistMode.SEQUENTIAL && playbackMode == EmitterPlaybackMode.LOOP_TIMED
 
         window.pack()
     }

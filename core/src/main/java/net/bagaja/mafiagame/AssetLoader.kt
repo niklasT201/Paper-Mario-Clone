@@ -28,17 +28,75 @@ object AssetLoader {
         // Helper function to reduce boilerplate
         fun load(id: String, path: String) = soundManager.load(id, "sound_effects/$path")
 
+
+        // Blood
+        load("BLOOD_SPLATTER_CHARACTER", "blood.character/blood_character_splatter.ogg")
+        load("BLOOD_PRINT_V1", "blood.character/blood_print.ogg")
+        load("BLOOD_PRINT_V2", "blood.character/blood_print_two.ogg")
+        load("BLOOD_SPLAT_CHARACTER", "blood.character/blood_splat_character.ogg")
+        load("BLOOD_SPLATTER_GENERIC_V1", "blood.character/blood_splatter.ogg")
+        load("BLOOD_SPLATTER_GENERIC_V2", "blood.character/blood_splatter_two.ogg")
+        load("BLOOD_POOL_SPLAT", "blood.character/bloodpool_splatt.ogg")
+
+        // Car Horns
+        load("CAR_HORN_V1", "cars/horn/car_horn.ogg")
+        load("CAR_HORN_V2", "cars/horn/car_horn_two.ogg")
+        load("CAR_HORN_V3", "cars/horn/car_horn_three.ogg")
+        load("CAR_HORN_V4", "cars/horn/car_horn_four.ogg")
+        load("CAR_HORN_V5", "cars/horn/car_horn_five.ogg")
+        load("CAR_HORN_V6", "cars/horn/car_horn_six.ogg")
+        load("CAR_HORN_V7", "cars/horn/car_horn_seven.ogg")
+        load("CAR_HORN_V8", "cars/horn/car_horn_eight.ogg")
+        load("CAR_HORN_V9", "cars/horn/car_horn_nine.ogg")
+        load("POLICE_SIREN", "cars/horn/police_siren.ogg")
+
+        // Footsteps
+        load("FOOTSTEP_CONCRETE_V1", "characters/player/footprint_concrete/concrete_footprint.ogg")
+        load("FOOTSTEP_CONCRETE_V2", "characters/player/footprint_concrete/concrete_footprint_two.ogg")
+        load("FOOTSTEP_CONCRETE_V3", "characters/player/footprint_concrete/concrete_footprint_three.ogg")
+        load("FOOTSTEP_CONCRETE_V4", "characters/player/footprint_concrete/concrete_footprint_four.ogg")
+        load("FOOTSTEP_CONCRETE_V5", "characters/player/footprint_concrete/concrete_footprint_five.ogg")
+        load("FOOTSTEP_CONCRETE_V6", "characters/player/footprint_concrete/concrete_footprint_six.ogg")
+        load("FOOTSTEP_CONCRETE_V7", "characters/player/footprint_concrete/concrete_footprint_seven.ogg")
+        load("FOOTSTEP_CONCRETE_V8", "characters/player/footprint_concrete/concrete_footprint_eight.ogg")
+        load("FOOTSTEP_CONCRETE_V9", "characters/player/footprint_concrete/concrete_footprint_nine.ogg")
+        load("FOOTSTEP_CONCRETE_V10", "characters/player/footprint_concrete/concrete_footprint_ten.ogg")
+        load("FOOTSTEP_WOOD_V1", "characters/player/footprint_wood/footprint_wood.ogg")
+        load("FOOTSTEP_WOOD_V2", "characters/player/footprint_wood/footprint_wood_two.ogg")
+        load("FOOTSTEP_WOOD_V3", "characters/player/footprint_wood/footprint_wood_three.ogg")
+        load("FOOTSTEP_WOOD_V4", "characters/player/footprint_wood/footprint_wood_four.ogg")
+        load("FOOTSTEP_WOOD_V5", "characters/player/footprint_wood/footprint_wood_five.ogg")
+
+        // Fire
+        load("FIRE_DAMPED_V1", "fire/damped_fire.ogg")
+        load("FIRE_DAMPED_V2", "fire/damped_fire_two.ogg")
+        load("FIRE_DAMPED_V3", "fire/damped_fire_three.ogg")
+
+        // Reloading
+        load("RELOAD_GENERIC_V1", "reloading/reloading_one.ogg")
+        load("RELOAD_GENERIC_V2", "reloading/reloading_two.ogg")
+        load("RELOAD_GENERIC_V3", "reloading/reloading_three.ogg")
+        load("REVOLVER_RELOAD", "weapons/revolver/revolver_reloading.ogg")
+
+        // Wind
+        load("WIND_V1", "weather/wind/wind.ogg")
+        load("WIND_V2", "weather/wind/wind_two.ogg")
+        load("WIND_V3", "weather/wind/wind_three.ogg")
+        load("WIND_V4", "weather/wind/wind_four.ogg")
+
+        // --- Existing sound loads ---
         // Melee
         load("PUNCH_FIST", "weapons/punch/fist_punch.ogg")
         load("PUNCH_BOXING", "weapons/punch/boxing.ogg")
         load("PUNCH_GENERIC", "weapons/punch/punch.ogg")
+        load("FIST_WALL", "weapons/punch/fist_wall.ogg")
         load("BASEBALL_BAT_HIT", "weapons/baseball_bat/baseball_bat_wall.ogg")
 
-        // Revolver (Loaded as variations of a base ID)
+        // Revolver
         load("GUNSHOT_REVOLVER_V1", "weapons/revolver/revolver_shot.ogg")
         load("GUNSHOT_REVOLVER_V2", "weapons/revolver/shot_deep.ogg")
 
-        // Tommy Gun (Separating single and auto sounds)
+        // Tommy Gun
         load("GUNSHOT_TOMMYGUN_V1", "weapons/tommy_gun/tommy_gun_one.ogg")
         load("GUNSHOT_TOMMYGUN_V2", "weapons/tommy_gun/tommy_gun_two.ogg")
         load("TOMMY_GUN_SINGLE", "weapons/tommy_gun/one_shot.ogg")
@@ -67,7 +125,6 @@ object AssetLoader {
         load("CAR_DOOR_CLOSE_V2", "cars/closed/car_closed_two.ogg")
         load("CAR_DOOR_CLOSE_V3", "cars/closed/car_closed_three.ogg")
         load("CAR_DOOR_CLOSE_V4", "cars/closed/main_car_closed.ogg")
-
         load("CAR_LOCKED_V1", "cars/locked/car_locked.ogg")
         load("CAR_LOCKED_V2", "cars/locked/car_locked_two.ogg")
         load("CAR_LOCKED_V3", "cars/locked/car_locked_three.ogg")
@@ -127,6 +184,7 @@ object AssetLoader {
         loadMusic(soundManager, "CITY_AMBIENCE_V4", "ambience/city/ambience_city_four.ogg")
         loadMusic(soundManager, "CITY_AMBIENCE_V5", "ambience/city/ambience_city_five.ogg")
         loadMusic(soundManager, "CITY_AMBIENCE_V6", "ambience/city/ambience_city_six.ogg")
+        loadMusic(soundManager, "CITY_AMBIENCE_V9", "ambience/city/ambience_city_nine.ogg")
 
         loadMusic(soundManager, "TRAFFIC_AMBIENCE_V1", "ambience/traffic/driving_ambience_two.ogg")
         loadMusic(soundManager, "TRAFFIC_AMBIENCE_V2", "ambience/traffic/driving_ambience_three.ogg")
@@ -154,12 +212,10 @@ object AssetLoader {
         loadMusic(soundManager, "SPOOKY_LOOP", "instruments/spooky_background_music_loop.ogg")
         loadMusic(soundManager, "VIOLIN_1", "instruments/violine.ogg")
 
-        loadMusic(soundManager, "VOICE_1", "instruments/voice/female_voice_singing.ogg")
-        loadMusic(soundManager, "VOICE_2", "instruments/voice/female_voice_singing_two.ogg")
-        loadMusic(soundManager, "VOICE_3", "instruments/voice/female_voice_singing_three.ogg")
-        loadMusic(soundManager, "VOICE_4", "instruments/voice/female_voice_singing_four.ogg")
-        loadMusic(soundManager, "VOICE_5", "instruments/voice/female_voice_singing_five.ogg")
-        loadMusic(soundManager, "VOICE_6", "instruments/voice/female_voice_singing_six.ogg")
+        loadMusic(soundManager, "VOICE_1", "voice/female_voice_singing.ogg")
+        loadMusic(soundManager, "VOICE_3", "voice/female_voice_singing_three.ogg")
+        loadMusic(soundManager, "VOICE_5", "voice/female_voice_singing_five.ogg")
+        loadMusic(soundManager, "VOICE_6", "voice/female_voice_singing_six.ogg")
 
         // Water Splashes
         load("WATER_SPLASH_V1", "weather/water_splash/water_splash.ogg")

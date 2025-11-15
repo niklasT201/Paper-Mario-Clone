@@ -57,7 +57,7 @@ data class AudioEmitter(
 
     // --- STATE ---
     @Transient var soundInstanceId: Long? = null,
-    @Transient var timer: Float = interval,
+    @Transient var timer: Float = 0f, // --- FIX: Timer now consistently means "time until next event"
     @Transient var currentPlaylistIndex: Int = 0, // NEW
     @Transient var isDepleted: Boolean = false,   // NEW: For RE_ENTER logic
     @Transient var wasInRange: Boolean = false,     // NEW: For RE_ENTER logic
@@ -110,6 +110,7 @@ class AudioEmitterSystem : Disposable {
             sceneId = data.sceneId,
             missionId = data.missionId
         )
+        emitter.timer = emitter.interval
         activeEmitters.add(emitter)
         return emitter
     }
@@ -127,6 +128,8 @@ class AudioEmitterSystem : Disposable {
                 debugInstance = ModelInstance(debugModel),
                 sceneId = game.sceneManager.getCurrentSceneId()
             )
+            // --- FIX: Initialize timer correctly on creation ---
+            emitter.timer = emitter.interval
             activeEmitters.add(emitter)
             game.uiManager.showAudioEmitterUI(emitter) // Immediately open UI for configuration
         }
@@ -146,26 +149,23 @@ class AudioEmitterSystem : Disposable {
         mutedSoundIds.clear()
     }
 
+    // --- FIX: Completely rewritten update logic for correctness ---
     fun update(deltaTime: Float) {
-        // --- ADD THIS GLOBAL CHECK AT THE TOP ---
         if (isGloballyDisabled) {
-            // If the system is disabled, make sure no emitters are playing.
             for (emitter in activeEmitters) {
                 if (emitter.soundInstanceId != null) {
                     game.soundManager.stopLoopingSound(emitter.soundInstanceId!!)
                     emitter.soundInstanceId = null
                 }
             }
-            return // Stop all further processing for this frame
+            return
         }
 
         val playerPos = game.playerSystem.getControlledEntityPosition()
         val currentSceneId = game.sceneManager.getCurrentSceneId()
 
         for (emitter in activeEmitters) {
-            // If emitter is in wrong scene and playing, stop it.
-            val isMuted = emitter.soundIds.any { it in mutedSoundIds }
-            if (isMuted) {
+            if (emitter.sceneId != currentSceneId || emitter.soundIds.any { it in mutedSoundIds }) {
                 if (emitter.soundInstanceId != null) {
                     game.soundManager.stopLoopingSound(emitter.soundInstanceId!!)
                     emitter.soundInstanceId = null
@@ -177,26 +177,30 @@ class AudioEmitterSystem : Disposable {
             val isInRange = distance < emitter.range
 
             // --- RE-ENTER LOGIC ---
-            if (!isInRange && emitter.wasInRange && emitter.reactivationMode == EmitterReactivationMode.RE_ENTER) {
-                emitter.isDepleted = false // Player has left, so the emitter can be reset
-                emitter.currentPlaylistIndex = 0 // Reset playlist progress
-            }
-            emitter.wasInRange = isInRange
-
-            // If depleted or out of range, stop sounds and skip
-            if (emitter.isDepleted || !isInRange) {
+            if (!isInRange && emitter.wasInRange) {
+                if (emitter.reactivationMode == EmitterReactivationMode.RE_ENTER) {
+                    emitter.isDepleted = false
+                    emitter.currentPlaylistIndex = 0
+                }
+                // Stop any playing sound when leaving the range
                 if (emitter.soundInstanceId != null) {
                     game.soundManager.stopLoopingSound(emitter.soundInstanceId!!)
                     emitter.soundInstanceId = null
                 }
+            }
+            emitter.wasInRange = isInRange
+
+            if (emitter.isDepleted || !isInRange) {
                 continue
             }
 
-            // --- PLAYBACK LOGIC ---
-            emitter.timer -= deltaTime
-            if (emitter.timer <= 0f) {
-                playNextSoundInPlaylist(emitter, playerPos)
-                emitter.timer = emitter.interval
+            // --- NEW PLAYBACK LOGIC ---
+            // If no sound is playing, the timer is the delay *until* the next sound starts.
+            if (emitter.soundInstanceId == null) {
+                emitter.timer -= deltaTime
+                if (emitter.timer <= 0f) {
+                    playNextSoundInPlaylist(emitter, playerPos)
+                }
             }
         }
     }
@@ -204,55 +208,73 @@ class AudioEmitterSystem : Disposable {
     private fun playNextSoundInPlaylist(emitter: AudioEmitter, playerPos: Vector3) {
         if (emitter.soundIds.isEmpty()) return
 
-        // Stop any currently playing sound from this emitter (for sequential one-shots)
-        emitter.soundInstanceId?.let { game.soundManager.stopLoopingSound(it) }
-        emitter.soundInstanceId = null
-
         // Determine which sound to play
-        val soundIdToPlay: String
-        if (emitter.playlistMode == EmitterPlaylistMode.RANDOM) {
-            soundIdToPlay = emitter.soundIds.random()
+        val soundIdToPlay = if (emitter.playlistMode == EmitterPlaylistMode.RANDOM) {
+            emitter.soundIds.random()
         } else { // SEQUENTIAL
-            soundIdToPlay = emitter.soundIds[emitter.currentPlaylistIndex]
-            emitter.currentPlaylistIndex++
+            emitter.soundIds[emitter.currentPlaylistIndex]
         }
 
         val pitch = Random.nextFloat() * (emitter.maxPitch - emitter.minPitch) + emitter.minPitch
         val volume = emitter.volume * (1.0f - (Random.nextFloat() * 0.4f))
 
-        val instanceId = when (emitter.playbackMode) {
-            EmitterPlaybackMode.ONE_SHOT -> game.soundManager.playSound(
-                id = soundIdToPlay, position = emitter.position, pitch = pitch, maxRange = emitter.range,
-                volumeMultiplier = volume, falloffMode = emitter.falloffMode
-            )
-            EmitterPlaybackMode.LOOP_INFINITE, EmitterPlaybackMode.LOOP_TIMED -> game.soundManager.playSound(
-                id = soundIdToPlay, position = emitter.position, loop = true, pitch = pitch, maxRange = emitter.range,
-                volumeMultiplier = volume, falloffMode = emitter.falloffMode
-            )
-        }
+        when (emitter.playbackMode) {
+            EmitterPlaybackMode.ONE_SHOT -> {
+                game.soundManager.playSound(
+                    id = soundIdToPlay, position = emitter.position, pitch = pitch, maxRange = emitter.range,
+                    volumeMultiplier = volume, falloffMode = emitter.falloffMode
+                )
+                // For one-shots, the timer is immediately reset for the next interval.
+                emitter.timer = emitter.interval
+            }
 
-        emitter.soundInstanceId = instanceId
+            EmitterPlaybackMode.LOOP_INFINITE -> {
+                val instanceId = game.soundManager.playSound(
+                    id = soundIdToPlay, position = emitter.position, loop = true, pitch = pitch, maxRange = emitter.range,
+                    volumeMultiplier = volume, falloffMode = emitter.falloffMode
+                )
+                emitter.soundInstanceId = instanceId
+                // This sound will loop forever and never advance the playlist unless stopped externally.
+            }
 
-        // Handle timed loops
-        if (emitter.playbackMode == EmitterPlaybackMode.LOOP_TIMED && instanceId != null) {
-            Timer.schedule(object : Timer.Task() {
-                override fun run() {
-                    game.soundManager.stopLoopingSound(instanceId)
-                    if (emitter.soundInstanceId == instanceId) emitter.soundInstanceId = null
+            EmitterPlaybackMode.LOOP_TIMED -> {
+                val instanceId = game.soundManager.playSound(
+                    id = soundIdToPlay, position = emitter.position, loop = true, pitch = pitch, maxRange = emitter.range,
+                    volumeMultiplier = volume, falloffMode = emitter.falloffMode
+                )
+                emitter.soundInstanceId = instanceId
+
+                if (instanceId != null) {
+                    // Schedule a task to stop this sound after its duration.
+                    Timer.schedule(object : Timer.Task() {
+                        override fun run() {
+                            game.soundManager.stopLoopingSound(instanceId)
+                            if (emitter.soundInstanceId == instanceId) {
+                                emitter.soundInstanceId = null
+                                // The sound has finished. NOW we start the interval timer for the pause.
+                                emitter.timer = emitter.interval
+                            }
+                        }
+                    }, emitter.timedLoopDuration)
+                } else {
+                    // If sound failed to play, reset timer immediately to try again.
+                    emitter.timer = emitter.interval
                 }
-            }, emitter.timedLoopDuration)
+            }
         }
 
-        // --- PLAYLIST END LOGIC ---
-        if (emitter.playlistMode == EmitterPlaylistMode.SEQUENTIAL && emitter.currentPlaylistIndex >= emitter.soundIds.size) {
-            if (emitter.reactivationMode == EmitterReactivationMode.AUTO_RESET) {
-                emitter.currentPlaylistIndex = 0 // Loop back to the start
-            } else { // RE_ENTER
-                emitter.isDepleted = true // Mark as finished until player leaves the area
+        // --- PLAYLIST END LOGIC (now only applies to SEQUENTIAL) ---
+        if (emitter.playlistMode == EmitterPlaylistMode.SEQUENTIAL) {
+            emitter.currentPlaylistIndex++
+            if (emitter.currentPlaylistIndex >= emitter.soundIds.size) {
+                if (emitter.reactivationMode == EmitterReactivationMode.AUTO_RESET) {
+                    emitter.currentPlaylistIndex = 0 // Loop back to the start
+                } else { // RE_ENTER
+                    emitter.isDepleted = true // Mark as finished until player leaves the area
+                }
             }
         }
     }
-
 
     fun render(camera: Camera) {
         if (!game.isEditorMode || !isVisible) return

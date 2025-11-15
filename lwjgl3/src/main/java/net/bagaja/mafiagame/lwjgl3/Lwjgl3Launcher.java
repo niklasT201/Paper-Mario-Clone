@@ -91,9 +91,7 @@ public class Lwjgl3Launcher {
 
 // edge houses
 // ambience steps pausing between loop
-// audio emitter not making sound quit
 // music spawner and audio emitter connected to characters
-// audi emitter ui not having female voice sound
 // audio emitter cutting off sounds
 // whosh sound for melee weapons
 // update melee images
@@ -101,7 +99,6 @@ public class Lwjgl3Launcher {
 // audio ui two items in a row
 // enemy range visible in fist fights
 // character stepping out of locked car gives sound
-// fire system uses spread fire, fire or flame particle folder
 // blocks being visible behind transparent enemies etc.
 // car maybe be able to step up half a block
 // Chain Reactions with Explosives & Fire

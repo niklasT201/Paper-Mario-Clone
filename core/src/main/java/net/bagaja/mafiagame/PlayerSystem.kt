@@ -1758,6 +1758,11 @@ class PlayerSystem {
 
         updatePlayerRotation(deltaTime)
 
+//        // If locked in a melee swing, cancel all movement for this frame.
+//        if (isLockedInMeleeAnimation) {
+//            desiredMovement.set(0f, 0f, 0f)
+//        }
+
         // 3. NOW, check if movement should be cancelled due to a heavy weapon.
         if (Gdx.input.isButtonPressed(Input.Buttons.LEFT) && !equippedWeapon.allowsMovementWhileShooting) {
             desiredMovement.set(0f, 0f, 0f) // Cancel the actual movement vector

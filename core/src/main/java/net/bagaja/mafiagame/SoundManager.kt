@@ -297,7 +297,9 @@ class SoundManager : Disposable {
                 return null
             }
             val soundInstanceId = sound.loop(finalVolume, finalPitch, pan)
-            activeLoopingSounds.add(ActiveSound(sound, soundInstanceId, id, position, maxRange, falloffMode))
+
+            activeLoopingSounds.add(ActiveSound(sound, soundInstanceId, id, position, maxRange, falloffMode, volumeMultiplier))
+
             return soundInstanceId
         } else {
             if (finalVolume > 0.01f) {
