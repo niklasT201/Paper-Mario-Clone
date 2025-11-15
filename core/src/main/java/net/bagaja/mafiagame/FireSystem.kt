@@ -32,7 +32,7 @@ data class GameFire(
     val generation: Int = 0,
     var missionId: String? = null,
     @Transient var soundInstanceId: Long? = null
-) {
+) : ISoundEmitter {
     private val material = gameObject.modelInstance.materials.first()
     private val blendingAttribute: BlendingAttribute? = material.get(BlendingAttribute.Type) as? BlendingAttribute
     private var lastTexture: Texture? = null
@@ -107,6 +107,36 @@ data class GameFire(
     }
 
     fun isExpired(): Boolean = currentScale <= 0f || (fadesOut && lifetime <= 0)
+
+    override fun stopLoopingSound(soundManager: SoundManager) {
+        soundInstanceId?.let {
+            soundManager.stopLoopingSound(it)
+            soundInstanceId = null
+        }
+    }
+
+    override fun restartLoopingSound(soundManager: SoundManager) {
+        // A fire should always be making sound if it exists and isn't expired.
+        if (isExpired() || soundInstanceId != null) return
+
+        // Use a random fire sound, just like when it's first created
+        val fireSoundIds = listOf(
+            "FIRE_BURNING_V1", "FIRE_BURNING_V2", "FIRE_BURNING_V3", "FIRE_BURNING_V4", "FIRE_BURNING_V5",
+            "FIRE_CRACKLE_V1", "FIRE_CRACKLE_V2", "FIRE_CRACKLE_V3"
+        )
+
+        fireSoundIds.randomOrNull()?.let { randomSoundId ->
+            val soundId = soundManager.playSound(
+                id = randomSoundId,
+                position = this.gameObject.position,
+                loop = true,
+                reverbProfile = SoundManager.DEFAULT_REVERB,
+                maxRange = 40f
+            )
+            // Store the new unique instance ID
+            this.soundInstanceId = soundId
+        }
+    }
 }
 
 // System to manage all fire objects

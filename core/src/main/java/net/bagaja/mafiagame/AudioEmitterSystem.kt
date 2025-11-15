@@ -76,7 +76,38 @@ data class AudioEmitter(
     @Transient var wasInRange: Boolean = false,     // NEW: For RE_ENTER logic
     var sceneId: String = "WORLD",
     var missionId: String? = null
-)
+) : ISoundEmitter {
+
+    override fun stopLoopingSound(soundManager: SoundManager) {
+        soundInstanceId?.let {
+            soundManager.stopLoopingSound(it)
+            soundInstanceId = null
+        }
+    }
+
+    override fun restartLoopingSound(soundManager: SoundManager) {
+        if (this.playbackMode == EmitterPlaybackMode.LOOP_INFINITE && this.soundInstanceId == null) {
+            val soundIdToPlay = if (this.playlistMode == EmitterPlaylistMode.RANDOM) {
+                this.soundIds.randomOrNull()
+            } else {
+                this.soundIds.getOrNull(this.currentPlaylistIndex)
+            }
+
+            if (soundIdToPlay != null) {
+                val pitch = Random.nextFloat() * (this.maxPitch - this.minPitch) + this.minPitch
+                this.soundInstanceId = soundManager.playSound(
+                    id = soundIdToPlay,
+                    position = this.position,
+                    loop = true,
+                    pitch = pitch,
+                    maxRange = this.range,
+                    volumeMultiplier = this.volume,
+                    falloffMode = this.falloffMode
+                )
+            }
+        }
+    }
+}
 
 enum class EmitterFalloffMode {
     LINEAR,  // Sound fades with distance (current behavior)

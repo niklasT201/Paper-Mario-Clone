@@ -527,7 +527,7 @@ data class GameCar(
     var assignedCloseSoundId: String? = null,
     @Transient var drivingSoundId: Long? = null,
     @Transient var enginePitch: Float = 0.7f
-) {
+) : ISoundEmitter {
     companion object {
         const val WRECKED_DURATION = 25f
         const val FADE_OUT_DURATION = 5f
@@ -1094,6 +1094,28 @@ data class GameCar(
         val radians = Math.toRadians((direction + 90f).toDouble()).toFloat()
         position.x += kotlin.math.sin(radians) * distance
         position.z += kotlin.math.cos(radians) * distance
+    }
+
+    override fun stopLoopingSound(soundManager: SoundManager) {
+        drivingSoundId?.let {
+            soundManager.stopLoopingSound(it)
+            drivingSoundId = null
+        }
+    }
+
+    override fun restartLoopingSound(soundManager: SoundManager) {
+        // A car's engine sound should only restart if someone is driving it.
+        val isDriven = seats.any { it.occupant != null }
+
+        if (isDriven && !isDestroyed && drivingSoundId == null) {
+            this.enginePitch = 0.7f // Reset to idle pitch
+            this.drivingSoundId = soundManager.playSound(
+                id = "CAR_DRIVING_LOOP",
+                position = this.position,
+                loop = true,
+                volumeMultiplier = 0.7f // Start at a reasonable volume
+            )
+        }
     }
 }
 

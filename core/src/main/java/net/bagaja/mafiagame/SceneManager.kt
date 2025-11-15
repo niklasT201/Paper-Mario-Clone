@@ -145,6 +145,15 @@ class SceneManager(
     fun cleanupMissionEntities(missionId: String) {
         println("--- Cleaning up entities for mission: $missionId ---")
 
+        // Create a list of all mission-specific sound emitters
+        val missionSoundEmitters = mutableListOf<ISoundEmitter>()
+        missionSoundEmitters.addAll(fireSystem.activeFires.filter { it.missionId == missionId })
+        missionSoundEmitters.addAll(activeCars.filter { it.missionId == missionId })
+        missionSoundEmitters.addAll(game.audioEmitterSystem.activeEmitters.filter { it.missionId == missionId })
+
+        // Stop their sounds before removing them
+        missionSoundEmitters.forEach { it.stopLoopingSound(game.soundManager) }
+
         // --- Special Cases First (Entities requiring system-specific removal logic) ---
 
         // Blocks (must process dirty chunks after removal)
@@ -769,6 +778,20 @@ class SceneManager(
         transitionSystem.startOutTransition(duration = 7.0f)
     }
 
+    private fun restartLoopingSoundsForScene() {
+        println("Restarting looping sounds for the newly loaded scene...")
+        val soundManager = game.soundManager
+
+        val soundEmitters = mutableListOf<ISoundEmitter>()
+        soundEmitters.addAll(fireSystem.activeFires)
+        soundEmitters.addAll(activeCars)
+        soundEmitters.addAll(game.audioEmitterSystem.activeEmitters)
+
+        for (emitter in soundEmitters) {
+            emitter.restartLoopingSound(soundManager)
+        }
+    }
+
     private fun completeTransitionToInterior() {
         val house = pendingHouse ?: return
 
@@ -840,6 +863,8 @@ class SceneManager(
         cameraManager.resetAndSnapToPlayer(interiorState.playerPosition, false)
         pendingHouse = null
 
+        restartLoopingSoundsForScene()
+
         if (house.exitDoorId == null) {
             game.uiManager.enterExitDoorPlacementMode(house)
         }
@@ -883,6 +908,8 @@ class SceneManager(
 
         particleSystem.clearAllParticles()
 
+        restartLoopingSoundsForScene()
+
         // Tell the transition system to fade back IN to the world scene
         transitionSystem.startInTransition()
     }
@@ -911,6 +938,7 @@ class SceneManager(
 
     private fun saveWorldState() {
         println("Saving world state...")
+        stopAllLoopingSoundsInScene()
 
         val worldCarPathNodes = Array<CarPathNode>().apply {
             addAll(*game.carPathSystem.nodes.values.filter { it.sceneId == "WORLD" }.toTypedArray())
@@ -1002,6 +1030,7 @@ class SceneManager(
         val id = currentInteriorId ?: return
         val currentState = interiorStates.getOrPut(id) { getInteriorStateFor(id) }
         println("Saving state for interior instance: $id")
+        stopAllLoopingSoundsInScene()
 
         currentState.objects.clear(); currentState.objects.addAll(activeObjects)
         currentState.items.clear(); currentState.items.addAll(activeItems)
@@ -1052,6 +1081,23 @@ class SceneManager(
         game.audioEmitterSystem.activeEmitters.addAll(state.audioEmitters)
 
         setSceneLights(state.lights)
+    }
+
+    private fun stopAllLoopingSoundsInScene() {
+        println("Stopping all looping sounds for the current scene...")
+        val soundManager = game.soundManager
+
+        // Create a temporary list of all objects that can emit sounds
+        val soundEmitters = mutableListOf<ISoundEmitter>()
+        soundEmitters.addAll(fireSystem.activeFires)
+        soundEmitters.addAll(activeCars)
+        soundEmitters.addAll(game.audioEmitterSystem.activeEmitters)
+        // Future objects (like a radio) would just be added to this list.
+
+        // Tell each object to stop its own sound
+        for (emitter in soundEmitters) {
+            emitter.stopLoopingSound(soundManager)
+        }
     }
 
     private fun createInteriorFromTemplate(house: GameHouse, template: RoomTemplate): Pair<InteriorState, String?> {
@@ -2057,6 +2103,7 @@ class SceneManager(
     }
 
     private fun clearActiveScene() {
+        stopAllLoopingSoundsInScene()
         activeObjects.clear()
         activeCars.clear()
         activeHouses.clear()
