@@ -37,6 +37,11 @@ enum class EmitterPlaybackMode {
     LOOP_TIMED
 }
 
+enum class PlaybackLengthMode {
+    FULL_DURATION,   // Plays the entire sound file once
+    CUSTOM_DURATION  // Plays for a specified duration
+}
+
 data class AudioEmitter(
     val id: String = UUID.randomUUID().toString(),
     var position: Vector3,
@@ -47,6 +52,11 @@ data class AudioEmitter(
     var volume: Float = 1.0f,
     var range: Float = 100f,
     var playbackMode: EmitterPlaybackMode = EmitterPlaybackMode.LOOP_INFINITE,
+
+    // --- NEW PROPERTIES FOR PLAYBACK LENGTH ---
+    var playbackLengthMode: PlaybackLengthMode = PlaybackLengthMode.FULL_DURATION,
+    var customPlaybackLength: Float = 2.0f, // Default custom length of 2 seconds
+
     var playlistMode: EmitterPlaylistMode = EmitterPlaylistMode.SEQUENTIAL, // NEW
     var reactivationMode: EmitterReactivationMode = EmitterReactivationMode.AUTO_RESET, // NEW
     var interval: Float = 1.0f, // Time between sounds in playlist or one-shots
@@ -206,73 +216,86 @@ class AudioEmitterSystem : Disposable {
     }
 
     private fun playNextSoundInPlaylist(emitter: AudioEmitter, playerPos: Vector3) {
-        if (emitter.soundIds.isEmpty()) return
+        if (emitter.soundIds.isEmpty() || emitter.isDepleted) return
+
+        // Stop any sound that might be lingering from a previous state change
+        emitter.soundInstanceId?.let {
+            game.soundManager.stopLoopingSound(it)
+            game.soundManager.stopOneShotSound(it)
+        }
+        emitter.soundInstanceId = null
 
         // Determine which sound to play
         val soundIdToPlay = if (emitter.playlistMode == EmitterPlaylistMode.RANDOM) {
             emitter.soundIds.random()
         } else { // SEQUENTIAL
+            // Ensure the index is valid before trying to access it
+            if (emitter.currentPlaylistIndex >= emitter.soundIds.size) {
+                emitter.currentPlaylistIndex = 0 // Safety wrap-around
+            }
             emitter.soundIds[emitter.currentPlaylistIndex]
         }
 
         val pitch = Random.nextFloat() * (emitter.maxPitch - emitter.minPitch) + emitter.minPitch
-        val volume = emitter.volume * (1.0f - (Random.nextFloat() * 0.4f))
+        val volume = emitter.volume
 
-        when (emitter.playbackMode) {
-            EmitterPlaybackMode.ONE_SHOT -> {
-                game.soundManager.playSound(
-                    id = soundIdToPlay, position = emitter.position, pitch = pitch, maxRange = emitter.range,
-                    volumeMultiplier = volume, falloffMode = emitter.falloffMode
-                )
-                // For one-shots, the timer is immediately reset for the next interval.
+        if (emitter.playbackMode == EmitterPlaybackMode.LOOP_INFINITE) {
+            // This mode is for single, infinitely looping sounds and does not advance playlists.
+            val instanceId = game.soundManager.playSound(
+                id = soundIdToPlay, position = emitter.position, loop = true, pitch = pitch, maxRange = emitter.range,
+                volumeMultiplier = volume, falloffMode = emitter.falloffMode
+            )
+            emitter.soundInstanceId = instanceId
+        } else {
+            // --- CORRECTED LOGIC: ONE_SHOT and LOOP_TIMED are now handled identically ---
+            // They both play a sound for a specific duration, then pause for the interval.
+            val instanceId = game.soundManager.playSound(
+                id = soundIdToPlay, position = emitter.position, loop = false, pitch = pitch, maxRange = emitter.range,
+                volumeMultiplier = volume, falloffMode = emitter.falloffMode
+            )
+
+            if (instanceId == null) {
+                // If the sound failed to play (e.g., not loaded), reset the interval to try again.
                 emitter.timer = emitter.interval
+                return
             }
 
-            EmitterPlaybackMode.LOOP_INFINITE -> {
-                val instanceId = game.soundManager.playSound(
-                    id = soundIdToPlay, position = emitter.position, loop = true, pitch = pitch, maxRange = emitter.range,
-                    volumeMultiplier = volume, falloffMode = emitter.falloffMode
-                )
-                emitter.soundInstanceId = instanceId
-                // This sound will loop forever and never advance the playlist unless stopped externally.
+            emitter.soundInstanceId = instanceId
+
+            // Determine how long this sound should play for.
+            val playDuration = when (emitter.playbackLengthMode) {
+                PlaybackLengthMode.CUSTOM_DURATION -> emitter.customPlaybackLength
+                // Use the repurposed timedLoopDuration field as the 'full' length
+                PlaybackLengthMode.FULL_DURATION -> emitter.timedLoopDuration
             }
 
-            EmitterPlaybackMode.LOOP_TIMED -> {
-                val instanceId = game.soundManager.playSound(
-                    id = soundIdToPlay, position = emitter.position, loop = true, pitch = pitch, maxRange = emitter.range,
-                    volumeMultiplier = volume, falloffMode = emitter.falloffMode
-                )
-                emitter.soundInstanceId = instanceId
+            // Schedule a task to run *after* the sound has finished playing.
+            Timer.schedule(object : Timer.Task() {
+                override fun run() {
+                    // Stop the sound that was just playing.
+                    game.soundManager.stopOneShotSound(instanceId)
 
-                if (instanceId != null) {
-                    // Schedule a task to stop this sound after its duration.
-                    Timer.schedule(object : Timer.Task() {
-                        override fun run() {
-                            game.soundManager.stopLoopingSound(instanceId)
-                            if (emitter.soundInstanceId == instanceId) {
-                                emitter.soundInstanceId = null
-                                // The sound has finished. NOW we start the interval timer for the pause.
-                                emitter.timer = emitter.interval
+                    // Ensure we are not overwriting a newer sound instance
+                    if (emitter.soundInstanceId == instanceId) {
+                        emitter.soundInstanceId = null
+                        // Now that the sound is finished, start the timer for the pause/interval.
+                        emitter.timer = emitter.interval
+
+                        // --- THE FIX IS HERE ---
+                        // Advance the playlist index *AFTER* the sound has finished playing.
+                        if (emitter.playlistMode == EmitterPlaylistMode.SEQUENTIAL) {
+                            emitter.currentPlaylistIndex++
+                            if (emitter.currentPlaylistIndex >= emitter.soundIds.size) {
+                                if (emitter.reactivationMode == EmitterReactivationMode.AUTO_RESET) {
+                                    emitter.currentPlaylistIndex = 0 // Loop back to the start
+                                } else { // RE_ENTER
+                                    emitter.isDepleted = true // Mark as finished until player leaves
+                                }
                             }
                         }
-                    }, emitter.timedLoopDuration)
-                } else {
-                    // If sound failed to play, reset timer immediately to try again.
-                    emitter.timer = emitter.interval
+                    }
                 }
-            }
-        }
-
-        // --- PLAYLIST END LOGIC (now only applies to SEQUENTIAL) ---
-        if (emitter.playlistMode == EmitterPlaylistMode.SEQUENTIAL) {
-            emitter.currentPlaylistIndex++
-            if (emitter.currentPlaylistIndex >= emitter.soundIds.size) {
-                if (emitter.reactivationMode == EmitterReactivationMode.AUTO_RESET) {
-                    emitter.currentPlaylistIndex = 0 // Loop back to the start
-                } else { // RE_ENTER
-                    emitter.isDepleted = true // Mark as finished until player leaves the area
-                }
-            }
+            }, playDuration)
         }
     }
 

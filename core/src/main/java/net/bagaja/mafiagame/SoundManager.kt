@@ -74,6 +74,7 @@ class SoundManager : Disposable {
         var fadeOutDuration: Float = 1.0f
     )
 
+    private val instanceIdToSoundMap = mutableMapOf<Long, Sound>()
     private val mutedSoundIds = mutableSetOf<String>()
     private val loadedSounds = mutableMapOf<String, Sound>()
     private val activeLoopingSounds = Array<ActiveSound>()
@@ -157,6 +158,14 @@ class SoundManager : Disposable {
             soundToFade.isFadingOut = true
             soundToFade.fadeOutTimer = duration
             soundToFade.fadeOutDuration = duration
+        }
+    }
+
+    fun stopOneShotSound(instanceId: Long) {
+        val sound = instanceIdToSoundMap[instanceId]
+        if (sound != null) {
+            sound.stop(instanceId)
+            instanceIdToSoundMap.remove(instanceId)
         }
     }
 
@@ -304,6 +313,8 @@ class SoundManager : Disposable {
         } else {
             if (finalVolume > 0.01f) {
                 val soundInstanceId = sound.play(finalVolume, finalPitch, pan)
+
+                instanceIdToSoundMap[soundInstanceId] = sound
 
                 // NEW LOGIC: If a fade-out is requested, track this sound
                 if (fadeOutDuration != null && fadeOutDuration > 0f) {
