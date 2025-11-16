@@ -91,7 +91,7 @@ public class Lwjgl3Launcher {
 
 // edge houses
 // ambience steps pausing between loop
-//
+// sounds being where the origin spot is
 // whosh sound for melee weapons
 // update melee images
 // shooting sound echo doesnt move with player

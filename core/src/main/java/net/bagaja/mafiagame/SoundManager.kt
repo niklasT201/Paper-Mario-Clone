@@ -415,7 +415,11 @@ class SoundManager : Disposable {
         }
 
         val finalVolume = distanceVolume * masterVolume * sfxVolume
-        val pan = (soundPosition.x - listenerPosition.x) / (maxRange * 0.5f).coerceIn(-1.0f, 1.0f)
+
+        // --- THIS IS THE FIX ---
+        // Pan calculation: horizontal distance relative to half the range, and then clamped.
+        val pan = ((soundPosition.x - listenerPosition.x) / (maxRange * 0.5f)).coerceIn(-1.0f, 1.0f)
+
         return Pair(finalVolume, pan)
     }
 

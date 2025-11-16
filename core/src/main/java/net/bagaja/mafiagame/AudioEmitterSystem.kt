@@ -221,6 +221,11 @@ class AudioEmitterSystem : Disposable {
 
                     // 3. Add the rotated offset to the NPC's current position
                     emitter.position.set(parentNPC.position).add(rotatedOffset)
+
+                    // --- ADD THIS LINE ---
+                    // Tell the sound manager about the new position so panning can be updated
+                    emitter.soundInstanceId?.let { game.soundManager.updateLoopingSoundPosition(it, emitter.position) }
+
                 } else {
                     // Parent is gone, break the link
                     emitter.parentId = null
