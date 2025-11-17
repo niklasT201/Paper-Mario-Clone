@@ -60,6 +60,7 @@ class PlayerSystem {
     // Custom shader for billboard lighting
     private lateinit var billboardShaderProvider: BillboardShaderProvider
     private lateinit var billboardModelBatch: ModelBatch
+    private lateinit var wantedSystem: WantedSystem
 
     private var health: Float = 100f
         private set
@@ -146,6 +147,8 @@ class PlayerSystem {
 
         println("--- PLAYER DEATH SEQUENCE INITIATED ---")
         isDead = true
+
+        wantedSystem.onPlayerDied()
 
         // Play a heavy, final impact sound for death
         sceneManager.game.soundManager.playSound(
@@ -343,7 +346,7 @@ class PlayerSystem {
         return physicsComponent.bounds
     }
 
-    fun initialize(blockSize: Float, particleSystem: ParticleSystem, lightingManager: LightingManager, bloodPoolSystem: BloodPoolSystem, footprintSystem: FootprintSystem, characterPhysicsSystem: CharacterPhysicsSystem, sceneManager: SceneManager) {
+    fun initialize(blockSize: Float, particleSystem: ParticleSystem, lightingManager: LightingManager, bloodPoolSystem: BloodPoolSystem, footprintSystem: FootprintSystem, characterPhysicsSystem: CharacterPhysicsSystem, sceneManager: SceneManager, wantedSystem: WantedSystem) {
         this.blockSize = blockSize
         this.particleSystem = particleSystem
         this.lightingManager = lightingManager
@@ -351,6 +354,7 @@ class PlayerSystem {
         this.footprintSystem = footprintSystem
         this.characterPhysicsSystem = characterPhysicsSystem
         this.sceneManager = sceneManager
+        this.wantedSystem = wantedSystem
 
         // 3. ADD THIS LINE HERE: Assign the system inside initialize()
         this.bulletTrailSystem = sceneManager.game.bulletTrailSystem
@@ -912,7 +916,10 @@ class PlayerSystem {
                 }
 
                 if (npc.takeDamage(damageToDeal, DamageType.MELEE, sceneManager) && npc.currentState != NPCState.DYING) {
+                    wantedSystem.reportCrime(CrimeType.KILL_CIVILIAN) // REPORT CRIME
                     sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
+                } else if (npc.health > 0) { // Only report a "hit" if they didn't die
+                    wantedSystem.reportCrime(CrimeType.HIT_CIVILIAN) // REPORT CRIME
                 }
             }
         }
@@ -927,6 +934,10 @@ class PlayerSystem {
                     car.health // Deal exactly enough damage to destroy
                 } else {
                     equippedWeapon.damage // Deal normal weapon damage
+                }
+
+                if (car.carType == CarType.POLICE_CAR) {
+                    wantedSystem.reportCrime(CrimeType.HIT_POLICE_CAR)
                 }
 
                 car.takeDamage(damageToDeal, DamageType.MELEE)
@@ -1027,6 +1038,8 @@ class PlayerSystem {
     }
 
     private fun spawnBullet() {
+        wantedSystem.reportCrime(CrimeType.SHOOT_WEAPON)
+
         val modifiers = sceneManager.game.missionSystem.activeModifiers
 
         if (equippedWeapon != modifiers?.infiniteAmmoForWeapon && modifiers?.infiniteAmmo != true) {
@@ -1378,6 +1391,11 @@ class PlayerSystem {
             // Play a procedural "locked door" sound at the car's position.
             sceneManager.game.soundManager.playSound(id = soundIdToPlay, position = car.position, reverbProfile = SoundManager.DEFAULT_REVERB)
             return // Stop the function here, player cannot enter.
+        }
+
+        if (car.seats.any { it.occupant is GameNPC || it.occupant is GameEnemy }) {
+            // There's someone in the car, so it's carjacking
+            wantedSystem.reportCrime(CrimeType.STEAL_CAR)
         }
 
         val seat = car.addOccupant(this)
@@ -2404,6 +2422,9 @@ class PlayerSystem {
                         }
 
                         if (enemy.takeDamage(damageToDeal, DamageType.GENERIC, sceneManager, this) && enemy.currentState != AIState.DYING) {
+                            if (enemy.enemyType.name.startsWith("POLICE")) { // Check if the enemy is a police type
+                                wantedSystem.reportCrime(CrimeType.KILL_POLICE)
+                            }
                             sceneManager.enemySystem.startDeathSequence(enemy, sceneManager)
                         }
                         // APPLY KNOCKBACK
@@ -2451,6 +2472,7 @@ class PlayerSystem {
 
                         if (npc.takeDamage(damageToDeal, DamageType.GENERIC, sceneManager) && npc.currentState != NPCState.DYING) {
                             // NPC died, remove it from the scene
+                            wantedSystem.reportCrime(CrimeType.KILL_CIVILIAN) // Report killing an NPC
                             sceneManager.npcSystem.startDeathSequence(npc, sceneManager)
                         }
 
@@ -3248,6 +3270,31 @@ class PlayerSystem {
     fun getMagazineCounts(): Map<WeaponType, Int> {
         currentMagazineCounts[equippedWeapon] = currentMagazineCount
         return currentMagazineCounts.toMap()
+    }
+
+    fun confiscateAllWeapons() {
+        // Save the current magazine state before clearing
+        currentMagazineCounts[equippedWeapon] = currentMagazineCount
+
+        // Clear all weapon data
+        weaponInstances.clear()
+        ammoReserves.clear()
+        currentMagazineCounts.clear()
+
+        // Always give the player their fists back
+        equipWeapon(WeaponType.UNARMED)
+    }
+
+    fun getWeaponInstances(): List<PlayerWeaponInstance> {
+        return weaponInstances.toList()
+    }
+
+    fun getCurrentReserveAmmoFor(weaponType: WeaponType): Int {
+        return ammoReserves.getOrDefault(weaponType, 0)
+    }
+
+    fun getCurrentMagazineCountFor(weaponType: WeaponType): Int {
+        return currentMagazineCounts.getOrDefault(weaponType, 0)
     }
 
     private fun setMagazineCount(weaponType: WeaponType, count: Int) {

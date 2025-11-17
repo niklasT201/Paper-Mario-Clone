@@ -107,6 +107,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var decalSystem: DecalSystem
     lateinit var waterPuddleSystem: WaterPuddleSystem
     lateinit var audioEmitterSystem: AudioEmitterSystem
+    lateinit var wantedSystem: WantedSystem
 
     override fun create() {
         // --- Part 1: Initialize Core Systems ---
@@ -326,7 +327,8 @@ class MafiaGame : ApplicationAdapter() {
         enemySystem.initialize(blockSize, characterPhysicsSystem, pathfindingSystem)
         npcSystem.initialize(blockSize, characterPhysicsSystem)
         roomTemplateManager.initialize()
-        playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem, footprintSystem, characterPhysicsSystem, sceneManager)
+        wantedSystem = WantedSystem(sceneManager, playerSystem, enemySystem, uiManager, characterPhysicsSystem)
+        playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem, footprintSystem, characterPhysicsSystem, sceneManager, wantedSystem)
 
         // Initialize managers that depend on initialized systems
         transitionSystem.create(cameraManager.findUiCamera())
@@ -1182,6 +1184,7 @@ class MafiaGame : ApplicationAdapter() {
 
                     triggerSystem.update()
                     transitionSystem.update(deltaTime)
+                    wantedSystem.update(deltaTime)
 
                     // Update lighting manager
                     lightingManager.update(deltaTime, cameraManager.camera.position, timeMultiplier, isInInterior)

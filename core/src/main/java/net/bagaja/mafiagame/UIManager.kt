@@ -118,6 +118,8 @@ class UIManager(
     private lateinit var reserveAmmoLabel: Label
     private lateinit var healthBarEmptyTexture: Texture
     private lateinit var healthBarFullTexture: Texture
+    private lateinit var wantedStarsContainer: Table
+    private lateinit var wantedStarTexture: Texture
 
     private lateinit var startMenuTable: Table
     private lateinit var startMenuOverlay: Image
@@ -215,6 +217,11 @@ class UIManager(
         dialogSystem = DialogSystem()
         dialogSystem.uiManager = this
         dialogSystem.initialize(stage, skin)
+        wantedStarTexture = Texture(Gdx.files.internal("gui/wanted_star.png"))
+
+        // --- MODIFICATION: Initialize as a Table ---
+        wantedStarsContainer = Table()
+        wantedStarsContainer.left() // Align stars to the left within this container
 
         // Initialize UIs that can exist without a game world
         createStartMenu()
@@ -699,6 +706,10 @@ class UIManager(
             pixmap.dispose()
         }
 
+        wantedStarsContainer = Table()
+        wantedStarsContainer.left()
+        wantedStarsContainer.isVisible = false
+
         // --- Create Health Bar Style (reusable for both HUDs) ---
         val healthBarBackground = TextureRegionDrawable(healthBarEmptyTexture)
         val healthBarFill = TextureRegionDrawable(healthBarFullTexture)
@@ -759,9 +770,14 @@ class UIManager(
         weaponInfoTable.add(weaponIconStack).row()
         weaponInfoTable.add(ammoUiContainer).width(180f).height(72f).padTop(0f).padLeft(85f)
 
+        val rightSideGroup = VerticalGroup()
+        rightSideGroup.space(5f)
+        rightSideGroup.align(Align.left)
+        rightSideGroup.addActor(weaponInfoTable)
+
         // Add to main poster table (using your original layout)
         wantedPosterHudTable.add(wantedStack).width(180f).height(240f).top().left()
-        wantedPosterHudTable.add(weaponInfoTable).padLeft(-80f).top().padTop(15f)
+        wantedPosterHudTable.add(rightSideGroup).padLeft(-80f).top().padTop(15f)
 
         // 2. BUILD MINIMALIST HUD
         minimalistHudTable = Table()
@@ -789,8 +805,13 @@ class UIManager(
         ammoContainer.align(Align.bottomRight) // Aligns the label to the bottom-right corner of the icon
         weaponStack.add(ammoContainer)
 
-        minimalistHudTable.add(weaponStack).width(90f).top().left()
-        minimalistHudTable.add(healthGroup).top().left().padLeft(20f)
+        val minimalistRoot = Table()
+        val topRow = Table()
+        topRow.add(weaponStack).width(90f).top().left()
+        topRow.add(healthGroup).top().left().padLeft(20f)
+        minimalistRoot.add(topRow).left().row()
+
+        minimalistHudTable.add(minimalistRoot)
 
         // 3. ADD TO STAGE & SET INITIAL VISIBILITY
         stage.addActor(wantedPosterHudTable)
@@ -1297,6 +1318,67 @@ class UIManager(
 
     fun showAudioEmitterUI(emitter: AudioEmitter) {
         audioEmitterUI.show(emitter)
+    }
+
+    fun updateWantedLevel(level: Int) {
+        wantedStarsContainer.clear() // Clear old stars
+        if (level > 0) {
+            wantedStarsContainer.isVisible = true
+            for (i in 1..level) {
+                val starImage = Image(wantedStarTexture)
+                wantedStarsContainer.add(starImage).size(24f, 24f).pad(2f)
+            }
+        } else {
+            wantedStarsContainer.isVisible = false
+        }
+        wantedStarsContainer.pack() // Recalculate the size of the container
+    }
+
+    fun showWeaponBuyBackUI(wantedSystem: WantedSystem) {
+        val dialog = Dialog("Contraband Recovery", skin, "dialog")
+        dialog.isMovable = true
+
+        val content = Table()
+        val scrollPane = ScrollPane(content, skin)
+        scrollPane.fadeScrollBars = false
+
+        val confiscated = wantedSystem.getterConfiscatedWeapons()
+
+        if (confiscated.isEmpty()) {
+            content.add(Label("No confiscated items to retrieve.", skin)).pad(20f)
+        } else {
+            content.defaults().pad(8f).fillX()
+            for (weaponData in confiscated) {
+                // Find the ItemType to get its value
+                val itemType = ItemType.entries.find { it.correspondingWeapon == weaponData.weaponType }
+                val baseCost = itemType?.value ?: 50 // Use item value with a fallback
+                val cost = baseCost * 5
+
+                val row = Table()
+                if (itemType != null) {
+                    val icon = Image(itemSystem.getTextureForItem(itemType))
+                    row.add(icon).size(40f).padRight(15f)
+                }
+                row.add(Label("${weaponData.weaponType.displayName} (${weaponData.totalAmmo})", skin)).expandX().left()
+
+                val buyButton = TextButton("$$cost", skin)
+                buyButton.addListener(object: ChangeListener() {
+                    override fun changed(event: ChangeEvent?, actor: Actor?) {
+                        if (wantedSystem.buyBackWeapon(weaponData)) {
+                            dialog.hide()
+                            // Re-open the dialog to refresh the list
+                            showWeaponBuyBackUI(wantedSystem)
+                        }
+                    }
+                })
+                row.add(buyButton).width(100f)
+                content.add(row).row()
+            }
+        }
+
+        dialog.contentTable.add(scrollPane).width(450f).height(300f)
+        dialog.button("Close")
+        dialog.show(stage)
     }
 
     // Dialog methods stay the same
@@ -1958,8 +2040,23 @@ class UIManager(
 
     fun setHudStyle(newStyle: HudStyle) {
         currentHudStyle = newStyle
-        wantedPosterHudTable.isVisible = (newStyle == HudStyle.WANTED_POSTER) && !game.isEditorMode && !isPauseMenuVisible()
-        minimalistHudTable.isVisible = (newStyle == HudStyle.MINIMALIST) && !game.isEditorMode && !isPauseMenuVisible()
+
+        wantedPosterHudTable.isVisible = false
+        minimalistHudTable.isVisible = false
+
+        wantedStarsContainer.remove()
+
+        if (newStyle == HudStyle.WANTED_POSTER) {
+            // Find the VerticalGroup in the poster layout
+            val rightSideGroup = wantedPosterHudTable.children.first { it is VerticalGroup } as VerticalGroup
+            rightSideGroup.addActor(wantedStarsContainer) // Add the stars table to it
+            wantedPosterHudTable.isVisible = !game.isEditorMode && !isPauseMenuVisible()
+        } else { // Minimalist
+            // Find the root table in the minimalist layout
+            val minimalistRoot = minimalistHudTable.children.first() as Table
+            minimalistRoot.add(wantedStarsContainer).left().padTop(5f).row() // Add stars below
+            minimalistHudTable.isVisible = !game.isEditorMode && !isPauseMenuVisible()
+        }
     }
 
     fun getCurrentHudStyle(): HudStyle = currentHudStyle

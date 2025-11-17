@@ -909,7 +909,9 @@ enum class ObjectType(
         hasLightSource = false,
         isDestructible = true,
         maxHealth = 200f
-    );
+    ),
+
+    WEAPON_BUYBACK_STATION("Weapon Buy-Back", "gui/police_star.png", 3f, 3f, isSinglePlane = true);
 
     val destroyedObjectType: ObjectType? by lazy {
         when (this) {

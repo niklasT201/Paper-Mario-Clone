@@ -591,6 +591,9 @@ class EnemySelectionUI(
             EnemyType.GUNTHER -> pixmap.setColor(Color(0.5f, 0.3f, 0.2f, 1f))
             EnemyType.CORRUPT_DETECTIVE -> pixmap.setColor(Color(0.3f, 0.3f, 0.3f, 1f))
             EnemyType.MAFIA_BOSS -> pixmap.setColor(Color(0.1f, 0.1f, 0.1f, 1f))
+            else -> {
+                pixmap.setColor(Color(0.4f, 0.2f, 0.2f, 1f))
+            }
         }
         pixmap.fill()
         val texture = Texture(pixmap)

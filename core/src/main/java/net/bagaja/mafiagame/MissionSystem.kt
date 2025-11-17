@@ -809,6 +809,8 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
         val missionDef = allMissions[id] ?: return
 
+        game.wantedSystem.onMissionStart()
+
         // Trigger UI notification
         game.uiManager.showMissionStartNotification(missionDef.title)
 

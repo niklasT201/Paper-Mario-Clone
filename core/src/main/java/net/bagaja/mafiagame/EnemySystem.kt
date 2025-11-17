@@ -30,6 +30,10 @@ enum class EnemyType(
     GUNTHER("Gunther", "textures/characters/Gunther.png", 7.0f, 8.0f, 180f, 5f),
     CORRUPT_DETECTIVE("Corrupt Detective", "textures/characters/detective.png", 3f, 4.2f, 150f, 6.5f),
     MAFIA_BOSS("Mafia Boss", "textures/characters/mafia_boss.png", 3.8f, 4.8f, 500f, 4f),
+    POLICEMAN("Policeman", "textures/characters/policeman.png", 3.2f, 4.3f, 130f, 6.2f),
+    DETECTIVE_OTTER("Detective Otter", "textures/characters/detective_otter.png", 3.2f, 4.3f, 160f, 6.5f),
+    OCTOPUS_OFFICER("Octopus Officer", "textures/characters/octopus.png", 4.5f, 5.5f, 200f, 5.8f),
+    POLICE_CHIEF("Police Chief", "textures/characters/police_chief.png", 4.0f, 5.0f, 250f, 5.5f);
 }
 
 enum class EnemyBehavior(val displayName: String) {
