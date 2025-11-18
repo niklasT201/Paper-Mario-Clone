@@ -55,7 +55,10 @@ enum class AIState {
     HIDING,
     RELOADING,
     DYING,
-    PATROLLING_IN_CAR
+    PATROLLING_IN_CAR,
+    INVESTIGATING,
+    DRIVING_TO_SCENE,         // For police driving to where a crime was reported
+    PATROLLING_AND_DESPAWNING // For police driving away after a job is done
 }
 
 data class GameEnemy(
@@ -1142,27 +1145,23 @@ class EnemySystem : IFinePositionable {
         // Check if the player is driving and this enemy is on foot
         if (playerSystem.isDriving && !enemy.isInCar) {
             val playerCar = playerSystem.drivingCar
-            if (playerCar != null && !playerCar.isLocked) {
-                // Check if the enemy is close enough to the car to attempt to pull the player out
-                if (enemy.position.dst(playerCar.position) < 8f) {
+            if (playerCar != null && !playerCar.isLocked && enemy.position.dst(playerCar.position) < 8f) {
+                // Add a chance to attempt the carjacking (e.g., 1% chance per frame when close)
+                if (Random.nextFloat() < 0.01f) {
+                    println("${enemy.enemyType.displayName} is attempting to pull the player out of their car!")
 
-                    // Add a chance to attempt the carjacking (e.g., 1% chance per frame when close)
-                    if (Random.nextFloat() < 0.01f) {
-                        println("${enemy.enemyType.displayName} is attempting to pull the player out of their car!")
+                    // Play the car door open sound
+                    val soundIdToPlay = playerCar.assignedOpenSoundId ?: "CAR_DOOR_OPEN_V1"
+                    sceneManager.game.soundManager.playSound(id = soundIdToPlay, position = playerCar.position)
 
-                        // Play the car door open sound
-                        val soundIdToPlay = playerCar.assignedOpenSoundId ?: "CAR_DOOR_OPEN_V1"
-                        sceneManager.game.soundManager.playSound(id = soundIdToPlay, position = playerCar.position)
+                    // Immediately eject the player
+                    playerSystem.exitCar(sceneManager)
 
-                        // Immediately eject the player
-                        playerSystem.exitCar(sceneManager)
+                    // The enemy now enters the car
+                    enemy.enterCar(playerCar)
+                    enemy.currentState = AIState.FLEEING // Make the enemy flee with the stolen car
 
-                        // The enemy now enters the car
-                        enemy.enterCar(playerCar)
-                        enemy.currentState = AIState.FLEEING // Make the enemy flee with the stolen car
-
-                        return // End this enemy's AI update for this frame
-                    }
+                    return // End this enemy's AI update for this frame
                 }
             }
         }
@@ -1173,7 +1172,6 @@ class EnemySystem : IFinePositionable {
 
         // If the enemy is on fire, ignore all other logic and just run away from the player.
         if (enemy.isOnFire) {
-            val playerPos = playerSystem.getPosition()
             val awayDirection = enemy.physics.position.cpy().sub(playerPos).nor()
 
             // Immediately update physics and exit the AI routine for this frame.
@@ -1186,93 +1184,144 @@ class EnemySystem : IFinePositionable {
 
         if (enemy.behaviorType == EnemyBehavior.PATH_FOLLOWER) {
             updatePathFollowerAI(enemy, deltaTime)
-            return // Stop other AI logic from running for this enemy
+            return
         }
 
         if (enemy.isInCar) {
             val car = enemy.drivingCar!!
-            val playerPos = playerSystem.getPosition()
 
-            if (enemy.currentState == AIState.PATROLLING_IN_CAR) {
-                // 1. Self-preservation: Exit if car is about to explode
-                if (car.health < 40f) {
-                    println("${enemy.enemyType.displayName} is bailing out of the damaged car!")
-                    handleCarExit(enemy, sceneManager)
-                    enemy.currentState = AIState.IDLE
-                    return
-                }
-
-                // 2. Path Following Logic
-                var desiredMovement = Vector3.Zero
-                var targetNode = enemy.currentTargetPathNodeId?.let { sceneManager.game.carPathSystem.nodes[it] }
-
-                // If we don't have a target, find the closest one
-                if (targetNode == null) {
-                    targetNode = sceneManager.game.carPathSystem.findNearestNode(car.position)
-                    enemy.currentTargetPathNodeId = targetNode?.id
-                }
-
-                if (targetNode != null) {
-                    // Check if we've arrived at the target node
-                    if (car.position.dst2(targetNode.position) < 25f) { // 5 unit radius (squared)
-                        // Arrived! Get the next node in the path.
-                        val nextNode = targetNode.nextNodeId?.let { sceneManager.game.carPathSystem.nodes[it] }
-                        enemy.currentTargetPathNodeId = nextNode?.id
-                        if (nextNode == null) {
-                            // End of the path, stop the car.
-                            desiredMovement.set(Vector3.Zero)
-                        } else {
-                            // Move towards the new next node
-                            desiredMovement = nextNode.position.cpy().sub(car.position).nor()
+            when (enemy.currentState) {
+                AIState.DRIVING_TO_SCENE -> {
+                    val crimeScene = enemy.targetPosition
+                    if (crimeScene == null || car.position.dst2(crimeScene) < 400f) {
+                        println("Police car arrived at the scene. Officers disembarking.")
+                        car.seats.forEach { seat ->
+                            (seat.occupant as? GameEnemy)?.let { occupant ->
+                                handleCarExit(occupant, sceneManager)
+                                occupant.currentState = AIState.CHASING
+                            }
                         }
                     } else {
-                        // Still driving towards the current target node
-                        desiredMovement = targetNode.position.cpy().sub(car.position).nor()
+                        val direction = crimeScene.cpy().sub(car.position).nor()
+                        car.updateAIControlled(deltaTime, direction, sceneManager, sceneManager.activeCars)
                     }
                 }
+                AIState.PATROLLING_AND_DESPAWNING -> {
+                    if (enemy.stateTimer == 0f) {
+                        enemy.stateTimer = Random.nextFloat() * 5f + 5f
+                    }
+                    enemy.stateTimer -= deltaTime
 
-                car.updateAIControlled(deltaTime, desiredMovement, sceneManager, sceneManager.activeCars)
-                enemy.position.set(car.position)
-                return
+                    if (enemy.stateTimer <= 0f) {
+                        println("Police car and occupants have left the area.")
+                        car.seats.forEach { seat ->
+                            (seat.occupant as? GameEnemy)?.let { occupant ->
+                                sceneManager.game.wantedSystem.activePolice.removeValue(occupant, true)
+                                sceneManager.activeEnemies.removeValue(occupant, true)
+                            }
+                        }
+                        sceneManager.activeCars.removeValue(car, true)
+                        return // Stop processing this deleted entity
+                    }
+
+                    var desiredMovement = Vector3.Zero
+                    var targetNode = enemy.currentTargetPathNodeId?.let { sceneManager.game.carPathSystem.nodes[it] }
+                    if (targetNode == null) {
+                        targetNode = sceneManager.game.carPathSystem.findNearestNode(car.position)
+                        enemy.currentTargetPathNodeId = targetNode?.id
+                    }
+                    if (targetNode != null) {
+                        if (car.position.dst2(targetNode.position) < 25f) {
+                            val nextNode = targetNode.nextNodeId?.let { sceneManager.game.carPathSystem.nodes[it] }
+                            enemy.currentTargetPathNodeId = nextNode?.id
+                        }
+                        targetNode = enemy.currentTargetPathNodeId?.let { sceneManager.game.carPathSystem.nodes[it] }
+                        targetNode?.let { desiredMovement = it.position.cpy().sub(car.position).nor() }
+                    }
+                    car.updateAIControlled(deltaTime, desiredMovement, sceneManager, sceneManager.activeCars)
+                }
+                AIState.PATROLLING_IN_CAR -> {
+                    if (car.health < 40f) {
+                        println("${enemy.enemyType.displayName} is bailing out of the damaged car!")
+                        handleCarExit(enemy, sceneManager)
+                        enemy.currentState = AIState.IDLE
+                        return
+                    }
+                    var desiredMovement = Vector3.Zero
+                    var targetNode = enemy.currentTargetPathNodeId?.let { sceneManager.game.carPathSystem.nodes[it] }
+                    if (targetNode == null) {
+                        targetNode = sceneManager.game.carPathSystem.findNearestNode(car.position)
+                        enemy.currentTargetPathNodeId = targetNode?.id
+                    }
+                    if (targetNode != null) {
+                        if (car.position.dst2(targetNode.position) < 25f) {
+                            val nextNode = targetNode.nextNodeId?.let { sceneManager.game.carPathSystem.nodes[it] }
+                            enemy.currentTargetPathNodeId = nextNode?.id
+                            if (nextNode != null) {
+                                desiredMovement = nextNode.position.cpy().sub(car.position).nor()
+                            }
+                        } else {
+                            desiredMovement = targetNode.position.cpy().sub(car.position).nor()
+                        }
+                    }
+                    car.updateAIControlled(deltaTime, desiredMovement, sceneManager, sceneManager.activeCars)
+                }
+                // Fleeing state for non-police
+                else -> {
+                    if (car.position.dst(playerPos) > FLEE_EXIT_DISTANCE) {
+                        println("${enemy.enemyType.displayName} feels safe and is exiting the stolen car.")
+                        handleCarExit(enemy, sceneManager)
+                        enemy.currentState = AIState.IDLE
+                    } else {
+                        val awayDirection = car.position.cpy().sub(playerPos).nor()
+                        car.updateAIControlled(deltaTime, awayDirection, sceneManager, sceneManager.activeCars)
+                    }
+                }
             }
-
-            val distanceToPlayer = car.position.dst(playerPos)
-
-            // Exit condition: if player is far away
-            if (distanceToPlayer > FLEE_EXIT_DISTANCE) {
-                println("${enemy.enemyType.displayName} feels safe and is exiting the stolen car.")
-                handleCarExit(enemy, sceneManager)
-                enemy.currentState = AIState.IDLE // Go back to normal
-            } else {
-                // Fleeing behavior: drive away from the player
-                val awayDirection = car.position.cpy().sub(playerPos).nor()
-                car.updateAIControlled(deltaTime, awayDirection, sceneManager, sceneManager.activeCars)
-                enemy.position.set(car.position) // Keep enemy's logical position synced with the car
-            }
-            return // Skip all on-foot AI while in the car
+            enemy.position.set(car.position)
+            return
         }
 
         checkForItemPickups(enemy, sceneManager)
 
-        // High priority override: Reloading
-        if (enemy.currentState == AIState.RELOADING) {
-            enemy.stateTimer -= deltaTime
-            if (enemy.stateTimer <= 0f) {
-                val ammoInReserve = enemy.weapons.getOrDefault(enemy.equippedWeapon, 0)
-                if (ammoInReserve <= 0) {
-                    // No more ammo for this gun! Switch weapons.
-                    handleWeaponSwitch(enemy)
-                } else {
-                    // Finish reloading
-                    val ammoNeeded = enemy.equippedWeapon.magazineSize - enemy.currentMagazineCount
-                    val ammoToMove = minOf(ammoNeeded, ammoInReserve)
-                    enemy.currentMagazineCount += ammoToMove
-                    enemy.weapons[enemy.equippedWeapon] = ammoInReserve - ammoToMove
+        // Handle high-priority states that override standard behavior
+        when (enemy.currentState) {
+            AIState.RELOADING -> {
+                enemy.stateTimer -= deltaTime
+                if (enemy.stateTimer <= 0f) {
+                    val ammoInReserve = enemy.weapons.getOrDefault(enemy.equippedWeapon, 0)
+                    if (ammoInReserve <= 0) {
+                        // No more ammo for this gun! Switch weapons.
+                        handleWeaponSwitch(enemy)
+                    } else {
+                        // Finish reloading
+                        val ammoNeeded = enemy.equippedWeapon.magazineSize - enemy.currentMagazineCount
+                        val ammoToMove = minOf(ammoNeeded, ammoInReserve)
+                        enemy.currentMagazineCount += ammoToMove
+                        enemy.weapons[enemy.equippedWeapon] = ammoInReserve - ammoToMove
+                    }
+                    enemy.currentState = AIState.IDLE // Go back to idle to re-evaluate
                 }
-                enemy.currentState = AIState.IDLE // Go back to idle to re-evaluate
+                characterPhysicsSystem.update(enemy.physics, Vector3.Zero, deltaTime)
+                return
             }
-            characterPhysicsSystem.update(enemy.physics, Vector3.Zero, deltaTime)
-            return
+            AIState.INVESTIGATING -> {
+                val investigationSite = enemy.targetPosition
+                if (investigationSite == null) {
+                    enemy.currentState = AIState.IDLE
+                    return
+                }
+                if (enemy.position.dst(investigationSite) < 5f) {
+                    println("${enemy.enemyType.displayName} has arrived at the crime scene. Searching...")
+                    enemy.currentState = AIState.SEARCHING
+                    enemy.stateTimer = 10f
+                } else {
+                    val desiredMovement = investigationSite.cpy().sub(enemy.physics.position).nor()
+                    characterPhysicsSystem.update(enemy.physics, desiredMovement, deltaTime)
+                }
+                return
+            }
+            else -> { /* Continue to standard behavior */ }
         }
 
         // Dispatch to the correct AI routine based on the enemy's CURRENT behavior

@@ -565,8 +565,9 @@ data class GameCar(
         // Set lastHorizontalDirection to prevent an immediate flip on first movement
         this.lastHorizontalDirection = if (initialVisualRotation == 180f) -1f else 1f
 
-        seats.add(CarSeat(Vector3(0.8f, 4.5f, -0.2f)))
-        // seats.add(CarSeat(Vector3(1.5f, 4.0f, 0f))) // Passenger seat
+        seats.add(CarSeat(Vector3(0.8f, 4.5f, -0.2f)))  // Driver seat
+        // seats.add(CarSeat(Vector3(1.5f, 4.0f, 0f))) // Passenger sea
+        seats.add(CarSeat(Vector3(-0.8f, 4.5f, -0.2f))) // Passenger seat
 
         initializeAnimations()
     }

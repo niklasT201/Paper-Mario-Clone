@@ -327,7 +327,7 @@ class MafiaGame : ApplicationAdapter() {
         enemySystem.initialize(blockSize, characterPhysicsSystem, pathfindingSystem)
         npcSystem.initialize(blockSize, characterPhysicsSystem)
         roomTemplateManager.initialize()
-        wantedSystem = WantedSystem(sceneManager, playerSystem, enemySystem, uiManager, characterPhysicsSystem)
+        wantedSystem = WantedSystem(sceneManager, playerSystem, enemySystem, uiManager, characterPhysicsSystem, raycastSystem)
         playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem, footprintSystem, characterPhysicsSystem, sceneManager, wantedSystem)
 
         // Initialize managers that depend on initialized systems

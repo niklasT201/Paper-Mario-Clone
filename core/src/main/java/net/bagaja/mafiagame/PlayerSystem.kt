@@ -1039,6 +1039,7 @@ class PlayerSystem {
 
     private fun spawnBullet() {
         wantedSystem.reportCrime(CrimeType.SHOOT_WEAPON)
+        sceneManager.npcSystem.alertNpcsToCrime(getPosition(), CrimeType.SHOOT_WEAPON)
 
         val modifiers = sceneManager.game.missionSystem.activeModifiers
 
@@ -2619,6 +2620,8 @@ class PlayerSystem {
                     spawnSmokeOnGround = false
                 }
 
+                sceneManager.npcSystem.alertNpcsToCrime(explosionOrigin, CrimeType.SHOOT_WEAPON)
+
                 val dynamiteReverb = SoundManager.ReverbProfile(
                     numEchoes = 4,           // More echoes
                     delayStep = 0.12f,       // Longer delay between echoes
@@ -2963,6 +2966,8 @@ class PlayerSystem {
                     }
                 }
                 println("Molotov spawned $spawnedCount valid fires.")
+
+                sceneManager.npcSystem.alertNpcsToCrime(validGroundPosition, CrimeType.SHOOT_WEAPON)
 
                 // Restore the original FireSystem settings
                 fireSystem.nextFireFadesOut = originalFadesOut

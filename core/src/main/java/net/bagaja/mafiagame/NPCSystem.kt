@@ -94,17 +94,26 @@ enum class NPCBehavior(val displayName: String) {
     PATH_FOLLOWER("Path Follower")
 }
 
+enum class NPCPersonality {
+    COWARDLY, // Will always flee from crime
+    CIVILIAN, // Might report crime, might flee
+    BRAVE     // High chance of reporting crime
+}
+
 // AI State for the NPC's state machine
 enum class NPCState {
-    IDLE,               // Doing nothing (standing, pausing)
-    WANDERING,          // Moving to a random point
-    FOLLOWING,          // Moving towards the player
-    PROVOKED,           // Hostile state, attacking the player
-    COOLDOWN,           // Temp state after hostility before returning to normal
+    IDLE,
+    WANDERING,
+    FOLLOWING,
+    PROVOKED,
+    COOLDOWN,
     FLEEING,
     DYING,
     PATROLLING_IN_CAR,
-    CHASING_STOLEN_CAR
+    CHASING_STOLEN_CAR,
+    REPORTING_CRIME_SEARCHING, // NPC is looking for a cop
+    REPORTING_CRIME_RUNNING,   // NPC is running to a cop
+    REPORTING_CRIME_DELIVERING // NPC has reached the cop and is "talking"
 }
 
 // --- MAIN NPC DATA CLASS ---
@@ -129,7 +138,8 @@ data class GameNPC(
     var scheduledForDespawn: Boolean = false,
     var canBePulledFromCar: Boolean = true,
     @Transient var baseTexture: Texture? = null,
-    @Transient var carProvocation: Float = 0f
+    @Transient var carProvocation: Float = 0f,
+    val personality: NPCPersonality = NPCPersonality.CIVILIAN
 ) {
     @Transient var carToChaseId: String? = null
     @Transient var chaseTimer: Float = 0f
@@ -334,6 +344,12 @@ class NPCSystem : IFinePositionable {
     private val renderableInstances = Array<ModelInstance>()
     private val fleeDuration = 5.0f
     private val BLEED_DAMAGE_PER_SECOND = 5f
+    private val CRIME_DETECTION_RADIUS = 50f
+    private val THREATENING_WEAPON_RADIUS = 25f
+    private val POLICE_SEARCH_RADIUS = 100f
+    private val REPORTING_DISTANCE = 4f // How close NPC needs to be to a cop to report
+    private val REPORTING_DURATION = 2.5f
+    private val POLICE_HEARING_RADIUS = 70f
 
     var currentSelectedNPCType = NPCType.FRED_THE_HERMIT
         private set
@@ -613,6 +629,81 @@ class NPCSystem : IFinePositionable {
         // Remove the items from the main scene list
         itemsToRemove.forEach {
             sceneManager.activeItems.removeValue(it, true)
+        }
+    }
+
+    private fun checkForWitnessedCrimes(npc: GameNPC, playerSystem: PlayerSystem) {
+        // An NPC can only be a witness if they are idle, wandering, and in the world.
+        val canBeWitness = npc.currentState == NPCState.IDLE || npc.currentState == NPCState.WANDERING
+        if (!canBeWitness || sceneManager.currentScene != SceneType.WORLD) {
+            return
+        }
+
+        // --- 1. Check for "Threatening" Weapons ---
+        val threateningWeapons = listOf(WeaponType.TOMMY_GUN, WeaponType.MACHINE_GUN, WeaponType.DYNAMITE)
+
+        // Check player first
+        if (playerSystem.equippedWeapon in threateningWeapons && npc.position.dst(playerSystem.getPosition()) < THREATENING_WEAPON_RADIUS) {
+            decideToReportCrime(npc, playerSystem.getPosition(), "a character holding a threatening weapon")
+            return // Stop checking for other crimes
+        }
+
+        // Check enemies
+        for (enemy in sceneManager.activeEnemies) {
+            if (enemy.equippedWeapon in threateningWeapons && npc.position.dst(enemy.position) < THREATENING_WEAPON_RADIUS) {
+                decideToReportCrime(npc, enemy.position, "a character holding a threatening weapon")
+                return
+            }
+        }
+    }
+
+    fun alertNpcsToCrime(crimePosition: Vector3, crimeType: CrimeType) {
+        // Alert civilian NPCs
+        for (npc in sceneManager.activeNPCs) {
+            val canBeWitness = npc.currentState == NPCState.IDLE || npc.currentState == NPCState.WANDERING
+            if (canBeWitness && npc.position.dst(crimePosition) < CRIME_DETECTION_RADIUS) {
+                decideToReportCrime(npc, crimePosition, crimeType.name)
+            }
+        }
+
+        // Alert active police officers
+        for (police in sceneManager.game.wantedSystem.activePolice) {
+            // Police react to crimes much further away than civilians
+            if (police.position.dst(crimePosition) < POLICE_HEARING_RADIUS) {
+                println("${police.enemyType.displayName} heard a loud crime and is investigating.")
+
+                // If they are on foot, they investigate. If in a car, they drive.
+                if (police.isInCar) {
+                    police.currentState = AIState.DRIVING_TO_SCENE
+                } else {
+                    police.currentState = AIState.INVESTIGATING
+                }
+
+                police.targetPosition = crimePosition.cpy()
+                // Directly report the crime to the wanted system
+                sceneManager.game.wantedSystem.reportCrimeByPolice(crimeType)
+            }
+        }
+    }
+
+    private fun decideToReportCrime(npc: GameNPC, crimeLocation: Vector3, crimeDescription: String) {
+        val chanceToReport = when (npc.personality) {
+            NPCPersonality.COWARDLY -> 0.05f // 5% chance, very unlikely
+            NPCPersonality.CIVILIAN -> 0.40f // 40% chance
+            NPCPersonality.BRAVE -> 0.85f  // 85% chance
+        }
+
+        if (Random.nextFloat() < chanceToReport) {
+            // This NPC will report the crime!
+            println("${npc.npcType.displayName} (Brave) decided to report crime: $crimeDescription")
+            npc.currentState = NPCState.REPORTING_CRIME_SEARCHING
+            npc.targetPosition = crimeLocation.cpy() // Store where the crime happened
+            npc.stateTimer = 0f // Reset timer for the new state
+        } else {
+            // This NPC will just flee
+            println("${npc.npcType.displayName} (Cowardly) saw crime and is fleeing!")
+            npc.currentState = NPCState.FLEEING
+            npc.stateTimer = 0f
         }
     }
 
@@ -1015,6 +1106,10 @@ class NPCSystem : IFinePositionable {
 
     private fun updateAI(npc: GameNPC, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {
         var desiredMovement = Vector3.Zero  // Default to no movement
+
+        // Witness logic
+        checkForWitnessedCrimes(npc, sceneManager.playerSystem)
+
         if (npc.currentState == NPCState.DYING) {
             return // A dead NPC should not think.
         }
@@ -1072,8 +1167,7 @@ class NPCSystem : IFinePositionable {
                 val modifiers = sceneManager.game.missionSystem.activeModifiers
                 if (modifiers?.civiliansFleeOnSight == true && npc.behaviorType != NPCBehavior.GUARD) {
                     // This NPC is a civilian and should flee
-                    val fleeDistance = 30f // How far they try to run
-                    if (npc.position.dst(playerPos) < fleeDistance) {
+                    if (npc.position.dst(playerPos) < 30f) {
                         val awayDirection = npc.physics.position.cpy().sub(playerPos).nor()
                         characterPhysicsSystem.update(npc.physics, awayDirection, deltaTime)
                         return
@@ -1105,9 +1199,7 @@ class NPCSystem : IFinePositionable {
                 return
             }
 
-            val distanceToPlayer = car.position.dst(playerPos)
-
-            if (distanceToPlayer > FLEE_EXIT_DISTANCE) {
+            if (car.position.dst(playerPos) > FLEE_EXIT_DISTANCE) {
                 println("${npc.npcType.displayName} is exiting the car.")
                 handleCarExit(npc, sceneManager)
                 npc.currentState = NPCState.IDLE
@@ -1119,106 +1211,112 @@ class NPCSystem : IFinePositionable {
             return // Skip on-foot AI
         }
 
-        if (npc.isOnFire) {
-            val awayDirection = npc.physics.position.cpy().sub(playerPos).nor()
-            desiredMovement = awayDirection
-        }
-
-        else if (npc.currentState == NPCState.FLEEING) {
-            npc.stateTimer += deltaTime
-
-            // Check if the flee duration is over
-            if (npc.stateTimer >= fleeDuration) {
-                // Fleeing is over, return to idle
-                npc.currentState = NPCState.IDLE
-                npc.stateTimer = 0f
-            } else {
-                // Calculate direction away from the player
-                val awayDirection = npc.physics.position.cpy().sub(playerPos).nor()
-                desiredMovement = awayDirection
-            }
-        }
-        // State 2: Provoked/Hostile
-        else if (npc.currentState == NPCState.PROVOKED) {
-            npc.stateTimer += deltaTime
-            if (npc.stateTimer > hostileCooldownTime || npc.physics.position.dst(playerPos) > provokedChaseDistance) {
-                // Cooldown is over or player escaped
-                npc.currentState = NPCState.COOLDOWN
-                npc.provocationLevel = 0f // Forgiven!
-                npc.stateTimer = 0f
-            } else {
-                // Chase the player
-                if (npc.physics.position.dst(playerPos) > stopProvokedChaseDistance) {
-                    desiredMovement = playerPos.cpy().sub(npc.physics.position).nor()
-                }
-            }
-        }
-
-        // A brief period after being hostile where the NPC does nothing.
-        else if (npc.currentState == NPCState.COOLDOWN) {
-            npc.stateTimer += deltaTime
-            if (npc.stateTimer > 5f) { // 5 second cooldown
-                npc.currentState = NPCState.IDLE
-                npc.stateTimer = 0f
-            }
-        }
-
-        // Standard Behaviors
-        else {
-            when (behaviorToUse) {
-                NPCBehavior.STATIONARY -> {
-                    // No movement, facing direction is fixed from placement
-                }
-                NPCBehavior.WATCHER -> {
-                    // Face the player
-                    npc.physics.facingRotationY = if (playerPos.x > npc.physics.position.x) 0f else 180f
-                }
-                NPCBehavior.WANDER -> {
-                    if (npc.currentState == NPCState.IDLE) {
-                        npc.stateTimer += deltaTime
-                        if (npc.stateTimer > wanderPauseTime) {
-                            val randomAngle = (Random.nextFloat() * 2 * Math.PI).toFloat()
-                            val randomDist = Random.nextFloat() * wanderRadius
-                            npc.targetPosition = Vector3(
-                                npc.homePosition.x + cos(randomAngle) * randomDist,
-                                npc.position.y, // Y will be handled by physics
-                                npc.homePosition.z + sin(randomAngle) * randomDist
-                            )
-                            npc.currentState = NPCState.WANDERING
-                            npc.stateTimer = 0f
-                        }
-                    } else if (npc.currentState == NPCState.WANDERING) {
-                        val target = npc.targetPosition
-                        if (target == null || npc.physics.position.dst(target) < 1.5f) {
-                            npc.currentState = NPCState.IDLE
-                            npc.targetPosition = null
-                            npc.stateTimer = 0f
-                        } else {
-                            desiredMovement = target.cpy().sub(npc.physics.position).nor()
-                        }
+        // High-priority states override standard behaviors
+        when (npc.currentState) {
+            NPCState.REPORTING_CRIME_SEARCHING -> {
+                val closestPolice = sceneManager.activeEnemies.filter { it.enemyType.name.startsWith("POLICE") }
+                    .minByOrNull { it.position.dst2(npc.position) }
+                if (closestPolice != null && npc.position.dst(closestPolice.position) < POLICE_SEARCH_RADIUS) {
+                    npc.targetPosition = closestPolice.position.cpy()
+                    npc.currentState = NPCState.REPORTING_CRIME_RUNNING
+                    println("${npc.npcType.displayName} found a cop and is running to report.")
+                } else {
+                    npc.stateTimer += deltaTime
+                    if (npc.stateTimer > 10f) {
+                        println("${npc.npcType.displayName} couldn't find a cop and gave up.")
+                        npc.currentState = NPCState.IDLE
                     }
                 }
-                NPCBehavior.FOLLOW -> {
-                    val distanceToPlayer = npc.physics.position.dst(playerPos)
-                    if (distanceToPlayer > stopFollowingDistance) {
-                        if (npc.currentState != NPCState.FOLLOWING) {
-                            npc.currentState = NPCState.FOLLOWING
-                        }
-                        desiredMovement = playerPos.cpy().sub(npc.physics.position).nor()
-                    } else {
-                        if (npc.currentState != NPCState.IDLE) {
-                            npc.currentState = NPCState.IDLE
-                        }
-                    }
+                desiredMovement = Vector3.Zero
+            }
+            NPCState.REPORTING_CRIME_RUNNING -> {
+                val copPosition = npc.targetPosition
+                if (copPosition == null) {
+                    npc.currentState = NPCState.IDLE
+                    return
                 }
-                NPCBehavior.GUARD -> { // Permanently hostile
+                if (npc.position.dst(copPosition) < REPORTING_DISTANCE) {
+                    npc.currentState = NPCState.REPORTING_CRIME_DELIVERING
+                    npc.stateTimer = REPORTING_DURATION
+                } else {
+                    desiredMovement = copPosition.cpy().sub(npc.physics.position).nor()
+                }
+            }
+            NPCState.REPORTING_CRIME_DELIVERING -> {
+                npc.stateTimer -= deltaTime
+                desiredMovement = Vector3.Zero
+                if (npc.stateTimer <= 0f) {
+                    val cop = sceneManager.activeEnemies.find { it.position.epsilonEquals(npc.targetPosition, 1f) }
+                    if (cop != null) {
+                        println("Report delivered to ${cop.enemyType.displayName}!")
+                        cop.currentState = AIState.INVESTIGATING
+                        // We stored the crime scene in `homePosition` when the report started
+                        cop.targetPosition = npc.homePosition.cpy()
+                        sceneManager.game.wantedSystem.reportCrimeByWitness(CrimeType.SHOOT_WEAPON, cop.targetPosition!!)
+                    }
+                    npc.currentState = NPCState.WANDERING
+                    npc.stateTimer = 0f
+                }
+            }
+            NPCState.FLEEING -> {
+                npc.stateTimer += deltaTime
+                if (npc.stateTimer >= fleeDuration) {
+                    npc.currentState = NPCState.IDLE
+                    npc.stateTimer = 0f
+                } else {
+                    val awayDirection = npc.physics.position.cpy().sub(playerPos).nor()
+                    desiredMovement = awayDirection
+                }
+            }
+            NPCState.PROVOKED -> {
+                npc.stateTimer += deltaTime
+                if (npc.stateTimer > hostileCooldownTime || npc.physics.position.dst(playerPos) > provokedChaseDistance) {
+                    npc.currentState = NPCState.COOLDOWN
+                    npc.provocationLevel = 0f
+                    npc.stateTimer = 0f
+                } else {
                     if (npc.physics.position.dst(playerPos) > stopProvokedChaseDistance) {
                         desiredMovement = playerPos.cpy().sub(npc.physics.position).nor()
                     }
                 }
-                NPCBehavior.PATH_FOLLOWER -> {
-                    updatePathFollowerAI(npc, deltaTime)
-                    return
+            }
+            NPCState.COOLDOWN -> {
+                npc.stateTimer += deltaTime
+                if (npc.stateTimer > 5f) {
+                    npc.currentState = NPCState.IDLE
+                    npc.stateTimer = 0f
+                }
+            }
+            // If not in a high-priority state, execute standard behavior
+            else -> {
+                if (npc.isOnFire) {
+                    val awayDirection = npc.physics.position.cpy().sub(playerPos).nor()
+                    desiredMovement = awayDirection
+                } else {
+                    when (behaviorToUse) {
+                        NPCBehavior.STATIONARY -> { /* No movement */ }
+                        NPCBehavior.WATCHER -> {
+                            npc.physics.facingRotationY = if (playerPos.x > npc.physics.position.x) 0f else 180f
+                        }
+                        NPCBehavior.WANDER -> updateWanderAI(npc, deltaTime, sceneManager)
+                        NPCBehavior.FOLLOW -> {
+                            if (distanceToPlayer > stopFollowingDistance) {
+                                if (npc.currentState != NPCState.FOLLOWING) npc.currentState = NPCState.FOLLOWING
+                                desiredMovement = playerPos.cpy().sub(npc.physics.position).nor()
+                            } else {
+                                if (npc.currentState != NPCState.IDLE) npc.currentState = NPCState.IDLE
+                            }
+                        }
+                        NPCBehavior.GUARD -> {
+                            if (distanceToPlayer > stopProvokedChaseDistance) {
+                                desiredMovement = playerPos.cpy().sub(npc.physics.position).nor()
+                            }
+                        }
+                        NPCBehavior.PATH_FOLLOWER -> {
+                            updatePathFollowerAI(npc, deltaTime)
+                            return // Path follower has its own physics update call
+                        }
+                    }
                 }
             }
         }
