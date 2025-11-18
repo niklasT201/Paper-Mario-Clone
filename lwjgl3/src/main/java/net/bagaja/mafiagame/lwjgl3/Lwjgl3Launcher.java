@@ -108,6 +108,9 @@ public class Lwjgl3Launcher {
 // step up stair
 // maybe improving billboard shader
 // south park like animation
+// police cars with police in it spawning on street blocks
+// fix burning character sound
+// unbeatable after dying
 // Persistence & Consequences
 // fire in rooms and mission not being connected right with its light source
 // visual screen for finished mission

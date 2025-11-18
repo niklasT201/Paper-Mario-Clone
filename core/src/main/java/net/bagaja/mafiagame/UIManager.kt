@@ -770,14 +770,13 @@ class UIManager(
         weaponInfoTable.add(weaponIconStack).row()
         weaponInfoTable.add(ammoUiContainer).width(180f).height(72f).padTop(0f).padLeft(85f)
 
-        val rightSideGroup = VerticalGroup()
-        rightSideGroup.space(5f)
-        rightSideGroup.align(Align.left)
-        rightSideGroup.addActor(weaponInfoTable)
-
         // Add to main poster table (using your original layout)
-        wantedPosterHudTable.add(wantedStack).width(180f).height(240f).top().left()
-        wantedPosterHudTable.add(rightSideGroup).padLeft(-80f).top().padTop(15f)
+        val posterTopRow = Table()
+        posterTopRow.add(wantedStack).width(180f).height(240f).top().left()
+        posterTopRow.add(weaponInfoTable).padLeft(-80f).top().padTop(15f)
+
+        // The main table is now a vertical layout
+        wantedPosterHudTable.add(posterTopRow).left().row()
 
         // 2. BUILD MINIMALIST HUD
         minimalistHudTable = Table()
@@ -1321,17 +1320,22 @@ class UIManager(
     }
 
     fun updateWantedLevel(level: Int) {
-        wantedStarsContainer.clear() // Clear old stars
+        wantedStarsContainer.clear()
         if (level > 0) {
             wantedStarsContainer.isVisible = true
+
+            // --- MODIFICATION: Check current HUD style to set the size ---
+            val starSize = if (currentHudStyle == HudStyle.WANTED_POSTER) 32f else 24f
+            val starPadding = if (currentHudStyle == HudStyle.WANTED_POSTER) 4f else 2f
+
             for (i in 1..level) {
                 val starImage = Image(wantedStarTexture)
-                wantedStarsContainer.add(starImage).size(24f, 24f).pad(2f)
+                wantedStarsContainer.add(starImage).size(starSize).pad(starPadding)
             }
         } else {
             wantedStarsContainer.isVisible = false
         }
-        wantedStarsContainer.pack() // Recalculate the size of the container
+        wantedStarsContainer.pack()
     }
 
     fun showWeaponBuyBackUI(wantedSystem: WantedSystem) {
@@ -2047,14 +2051,12 @@ class UIManager(
         wantedStarsContainer.remove()
 
         if (newStyle == HudStyle.WANTED_POSTER) {
-            // Find the VerticalGroup in the poster layout
-            val rightSideGroup = wantedPosterHudTable.children.first { it is VerticalGroup } as VerticalGroup
-            rightSideGroup.addActor(wantedStarsContainer) // Add the stars table to it
+            wantedPosterHudTable.add(wantedStarsContainer).left().padTop(10f).padLeft(5f)
             wantedPosterHudTable.isVisible = !game.isEditorMode && !isPauseMenuVisible()
-        } else { // Minimalist
-            // Find the root table in the minimalist layout
+
+        } else { // Minimalist (no change here)
             val minimalistRoot = minimalistHudTable.children.first() as Table
-            minimalistRoot.add(wantedStarsContainer).left().padTop(5f).row() // Add stars below
+            minimalistRoot.add(wantedStarsContainer).left().padTop(5f).row()
             minimalistHudTable.isVisible = !game.isEditorMode && !isPauseMenuVisible()
         }
     }
