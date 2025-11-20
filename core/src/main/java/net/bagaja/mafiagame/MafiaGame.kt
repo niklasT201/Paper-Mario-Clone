@@ -78,7 +78,7 @@ class MafiaGame : ApplicationAdapter() {
 
     lateinit var backgroundSystem: BackgroundSystem
     lateinit var parallaxBackgroundSystem: ParallaxBackgroundSystem
-    private lateinit var interiorSystem: InteriorSystem
+    lateinit var interiorSystem: InteriorSystem
     var isPlacingExitDoorMode = false
 
     private var showInvisibleBlockOutlines = false

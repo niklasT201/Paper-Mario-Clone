@@ -196,6 +196,12 @@ data class GameEnemy(
 
         if (health <= 0) return false // Already dead, don't process more damage
 
+        // If a police officer is attacked by the player, they immediately report it.
+        if (this.enemyType.name.startsWith("POLICE") && attacker is PlayerSystem) {
+            val crime = if (health - damage <= 0) CrimeType.KILL_POLICE else CrimeType.HIT_CIVILIAN // Use HIT_CIVILIAN for attacking police
+            sceneManager.game.wantedSystem.reportCrimeByPolice(crime)
+        }
+
         // Check if hurting this enemy triggers a mission
         sceneManager.game.missionSystem.onPlayerHurtEnemy(this.id)
 
@@ -1193,10 +1199,16 @@ class EnemySystem : IFinePositionable {
             when (enemy.currentState) {
                 AIState.DRIVING_TO_SCENE -> {
                     val crimeScene = enemy.targetPosition
+                    // Check distance (400f is 20 units squared)
                     if (crimeScene == null || car.position.dst2(crimeScene) < 400f) {
                         println("Police car arrived at the scene. Officers disembarking.")
-                        car.seats.forEach { seat ->
-                            (seat.occupant as? GameEnemy)?.let { occupant ->
+
+                        for (i in 0 until car.seats.size) {
+                            val seat = car.seats[i]
+                            val occupant = seat.occupant
+
+                            // Check if it's an enemy and actually in the car to prevent double-processing
+                            if (occupant is GameEnemy && occupant.isInCar) {
                                 handleCarExit(occupant, sceneManager)
                                 occupant.currentState = AIState.CHASING
                             }

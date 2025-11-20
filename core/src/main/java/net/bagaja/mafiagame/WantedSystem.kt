@@ -1,5 +1,6 @@
 package net.bagaja.mafiagame
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.math.Vector3
 import com.badlogic.gdx.math.collision.Ray
 import com.badlogic.gdx.utils.Array
@@ -36,10 +37,16 @@ class WantedSystem(
     private var playerThreatTimer = 0f
     private val THREAT_TIME_THRESHOLD = 2.5f
     private val THREATENING_WEAPON_RADIUS = 25f
+    private val BLOCKADE_DISTANCE = 40f
+    private var lastBlockadeTime = 0f
+    private val BLOCKADE_COOLDOWN = 20f
 
     val activePolice = Array<GameEnemy>()
+    private val activePoliceCars = Array<GameCar>()
     private var isPlayerDead = false
     private var postDeathCooldownTimer = 0f
+    private var policeSpawnTimer = 0f
+    private val POLICE_SPAWN_INTERVAL = 4.0f
 
     // Defines how the police respond at each wanted level
     private val policeResponseConfig = mapOf(
@@ -133,6 +140,7 @@ class WantedSystem(
             if (currentWantedLevel > 0) {
                 cooldownTimer -= deltaTime // Wanted level cools down even in interiors
             }
+            return // Don't spawn blockades inside houses
         }
 
         if (isPlayerDead) {
@@ -180,6 +188,11 @@ class WantedSystem(
             return
         }
 
+        // Update spawn timer
+        if (policeSpawnTimer > 0) {
+            policeSpawnTimer -= deltaTime
+        }
+
         // If player is in an interior, don't spawn or update police AI
         if (sceneManager.currentScene != SceneType.WORLD || currentWantedLevel == 0) return
 
@@ -191,6 +204,11 @@ class WantedSystem(
 
         // 5. Check for Surrender
         checkForSurrender(deltaTime)
+
+        // 6. Attempt Blockade (New Logic)
+        if (currentWantedLevel >= 3) {
+            attemptSpawnBlockade()
+        }
     }
 
     private fun checkPoliceWitnesses(deltaTime: Float) {
@@ -233,12 +251,21 @@ class WantedSystem(
     private fun spawnPoliceUnit() {
         val config = policeResponseConfig[currentWantedLevel] ?: return
 
+        // FIX 2: Limit the number of active police
+        if (activePolice.size >= config.maxUnits) return
+
+        // FIX 3: Respect the spawn timer
+        if (policeSpawnTimer > 0) return
+
         // --- NEW LOGIC: Decide whether to spawn a car or a foot patrol ---
         if (Random.nextFloat() < config.carSpawnChance) {
             spawnPoliceCar()
         } else {
             spawnPoliceFootPatrol()
         }
+
+        // Reset timer after attempting a spawn
+        policeSpawnTimer = POLICE_SPAWN_INTERVAL
     }
 
     private fun spawnPoliceFootPatrol() {
@@ -359,26 +386,36 @@ class WantedSystem(
         val config = policeResponseConfig[currentWantedLevel] ?: return
         val playerPos = playerSystem.getPosition()
 
-        val iterator = activePolice.iterator()
-        while (iterator.hasNext()) {
-            val police = iterator.next()
+        // FIX 4: Use a reverse for-loop instead of an iterator.
+        // This prevents "ConcurrentModificationException" and the LibGDX nested iterator error
+        // when removing items or modifying the list during the loop.
+        for (i in activePolice.size - 1 downTo 0) {
+            val police = activePolice[i]
 
             // If a police unit is dead, remove it from our management pool
             if (police.health <= 0) {
-                iterator.remove()
+                activePolice.removeIndex(i)
                 continue
             }
 
             if (police.isInCar) {
-                val car = police.drivingCar!!
+                val car = police.drivingCar
+                // Safety check: if car is null but state says isInCar, eject them
+                if (car == null) {
+                    police.isInCar = false
+                    continue
+                }
+
                 when (police.currentState) {
                     AIState.DRIVING_TO_SCENE -> {
                         val crimeScene = police.targetPosition
-                        if (crimeScene == null || car.position.dst2(crimeScene) < 400f) { // Arrived within 20 units
-                            println("Police car arrived at the scene. Officers disembarking.")
-                            // All occupants should exit and start chasing
-                            car.seats.forEach { seat ->
-                                (seat.occupant as? GameEnemy)?.let { occupant ->
+                        if (crimeScene == null || car.position.dst2(crimeScene) < 400f) {
+                            // Arrived within 20 units
+
+                            // FIX: Use index loop instead of 'for(seat in car.seats)' to avoid iterator crash
+                            for (k in 0 until car.seats.size) {
+                                val occupant = car.seats[k].occupant
+                                if (occupant is GameEnemy && occupant.isInCar) {
                                     enemySystem.handleCarExit(occupant, sceneManager)
                                     occupant.currentState = AIState.CHASING
                                 }
@@ -391,23 +428,18 @@ class WantedSystem(
                     }
                     AIState.PATROLLING_AND_DESPAWNING -> {
                         // Job is done, drive away and despawn
-                        if (police.stateTimer == 0f) { // stateTimer will be our despawn timer
-                            police.stateTimer = Random.nextFloat() * 5f + 5f // 5-10 seconds
-                        }
+                        if (police.stateTimer == 0f) police.stateTimer = Random.nextFloat() * 5f + 5f
                         police.stateTimer -= deltaTime
 
                         if (police.stateTimer <= 0f) {
-                            println("Police car and occupants have left the area.")
-                            // Remove occupants from all lists
-                            car.seats.forEach { seat ->
-                                (seat.occupant as? GameEnemy)?.let { occupant ->
-                                    activePolice.removeValue(occupant, true)
-                                    sceneManager.activeEnemies.removeValue(occupant, true)
-                                }
+                            // Despawn Logic
+                            activePolice.removeIndex(i) // Remove self
+                            sceneManager.activeEnemies.removeValue(police, true)
+
+                            // If car is empty, remove car (simplified check)
+                            if (car.seats.all { it.occupant == null || it.occupant == police }) {
+                                sceneManager.activeCars.removeValue(car, true)
                             }
-                            // Remove the car itself
-                            sceneManager.activeCars.removeValue(car, true)
-                            // We don't need to iterate further on this car's occupants
                             continue
                         }
 
@@ -428,7 +460,7 @@ class WantedSystem(
                         }
                         car.updateAIControlled(deltaTime, desiredMovement, sceneManager, sceneManager.activeCars)
                     }
-                    else -> { // Default behavior in car (e.g., if state gets messed up)
+                    else -> {
                         val direction = playerPos.cpy().sub(car.position).nor()
                         car.updateAIControlled(deltaTime, direction, sceneManager, sceneManager.activeCars)
                     }
@@ -437,6 +469,7 @@ class WantedSystem(
                 police.position.set(car.position)
             }
             else {
+                // On Foot AI
                 if (currentWantedLevel == 1) {
                     police.attackTimer = 1.0f
                     val distanceToPlayer = police.position.dst(playerPos)
@@ -567,6 +600,130 @@ class WantedSystem(
         }
         // Reporting a crime also resets the cooldown
         cooldownTimer = COOLDOWN_TIME_BEFORE_DECREASE
+    }
+
+    fun attemptSpawnBlockade() {
+        if (sceneManager.currentScene != SceneType.WORLD) return
+
+        // Only spawn if cooldown passed
+        if (lastBlockadeTime > 0) {
+            lastBlockadeTime -= Gdx.graphics.deltaTime
+            return
+        }
+
+        val playerPos = playerSystem.getPosition()
+        val playerVel = playerSystem.physicsComponent.velocity
+
+        // Only spawn if player is moving fast enough (driving)
+        if (playerVel.len2() < 50f) return
+
+        // Predict where player is going
+        val forwardDir = playerVel.cpy().nor()
+        val spawnPos = playerPos.cpy().mulAdd(forwardDir, BLOCKADE_DISTANCE)
+
+        // Snap to grid to align with blocks
+        val blockSize = sceneManager.game.blockSize
+        val gridX = kotlin.math.round(spawnPos.x / blockSize) * blockSize + blockSize / 2
+        val gridZ = kotlin.math.round(spawnPos.z / blockSize) * blockSize + blockSize / 2
+        val alignedPos = Vector3(gridX, spawnPos.y, gridZ)
+
+        // Check if valid street
+        if (isValidStreetBlock(alignedPos)) {
+            spawnBlockadeAt(alignedPos, forwardDir)
+            lastBlockadeTime = BLOCKADE_COOLDOWN
+        }
+    }
+
+    private fun isValidStreetBlock(pos: Vector3): Boolean {
+        val block = sceneManager.activeChunkManager.getBlockAtWorld(pos)
+        return block != null && block.blockType.category == BlockCategory.STREET
+    }
+
+    private fun spawnBlockadeAt(centerPos: Vector3, playerDirection: Vector3) {
+        println("Spawning Police Blockade at $centerPos")
+
+        // 1. Determine Blockade Orientation
+        val isMovingX = kotlin.math.abs(playerDirection.x) > kotlin.math.abs(playerDirection.z)
+        val carRotation = if (isMovingX) 90f else 0f
+
+        // 2. Spawn The Police Car
+        val surfaceY = sceneManager.findHighestSupportY(centerPos.x, centerPos.z, centerPos.y + 5f, 0.1f, 4f)
+        val carPos = Vector3(centerPos.x, surfaceY, centerPos.z)
+
+        val policeCar = sceneManager.game.carSystem.spawnCar(
+            carPos,
+            CarType.POLICE_CAR,
+            isLocked = false,
+            initialVisualRotation = carRotation
+        )
+
+        if (policeCar != null) {
+            activePoliceCars.add(policeCar)
+
+            // 3. Spawn Improvised Barricades (Barrels)
+            if (Random.nextFloat() < 0.3f) {
+                spawnBarricadeProps(policeCar, isMovingX)
+            }
+
+            // 4. Spawn Human Roadblock
+            spawnOfficerLine(policeCar, isMovingX)
+        }
+    }
+
+    private fun spawnBarricadeProps(car: GameCar, isCarNorthSouth: Boolean) {
+        val offsetDist = 6f
+        val offsets = if (isCarNorthSouth) {
+            listOf(Vector3(0f, 0f, offsetDist), Vector3(0f, 0f, -offsetDist))
+        } else {
+            listOf(Vector3(offsetDist, 0f, 0f), Vector3(-offsetDist, 0f, 0f))
+        }
+
+        for (offset in offsets) {
+            val propPos = car.position.cpy().add(offset)
+            if (isValidStreetBlock(propPos)) {
+                val barrel = sceneManager.game.interiorSystem.createInteriorInstance(InteriorType.BARREL)
+                if (barrel != null) {
+                    barrel.position.set(propPos)
+                    barrel.updateTransform()
+                    sceneManager.activeInteriors.add(barrel)
+                }
+            }
+        }
+    }
+
+    private fun spawnOfficerLine(car: GameCar, isCarNorthSouth: Boolean) {
+        val officersCount = Random.nextInt(2, 4)
+        val spacing = 2.5f
+
+        for (i in 1..officersCount) {
+            val sideMultiplier = if (i % 2 == 0) 1f else -1f
+            val distance = (3f + (spacing * ((i+1)/2))) * sideMultiplier
+
+            val offset = if (isCarNorthSouth) {
+                Vector3(0f, 0f, distance)
+            } else {
+                Vector3(distance, 0f, 0f)
+            }
+
+            val spawnPos = car.position.cpy().add(offset)
+
+            if (isValidStreetBlock(spawnPos)) {
+                val config = EnemySpawnConfig(
+                    enemyType = EnemyType.POLICEMAN,
+                    behavior = EnemyBehavior.STATIONARY_SHOOTER,
+                    position = spawnPos,
+                    initialWeapon = WeaponType.REVOLVER,
+                    ammoSpawnMode = AmmoSpawnMode.SET,
+                    setAmmoValue = 100
+                )
+
+                val officer = enemySystem.createEnemy(config)
+                if (officer != null) {
+                    activePolice.add(officer)
+                    sceneManager.activeEnemies.add(officer)
+                }
+            }
+        }
     }
 
     // --- Constants ---

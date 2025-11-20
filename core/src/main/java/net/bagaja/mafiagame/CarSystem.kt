@@ -647,34 +647,32 @@ data class GameCar(
         val halfWidth = carType.width / 2f
         val halfHeight = carType.height / 2f
 
-        // Use a more reasonable thickness based on car type
-        val thickness = carType.width * 0.3f // Make thickness proportional to car width
+        // Make thickness proportional to car width for side impacts
+        val thickness = carType.width * 0.45f
         val halfThickness = thickness / 2f
 
-        // Create collision box based on car's actual orientation
-        when (direction.toInt()) {
-            0, 180 -> {
-                // Car is facing north/south: wide on X, thin on Z
-                bounds.set(
-                    Vector3(currentPos.x - halfWidth, currentPos.y, currentPos.z - halfThickness),
-                    Vector3(currentPos.x + halfWidth, currentPos.y + halfHeight, currentPos.z + halfThickness)
-                )
-            }
-            90, 270 -> {
-                // Car is facing east/west: thin on X, wide on Z
-                bounds.set(
-                    Vector3(currentPos.x - halfThickness, currentPos.y, currentPos.z - halfWidth),
-                    Vector3(currentPos.x + halfThickness, currentPos.y + halfHeight, currentPos.z + halfWidth)
-                )
-            }
-            else -> {
-                // For other angles, use a square collision box (simpler but less precise)
-                val maxDimension = kotlin.math.max(halfWidth, halfThickness)
-                bounds.set(
-                    Vector3(currentPos.x - maxDimension, currentPos.y, currentPos.z - maxDimension),
-                    Vector3(currentPos.x + maxDimension, currentPos.y + halfHeight, currentPos.z + maxDimension)
-                )
-            }
+        // Normalize rotation to 0-360 range for cleaner checks
+        val normalizedRot = (visualRotationY % 360f + 360f) % 360f
+
+        // Check if car is roughly perpendicular (North/South)
+        // 90 degrees or 270 degrees (+/- small tolerance)
+        val isPerpendicular = (normalizedRot > 45f && normalizedRot < 135f) ||
+            (normalizedRot > 225f && normalizedRot < 315f)
+
+        if (isPerpendicular) {
+            // ROTATED 90/270: Swap Width and Depth for collision
+            // Car spans along the Z axis, thin on X
+            bounds.set(
+                Vector3(currentPos.x - halfThickness, currentPos.y, currentPos.z - halfWidth),
+                Vector3(currentPos.x + halfThickness, currentPos.y + halfHeight, currentPos.z + halfWidth)
+            )
+        } else {
+            // STANDARD 0/180: Normal orientation
+            // Car spans along the X axis, thin on Z
+            bounds.set(
+                Vector3(currentPos.x - halfWidth, currentPos.y, currentPos.z - halfThickness),
+                Vector3(currentPos.x + halfWidth, currentPos.y + halfHeight, currentPos.z + halfThickness)
+            )
         }
         return bounds
     }

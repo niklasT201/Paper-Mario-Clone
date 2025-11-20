@@ -21,9 +21,11 @@ enum class AmmoSpawnMode {
     RANDOM // Uses a random value between a min/max
 }
 
-enum class CarSpawnDirection(val displayName: String) {
-    LEFT("Left"),
-    RIGHT("Right")
+enum class CarSpawnDirection(val displayName: String, val rotation: Float) {
+    LEFT("Left", 0f),
+    RIGHT("Right", 180f),
+    NORTH("North (Blockade)", 90f),
+    SOUTH("South (Blockade)", 270f)
 }
 
 data class GameSpawner(
@@ -372,6 +374,8 @@ class SpawnerSystem(
         val initialRotation = when (spawner.carSpawnDirection) {
             CarSpawnDirection.LEFT -> 0f
             CarSpawnDirection.RIGHT -> 180f
+            CarSpawnDirection.NORTH -> 90f
+            CarSpawnDirection.SOUTH -> 270f
         }
 
         val newCar = sceneManager.game.carSystem.spawnCar(

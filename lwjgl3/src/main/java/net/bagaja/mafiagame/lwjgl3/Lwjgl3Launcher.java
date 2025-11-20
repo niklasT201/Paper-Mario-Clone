@@ -108,7 +108,6 @@ public class Lwjgl3Launcher {
 // step up stair
 // maybe improving billboard shader
 // south park like animation
-// police cars with police in it spawning on street blocks
 // fix burning character sound
 // unbeatable after dying
 // Persistence & Consequences
@@ -122,8 +121,6 @@ public class Lwjgl3Launcher {
 // characters change behaviour in rain
 // enemy cover up ai
 // minimap for open world mode
-// Civilian npc that just follows paths. They should flee from gunfire and call the police if they see a crime
-// first a beat cop, then patrol cars, then roadblocks, and finally tougher "Federal Agents" with tommy guns. Heat slowly decreases over time if you stay out of sight.
 // player can buy businesses (speakeasies, illegal casinos, protection rackets) that generate passive income
 // silent takedowns (melee from behind) and the ability to hide bodies
 // dead enemy flying behind players back
