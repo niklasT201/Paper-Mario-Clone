@@ -635,8 +635,39 @@ class WantedSystem(
     }
 
     private fun isValidStreetBlock(pos: Vector3): Boolean {
-        val block = sceneManager.activeChunkManager.getBlockAtWorld(pos)
-        return block != null && block.blockType.category == BlockCategory.STREET
+        // 1. Get the block directly at the coordinates
+        val block = sceneManager.activeChunkManager.getBlockAtWorld(pos) ?: return false
+
+        // 2. Check if the category is correct first
+        if (block.blockType.category != BlockCategory.STREET) {
+            return false
+        }
+
+        // 3. STRICT check: Exclude sidewalks explicitly.
+        // We define a set of block types that represent actual drivable road.
+        val validRoadTypes = setOf(
+            BlockType.COBBLESTONE,
+            BlockType.STONE,
+            BlockType.STREET_DIRTY_PATH,
+            BlockType.STREET_LOW,
+            BlockType.STREET_INDUSTRY,
+            BlockType.STREET_TILE,
+            BlockType.DARK_STREET,
+            BlockType.DARK_STREET_MIDDLE,
+            BlockType.DARK_STREET_MIXED,
+            BlockType.OLD_STREET
+        )
+
+        if (block.blockType !in validRoadTypes) {
+            return false // It's a STREET category block (like sidewalk), but not a road.
+        }
+
+        // 4. Optional: Check height variance.
+        if (kotlin.math.abs(pos.y - block.position.y) > 2f) {
+            return false
+        }
+
+        return true
     }
 
     private fun spawnBlockadeAt(centerPos: Vector3, playerDirection: Vector3) {
