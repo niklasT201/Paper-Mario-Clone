@@ -222,6 +222,13 @@ data class MissionModifiers(
     var increasedEnemySpawns: Boolean = false,
     var freezeTimeAt: Float? = null, // A value from 0.0 to 1.0
     var disablePoliceResponse: Boolean = false, // For a future police system
+    var disableWantedLevel: Boolean = false,      // Player cannot get stars
+    var fixedWantedLevel: Int? = null,            // Starts at this level, never drops below it
+    var maxWantedLevel: Int = 5,                  // Cap the maximum stars (e.g., max 2)
+
+    var policeSpawnRateMultiplier: Float = 1.0f,  // 0.5 = half as often, 2.0 = twice as often
+    var disablePoliceCars: Boolean = false,       // If true, only foot patrols spawn
+    var policeHealthMultiplier: Float = 1.0f,     // 0.5 = half health, 2.0 = double health
 
     var overrideEnemyBehavior: EnemyBehavior? = null,
     var overrideNpcBehavior: NPCBehavior? = null,

@@ -93,10 +93,10 @@ public class Lwjgl3Launcher {
 // ambience steps pausing between loop
 // whosh sound for melee weapons
 // update melee images
+// police spawning less in poor areas
 // shooting sound echo doesnt move with player
 // audio ui two items in a row
 // enemy range visible in fist fights
-// character stepping out of locked car gives sound
 // blocks being visible behind transparent enemies etc.
 // car maybe be able to step up half a block
 // Chain Reactions with Explosives & Fire
@@ -131,8 +131,6 @@ public class Lwjgl3Launcher {
 // SEQUENCE, LOSE_THE_COPS, INFLUENCE_NPC, CAPTURE_TERRITORY
 // Cutscene System
 // interact with interiors/objectives, cars, characters = give item, lose item, new event will happen
-
-// disablePoliceResponse: Boolean (Allow the player to cause chaos without getting a wanted level).6
 
 // Automatic/Linear Mode or Open World Mode
 // ON_DESTROY_CAR, ON_DESTROY_OBJECT

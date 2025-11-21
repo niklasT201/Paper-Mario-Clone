@@ -554,10 +554,32 @@ class MissionEditorUI(
         audioTable.add(Label("Disable Emitters with Sound IDs (one per line):", skin)).colspan(2).left().padTop(8f).row()
         audioTable.add(ScrollPane(disableEmittersArea, skin)).colspan(2).growX().height(60f).row()
 
+        // --- Wanted & Police Modifiers ---
+        val wantedTable = Table(skin)
+        wantedTable.add(Label("[RED]--- Wanted & Police Modifiers ---", skin)).colspan(2).left().padBottom(5f).row()
+
+        val disableWantedCheck = CheckBox(" Disable Wanted Levels", skin).apply { isChecked = mission.modifiers.disableWantedLevel }
+        val disablePoliceCarsCheck = CheckBox(" Disable Police Cars", skin).apply { isChecked = mission.modifiers.disablePoliceCars }
+
+        val fixedLevelField = TextField(mission.modifiers.fixedWantedLevel?.toString() ?: "", skin).apply { messageText = "None" }
+        val maxLevelField = TextField(mission.modifiers.maxWantedLevel.toString(), skin)
+        val spawnRateField = TextField(mission.modifiers.policeSpawnRateMultiplier.toString(), skin)
+        val healthMultField = TextField(mission.modifiers.policeHealthMultiplier.toString(), skin)
+
+        wantedTable.add(disableWantedCheck).colspan(2).left().row()
+        wantedTable.add("Fixed Start Level (1-5):").left(); wantedTable.add(fixedLevelField).width(60f).row()
+        wantedTable.add("Max Wanted Cap (1-5):").left(); wantedTable.add(maxLevelField).width(60f).row()
+
+        wantedTable.add(Label("--- Police Units ---", skin)).colspan(2).center().padTop(5f).row()
+        wantedTable.add(disablePoliceCarsCheck).colspan(2).left().row()
+        wantedTable.add("Spawn Rate Multiplier:").left(); wantedTable.add(spawnRateField).width(60f).row()
+        wantedTable.add("Health Multiplier:").left(); wantedTable.add(healthMultField).width(60f).row()
+
         // --- ASSEMBLE MAIN LAYOUT ---
         content.add(playerTable).top().padRight(15f)
         content.add(vehicleTable).top().padRight(15f)
         content.add(worldTable).top().row()
+        content.add(wantedTable).top().padRight(15f).row()
         content.add(weatherTable).top().colspan(3).row() // Add a .row() here
         content.add(audioTable).top().colspan(3)
 
@@ -621,6 +643,14 @@ class MissionEditorUI(
                     .map { it.trim() }
                     .filter { it.isNotBlank() }
                     .toMutableList()
+
+                // Save Wanted Modifiers
+                mission.modifiers.disableWantedLevel = disableWantedCheck.isChecked
+                mission.modifiers.fixedWantedLevel = fixedLevelField.text.toIntOrNull()
+                mission.modifiers.maxWantedLevel = maxLevelField.text.toIntOrNull() ?: 5
+                mission.modifiers.disablePoliceCars = disablePoliceCarsCheck.isChecked
+                mission.modifiers.policeSpawnRateMultiplier = spawnRateField.text.toFloatOrNull() ?: 1.0f
+                mission.modifiers.policeHealthMultiplier = healthMultField.text.toFloatOrNull() ?: 1.0f
 
                 uiManager.showTemporaryMessage("Modifiers updated for '${mission.title}'")
                 dialog.hide()

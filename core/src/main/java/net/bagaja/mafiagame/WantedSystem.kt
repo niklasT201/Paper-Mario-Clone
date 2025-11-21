@@ -67,14 +67,17 @@ class WantedSystem(
     fun reportCrime(crime: CrimeType) {
         if (sceneManager.currentScene != SceneType.WORLD) return
 
-        // If the player was "playing possum", any new crime makes the police instantly aware again.
-        if (isPlayerDead) {
-            println("Player committed a crime after respawning. Police are aware again!")
-            isPlayerDead = false
-            postDeathCooldownTimer = 0f
-        }
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
 
-        if (currentWantedLevel < 5) {
+        // Check: Is Wanted Level Disabled?
+        if (modifiers?.disableWantedLevel == true) return
+
+        if (isPlayerDead) { /* ... existing dead logic ... */ }
+
+        // Check: Max Level Cap
+        val maxLevel = modifiers?.maxWantedLevel ?: 5
+
+        if (currentWantedLevel < maxLevel) {
             wantedProgress += crime.wantedIncrease
             println("Crime reported: ${crime.name}. Wanted progress: $wantedProgress")
         }
@@ -83,15 +86,17 @@ class WantedSystem(
 
     fun reportCrimeByPolice(crime: CrimeType) {
         if (sceneManager.currentScene != SceneType.WORLD) return
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
 
-        // Crimes reported directly by police have a much stronger impact
-        val policeImpact = crime.wantedIncrease * 4f // 4x multiplier
+        if (modifiers?.disableWantedLevel == true) return // Check disable
 
-        if (currentWantedLevel < 5) {
+        val policeImpact = crime.wantedIncrease * 4f
+        val maxLevel = modifiers?.maxWantedLevel ?: 5 // Check cap
+
+        if (currentWantedLevel < maxLevel) {
             wantedProgress += policeImpact
             println("POLICE REPORT: ${crime.name}. Wanted progress increased by $policeImpact.")
         }
-        // Committing a crime resets the cooldown timer
         cooldownTimer = COOLDOWN_TIME_BEFORE_DECREASE
     }
 
@@ -105,10 +110,18 @@ class WantedSystem(
         despawnAllPolice()
     }
 
-    // --- ADD THIS NEW METHOD ---
     fun onMissionStart() {
-        println("WantedSystem: Mission started. Clearing wanted level.")
-        reset()
+        println("WantedSystem: Mission started.")
+        reset() // Clear existing stars first
+
+        // Apply Fixed Start Level immediately
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
+        if (modifiers?.fixedWantedLevel != null) {
+            currentWantedLevel = modifiers.fixedWantedLevel!!
+            wantedProgress = 0f
+            uiManager.updateWantedLevel(currentWantedLevel)
+            println("Mission enforced fixed wanted level: $currentWantedLevel")
+        }
     }
 
     fun getterConfiscatedWeapons(): List<ConfiscatedWeapon> = confiscatedWeapons.toList()
@@ -167,19 +180,39 @@ class WantedSystem(
             println("Wanted level increased to $currentWantedLevel!")
         }
 
+        // 1. Update Wanted Level based on progress
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
+        val maxLevel = modifiers?.maxWantedLevel ?: 5
+
+        if (wantedProgress >= WANTED_THRESHOLD && currentWantedLevel < maxLevel) {
+            currentWantedLevel++
+            wantedProgress = 0f
+            uiManager.updateWantedLevel(currentWantedLevel)
+            println("Wanted level increased to $currentWantedLevel!")
+        }
+
         // 2. Handle Cooldown and Level Decrease
-        if (currentWantedLevel > 0) {
+        val minLevel = modifiers?.fixedWantedLevel ?: 0
+
+        if (currentWantedLevel > minLevel) {
             cooldownTimer -= deltaTime
             if (cooldownTimer <= 0f) {
                 wantedProgress -= DECAY_RATE * deltaTime
                 if (wantedProgress <= 0f) {
                     currentWantedLevel--
+                    // Ensure we don't drop below the fixed floor
+                    if (currentWantedLevel < minLevel) currentWantedLevel = minLevel
+
                     wantedProgress = if (currentWantedLevel > 0) WANTED_THRESHOLD else 0f
                     uiManager.updateWantedLevel(currentWantedLevel)
                     println("Wanted level decreased to $currentWantedLevel.")
                     cooldownTimer = COOLDOWN_TIME_BEFORE_DECREASE
                 }
             }
+        } else {
+            // If we are at or below the fixed level, ensure the timer stays reset so we don't have pending decay
+            cooldownTimer = COOLDOWN_TIME_BEFORE_DECREASE
+            wantedProgress = 0f
         }
 
         // If no longer wanted, despawn police and reset
@@ -250,22 +283,31 @@ class WantedSystem(
 
     private fun spawnPoliceUnit() {
         val config = policeResponseConfig[currentWantedLevel] ?: return
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
 
-        // FIX 2: Limit the number of active police
+        // Check active count limit
         if (activePolice.size >= config.maxUnits) return
 
-        // FIX 3: Respect the spawn timer
+        // Check Timer
         if (policeSpawnTimer > 0) return
 
-        // --- NEW LOGIC: Decide whether to spawn a car or a foot patrol ---
-        if (Random.nextFloat() < config.carSpawnChance) {
+        // LOGIC CHANGE: Modifiable Spawn Rate
+        // If multiplier is 0.5, interval becomes double (slower). If 2.0, interval becomes half (faster).
+        val rateMultiplier = modifiers?.policeSpawnRateMultiplier ?: 1.0f
+        // Avoid division by zero
+        val actualInterval = if (rateMultiplier > 0.01f) POLICE_SPAWN_INTERVAL / rateMultiplier else 9999f
+
+        // LOGIC CHANGE: Disable Cars
+        val carsAllowed = !(modifiers?.disablePoliceCars ?: false)
+
+        if (carsAllowed && Random.nextFloat() < config.carSpawnChance) {
             spawnPoliceCar()
         } else {
             spawnPoliceFootPatrol()
         }
 
-        // Reset timer after attempting a spawn
-        policeSpawnTimer = POLICE_SPAWN_INTERVAL
+        // Reset timer
+        policeSpawnTimer = actualInterval
     }
 
     private fun spawnPoliceFootPatrol() {
@@ -283,20 +325,25 @@ class WantedSystem(
         val policeType = config.spawnTypes.random()
         val spawnPos = Vector3(spawnX, surfaceY + policeType.height / 2f, spawnZ)
 
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
+        val healthMult = modifiers?.policeHealthMultiplier ?: 1.0f
+
         val enemyConfig = EnemySpawnConfig(
             enemyType = policeType,
             behavior = EnemyBehavior.AGGRESSIVE_RUSHER,
             position = spawnPos,
             initialWeapon = WeaponType.REVOLVER,
             ammoSpawnMode = AmmoSpawnMode.SET,
-            setAmmoValue = 999
+            setAmmoValue = 999,
+            healthSetting = HealthSetting.FIXED_CUSTOM,
+            customHealthValue = policeType.baseHealth * healthMult
         )
 
         enemySystem.createEnemy(enemyConfig)?.let { police ->
             police.provocationLevel = 999f
             activePolice.add(police)
             sceneManager.activeEnemies.add(police)
-            println("Spawned a ${police.enemyType.displayName} foot patrol.")
+            println("Spawned a ${police.enemyType.displayName} foot patrol (HP: ${police.health}).")
         }
     }
 
@@ -319,13 +366,25 @@ class WantedSystem(
         val policeCar = sceneManager.game.carSystem.spawnCar(spawnPos, CarType.POLICE_CAR, isLocked = false)
         if (policeCar == null) return
 
+        val modifiers = sceneManager.game.missionSystem.activeModifiers
+        val healthMult = modifiers?.policeHealthMultiplier ?: 1.0f
+
+        // Apply health modifier to car
+        policeCar.health = policeCar.carType.baseHealth * healthMult
+
         // Spawn two police officers to be the occupants
         val config = policeResponseConfig[currentWantedLevel] ?: return
         val driverType = config.spawnTypes.random()
         val passengerType = config.spawnTypes.random()
 
-        val driverConfig = EnemySpawnConfig(enemyType = driverType, behavior = EnemyBehavior.AGGRESSIVE_RUSHER, position = policeCar.position)
-        val passengerConfig = EnemySpawnConfig(enemyType = passengerType, behavior = EnemyBehavior.AGGRESSIVE_RUSHER, position = policeCar.position)
+        val driverConfig = EnemySpawnConfig(
+            enemyType = driverType,
+            behavior = EnemyBehavior.AGGRESSIVE_RUSHER,
+            position = policeCar.position,
+            healthSetting = HealthSetting.FIXED_CUSTOM,
+            customHealthValue = driverType.baseHealth * healthMult
+        )
+        val passengerConfig = EnemySpawnConfig(enemyType = passengerType, behavior = EnemyBehavior.AGGRESSIVE_RUSHER, position = policeCar.position, healthSetting = HealthSetting.FIXED_CUSTOM, customHealthValue = driverType.baseHealth * healthMult)
 
         val driver = enemySystem.createEnemy(driverConfig)
         val passenger = enemySystem.createEnemy(passengerConfig)
