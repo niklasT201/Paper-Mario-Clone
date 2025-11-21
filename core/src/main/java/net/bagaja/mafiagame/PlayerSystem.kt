@@ -76,6 +76,8 @@ class PlayerSystem {
     private var wasHoldingShootButton = false
     private var automaticFireSoundId: Long? = null
 
+    private var respawnProtectionTimer = 0f
+    private val RESPAWN_PROTECTION_DURATION = 5.0f
     private var respawnPosition = Vector3(9f, 2f, 9f)
     private var isDead = false
 
@@ -88,6 +90,11 @@ class PlayerSystem {
     fun takeDamage(amount: Float) {
         // If the game is in editor mode, completely ignore all incoming damage.
         if (sceneManager.game.isEditorMode) {
+            return
+        }
+
+        if (respawnProtectionTimer > 0f) {
+            println("Damage blocked by Respawn Shield.")
             return
         }
 
@@ -187,6 +194,9 @@ class PlayerSystem {
         health = maxHealth
         isDead = false
         isOnFire = false // Extinguish fire on death
+
+        respawnProtectionTimer = RESPAWN_PROTECTION_DURATION
+        sceneManager.game.uiManager.showTemporaryMessage("Respawn Shield Active")
 
         equipWeapon(WeaponType.UNARMED)
 
@@ -2078,6 +2088,23 @@ class PlayerSystem {
     }
 
     fun update(deltaTime: Float, sceneManager: SceneManager, weatherSystem: WeatherSystem, isInInterior: Boolean) {
+        if (respawnProtectionTimer > 0f) {
+            respawnProtectionTimer -= deltaTime
+
+            // Visual Effect: Blink the player model (Flash transparency)
+            val blinkSpeed = 15f
+            val alpha = if (kotlin.math.sin(respawnProtectionTimer * blinkSpeed) > 0) 0.4f else 1.0f
+
+            // Apply opacity to the player material
+            val blendingAttribute = playerInstance.materials.first().get(BlendingAttribute.Type) as? BlendingAttribute
+            blendingAttribute?.opacity = alpha
+
+            if (respawnProtectionTimer <= 0f) {
+                // Timer finished: Reset opacity to full
+                blendingAttribute?.opacity = 1.0f
+                println("Respawn Shield Deactivated.")
+            }
+        }
 
         // HANDLE ON FIRE STATE (DAMAGE & VISUALS)
         if (this.isOnFire) {

@@ -108,8 +108,7 @@ public class Lwjgl3Launcher {
 // step up stair
 // maybe improving billboard shader
 // south park like animation
-// fix burning character sound
-// unbeatable after dying
+// burning character use fire sound, not damage sound
 // Persistence & Consequences
 // fire in rooms and mission not being connected right with its light source
 // visual screen for finished mission
@@ -133,7 +132,6 @@ public class Lwjgl3Launcher {
 // interact with interiors/objectives, cars, characters = give item, lose item, new event will happen
 
 // Automatic/Linear Mode or Open World Mode
-// ON_DESTROY_CAR, ON_DESTROY_OBJECT
 // adding multiple city areas, district 2d polygons
 // INTERACT_WITH_OBJECT Logic: Similar to the above, you don't have a generic "interaction" system for objects yet
 // Advanced Rewards: The logic for GIVE_AMMO and GIVE_ITEM is in place, but things like UNLOCK_CAR_SPAWN would require a "garage" or "player property" system.
