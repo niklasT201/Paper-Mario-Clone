@@ -739,6 +739,18 @@ class NPCSystem : IFinePositionable {
 
         while(iterator.hasNext()) {
             val npc = iterator.next()
+            var currentSpeed = npc.npcType.speed
+
+            if (visualRainIntensity > 0.2f && !isInInterior && !npc.isInCar) {
+                // Move 40% faster in rain
+                currentSpeed *= 1.4f
+
+                // Optional: If it's a heavy storm (>0.7), run even faster
+                if (visualRainIntensity > 0.7f) currentSpeed *= 1.6f
+            }
+
+            // Apply speed to physics component
+            npc.physics.speed = currentSpeed
 
             // Decay car provocation if they are in a car
             if (npc.isInCar && npc.carProvocation > 0) {
@@ -1332,6 +1344,13 @@ class NPCSystem : IFinePositionable {
         when (npc.currentState) {
             NPCState.IDLE -> {
                 npc.stateTimer += deltaTime
+                // Idle "Scanning" Behavior
+                val scanSpeed = 1.5f // Speed of head turning
+                val scanAngle = 45f  // How far to look (degrees)
+                val rotationOffset = sin(npc.stateTimer * scanSpeed) * scanAngle
+
+                npc.physics.facingRotationY += (rotationOffset * deltaTime)
+
                 if (npc.stateTimer > wanderPauseTime) {
                     val randomAngle = (Random.nextFloat() * 2 * Math.PI).toFloat()
                     val randomDist = Random.nextFloat() * wanderRadius

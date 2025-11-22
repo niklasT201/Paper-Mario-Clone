@@ -687,8 +687,11 @@ data class GameCar(
 
         // AI Headlight
         val sunIntensity = sceneManager.game.lightingManager.getDayNightCycle().getSunIntensity()
+        val rainIntensity = sceneManager.game.weatherSystem.getRainIntensity()
+        val needsLights = sunIntensity < 0.25f || rainIntensity > 0.4f
+
         // AI turns lights on if it's dark and the car isn't wrecked.
-        areHeadlightsOn = sunIntensity < 0.25f && !isDestroyed
+        areHeadlightsOn = needsLights && !isDestroyed
         updateHeadlight(deltaTime)
 
         val originalPosition = position.cpy()

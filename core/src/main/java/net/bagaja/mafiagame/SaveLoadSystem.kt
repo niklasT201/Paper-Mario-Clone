@@ -179,15 +179,19 @@ class SaveLoadSystem(private val game: MafiaGame) {
                 ))
             }
             sm.activeEntryPoints.forEach { ep -> world.entryPoints.add(EntryPointData(ep.id, ep.houseId, ep.position)) } // Entry points are not mission-only
-            game.lightingManager.getLightSources().values.filter { it.missionId == null }.forEach { l ->
-                world.lights.add(LightData(
-                    l.id, l.position, l.color, l.intensity, l.range,
-                    l.isEnabled, l.flickerMode, l.loopOnDuration, l.loopOffDuration, l.timedFlickerLifetime,
-                    l.rotationX, l.rotationY, l.rotationZ,
-                    l.missionId,
-                    l.parentObjectId
-                ))
-            }
+
+            val carLightIds = sm.activeCars.mapNotNull { it.headlightLight?.id }
+            game.lightingManager.getLightSources().values
+                .filter { it.missionId == null && !carLightIds.contains(it.id) }
+                .forEach { l ->
+                    world.lights.add(LightData(
+                        l.id, l.position, l.color, l.intensity, l.range,
+                        l.isEnabled, l.flickerMode, l.loopOnDuration, l.loopOffDuration, l.timedFlickerLifetime,
+                        l.rotationX, l.rotationY, l.rotationZ,
+                        l.missionId,
+                        l.parentObjectId
+                    ))
+                }
             sm.activeSpawners.filter { it.missionId == null }.forEach { s ->
                 world.spawners.add(SpawnerData(
                     id = s.id,

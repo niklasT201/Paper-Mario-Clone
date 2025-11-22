@@ -244,6 +244,11 @@ data class GameEnemy(
             sceneManager.game.missionSystem.reportKill(this, attacker)
         }
 
+        else {
+            // If they survived the hit, alert their friends immediately!
+            sceneManager.enemySystem.alertNearbyEnemies(this, sceneManager.playerSystem.getPosition())
+        }
+
         println("${enemyType.displayName} took $damage $type damage. HP remaining: ${health.coerceAtLeast(0f)}")
         return health <= 0
     }
@@ -606,6 +611,19 @@ class EnemySystem : IFinePositionable {
 
         while (iterator.hasNext()) {
             val enemy = iterator.next()
+            var currentSpeed = enemy.enemyType.speed
+
+            // Only hurry if NOT in combat and NOT inside
+            val isNonCombat = enemy.currentState == AIState.IDLE ||
+                enemy.currentState == AIState.PATROLLING_IN_CAR ||
+                enemy.currentState == AIState.SEARCHING
+
+            if (isNonCombat && visualRainIntensity > 0.2f && !isInInterior && !enemy.isInCar) {
+                currentSpeed *= 1.4f
+            }
+
+            enemy.physics.speed = currentSpeed
+
             val distanceToPlayer = enemy.physics.position.dst(playerPos)
 
             // Decay car provocation if they are in a car
@@ -1059,6 +1077,34 @@ class EnemySystem : IFinePositionable {
         enemy.weapons.clear()
     }
 
+    fun alertNearbyEnemies(sourceEnemy: GameEnemy, targetPosition: Vector3) {
+        val alertRadius = 25f // How far the "shout" travels
+
+        for (ally in sceneManager.activeEnemies) {
+            // Don't alert self, dead guys, or people already fighting
+            if (ally.id == sourceEnemy.id || ally.currentState == AIState.DYING || ally.health <= 0) continue
+
+            // Only alert enemies that are currently doing nothing
+            if (ally.currentState != AIState.IDLE && ally.currentState != AIState.PATROLLING_IN_CAR) continue
+
+            // Check distance
+            if (ally.position.dst(sourceEnemy.position) < alertRadius) {
+                // Wake them up!
+                println("${ally.enemyType.displayName} heard the commotion and is attacking!")
+
+                if (ally.isInCar) {
+                    // If driving, drive to the fight
+                    ally.currentState = AIState.DRIVING_TO_SCENE
+                    ally.targetPosition = targetPosition.cpy()
+                } else {
+                    // If walking, switch to aggressive
+                    ally.currentBehavior = EnemyBehavior.AGGRESSIVE_RUSHER
+                    ally.currentState = AIState.CHASING
+                }
+            }
+        }
+    }
+
     fun handleCarExit(enemy: GameEnemy, sceneManager: SceneManager) {
         val car = enemy.drivingCar ?: return
 
@@ -1372,6 +1418,10 @@ class EnemySystem : IFinePositionable {
         val ray = Ray(enemy.position, playerPos.cpy().sub(enemy.position).nor())
         val collision = sceneManager.checkCollisionForRay(ray, enemy.position.dst(playerPos))
         val hasLineOfSight = collision == null || collision.type == HitObjectType.PLAYER
+
+        if (hasLineOfSight && enemy.currentState == AIState.IDLE) {
+            alertNearbyEnemies(enemy, playerPos)
+        }
 
         if (hasLineOfSight && isYAligned && isZAligned && enemy.attackTimer <= 0f) {
             if (enemy.currentMagazineCount > 0) {

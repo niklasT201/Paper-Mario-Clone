@@ -100,10 +100,7 @@ public class Lwjgl3Launcher {
 // blocks being visible behind transparent enemies etc.
 // car maybe be able to step up half a block
 // Chain Reactions with Explosives & Fire
-// lanterns use not visible light sources
-// fire using not real light sources like muzzle flash and headlights
 // Environmental State Changes from Effects
-// Faction & Alert System
 // maybe adding bouncy dynamite (1 bounce max)
 // step up stair
 // maybe improving billboard shader
