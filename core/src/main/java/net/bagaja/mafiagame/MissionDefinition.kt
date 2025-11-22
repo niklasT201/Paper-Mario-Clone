@@ -34,11 +34,20 @@ enum class PostDialogBehavior(val displayName: String) {
     ONE_TIME_DESPAWN("One-Time (Character despawns)")
 }
 
+data class LineStyleOverride(
+    var customWidth: Float? = null,
+    var customHeight: Float? = null,
+    var portraitOffsetX: Float? = null,
+    var portraitOffsetY: Float? = null
+)
+
 data class StandaloneDialog(
     val dialogId: String,
     val outcome: DialogOutcome = DialogOutcome(),
-    val postBehavior: PostDialogBehavior = PostDialogBehavior.REPEATABLE, // Default behavior
-    val alternativeDialogId: String? = null
+    val postBehavior: PostDialogBehavior = PostDialogBehavior.REPEATABLE,
+    val alternativeDialogId: String? = null,
+    // NEW: Store overrides map. Key = Line Index, Value = Visual Settings
+    val styleOverrides: MutableMap<Int, LineStyleOverride> = mutableMapOf()
 ) {
     fun isInteractive(): Boolean {
         return outcome.type != DialogOutcomeType.NONE

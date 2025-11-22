@@ -490,65 +490,40 @@ class MafiaGame : ApplicationAdapter() {
             else -> false
         }
 
+        // 1. Determine which ID to use (Main or Alternative)
         val dialogIdToUse = if (hasBeenCompleted && dialogInfo.postBehavior == PostDialogBehavior.REPEATABLE_NO_REWARD && dialogInfo.alternativeDialogId != null) {
-            println("Character has completed this dialog. Using alternative: ${dialogInfo.alternativeDialogId}")
             dialogInfo.alternativeDialogId
         } else {
             dialogInfo.dialogId
         }
 
-        var dialogSequence = dialogueManager.getDialogue(dialogIdToUse)
+        // 2. Load the sequence
+        val dialogSequence = dialogueManager.getDialogue(dialogIdToUse)
         if (dialogSequence == null) {
             println("ERROR: Character has standalone dialog '$dialogIdToUse', but it was not found.")
             return
         }
 
-        // Add confirmation choices for transactions
-        val outcome = dialogInfo.outcome
-        if (outcome.type in listOf(DialogOutcomeType.SELL_ITEM_TO_PLAYER, DialogOutcomeType.BUY_ITEM_FROM_PLAYER, DialogOutcomeType.TRADE_ITEM)) {
-            // Only add confirmation choices if the dialog has NOT been completed.
-            if (!hasBeenCompleted) {
-                val originalLines = dialogSequence.lines.toMutableList()
-                val confirmationLineText = when (outcome.type) {
-                    DialogOutcomeType.SELL_ITEM_TO_PLAYER -> "What do you say?"
-                    DialogOutcomeType.BUY_ITEM_FROM_PLAYER -> "Is that a deal?"
-                    DialogOutcomeType.TRADE_ITEM -> "Do we have a deal?"
-                    else -> "..."
-                }
-                val confirmationChoices = listOf(
-                    DialogChoice("Deal") {
-                        executeDialogOutcome(character, outcome)
-                        uiManager.dialogSystem.skipAll()
-                    },
-                    DialogChoice("Cancel") {
-                        uiManager.dialogSystem.skipAll()
-                    }
-                )
-                val lastSpeaker = originalLines.lastOrNull()?.speaker ?: "System"
-                val confirmationLine = DialogLine(lastSpeaker, confirmationLineText, null, confirmationChoices)
-                originalLines.add(confirmationLine)
-                dialogSequence = dialogSequence.copy(lines = originalLines)
-            }
-        }
-
+        // 3. Define what happens when the dialog finishes (Success)
         val sequenceWithCallback = dialogSequence.copy(
             onComplete = {
-                println("Standalone dialog finished. Behavior: ${dialogInfo.postBehavior}")
+                println("Standalone dialog finished successfully.")
 
+                // Check if rewards should be granted
                 val shouldGiveReward = when (character) {
                     is GameEnemy -> !character.standaloneDialogCompleted
                     is GameNPC -> !character.standaloneDialogCompleted
-                    else -> true // Failsafe for other types
+                    else -> true
                 }
 
-                if (shouldGiveReward && outcome.type !in listOf(DialogOutcomeType.SELL_ITEM_TO_PLAYER, DialogOutcomeType.BUY_ITEM_FROM_PLAYER, DialogOutcomeType.TRADE_ITEM)) {
+                // Execute logic (Give items, take money, etc)
+                if (shouldGiveReward) {
                     executeDialogOutcome(character, dialogInfo.outcome)
                 }
 
+                // Handle Post-Dialog behavior (Despawn, Mark complete, etc)
                 when (dialogInfo.postBehavior) {
-                    PostDialogBehavior.REPEATABLE -> {
-                        // Do nothing, it will just repeat next time.
-                    }
+                    PostDialogBehavior.REPEATABLE -> { /* Do nothing */ }
                     PostDialogBehavior.REPEATABLE_NO_REWARD,
                     PostDialogBehavior.ONE_TIME_HIDE_ICON -> {
                         when (character) {
@@ -572,6 +547,7 @@ class MafiaGame : ApplicationAdapter() {
             }
         )
 
+        // 4. Start the system
         uiManager.dialogSystem.startDialog(sequenceWithCallback, dialogInfo.outcome)
     }
 

@@ -46,6 +46,8 @@ class DialogueEditorUI(
 
     private var highlightedLineWidget: Table? = null
     private var isUpdatingSliders = false
+    private var editingInstance: StandaloneDialog? = null
+    private var editingInstanceCharacter: Any? = null
 
     init {
         window.isMovable = true
@@ -165,8 +167,9 @@ class DialogueEditorUI(
         previewButtonTable.add(closePreviewButton).pad(5f)
         controllerContent.add(previewButtonTable).colspan(2).center().padTop(10f)
 
-        previewControllerWindow.add(controllerContent)
+        previewControllerWindow.add(controllerContent).minWidth(760f)
         previewControllerWindow.pack()
+
         previewControllerWindow.isVisible = false
         stage.addActor(previewControllerWindow)
 
@@ -180,10 +183,25 @@ class DialogueEditorUI(
 
         saveButton.addListener(object : ChangeListener() {
             override fun changed(event: ChangeEvent?, actor: Actor?) {
-                saveCurrentChanges()
-                dialogueManager.loadAllDialogues()
-                uiManager.game.missionSystem.refreshDialogueIds()
-                hide()
+                if (editingInstance != null) {
+                    // In Instance Mode, "Save" just updates the mission/world state
+                    // The StandaloneDialog object is modified by reference, so we just need to
+                    // trigger a save of the mission or world.
+                    if (uiManager.game.uiManager.currentEditorMode == EditorMode.MISSION) {
+                        val mission = uiManager.game.uiManager.selectedMissionForEditing
+                        if (mission != null) uiManager.game.missionSystem.saveMission(mission)
+                    } else {
+                        // If editing world placement, it auto-saves when you save the game
+                        uiManager.showTemporaryMessage("Instance settings updated (Remember to Save Game/Mission)")
+                    }
+                    hide()
+                } else {
+                    // Normal Mode: Save the JSON file
+                    saveCurrentChanges()
+                    dialogueManager.loadAllDialogues()
+                    uiManager.game.missionSystem.refreshDialogueIds()
+                    hide()
+                }
             }
         })
 
@@ -509,6 +527,25 @@ class DialogueEditorUI(
         populateFileSelectBox() // Load data when the editor is shown
     }
 
+    fun selectSequence(fileName: String, sequenceId: String) {
+        // 1. Select the file
+        if (fileSelectBox.items.contains(fileName)) {
+            fileSelectBox.selected = fileName
+            // Trigger the update manually
+            val event = ChangeListener.ChangeEvent()
+            fileSelectBox.fire(event)
+        }
+
+        // 2. Wait for the list to populate, then select the sequence
+        // Since populateSequenceList is synchronous, we can just set it immediately
+        if (sequenceList.items.contains(sequenceId)) {
+            sequenceList.selected = sequenceId
+            // Trigger the update to load the lines
+            val event = ChangeListener.ChangeEvent()
+            sequenceList.fire(event)
+        }
+    }
+
     private fun populateFileSelectBox() {
         val fileNames = dialogueManager.getDialogueFileNames()
         if (fileNames.isEmpty()) {
@@ -559,11 +596,16 @@ class DialogueEditorUI(
     }
 
     fun hide() {
-        if (isPreviewing) {
-            stopPreview()
-        }
+        if (isPreviewing) stopPreview()
         window.isVisible = false
         stage.unfocusAll()
+
+        // Reset to Normal Mode
+        editingInstance = null
+        editingInstanceCharacter = null
+        window.titleLabel.setText("Dialogue Editor")
+        fileSelectBox.isDisabled = false
+        lockTextEditing(false)
     }
 
     fun isVisible(): Boolean = window.isVisible
@@ -620,9 +662,9 @@ class DialogueEditorUI(
     }
 
     private fun showLineInPreview() {
-
         if (!isPreviewing) return
 
+        // 1. Highlight the active line in the list (Visual feedback)
         // Reset the background of the previously highlighted widget
         highlightedLineWidget?.background = skin.getDrawable("textfield")
 
@@ -631,11 +673,34 @@ class DialogueEditorUI(
         if (currentLineWidget != null) {
             currentLineWidget.background = skin.newDrawable("textfield", Color.DARK_GRAY)
             highlightedLineWidget = currentLineWidget
+
+            // IMPORTANT: Update the sliders to match the current line's data
+            // (This prevents the sliders from jumping when switching lines)
+            // We set the flag to true so this doesn't trigger a save immediately
+            isUpdatingSliders = true
             updateSlidersFromLine(currentLineWidget)
+            isUpdatingSliders = false
         }
 
+        // 2. Update the info label
         lineInfoLabel.setText("Line: ${previewLineIndex + 1}/${currentPreviewLines.size}")
-        uiManager.dialogSystem.previewDialog(currentPreviewLines, previewLineIndex)
+
+        // 3. DETERMINE PREVIEW DATA
+        // If we are in Instance Mode (editingInstance != null), we pass the real game data.
+        // If we are in Normal Mode, these will be null, and it behaves like a standard preview.
+        val outcomeToPreview = editingInstance?.outcome
+        val overridesToPreview = editingInstance?.styleOverrides
+
+        // 4. CALL THE SYSTEM
+        // This is the key fix. We pass the outcome.
+        // The DialogSystem checks if outcome.type is SELL/BUY/TRADE.
+        // If yes, and it's the last line, it draws the buttons.
+        uiManager.dialogSystem.previewDialog(
+            currentPreviewLines,
+            previewLineIndex,
+            outcomeToPreview, // <--- Pass the transaction info here
+            overridesToPreview // <--- Pass the visual overrides here
+        )
     }
 
     private fun getLineDataFromWidget(widget: Table): DialogLine {
@@ -653,45 +718,148 @@ class DialogueEditorUI(
         )
     }
 
+    fun editCharacterInstance(character: Any, dialogInfo: StandaloneDialog) {
+        // 1. Set Mode
+        editingInstance = dialogInfo
+        editingInstanceCharacter = character
+
+        // 2. Load the file and sequence
+        // We have to find which file contains this ID
+        var foundFile: String? = null
+        for (fileName in dialogueManager.getDialogueFileNames()) {
+            val file = dialogueManager.getDialogueFile(fileName)
+            if (file != null && file.containsKey(dialogInfo.dialogId)) {
+                foundFile = fileName
+                break
+            }
+        }
+
+        if (foundFile == null) {
+            uiManager.showTemporaryMessage("Error: Dialogue ID '${dialogInfo.dialogId}' not found in any file.")
+            return
+        }
+
+        show() // Open window
+
+        // 3. Set UI state
+        window.titleLabel.setText("Dialogue Editor - [INSTANCE OVERRIDE MODE]")
+        fileSelectBox.selected = foundFile
+        fileSelectBox.isDisabled = true // Lock file selection
+        sequenceList.selected = dialogInfo.dialogId
+        // We don't disable the list, in case they want to swap the ID for this character
+
+        // 4. Populate fields but LOCK text editing
+        populateLineEditor()
+        lockTextEditing(true)
+
+        // 5. Apply existing overrides to the UI sliders if a line is selected
+        // (This happens automatically via populateLineEditor -> createLineWidget)
+    }
+
+    private fun lockTextEditing(locked: Boolean) {
+        linesContainer.children.forEach { actor ->
+            if (actor is Table) {
+                actor.findActor<TextField>("speaker")?.isDisabled = locked
+                actor.findActor<TextArea>("text")?.isDisabled = locked
+                actor.findActor<TextField>("texture")?.isDisabled = locked
+                // We leave the "Modifiers" fields unlocked!
+            }
+        }
+        // Visual feedback
+        if (locked) {
+            uiManager.showTemporaryMessage("Editing Instance: Text is locked. Modify visuals only.")
+        }
+    }
+
     private fun updateLineFromSliders() {
-        if (isUpdatingSliders) return // Prevent recursion
+        if (isUpdatingSliders) return // Prevent recursion loop
 
-        // Get the new values from the sliders
-        val newWidth = "%.0f".format(widthSlider.value)
-        val newHeight = "%.0f".format(heightSlider.value)
-        val newX = "%.0f".format(portraitXSlider.value)
-        val newY = "%.0f".format(portraitYSlider.value)
+        // 1. Get values from sliders
+        val newWidth = widthSlider.value
+        val newHeight = heightSlider.value
+        val newX = portraitXSlider.value
+        val newY = portraitYSlider.value
 
+        // Format strings for the text fields
+        val widthStr = "%.0f".format(newWidth)
+        val heightStr = "%.0f".format(newHeight)
+        val xStr = "%.0f".format(newX)
+        val yStr = "%.0f".format(newY)
+
+        // 2. Update the UI Text Fields (Visual Feedback in the Editor List)
         if (syncSettingsCheckbox.isChecked) {
-            // If sync is on, apply the new values to ALL line widgets and their corresponding live data
-            linesContainer.children.forEachIndexed { index, actor ->
+            // If sync is on, apply to ALL lines visually
+            linesContainer.children.forEach { actor ->
                 if (actor is Table) {
-                    // Update the text fields in the main editor UI for every line
-                    actor.findActor<TextField>("customWidthField")?.text = newWidth
-                    actor.findActor<TextField>("customHeightField")?.text = newHeight
-                    actor.findActor<TextField>("portraitXField")?.text = newX
-                    actor.findActor<TextField>("portraitYField")?.text = newY
-
-                    // Also update the live preview data list by re-reading from each widget
-                    if (index < currentPreviewLines.size) {
-                        currentPreviewLines[index] = getLineDataFromWidget(actor)
-                    }
+                    actor.findActor<TextField>("customWidthField")?.text = widthStr
+                    actor.findActor<TextField>("customHeightField")?.text = heightStr
+                    actor.findActor<TextField>("portraitXField")?.text = xStr
+                    actor.findActor<TextField>("portraitYField")?.text = yStr
                 }
             }
         } else {
-            // If sync is off, apply only to the currently selected widget
-            val currentLineWidget = linesContainer.children.get(previewLineIndex) as? Table ?: return
-            currentLineWidget.findActor<TextField>("customWidthField")?.text = newWidth
-            currentLineWidget.findActor<TextField>("customHeightField")?.text = newHeight
-            currentLineWidget.findActor<TextField>("portraitXField")?.text = newX
-            currentLineWidget.findActor<TextField>("portraitYField")?.text = newY
-
-            // Update just the current line in the live preview data list
-            currentPreviewLines[previewLineIndex] = getLineDataFromWidget(currentLineWidget)
+            // Apply only to current line widget
+            val currentLineWidget = linesContainer.children.get(previewLineIndex) as? Table
+            currentLineWidget?.findActor<TextField>("customWidthField")?.text = widthStr
+            currentLineWidget?.findActor<TextField>("customHeightField")?.text = heightStr
+            currentLineWidget?.findActor<TextField>("portraitXField")?.text = xStr
+            currentLineWidget?.findActor<TextField>("portraitYField")?.text = yStr
         }
 
-        // Refresh the visual preview with the updated data for the current line
-        uiManager.dialogSystem.previewDialog(currentPreviewLines, previewLineIndex)
+        // 3. Save Data & Refresh Preview
+        if (editingInstance != null) {
+            // --- INSTANCE MODE ---
+            // We are editing a specific NPC's overrides, not the base file.
+
+            if (syncSettingsCheckbox.isChecked) {
+                // Apply to ALL lines in the override map
+                for (i in currentPreviewLines.indices) {
+                    val override = editingInstance!!.styleOverrides.getOrPut(i) { LineStyleOverride() }
+                    override.customWidth = newWidth
+                    override.customHeight = newHeight
+                    override.portraitOffsetX = newX
+                    override.portraitOffsetY = newY
+                }
+            } else {
+                // Apply to CURRENT line in the override map
+                val override = editingInstance!!.styleOverrides.getOrPut(previewLineIndex) { LineStyleOverride() }
+                override.customWidth = newWidth
+                override.customHeight = newHeight
+                override.portraitOffsetX = newX
+                override.portraitOffsetY = newY
+            }
+
+            // Refresh the preview using the DialogSystem
+            // IMPORTANT: We pass the 'outcome' so buttons appear, and 'styleOverrides' so visual tweaks apply
+            uiManager.dialogSystem.previewDialog(
+                currentPreviewLines,
+                previewLineIndex,
+                editingInstance!!.outcome,
+                editingInstance!!.styleOverrides
+            )
+
+        } else {
+            // --- NORMAL MODE ---
+            // We are editing the base JSON data via the text fields.
+            // We need to update the 'currentPreviewLines' data structure so the preview reflects the slider change immediately.
+
+            if (syncSettingsCheckbox.isChecked) {
+                linesContainer.children.forEachIndexed { index, actor ->
+                    if (index < currentPreviewLines.size && actor is Table) {
+                        // Re-read the data from the widget (which we just updated in Step 2)
+                        currentPreviewLines[index] = getLineDataFromWidget(actor)
+                    }
+                }
+            } else {
+                val currentLineWidget = linesContainer.children.get(previewLineIndex) as? Table
+                if (currentLineWidget != null) {
+                    currentPreviewLines[previewLineIndex] = getLineDataFromWidget(currentLineWidget)
+                }
+            }
+
+            // Refresh preview normally
+            uiManager.dialogSystem.previewDialog(currentPreviewLines, previewLineIndex)
+        }
     }
 
     private fun updateSlidersFromLine(widget: Table) {

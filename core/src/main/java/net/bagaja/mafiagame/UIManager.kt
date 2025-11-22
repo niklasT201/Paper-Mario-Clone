@@ -1338,51 +1338,20 @@ class UIManager(
         wantedStarsContainer.pack()
     }
 
-    fun showWeaponBuyBackUI(wantedSystem: WantedSystem) {
-        val dialog = Dialog("Contraband Recovery", skin, "dialog")
-        dialog.isMovable = true
-
-        val content = Table()
-        val scrollPane = ScrollPane(content, skin)
-        scrollPane.fadeScrollBars = false
-
-        val confiscated = wantedSystem.getterConfiscatedWeapons()
-
-        if (confiscated.isEmpty()) {
-            content.add(Label("No confiscated items to retrieve.", skin)).pad(20f)
-        } else {
-            content.defaults().pad(8f).fillX()
-            for (weaponData in confiscated) {
-                // Find the ItemType to get its value
-                val itemType = ItemType.entries.find { it.correspondingWeapon == weaponData.weaponType }
-                val baseCost = itemType?.value ?: 50 // Use item value with a fallback
-                val cost = baseCost * 5
-
-                val row = Table()
-                if (itemType != null) {
-                    val icon = Image(itemSystem.getTextureForItem(itemType))
-                    row.add(icon).size(40f).padRight(15f)
-                }
-                row.add(Label("${weaponData.weaponType.displayName} (${weaponData.totalAmmo})", skin)).expandX().left()
-
-                val buyButton = TextButton("$$cost", skin)
-                buyButton.addListener(object: ChangeListener() {
-                    override fun changed(event: ChangeEvent?, actor: Actor?) {
-                        if (wantedSystem.buyBackWeapon(weaponData)) {
-                            dialog.hide()
-                            // Re-open the dialog to refresh the list
-                            showWeaponBuyBackUI(wantedSystem)
-                        }
-                    }
-                })
-                row.add(buyButton).width(100f)
-                content.add(row).row()
-            }
+    fun openDialogueEditorForCharacter(character: Any) {
+        val dialogInfo = when (character) {
+            is GameEnemy -> character.standaloneDialog
+            is GameNPC -> character.standaloneDialog
+            else -> null
         }
 
-        dialog.contentTable.add(scrollPane).width(450f).height(300f)
-        dialog.button("Close")
-        dialog.show(stage)
+        if (dialogInfo == null) {
+            showTemporaryMessage("This character has no assigned dialogue.")
+            return
+        }
+
+        // Call the new specialized method
+        dialogueEditorUI.editCharacterInstance(character, dialogInfo)
     }
 
     // Dialog methods stay the same
@@ -1962,12 +1931,6 @@ class UIManager(
             updatedObjective.completionCondition.areaCenter ?: Vector3(),
             updatedObjective.completionCondition.areaRadius ?: 10f
         )
-    }
-
-    fun showEnemyDebugInfo(enemy: GameEnemy) {
-        // Hide other selection UIs to avoid clutter
-        hideAllEditorPanels()
-        enemyDebugUI.show(enemy)
     }
 
     fun toggleMissionEditor() {

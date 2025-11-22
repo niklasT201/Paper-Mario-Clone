@@ -40,6 +40,8 @@ class DialogSystem {
     private lateinit var skin: Skin
     lateinit var itemSystem: ItemSystem
     private var isPreviewMode = false
+    private var isTransactionPending = false
+    private var activeStyleOverrides: Map<Int, LineStyleOverride>? = null
 
     // --- UI Components ---
     private lateinit var mainContainer: Table // This will now be the root container for portrait + dialog box
@@ -178,13 +180,12 @@ class DialogSystem {
         stage.addActor(mainContainer)
     }
 
-    fun startDialog(sequence: DialogSequence, outcome: DialogOutcome? = null) {
-        if (isActive()) {
-            println("Warning: Tried to start a new dialog while one is already active.")
-            return
-        }
+    fun startDialog(sequence: DialogSequence, outcome: DialogOutcome? = null, overrides: Map<Int, LineStyleOverride>? = null) {
+        if (isActive()) return
 
-        // Check if the outcome involves a financial transaction.
+        activeStyleOverrides = overrides // Store them
+
+        // Check if this is a transaction
         isTransactionalDialog = outcome?.type in listOf(
             DialogOutcomeType.SELL_ITEM_TO_PLAYER,
             DialogOutcomeType.BUY_ITEM_FROM_PLAYER,
@@ -211,16 +212,28 @@ class DialogSystem {
         displayCurrentLine()
     }
 
-    fun previewDialog(lines: List<DialogLine>, index: Int) {
+    fun previewDialog(lines: List<DialogLine>, index: Int, outcome: DialogOutcome? = null, overrides: Map<Int, LineStyleOverride>? = null) {
         if (lines.isEmpty() || index < 0 || index >= lines.size) {
             hidePreview()
             return
         }
+
         isPreviewMode = true
-        activeSequence = DialogSequence(lines) // Create a temporary sequence
+        activeSequence = DialogSequence(lines)
+        activeOutcome = outcome // Store the outcome so buttons render!
+        activeStyleOverrides = overrides // Store overrides for live tweaking
+
+        // Important: For preview, we treat it as a transaction if an outcome exists
+        isTransactionalDialog = outcome?.type in listOf(
+            DialogOutcomeType.SELL_ITEM_TO_PLAYER,
+            DialogOutcomeType.BUY_ITEM_FROM_PLAYER,
+            DialogOutcomeType.TRADE_ITEM
+        )
+
         currentLineIndex = index
         mainContainer.isVisible = true
-        mainContainer.color.a = 1f // No fade-in for preview
+        mainContainer.color.a = 1f
+
         displayCurrentLine()
     }
 
@@ -311,8 +324,7 @@ class DialogSystem {
     }
 
     fun handleInput() {
-        // --- MODIFICATION: Don't advance if waiting for a choice ---
-        if (isAwaitingChoice) return
+        if (isAwaitingChoice || isTransactionPending) return // Don't skip if buttons are on screen!
 
         if (isLineComplete) {
             currentLineIndex++
@@ -346,34 +358,28 @@ class DialogSystem {
 
         val isLastLine = currentLineIndex == sequence.lines.size - 1
 
-        // If this is the last line of a transactional dialog, show the player's money.
-        if (isTransactionalDialog && isLastLine && !isPreviewMode) {
-            // We use the uiManager reference to get to the game and then the player's money.
-            uiManager.showMoneyUpdate(uiManager.game.playerSystem.getMoney())
+        // Show Visuals for rewards/costs on the last line
+        if (isLastLine && !isPreviewMode) {
+            activeOutcome?.let { buildOutcomeVisuals(it) }
         }
 
         val line = sequence.lines[currentLineIndex]
-        speakerLabel.setText(line.speaker)
-        textLabel.setText("")
 
-        if (currentLineIndex == sequence.lines.size - 1 && !isPreviewMode) {
-            activeOutcome?.let { buildOutcomeVisuals(it) }
-        }
+        // Check if this character has an override for this specific line index
+        val override = activeStyleOverrides?.get(currentLineIndex)
 
         val defaultWidth = Gdx.graphics.width * 0.7f
         val defaultMinHeight = Gdx.graphics.height * 0.28f
 
-        // 1. Width Override
-        val targetWidth = line.customWidth ?: defaultWidth
-        dialogContentCell.width(targetWidth) // Corrected
+        // Priority: 1. Instance Override -> 2. Base File Setting -> 3. Default
+        val targetWidth = override?.customWidth ?: line.customWidth ?: defaultWidth
+        dialogContentCell.width(targetWidth)
 
-        // 2. Height Override
-        val targetHeight = line.customHeight ?: defaultMinHeight
-        dialogContentCell.minHeight(targetHeight) // Corrected
+        val targetHeight = override?.customHeight ?: line.customHeight ?: defaultMinHeight
+        dialogContentCell.minHeight(targetHeight)
 
-        // 3. Portrait Offset Override
-        val portraitXOffset = line.portraitOffsetX ?: 0f
-        val portraitYOffset = line.portraitOffsetY ?: 0f
+        val portraitXOffset = override?.portraitOffsetX ?: line.portraitOffsetX ?: 0f
+        val portraitYOffset = override?.portraitOffsetY ?: line.portraitOffsetY ?: 0f
 
         // Check the speaker's name and adjust BOTH the portrait width AND the layout padding.
         if (line.speaker.equals("Player", ignoreCase = true)) {
@@ -390,14 +396,44 @@ class DialogSystem {
         }
 
         choicesContainer.clear() // Clear old buttons
+        isTransactionPending = false // Reset state
+        isAwaitingChoice = false
 
-        if (line.choices.isNullOrEmpty()) {
-            isAwaitingChoice = false
-            textLabelCell.padBottom(0f)
-        } else {
+        // If this is the last line AND it is a transaction, we hijack the choices
+        if (isLastLine && isTransactionalDialog) {
+            isTransactionPending = true
+            continuePrompt.isVisible = false
+            textLabelCell.padBottom(20f)
+
+            // 1. Create "Deal" Button
+            val dealButton = TextButton("Deal", skin)
+            dealButton.color = Color.GREEN
+            dealButton.addListener(object : ChangeListener() {
+                override fun changed(event: ChangeEvent?, actor: Actor?) {
+                    endDialog(success = true) // Proceed to onComplete
+                }
+            })
+
+            // 2. Create "Nevermind" Button
+            val cancelButton = TextButton("Nevermind", skin)
+            cancelButton.color = Color.RED
+            cancelButton.addListener(object : ChangeListener() {
+                override fun changed(event: ChangeEvent?, actor: Actor?) {
+                    isCancelled = true
+                    endDialog(success = false) // Do NOT call onComplete
+                }
+            })
+
+            choicesContainer.addActor(dealButton)
+            choicesContainer.addActor(cancelButton)
+
+            // Show player money context
+            uiManager.showMoneyUpdate(uiManager.game.playerSystem.getMoney())
+
+        }
+        else if (!line.choices.isNullOrEmpty()) {
             isAwaitingChoice = true
-            continuePrompt.isVisible = false // Hide the '▼' prompt when choices are shown
-            continuePrompt.clearActions()
+            continuePrompt.isVisible = false
             textLabelCell.padBottom(20f)
 
             line.choices.forEach { choice ->
@@ -411,9 +447,12 @@ class DialogSystem {
                 choicesContainer.addActor(button)
             }
         }
-        mainContainer.invalidate() // Tell the layout to recalculate itself with the new padding
+        else {
+            isAwaitingChoice = false
+            textLabelCell.padBottom(0f)
+        }
 
-        // Update the speaker portrait
+        mainContainer.invalidate()
         updateSpeakerPortrait(line.speakerTexturePath)
     }
 
@@ -483,16 +522,14 @@ class DialogSystem {
         ))
     }
 
-    private fun endDialog() {
+    private fun endDialog(success: Boolean = true) {
         val sequence = activeSequence ?: return
         mainContainer.addAction(Actions.sequence(
             Actions.fadeOut(0.3f, Interpolation.fade),
             Actions.run {
                 mainContainer.isVisible = false
 
-                // --- ADD THIS CHECK ---
-                // Only call onComplete if the dialog wasn't cancelled by the user.
-                if (!isCancelled) {
+                if (success && !isCancelled) {
                     sequence.onComplete?.invoke()
                 }
 
@@ -501,7 +538,9 @@ class DialogSystem {
                 activeOutcome = null
                 currentLineIndex = 0
                 isLineComplete = false
-                isCancelled = false // Reset for the next dialog
+                isCancelled = false
+                isTransactionPending = false
+                isTransactionalDialog = false
             }
         ))
     }

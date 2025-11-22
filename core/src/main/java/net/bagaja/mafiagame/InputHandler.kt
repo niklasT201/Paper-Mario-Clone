@@ -274,6 +274,20 @@ class InputHandler(
                             // Try to remove a block. If successful, consume the event.
                             val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
 
+                            if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT)) {
+                                val hitEnemy = enemySystem.raycastSystem.getEnemyAtRay(ray, sceneManager.activeEnemies)
+                                if (hitEnemy != null) {
+                                    uiManager.openDialogueEditorForCharacter(hitEnemy)
+                                    return true
+                                }
+
+                                val hitNpc = npcSystem.raycastSystem.getNPCAtRay(ray, sceneManager.activeNPCs)
+                                if (hitNpc != null) {
+                                    uiManager.openDialogueEditorForCharacter(hitNpc)
+                                    return true
+                                }
+                            }
+
                             // 1. Raycast for an emitter just ONCE using its position property.
                             val hitEmitter = audioEmitterSystem.activeEmitters.find { emitter ->
                                 // Create a temporary bounding box in world space for the check
