@@ -516,12 +516,10 @@ class MafiaGame : ApplicationAdapter() {
                     else -> true
                 }
 
-                // Execute logic (Give items, take money, etc)
                 if (shouldGiveReward) {
                     executeDialogOutcome(character, dialogInfo.outcome)
                 }
 
-                // Handle Post-Dialog behavior (Despawn, Mark complete, etc)
                 when (dialogInfo.postBehavior) {
                     PostDialogBehavior.REPEATABLE -> { /* Do nothing */ }
                     PostDialogBehavior.REPEATABLE_NO_REWARD,
@@ -547,8 +545,13 @@ class MafiaGame : ApplicationAdapter() {
             }
         )
 
-        // 4. Start the system
-        uiManager.dialogSystem.startDialog(sequenceWithCallback, dialogInfo.outcome)
+        // --- THE FIX IS HERE ---
+        // We must explicitly pass the styleOverrides map to the system.
+        uiManager.dialogSystem.startDialog(
+            sequence = sequenceWithCallback,
+            outcome = dialogInfo.outcome,
+            overrides = dialogInfo.styleOverrides // <--- ADD THIS ARGUMENT
+        )
     }
 
     private fun executeDialogOutcome(character: Any?, outcome: DialogOutcome) {

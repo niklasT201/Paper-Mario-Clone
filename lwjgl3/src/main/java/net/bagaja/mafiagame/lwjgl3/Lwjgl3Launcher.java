@@ -114,7 +114,6 @@ public class Lwjgl3Launcher {
 // visual screen for finished mission
 // bullet holes disappear when breaking blocks with them
 // money label showing up at rewards
-// overhaul of the reward dialog
 // nickelodeons having real short films
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
 // characters change behaviour in rain

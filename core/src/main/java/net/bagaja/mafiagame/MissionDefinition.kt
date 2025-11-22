@@ -46,7 +46,7 @@ data class StandaloneDialog(
     var outcome: DialogOutcome = DialogOutcome(),
     var postBehavior: PostDialogBehavior = PostDialogBehavior.REPEATABLE,
     var alternativeDialogId: String? = null,
-    var styleOverrides: MutableMap<Int, LineStyleOverride> = mutableMapOf()
+    var styleOverrides: MutableMap<String, LineStyleOverride> = mutableMapOf()
 ) {
     fun isInteractive(): Boolean {
         return outcome.type != DialogOutcomeType.NONE

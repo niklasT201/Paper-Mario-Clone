@@ -889,28 +889,28 @@ class DialogueEditorUI(
         // 3. Save Data & Refresh Preview
         if (editingInstance != null) {
             // --- INSTANCE MODE ---
-            // We are editing a specific NPC's overrides, not the base file.
 
             if (syncSettingsCheckbox.isChecked) {
-                // Apply to ALL lines in the override map
+                // Apply to ALL lines
                 for (i in currentPreviewLines.indices) {
-                    val override = editingInstance!!.styleOverrides.getOrPut(i) { LineStyleOverride() }
+                    // CHANGE: i -> i.toString()
+                    val override = editingInstance!!.styleOverrides.getOrPut(i.toString()) { LineStyleOverride() }
                     override.customWidth = newWidth
                     override.customHeight = newHeight
                     override.portraitOffsetX = newX
                     override.portraitOffsetY = newY
                 }
             } else {
-                // Apply to CURRENT line in the override map
-                val override = editingInstance!!.styleOverrides.getOrPut(previewLineIndex) { LineStyleOverride() }
+                // Apply to CURRENT line
+                // CHANGE: previewLineIndex -> previewLineIndex.toString()
+                val override = editingInstance!!.styleOverrides.getOrPut(previewLineIndex.toString()) { LineStyleOverride() }
                 override.customWidth = newWidth
                 override.customHeight = newHeight
                 override.portraitOffsetX = newX
                 override.portraitOffsetY = newY
             }
 
-            // Refresh the preview using the DialogSystem
-            // IMPORTANT: We pass the 'outcome' so buttons appear, and 'styleOverrides' so visual tweaks apply
+            // Refresh Preview
             uiManager.dialogSystem.previewDialog(
                 currentPreviewLines,
                 previewLineIndex,

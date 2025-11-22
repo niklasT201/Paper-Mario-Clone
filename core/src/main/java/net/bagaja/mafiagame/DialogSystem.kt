@@ -41,7 +41,7 @@ class DialogSystem {
     lateinit var itemSystem: ItemSystem
     private var isPreviewMode = false
     private var isTransactionPending = false
-    private var activeStyleOverrides: Map<Int, LineStyleOverride>? = null
+    private var activeStyleOverrides: Map<String, LineStyleOverride>? = null
 
     // --- UI Components ---
     private lateinit var mainContainer: Table // This will now be the root container for portrait + dialog box
@@ -181,7 +181,7 @@ class DialogSystem {
         stage.addActor(mainContainer)
     }
 
-    fun startDialog(sequence: DialogSequence, outcome: DialogOutcome? = null, overrides: Map<Int, LineStyleOverride>? = null) {
+    fun startDialog(sequence: DialogSequence, outcome: DialogOutcome? = null, overrides: Map<String, LineStyleOverride>? = null) {
         if (isActive()) return
 
         activeStyleOverrides = overrides // Store them
@@ -213,7 +213,7 @@ class DialogSystem {
         displayCurrentLine()
     }
 
-    fun previewDialog(lines: List<DialogLine>, index: Int, outcome: DialogOutcome? = null, overrides: Map<Int, LineStyleOverride>? = null) {
+    fun previewDialog(lines: List<DialogLine>, index: Int, outcome: DialogOutcome? = null, overrides: Map<String, LineStyleOverride>? = null) {
         if (lines.isEmpty() || index < 0 || index >= lines.size) {
             hidePreview()
             return
@@ -377,7 +377,7 @@ class DialogSystem {
         textLabel.setText("")
 
         // Check if this character has an override for this specific line index
-        val override = activeStyleOverrides?.get(currentLineIndex)
+        val override = activeStyleOverrides?.get(currentLineIndex.toString())
 
         val defaultWidth = Gdx.graphics.width * 0.7f
         val defaultMinHeight = Gdx.graphics.height * 0.28f
