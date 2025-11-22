@@ -44,6 +44,11 @@ class DialogueEditorUI(
     private var heightInput: TextField
     private var portraitXInput: TextField
     private var portraitYInput: TextField
+    private lateinit var camDistSlider: Slider
+    private lateinit var camDistInput: TextField
+
+    private lateinit var camHeightSlider: Slider
+    private lateinit var camHeightInput: TextField
 
     private var syncSettingsCheckbox: CheckBox
     private var applyPresetButton: TextButton
@@ -187,6 +192,23 @@ class DialogueEditorUI(
         controllerContent.add(portraitYSlider).growX().padRight(5f)
         controllerContent.add(portraitYInput).width(70f).row()
 
+        camDistSlider = Slider(2f, 40f, 0.5f, false, skin)
+        camDistInput = TextField("", skin).apply { alignment = Align.center; messageText = "Def" }
+
+        camHeightSlider = Slider(0f, 20f, 0.5f, false, skin)
+        camHeightInput = TextField("", skin).apply { alignment = Align.center; messageText = "Def" }
+
+        // Add Camera Distance Row
+        controllerContent.add(Label("Cam Dist:", skin)).left()
+        controllerContent.add(camDistSlider).growX().padRight(5f)
+        controllerContent.add(camDistInput).width(70f).row()
+
+        // Add Camera Height Row
+        controllerContent.add(Label("Cam Height:", skin)).left()
+        controllerContent.add(camHeightSlider).growX().padRight(5f)
+        controllerContent.add(camHeightInput).width(70f).row()
+
+
         // 6. Options Row
         val optionsTable = Table()
         syncSettingsCheckbox = CheckBox(" Sync settings for all lines", skin)
@@ -309,6 +331,9 @@ class DialogueEditorUI(
         setupDualControl(heightSlider, heightInput)
         setupDualControl(portraitXSlider, portraitXInput)
         setupDualControl(portraitYSlider, portraitYInput)
+
+        setupDualControl(camDistSlider, camDistInput)
+        setupDualControl(camHeightSlider, camHeightInput)
 
         // Preset Button Logic
         applyPresetButton.addListener(object: ChangeListener() {
@@ -887,27 +912,29 @@ class DialogueEditorUI(
         }
 
         // 3. Save Data & Refresh Preview
+        val camDist = camDistInput.text.toFloatOrNull()
+        val camHeight = camHeightInput.text.toFloatOrNull()
+
         if (editingInstance != null) {
             // --- INSTANCE MODE ---
-
             if (syncSettingsCheckbox.isChecked) {
-                // Apply to ALL lines
                 for (i in currentPreviewLines.indices) {
-                    // CHANGE: i -> i.toString()
                     val override = editingInstance!!.styleOverrides.getOrPut(i.toString()) { LineStyleOverride() }
                     override.customWidth = newWidth
                     override.customHeight = newHeight
                     override.portraitOffsetX = newX
                     override.portraitOffsetY = newY
+                    override.cameraDistance = camDist
+                    override.cameraHeight = camHeight
                 }
             } else {
-                // Apply to CURRENT line
-                // CHANGE: previewLineIndex -> previewLineIndex.toString()
                 val override = editingInstance!!.styleOverrides.getOrPut(previewLineIndex.toString()) { LineStyleOverride() }
                 override.customWidth = newWidth
                 override.customHeight = newHeight
                 override.portraitOffsetX = newX
                 override.portraitOffsetY = newY
+                override.cameraDistance = camDist
+                override.cameraHeight = camHeight
             }
 
             // Refresh Preview
@@ -964,6 +991,24 @@ class DialogueEditorUI(
         heightInput.text = h.toInt().toString()
         portraitXInput.text = x.toInt().toString()
         portraitYInput.text = y.toInt().toString()
+
+        if (editingInstance != null) {
+            // 1. Get the override for the current line (if it exists)
+            val override = editingInstance!!.styleOverrides[previewLineIndex.toString()]
+
+            // 2. Update Inputs (Empty string means "Default")
+            camDistInput.text = override?.cameraDistance?.toString() ?: ""
+            camHeightInput.text = override?.cameraHeight?.toString() ?: ""
+
+            // 3. Update Sliders (If null, set to min value or a default)
+            camDistSlider.value = override?.cameraDistance ?: 2f
+            camHeightSlider.value = override?.cameraHeight ?: 0f
+
+        } else {
+            // Normal Mode (Camera editing not supported in JSON mode yet)
+            camDistInput.text = ""
+            camHeightInput.text = ""
+        }
 
         isUpdatingSliders = false
     }

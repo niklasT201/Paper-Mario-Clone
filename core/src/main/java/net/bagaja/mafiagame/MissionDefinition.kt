@@ -38,7 +38,9 @@ data class LineStyleOverride(
     var customWidth: Float? = null,
     var customHeight: Float? = null,
     var portraitOffsetX: Float? = null,
-    var portraitOffsetY: Float? = null
+    var portraitOffsetY: Float? = null,
+    var cameraDistance: Float? = null, // How close? (Lower = Zoom in)
+    var cameraHeight: Float? = null    // How high? (Lower = Eye level)
 )
 
 data class StandaloneDialog(

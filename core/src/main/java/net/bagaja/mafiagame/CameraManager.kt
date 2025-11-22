@@ -128,6 +128,8 @@ class CameraManager {
 
     // State to track what we are following
     private var isFollowingCar = false
+    var dialogueDistanceOverride: Float? = null
+    var dialogueHeightOverride: Float? = null
 
     fun stopShake() {
         cameraShake.reset()
@@ -343,16 +345,20 @@ class CameraManager {
     }
 
     private fun calculatePlayerCameraTarget() {
-        // Calculate the target position for Paper Mario style camera
-        val distance = if (isFollowingCar) carCameraDistance else playerCameraDistance
-        val height = if (isFollowingCar) carCameraHeight else playerCameraHeight
+        // NEW: Determine effective distance/height
+        // If an override exists, use it. Otherwise use the standard gameplay settings.
+        val distance = dialogueDistanceOverride ?: (if (isFollowingCar) carCameraDistance else playerCameraDistance)
+        val height = dialogueHeightOverride ?: (if (isFollowingCar) carCameraHeight else playerCameraHeight)
 
         // Calculate the target position for the camera
         val angleRadians = Math.toRadians(playerCameraAngle.toDouble())
+
+        // Use the local 'distance' variable here
         val offsetX = (cos(angleRadians) * distance).toFloat()
         val offsetZ = (sin(angleRadians) * distance).toFloat()
 
         // Target camera position relative to the followed entity
+        // Use the local 'height' variable here
         targetPlayerCameraPosition.set(
             playerPosition.x + offsetX,
             playerPosition.y + height,

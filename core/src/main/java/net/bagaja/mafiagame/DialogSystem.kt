@@ -406,6 +406,9 @@ class DialogSystem {
             speakerPortraitImage.setScaling(Scaling.fit)
         }
 
+        uiManager.game.cameraManager.dialogueDistanceOverride = override?.cameraDistance
+        uiManager.game.cameraManager.dialogueHeightOverride = override?.cameraHeight
+
         choicesContainer.clear() // Clear old buttons
         isTransactionPending = false // Reset state
         isAwaitingChoice = false
@@ -543,6 +546,9 @@ class DialogSystem {
                 if (success && !isCancelled) {
                     sequence.onComplete?.invoke()
                 }
+
+                uiManager.game.cameraManager.dialogueDistanceOverride = null
+                uiManager.game.cameraManager.dialogueHeightOverride = null
 
                 // Reset state
                 activeSequence = null
