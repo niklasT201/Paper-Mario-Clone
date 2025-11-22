@@ -498,7 +498,7 @@ class MafiaGame : ApplicationAdapter() {
         }
 
         // 2. Load the sequence
-        val dialogSequence = dialogueManager.getDialogue(dialogIdToUse)
+        val dialogSequence = dialogIdToUse?.let { dialogueManager.getDialogue(it) }
         if (dialogSequence == null) {
             println("ERROR: Character has standalone dialog '$dialogIdToUse', but it was not found.")
             return

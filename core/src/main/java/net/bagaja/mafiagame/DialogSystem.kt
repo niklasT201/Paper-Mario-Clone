@@ -55,6 +55,7 @@ class DialogSystem {
     private lateinit var textLabel: Label
     private lateinit var textLabelCell: Cell<Label>
     private lateinit var continuePrompt: Label
+    private lateinit var speakerTable: Table
 
     // --- State Management ---
     private var activeSequence: DialogSequence? = null
@@ -132,7 +133,7 @@ class DialogSystem {
         val speakerBackground = TextureRegionDrawable(Texture(speakerBackgroundPixmap))
         speakerBackgroundPixmap.dispose()
 
-        val speakerTable = Table()
+        speakerTable = Table()
         speakerTable.background = speakerBackground
         speakerLabel = Label("", skin, "title")
         speakerLabel.color = Color.BLACK
@@ -364,6 +365,16 @@ class DialogSystem {
         }
 
         val line = sequence.lines[currentLineIndex]
+        speakerLabel.setText(line.speaker)
+
+        // Hide the beige box if no speaker name exists
+        if (line.speaker.isBlank()) {
+            speakerTable.isVisible = false
+        } else {
+            speakerTable.isVisible = true
+        }
+
+        textLabel.setText("")
 
         // Check if this character has an override for this specific line index
         val override = activeStyleOverrides?.get(currentLineIndex)

@@ -42,12 +42,11 @@ data class LineStyleOverride(
 )
 
 data class StandaloneDialog(
-    val dialogId: String,
-    val outcome: DialogOutcome = DialogOutcome(),
-    val postBehavior: PostDialogBehavior = PostDialogBehavior.REPEATABLE,
-    val alternativeDialogId: String? = null,
-    // NEW: Store overrides map. Key = Line Index, Value = Visual Settings
-    val styleOverrides: MutableMap<Int, LineStyleOverride> = mutableMapOf()
+    var dialogId: String = "", // Default to empty string
+    var outcome: DialogOutcome = DialogOutcome(),
+    var postBehavior: PostDialogBehavior = PostDialogBehavior.REPEATABLE,
+    var alternativeDialogId: String? = null,
+    var styleOverrides: MutableMap<Int, LineStyleOverride> = mutableMapOf()
 ) {
     fun isInteractive(): Boolean {
         return outcome.type != DialogOutcomeType.NONE
