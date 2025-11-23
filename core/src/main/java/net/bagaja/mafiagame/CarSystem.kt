@@ -677,6 +677,13 @@ data class GameCar(
         return bounds
     }
 
+    fun forceRotationSync(rotation: Float) {
+        this.visualRotationY = rotation
+        this.targetRotationY = rotation
+        // Sync the input memory so it doesn't try to flip immediately on first move
+        this.lastHorizontalDirection = if (rotation == 180f) -1f else 1f
+    }
+
     fun updateAIControlled(deltaTime: Float, desiredMovement: Vector3, sceneManager: SceneManager, allCars: com.badlogic.gdx.utils.Array<GameCar>) {
         if (isDestroyed) {
             // Ensure headlight turns off if car is destroyed

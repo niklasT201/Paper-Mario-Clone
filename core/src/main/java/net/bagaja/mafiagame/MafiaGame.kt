@@ -545,12 +545,11 @@ class MafiaGame : ApplicationAdapter() {
             }
         )
 
-        // --- THE FIX IS HERE ---
         // We must explicitly pass the styleOverrides map to the system.
         uiManager.dialogSystem.startDialog(
             sequence = sequenceWithCallback,
             outcome = dialogInfo.outcome,
-            overrides = dialogInfo.styleOverrides // <--- ADD THIS ARGUMENT
+            overrides = dialogInfo.styleOverrides
         )
     }
 

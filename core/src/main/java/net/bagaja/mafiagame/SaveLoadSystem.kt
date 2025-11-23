@@ -180,9 +180,19 @@ class SaveLoadSystem(private val game: MafiaGame) {
             }
             sm.activeEntryPoints.forEach { ep -> world.entryPoints.add(EntryPointData(ep.id, ep.houseId, ep.position)) } // Entry points are not mission-only
 
+            // 1. Collect IDs
             val carLightIds = sm.activeCars.mapNotNull { it.headlightLight?.id }
+            val fireLightIds = game.fireSystem.activeFires.mapNotNull { it.gameObject.associatedLightId }
+            val objectLightIds = sm.activeObjects.mapNotNull { it.associatedLightId }
+            val ignoreLightIds = carLightIds + fireLightIds + objectLightIds
+
+            // 4. Save ONLY standalone lights (placed via Editor)
             game.lightingManager.getLightSources().values
-                .filter { it.missionId == null && !carLightIds.contains(it.id) }
+                .filter {
+                    it.missionId == null &&         // Don't save mission-specific lights
+                        !ignoreLightIds.contains(it.id) &&
+                        (it.flickerMode != FlickerMode.TIMED_FLICKER_OFF || it.timedFlickerLifetime > 1.0f)
+                }
                 .forEach { l ->
                     world.lights.add(LightData(
                         l.id, l.position, l.color, l.intensity, l.range,
@@ -423,7 +433,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     car.wreckedTimer = data.wreckedTimer
                     car.fadeOutTimer = data.fadeOutTimer
                     car.areHeadlightsOn = data.areHeadlightsOn
-                    // car.visualRotationY is now set during creation
+                    car.forceRotationSync(data.visualRotationY)
+
                     car.assignedLockedSoundId = data.assignedLockedSoundId
                     car.assignedOpenSoundId = data.assignedOpenSoundId
                     car.assignedCloseSoundId = data.assignedCloseSoundId
@@ -431,7 +442,6 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     data.driverId?.let { driverId ->
                         enemyMap[driverId]?.enterCar(car) ?: npcMap[driverId]?.enterCar(car)
                     }
-                    sm.activeCars.add(car)
                 }
             }
             state.worldState.items.forEach { data -> game.itemSystem.createItem(data.position, data.itemType)?.let {
@@ -726,56 +736,73 @@ class SaveLoadSystem(private val game: MafiaGame) {
             return false
         }
         if (!editorFile.exists()) {
-            println("Editor master file does not exist. Cannot check for updates.")
-            // Proceed with normal load
+            // If no editor file, just load the player file directly
             return loadGame(fileName)
         }
 
-        // Check if the editor file has been modified more recently than the player file
-        if (editorFile.lastModified() > playerFile.lastModified()) {
-            println("World update detected! Merging world data from '${editorFile.name()}' into '${playerFile.name()}'.")
-            try {
-                // 1. Load the player's current progress
-                val playerStateData = json.fromJson(GameSaveState::class.java, playerFile)
-                val playerProgress = playerStateData.playerState
-                val missionProgress = playerStateData.missionState
+        println("Merging Player Progress with World Map...")
 
-                // 2. Load the new world data from the editor file
-                val masterStateData = json.fromJson(GameSaveState::class.java, editorFile)
-                val newWorld = masterStateData.worldState
-                val newCarPaths = masterStateData.carPathState
-                val newCharPaths = masterStateData.characterPathState
+        try {
+            // 1. Load the player's current progress
+            val playerSave = json.fromJson(GameSaveState::class.java, playerFile)
+            val playerWorld = playerSave.worldState
 
-                // Check if the player's old position is still valid in the new world.
-                // This is a simplified check. A real game might need more complex validation.
-                val playerOldPos = playerProgress.position
-                val blockAtOldPos = newWorld.blocks.find { b -> b.position.dst(playerOldPos) < game.blockSize / 2f }
-                if (blockAtOldPos != null && blockAtOldPos.blockType.hasCollision) {
-                    println("WARNING: Player's saved position is now inside a solid block in the new world. Resetting player to default spawn.")
-                    playerProgress.position.set(9f, 2f, 9f) // Reset to a known safe spot
-                }
+            // 2. Load the master world geometry from the editor file
+            val masterSave = json.fromJson(GameSaveState::class.java, editorFile)
+            val masterWorld = masterSave.worldState
+            val masterCarPaths = masterSave.carPathState
+            val masterCharPaths = masterSave.characterPathState
 
-                // 3. Create a new, merged state
-                val mergedState = GameSaveState(
-                    playerState = playerProgress,
-                    missionState = missionProgress,
-                    worldState = newWorld,
-                    carPathState = newCarPaths,
-                    characterPathState = newCharPaths
-                )
+            // 3. Create a MERGED World State
+            val mergedWorld = WorldStateData()
 
-                // 4. Overwrite the player's save file with the merged data
-                playerFile.writeString(json.prettyPrint(mergedState), false)
-                println("Merge complete. Player progress has been preserved with the updated world.")
+            // --- STATIC GEOMETRY (From Editor/Master File) ---
+            mergedWorld.blocks = masterWorld.blocks
+            mergedWorld.houses = masterWorld.houses
+            mergedWorld.backgrounds = masterWorld.backgrounds
+            mergedWorld.parallaxImages = masterWorld.parallaxImages
+            mergedWorld.entryPoints = masterWorld.entryPoints
+            mergedWorld.teleporters = masterWorld.teleporters
+            mergedWorld.spawners = masterWorld.spawners // Spawners are usually static logic
+            mergedWorld.audioEmitters = masterWorld.audioEmitters
 
-            } catch (e: Exception) {
-                println("--- ERROR during world update merge: ${e.message} ---"); e.printStackTrace()
-                // If merge fails, try to load the old save anyway.
-                return loadGame(fileName)
+            // --- DYNAMIC ENTITIES (From Player Save File) ---
+            mergedWorld.cars = playerWorld.cars         // Fixes the car duplication
+            mergedWorld.enemies = playerWorld.enemies   // Fixes enemies respawning/duping
+            mergedWorld.npcs = playerWorld.npcs         // Fixes NPCs duping
+            mergedWorld.items = playerWorld.items       // Keeps collected items gone
+            mergedWorld.objects = playerWorld.objects   // Keeps destroyed objects destroyed
+            mergedWorld.fires = playerWorld.fires
+            mergedWorld.lights = playerWorld.lights     // Keeps logic for standalone lights
+
+            // Note: Safety check for player position inside new geometry
+            val playerOldPos = playerSave.playerState.position
+            val blockAtOldPos = mergedWorld.blocks.find { b -> b.position.dst(playerOldPos) < game.blockSize / 2f }
+            if (blockAtOldPos != null && blockAtOldPos.blockType.hasCollision) {
+                println("WARNING: Player's saved position is inside a new block. Resetting to spawn.")
+                playerSave.playerState.position.set(9f, 2f, 9f)
             }
+
+            // 4. Construct the final merged state
+            val mergedState = GameSaveState(
+                playerState = playerSave.playerState,
+                missionState = playerSave.missionState,
+                worldState = mergedWorld,       // Use our manually mixed world
+                carPathState = masterCarPaths,  // Paths update with the map
+                characterPathState = masterCharPaths // Paths update with the map
+            )
+
+            // 5. Overwrite the player's save file with the clean, merged data
+            playerFile.writeString(json.prettyPrint(mergedState), false)
+            println("Merge complete. Dynamic entities preserved, Map geometry updated.")
+
+        } catch (e: Exception) {
+            println("--- ERROR during world update merge: ${e.message} ---"); e.printStackTrace()
+            // If merge fails, just try to load what we have
+            return loadGame(fileName)
         }
 
-        // Now, load the (potentially newly merged) save file.
+        // Now load the file we just cleaned up
         return loadGame(fileName)
     }
 }
