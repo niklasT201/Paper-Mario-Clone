@@ -448,6 +448,135 @@ class MafiaGame : ApplicationAdapter() {
         lightingManager.initialize()
     }
 
+    private fun fmtKey(key: String): String {
+        // Color format: [HEX_COLOR]Text[]
+        return "[#F4D03F][$key][]" // A nice Gold/Yellow color
+    }
+
+    private fun updateInteractionPrompts() {
+        // Don't show prompts if paused, dead, or in editor menus
+        if (uiManager.isGamePaused() || playerSystem.isDead()) {
+            uiManager.hideInteractionPrompt()
+            return
+        }
+
+        // 1. Handle Driving Case
+        if (playerSystem.isDriving) {
+            uiManager.showInteractionPrompt("Press ${fmtKey("E")} to Exit Vehicle")
+            return
+        }
+
+        val playerPos = playerSystem.getPosition()
+        var foundInteraction = false
+        var closestDistance = Float.MAX_VALUE
+        var promptText = ""
+
+        // Helper to update best candidate
+        fun checkCandidate(dist: Float, text: String) {
+            if (dist < closestDistance) {
+                closestDistance = dist
+                promptText = text
+                foundInteraction = true
+            }
+        }
+
+        // 2. Check Teleporters
+        val closestTeleporter = teleporterSystem.findClosestTeleporter(playerPos, 3f)
+        if (closestTeleporter != null) {
+            checkCandidate(playerPos.dst(closestTeleporter.gameObject.position), "Press ${fmtKey("E")} to Use ${closestTeleporter.name}")
+        }
+
+        // 3. Check Cars
+        val closestCar = sceneManager.activeCars.minByOrNull { it.position.dst2(playerPos) }
+        if (closestCar != null) {
+            val dist = playerPos.dst(closestCar.position)
+
+            // Check modifiers to see if cars are globally unlocked
+            val modifiers = sceneManager.game.missionSystem.activeModifiers
+            val isActuallyLocked = closestCar.isLocked && modifiers?.allCarsUnlocked != true
+
+            // CHANGE: Only show prompt if unlocked OR occupied (carjackable)
+            val isOccupied = closestCar.seats.firstOrNull()?.occupant != null
+
+            if (dist < 8f) {
+                if (isOccupied) {
+                    // Carjacking is always an option, even if "locked" (you break in)
+                    checkCandidate(dist, "Press ${fmtKey("E")} to Carjack")
+                } else if (!isActuallyLocked) {
+                    // Only show "Drive" if it's unlocked
+                    checkCandidate(dist, "Press ${fmtKey("E")} to Drive")
+                }
+            }
+        }
+
+        // 4. Check NPCs
+        val closestNpc = sceneManager.activeNPCs.minByOrNull { it.position.dst2(playerPos) }
+        if (closestNpc != null) {
+            val dist = playerPos.dst(closestNpc.position)
+            if (dist < 5f) {
+                // Check if they have something to say or give
+                val hasMission = triggerSystem.findMissionForNpc(closestNpc.id) != null
+                val hasDialog = closestNpc.standaloneDialog != null &&
+                    (!closestNpc.standaloneDialogCompleted || closestNpc.standaloneDialog!!.postBehavior == PostDialogBehavior.REPEATABLE_NO_REWARD)
+
+                if (hasMission || hasDialog) {
+                    checkCandidate(dist, "Press ${fmtKey("E")} to Talk")
+                }
+            }
+        }
+
+        // 5. Check Enemies (Non-hostile interactions)
+        val closestEnemy = sceneManager.activeEnemies.minByOrNull { it.position.dst2(playerPos) }
+        if (closestEnemy != null) {
+            val dist = playerPos.dst(closestEnemy.position)
+            if (dist < 5f && closestEnemy.currentState == AIState.IDLE) {
+                val hasDialog = closestEnemy.standaloneDialog != null &&
+                    (!closestEnemy.standaloneDialogCompleted || closestEnemy.standaloneDialog!!.postBehavior == PostDialogBehavior.REPEATABLE_NO_REWARD)
+
+                if (hasDialog) {
+                    checkCandidate(dist, "Press ${fmtKey("E")} to Talk")
+                }
+            }
+        }
+
+        // 6. Check Houses (World Scene Only)
+        if (sceneManager.currentScene == SceneType.WORLD) {
+            val closestHouse = sceneManager.activeHouses.minByOrNull { it.position.dst2(playerPos) }
+            if (closestHouse != null) {
+                // Calculate entry point distance
+                val entryPos = if (closestHouse.entryPointId != null) {
+                    sceneManager.activeEntryPoints.find { it.id == closestHouse.entryPointId }?.position ?: closestHouse.position
+                } else {
+                    closestHouse.position.cpy().add(closestHouse.houseType.doorOffset)
+                }
+
+                val dist = playerPos.dst(entryPos)
+
+                if (dist < 6f && closestHouse.houseType.canHaveRoom && !closestHouse.isLocked) {
+                    checkCandidate(dist, "Press ${fmtKey("E")} to Enter")
+                }
+            }
+        }
+
+        // 7. Check Interior Exit (Interior Scene Only)
+        if (sceneManager.currentScene == SceneType.HOUSE_INTERIOR) {
+            val house = sceneManager.getCurrentHouse()
+            if (house?.exitDoorId != null) {
+                val exitDoor = sceneManager.activeInteriors.find { it.id == house.exitDoorId }
+                if (exitDoor != null && isPlayerNearDoor(playerPos, exitDoor)) {
+                    checkCandidate(0f, "Press ${fmtKey("E")} to Exit")
+                }
+            }
+        }
+
+        // Final Update
+        if (foundInteraction) {
+            uiManager.showInteractionPrompt(promptText)
+        } else {
+            uiManager.hideInteractionPrompt()
+        }
+    }
+
     private fun handlePlayerInput() {
         val deltaTime = Gdx.graphics.deltaTime
 
@@ -1220,6 +1349,7 @@ class MafiaGame : ApplicationAdapter() {
                     itemSystem.update(deltaTime, cameraManager.camera, playerSystem, sceneManager)
 
                     sceneManager.activeChunkManager.processDirtyChunks()
+                    updateInteractionPrompts()
                 }
 
                 // Update highlight system

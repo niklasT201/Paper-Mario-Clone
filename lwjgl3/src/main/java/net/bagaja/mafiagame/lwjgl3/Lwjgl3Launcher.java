@@ -91,6 +91,8 @@ public class Lwjgl3Launcher {
 
 // edge houses
 // ambience steps pausing between loop
+// settings ui for keys
+// interaction label disappearing after 5 seconds
 // whosh sound for melee weapons
 // update melee images
 // police spawning less in poor areas

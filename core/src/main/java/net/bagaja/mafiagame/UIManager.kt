@@ -159,6 +159,7 @@ class UIManager(
     private lateinit var leaveCarTimerLabel: Label
     private lateinit var returnToAreaTimerLabel: Label
     private lateinit var enemiesLeftLabel: Label
+    private lateinit var interactionPromptLabel: Label
     private var isTimerInDelayPhase = false
 
     private lateinit var notificationPatch: NinePatch
@@ -227,6 +228,7 @@ class UIManager(
         createStartMenu()
         createLoadGameScreen()
         setupLoadingScreen()
+        setupInteractionPrompt()
         setupMessageLabels()
         setupMissionNotification()
         setupLetterboxUI()
@@ -1030,6 +1032,41 @@ class UIManager(
                 element.actor.color.a = 1f
             }
             refreshDynamicHudTable() // Rebuild the table layout!
+        }
+    }
+
+    private fun setupInteractionPrompt() {
+        interactionPromptLabel = Label("", skin, "title") // Use "title" for larger text, or "default"
+        interactionPromptLabel.style.font.data.markupEnabled = true // ENABLE COLOR CODES
+        interactionPromptLabel.setAlignment(Align.center)
+        interactionPromptLabel.isVisible = false
+
+        // Create a container to position it
+        val container = Table()
+        container.setFillParent(true)
+        container.bottom().padBottom(140f) // Position it above the HUD/Hotbar area
+        container.add(interactionPromptLabel)
+
+        stage.addActor(container)
+    }
+
+    fun showInteractionPrompt(text: String) {
+        // Only update if text changed or it was hidden, to save performance
+        if (!interactionPromptLabel.isVisible || interactionPromptLabel.text.toString() != text) {
+            interactionPromptLabel.setText(text)
+            interactionPromptLabel.isVisible = true
+
+            // clear old animations and add a subtle "pop in"
+            interactionPromptLabel.clearActions()
+            interactionPromptLabel.color.a = 0f
+            interactionPromptLabel.addAction(Actions.fadeIn(0.15f))
+        }
+    }
+
+    fun hideInteractionPrompt() {
+        if (interactionPromptLabel.isVisible) {
+            interactionPromptLabel.clearActions()
+            interactionPromptLabel.isVisible = false
         }
     }
 
