@@ -141,6 +141,9 @@ class UIManager(
     private lateinit var throwableCountLabelPoster: Label
     private var blinkTimer = 0f
     private lateinit var reloadIndicatorPoster: Label
+    private var interactionPromptTimer = 0f
+    private var lastInteractionText = ""
+    private val INTERACTION_PROMPT_DURATION = 3.0f
 
     // Money Display elements
     private lateinit var moneyStackTexture: Texture
@@ -1051,22 +1054,29 @@ class UIManager(
     }
 
     fun showInteractionPrompt(text: String) {
-        // Only update if text changed or it was hidden, to save performance
-        if (!interactionPromptLabel.isVisible || interactionPromptLabel.text.toString() != text) {
+        // Only update and reset timer if the text CHANGED or if the label isn't visible
+        if (!interactionPromptLabel.isVisible || text != lastInteractionText) {
             interactionPromptLabel.setText(text)
             interactionPromptLabel.isVisible = true
 
-            // clear old animations and add a subtle "pop in"
+            // Play fade-in animation
             interactionPromptLabel.clearActions()
             interactionPromptLabel.color.a = 0f
             interactionPromptLabel.addAction(Actions.fadeIn(0.15f))
+
+            // Reset the timer and update tracking text
+            interactionPromptTimer = INTERACTION_PROMPT_DURATION
+            lastInteractionText = text
         }
+        // If text is the same, we do nothing. The timer in render() will continue to tick down.
     }
 
     fun hideInteractionPrompt() {
         if (interactionPromptLabel.isVisible) {
             interactionPromptLabel.clearActions()
             interactionPromptLabel.isVisible = false
+            // Clear this so if we approach the same object again later, it treats it as new
+            lastInteractionText = ""
         }
     }
 
@@ -2262,9 +2272,25 @@ class UIManager(
             if (::enemyDebugUI.isInitialized) enemyDebugUI.act(Gdx.graphics.deltaTime)
         }
 
-        // --- UI that can update in ANY state (Menu or In-Game) ---
         if (::pauseMenuUI.isInitialized) {
             pauseMenuUI.update(Gdx.graphics.deltaTime)
+        }
+
+        // Update Interaction Timer
+        if (interactionPromptLabel.isVisible) {
+            interactionPromptTimer -= Gdx.graphics.deltaTime
+
+            if (interactionPromptTimer <= 0f) {
+                // Time is up! Fade out the label even if the player is still near.
+                interactionPromptLabel.clearActions()
+                interactionPromptLabel.addAction(Actions.sequence(
+                    Actions.fadeOut(0.5f),
+                    Actions.visible(false),
+                    Actions.run {
+                        // placeholder
+                    }
+                ))
+            }
         }
 
         stage.act(Gdx.graphics.deltaTime)
