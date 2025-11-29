@@ -18,7 +18,7 @@ object UIToolIconFactory {
      * Tool types that can have icons created for them
      */
     enum class ToolType {
-        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE, TRIGGER, AUDIO_EMITTER
+        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE, TRIGGER, AUDIO_EMITTER, AREA
     }
 
     /**
@@ -71,6 +71,7 @@ object UIToolIconFactory {
             ToolType.PARTICLE -> Color(1f, 0.5f, 0.2f, 1f)
             ToolType.TRIGGER -> Color.valueOf("#20B2AA")
             ToolType.AUDIO_EMITTER -> Color.CYAN
+            else -> Color.RED
         }
     }
 
@@ -93,6 +94,7 @@ object UIToolIconFactory {
             ToolType.PARTICLE -> "Particle"
             ToolType.TRIGGER -> "Trigger"
             ToolType.AUDIO_EMITTER -> "Audio"
+            ToolType.AREA -> "Area"
         }
     }
 
@@ -112,6 +114,7 @@ object UIToolIconFactory {
             ToolType.PARTICLE -> Color(1f, 0.5f, 0.2f, 1f)
             ToolType.TRIGGER -> Color.valueOf("#20B2AA")
             ToolType.AUDIO_EMITTER -> Color.CYAN
+            else -> Color.GOLD
         }
     }
 
@@ -134,6 +137,7 @@ object UIToolIconFactory {
             ToolType.PARTICLE -> drawParticleIcon(pixmap, shadowColor, highlightColor)
             ToolType.TRIGGER -> drawTriggerIcon(pixmap, shadowColor, highlightColor)
             ToolType.AUDIO_EMITTER -> drawTriggerIcon(pixmap, shadowColor, highlightColor)
+            else -> drawBlockIcon(pixmap, shadowColor, highlightColor, baseColor)
         }
     }
 

@@ -130,6 +130,15 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     c.customInteractionText
                 ))
             }
+            game.areaSystem.activeAreas.forEach { area ->
+                world.areas.add(AreaData(
+                    id = area.id,
+                    name = area.name,
+                    position = area.position,
+                    width = area.width,
+                    depth = area.depth
+                ))
+            }
             sm.activeEnemies.filter { it.missionId == null }.forEach { e ->
                 world.enemies.add(EnemyData(
                     e.id, e.enemyType, e.behaviorType, e.position, e.health,
@@ -470,6 +479,20 @@ class SaveLoadSystem(private val game: MafiaGame) {
                         enemyMap[driverId]?.enterCar(car) ?: npcMap[driverId]?.enterCar(car)
                     }
                 }
+            }
+            game.areaSystem.activeAreas.clear()
+            state.worldState.areas.forEach { data ->
+                val instance = game.areaSystem.createDebugInstance()
+                val newArea = GameArea(
+                    id = data.id,
+                    name = data.name,
+                    position = data.position,
+                    width = data.width,
+                    depth = data.depth,
+                    debugInstance = instance
+                )
+                newArea.updateDebugVisuals()
+                game.areaSystem.activeAreas.add(newArea)
             }
             state.worldState.items.forEach { data ->
                 game.itemSystem.createItem(data.position, data.itemType)?.let {

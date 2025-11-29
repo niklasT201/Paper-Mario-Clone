@@ -108,6 +108,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var waterPuddleSystem: WaterPuddleSystem
     lateinit var audioEmitterSystem: AudioEmitterSystem
     lateinit var wantedSystem: WantedSystem
+    lateinit var areaSystem: AreaSystem
 
     override fun create() {
         // --- Part 1: Initialize Core Systems ---
@@ -199,6 +200,7 @@ class MafiaGame : ApplicationAdapter() {
         meleeRangeIndicatorSystem = MeleeRangeIndicatorSystem()
         trajectorySystem = TrajectorySystem()
         blockDebugRenderer = BlockDebugRenderer()
+        areaSystem = AreaSystem(this)
 
         missionSystem = MissionSystem(this, dialogueManager)
         triggerSystem = TriggerSystem(this)
@@ -259,6 +261,7 @@ class MafiaGame : ApplicationAdapter() {
         inputHandler.shaderEffectManager = shaderEffectManager
         inputHandler.carPathSystem = carPathSystem
         inputHandler.characterPathSystem = characterPathSystem
+        inputHandler.areaSystem = areaSystem
 
         weatherSystem.lightingManager = this.lightingManager
         weatherSystem.particleSystem = this.particleSystem
@@ -327,6 +330,7 @@ class MafiaGame : ApplicationAdapter() {
         enemySystem.initialize(blockSize, characterPhysicsSystem, pathfindingSystem)
         npcSystem.initialize(blockSize, characterPhysicsSystem)
         roomTemplateManager.initialize()
+        areaSystem.initialize()
         wantedSystem = WantedSystem(sceneManager, playerSystem, enemySystem, uiManager, characterPhysicsSystem, raycastSystem)
         playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem, footprintSystem, characterPhysicsSystem, sceneManager, wantedSystem)
 
@@ -1331,6 +1335,7 @@ class MafiaGame : ApplicationAdapter() {
                     triggerSystem.update()
                     transitionSystem.update(deltaTime)
                     wantedSystem.update(deltaTime)
+                    areaSystem.update(deltaTime)
 
                     // Update lighting manager
                     lightingManager.update(deltaTime, cameraManager.camera.position, timeMultiplier, isInInterior)
@@ -1556,6 +1561,8 @@ class MafiaGame : ApplicationAdapter() {
                     trajectorySystem.render(cameraManager.camera, environment)
                 }
 
+                areaSystem.render(cameraManager.camera)
+
                 modelBatch.end()
 
                 bulletTrailSystem.render(cameraManager.camera, sceneManager.getCurrentSceneId())
@@ -1691,6 +1698,7 @@ class MafiaGame : ApplicationAdapter() {
         if (::characterPathSystem.isInitialized) characterPathSystem.dispose()
         if (::weatherSystem.isInitialized) weatherSystem.dispose()
         if (::decalSystem.isInitialized) decalSystem.dispose()
+        if (::areaSystem.isInitialized) areaSystem.dispose()
 
         // Dispose shader effect manager
         if (::shaderEffectManager.isInitialized) shaderEffectManager.dispose()

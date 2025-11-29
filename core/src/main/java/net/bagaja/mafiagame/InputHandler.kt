@@ -35,6 +35,7 @@ class InputHandler(
     lateinit var shaderEffectManager: ShaderEffectManager
     lateinit var carPathSystem: CarPathSystem
     lateinit var characterPathSystem: CharacterPathSystem
+    lateinit var areaSystem: AreaSystem
 
     private var isRightMousePressed = false
     private var isLeftMousePressed = false
@@ -98,6 +99,22 @@ class InputHandler(
 
             // Handle mouse movement for real-time previews
             override fun mouseMoved(screenX: Int, screenY: Int): Boolean {
+                if (uiManager.selectedTool == Tool.AREA) {
+                    val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+                    val intersection = Vector3()
+                    if (com.badlogic.gdx.math.Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
+                        areaSystem.updatePreviewPosition(intersection)
+
+                        // --- ADD THIS LINE ---
+                        // Update the UI window as the mouse moves the box
+                        uiManager.updateAreaPropertiesValues(
+                            areaSystem.currentPreviewWidth,
+                            areaSystem.currentPreviewDepth,
+                            areaSystem.previewPosition
+                        )
+                    }
+                }
+
                 handleBackgroundPreviewUpdate(screenX, screenY)
                 return false // Don't consume the event, let other things use it if needed
             }
@@ -114,9 +131,10 @@ class InputHandler(
                 }
                  */
 
+                val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+
                 if (uiManager.isPlacingObjectiveArea) {
                     if (button == Input.Buttons.LEFT) {
-                        val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
                         val intersection = Vector3()
                         if (Intersector.intersectRayPlane(ray, groundPlane, intersection)) {
                             val objective = uiManager.objectiveBeingPlaced ?: return true
@@ -143,13 +161,11 @@ class InputHandler(
                         if (game.isEditorMode) {
                             // Check for special entry point placement mode
                             if (uiManager.isPlacingEntryPointMode) {
-                                val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
                                 houseSystem.handleEntryPointPlaceAction(ray, uiManager.houseRequiringEntryPoint!!)
                                 return true // Consume the click
                             }
 
                             isLeftMousePressed = true
-                            val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
                             when (uiManager.selectedTool) {
                                 Tool.BLOCK -> blockSystem.handlePlaceAction(ray)
                                 Tool.PLAYER -> {
@@ -219,6 +235,23 @@ class InputHandler(
                                     return true // Return true as the action is handled.
                                 }
                                 Tool.AUDIO_EMITTER -> audioEmitterSystem.handlePlaceAction(ray)
+                                Tool.AREA -> {
+                                    // If we have a preview, confirm it. If not, start new one.
+                                    if (areaSystem.previewArea != null) {
+                                        areaSystem.confirmPlacement()
+                                        areaSystem.cancelPlacement() // Clear preview
+                                        uiManager.updatePlacementInfo("Area Created")
+                                        // Prompt for next one immediately? Or reset tool?
+                                        // Let's reset to allow movement, user presses N/Tool again to start new one.
+                                    } else {
+                                        // Start creation process
+                                        uiManager.showAreaNameDialog { name ->
+                                            areaSystem.startPlacement(name)
+                                            uiManager.updatePlacementInfo("Scroll to Resize, Click to Place")
+                                        }
+                                    }
+                                    return true
+                                }
                             }
                             // Reset timer and track position for continuous placement
                             continuousActionTimer = 0f
@@ -239,8 +272,6 @@ class InputHandler(
                         }
 
                         if (!game.isEditorMode) {
-                            val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
-
                             if (uiManager.selectedTool == Tool.CAR) {
                                 if (carPathSystem.handleRemoveAction(ray)) {
                                     return true // Consume the click if a node was removed
@@ -272,8 +303,6 @@ class InputHandler(
                         // PRIORITY 2: Handle removal actions in Editor Mode.
                         if (game.isEditorMode) {
                             // Try to remove a block. If successful, consume the event.
-                            val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
-
                             if (Gdx.input.isKeyPressed(Input.Keys.CONTROL_LEFT)) {
                                 val hitEnemy = enemySystem.raycastSystem.getEnemyAtRay(ray, sceneManager.activeEnemies)
                                 if (hitEnemy != null) {
@@ -289,7 +318,6 @@ class InputHandler(
                             }
 
                             if (game.isEditorMode && (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT))) {
-                                val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
 
                                 // Check Objects
                                 val hitObj = game.raycastSystem.getObjectAtRay(ray, sceneManager.activeObjects)
@@ -438,7 +466,6 @@ class InputHandler(
 
                             // If in mission mode, try to remove a preview object first.
                             if (uiManager.currentEditorMode == EditorMode.MISSION) {
-                                val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
                                 if (handleMissionPreviewRemoval(ray)) {
                                     return true // A preview was removed, consume the click.
                                 }
@@ -595,7 +622,7 @@ class InputHandler(
                                 Tool.ENEMY -> removed = enemySystem.handleRemoveAction(ray)
                                 Tool.NPC -> removed = npcSystem.handleRemoveAction(ray)
                                 Tool.TRIGGER -> removed = game.triggerSystem.removeTriggerForSelectedMission()
-                                Tool.PARTICLE, Tool.AUDIO_EMITTER -> { /* No removal action */ }
+                                Tool.PARTICLE, Tool.AUDIO_EMITTER, Tool.AREA -> { /* No continuous removal action */ }
                             }
 
                             if (removed) {
@@ -607,8 +634,31 @@ class InputHandler(
                                 return true
                             }
                             // No object removed, handle as camera drag
+
+                            // Check Areas (Create a simple ray-box check in AreaSystem if not exists, or iterate here)
+                            val hitArea = game.areaSystem.activeAreas.find {
+                                val bounds = BoundingBox()
+                                // Reconstruct bounds from center/size
+                                val min = it.position.cpy().sub(it.width/2, 2f, it.depth/2)
+                                val max = it.position.cpy().add(it.width/2, 2f, it.depth/2)
+                                bounds.set(min, max)
+                                com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, bounds, null)
+                            }
+
+                            if (hitArea != null) {
+                                if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)) {
+                                    // Edit Name
+                                    uiManager.showTextInputDialog("Edit Area Name", hitArea.name) { newName ->
+                                        hitArea.name = newName
+                                    }
+                                } else {
+                                    // Remove
+                                    game.areaSystem.activeAreas.removeValue(hitArea, true)
+                                    uiManager.showTemporaryMessage("Removed Area: ${hitArea.name}")
+                                }
+                                return true
+                            }
                         }
-                        val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
                         val spawnerToInspect = game.raycastSystem.getSpawnerAtRay(ray, sceneManager.activeSpawners)
 
                         // Open Spawner UI if not in debug mode
@@ -665,6 +715,11 @@ class InputHandler(
 
                     // Pass the entire updated objective back to the UIManager
                     uiManager.updateObjectiveAreaFromVisuals(updatedObjective)
+                    return true
+                }
+
+                if (uiManager.selectedTool == Tool.AREA) {
+                    areaSystem.handleScroll(amountY)
                     return true
                 }
 
@@ -1334,6 +1389,7 @@ class InputHandler(
                             }
                         }
                         Tool.AUDIO_EMITTER -> audioEmitterSystem.handlePlaceAction(ray)
+                        Tool.AREA -> { /* No continuous placement for areas */ }
                     }
                     lastPlacementX = currentMouseX
                     lastPlacementY = currentMouseY
@@ -1362,7 +1418,7 @@ class InputHandler(
                         Tool.ENEMY -> removed = enemySystem.handleRemoveAction(ray)
                         Tool.NPC -> removed = npcSystem.handleRemoveAction(ray)
                         Tool.TRIGGER -> removed = game.triggerSystem.removeTriggerForSelectedMission()
-                        Tool.PLAYER, UIManager.Tool.PARTICLE, UIManager.Tool.AUDIO_EMITTER -> { /* No continuous removal action */ }
+                        Tool.PLAYER, Tool.PARTICLE, Tool.AUDIO_EMITTER, Tool.AREA -> { /* No continuous removal action */ }
                     }
 
                     if (removed) {

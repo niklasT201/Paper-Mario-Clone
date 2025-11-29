@@ -97,6 +97,14 @@ data class InteriorData(
     var missionId: String? = null
 )
 
+data class AreaData(
+    var id: String = "",
+    var name: String = "",
+    var position: Vector3 = Vector3(),
+    var width: Float = 1f,
+    var depth: Float = 1f
+)
+
 data class WorldStateData(
     var blocks: GdxArray<BlockData> = GdxArray(),
     var cars: GdxArray<CarData> = GdxArray(),
@@ -114,7 +122,8 @@ data class WorldStateData(
     var dayNightCycleTime: Float = 0f,
     var teleporters: GdxArray<TeleporterData> = GdxArray(),
     var fires: GdxArray<FireData> = GdxArray(),
-    var audioEmitters: GdxArray<AudioEmitterData> = GdxArray()
+    var audioEmitters: GdxArray<AudioEmitterData> = GdxArray(),
+    var areas: com.badlogic.gdx.utils.Array<AreaData> = com.badlogic.gdx.utils.Array()
 )
 
 data class CarPathData(

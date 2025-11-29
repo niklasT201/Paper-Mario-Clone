@@ -120,6 +120,13 @@ class UIManager(
     private lateinit var healthBarFullTexture: Texture
     private lateinit var wantedStarsContainer: Table
     private lateinit var wantedStarTexture: Texture
+    private lateinit var areaNotificationLabel: Label
+    private lateinit var areaPropertiesWindow: Window
+    private lateinit var areaWidthField: TextField
+    private lateinit var areaDepthField: TextField
+    private lateinit var areaXField: TextField
+    private lateinit var areaYField: TextField
+    private lateinit var areaZField: TextField
 
     private lateinit var startMenuTable: Table
     private lateinit var startMenuOverlay: Image
@@ -208,7 +215,7 @@ class UIManager(
         private set
 
     enum class Tool {
-        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE, TRIGGER, AUDIO_EMITTER
+        BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE, TRIGGER, AUDIO_EMITTER, AREA
     }
 
     lateinit var dialogSystem: DialogSystem
@@ -237,6 +244,8 @@ class UIManager(
         setupLetterboxUI()
         setupCinematicBarsUI()
         setupDeathScreen()
+        setupAreaNotification()
+        setupAreaPropertiesWindow()
 
         pauseMenuUI = PauseMenuUI(skin, stage, this, game.saveLoadSystem)
         pauseMenuUI.initialize()
@@ -917,6 +926,131 @@ class UIManager(
         stage.addActor(cinematicBarsTable)
 
         updateCinematicBarsSize() // Set initial size
+    }
+
+    private fun setupAreaNotification() {
+        areaNotificationLabel = Label("", skin, "title") // Reusing your fancy style
+        areaNotificationLabel.setAlignment(Align.center)
+        areaNotificationLabel.isVisible = false
+
+        val container = Table()
+        container.setFillParent(true)
+        container.top().padTop(120f) // Below compass/top bar
+        container.add(areaNotificationLabel)
+        stage.addActor(container)
+    }
+
+    fun showAreaNotification(text: String) {
+        areaNotificationLabel.setText(text)
+        areaNotificationLabel.clearActions()
+        areaNotificationLabel.color.a = 0f
+        areaNotificationLabel.isVisible = true
+
+        areaNotificationLabel.addAction(Actions.sequence(
+            Actions.fadeIn(0.5f),
+            Actions.delay(2.5f),
+            Actions.fadeOut(0.5f),
+            Actions.visible(false)
+        ))
+    }
+
+    fun showAreaNameDialog(onNameConfirmed: (String) -> Unit) {
+        showTextInputDialog("Create New Area", "Area Name") { name ->
+            if (name.isNotBlank()) {
+                onNameConfirmed(name)
+            }
+        }
+    }
+
+    private fun setupAreaPropertiesWindow() {
+        areaPropertiesWindow = Window("Area Settings", skin, "dialog")
+        areaPropertiesWindow.isMovable = true
+        areaPropertiesWindow.setPosition(stage.width - 250f, 300f) // Bottom right
+        areaPropertiesWindow.isVisible = false
+
+        val content = Table()
+        content.pad(10f).defaults().pad(5f)
+
+        // Size Fields
+        areaWidthField = TextField("10", skin)
+        areaDepthField = TextField("10", skin)
+
+        // Position Fields
+        areaXField = TextField("0", skin)
+        areaYField = TextField("0", skin)
+        areaZField = TextField("0", skin)
+
+        // Helper to apply changes when text changes
+        val changeListener = object : ChangeListener() {
+            override fun changed(event: ChangeEvent?, actor: Actor?) {
+                // Prevent update loops if the system is updating the UI
+                if (!areaPropertiesWindow.hasKeyboardFocus()) return
+
+                val w = areaWidthField.text.toFloatOrNull() ?: 10f
+                val d = areaDepthField.text.toFloatOrNull() ?: 10f
+                val x = areaXField.text.toFloatOrNull() ?: 0f
+                val y = areaYField.text.toFloatOrNull() ?: 0f
+                val z = areaZField.text.toFloatOrNull() ?: 0f
+
+                game.areaSystem.manualUpdate(w, d, x, y, z)
+            }
+        }
+
+        areaWidthField.addListener(changeListener)
+        areaDepthField.addListener(changeListener)
+        areaXField.addListener(changeListener)
+        areaYField.addListener(changeListener)
+        areaZField.addListener(changeListener)
+
+        // Layout
+        content.add(Label("Size (Width x Depth):", skin)).colspan(2).left().row()
+        content.add(areaWidthField).width(80f)
+        content.add(areaDepthField).width(80f).row()
+
+        content.add(Label("Position (X, Y, Z):", skin)).colspan(2).left().row()
+        val posTable = Table()
+        posTable.add(areaXField).width(50f).padRight(5f)
+        posTable.add(areaYField).width(50f).padRight(5f)
+        posTable.add(areaZField).width(50f)
+        content.add(posTable).colspan(2).row()
+
+        val confirmButton = TextButton("Confirm (Enter)", skin)
+        confirmButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                game.areaSystem.confirmPlacement()
+                game.areaSystem.cancelPlacement()
+            }
+        })
+        content.add(confirmButton).colspan(2).fillX().padTop(10f)
+
+        areaPropertiesWindow.add(content)
+        areaPropertiesWindow.pack()
+        stage.addActor(areaPropertiesWindow)
+    }
+
+    fun showAreaPropertiesWindow() {
+        areaPropertiesWindow.isVisible = true
+        // Sync initial values
+        updateAreaPropertiesValues(
+            game.areaSystem.currentPreviewWidth,
+            game.areaSystem.currentPreviewDepth,
+            game.areaSystem.previewPosition
+        )
+    }
+
+    fun hideAreaPropertiesWindow() {
+        areaPropertiesWindow.isVisible = false
+        stage.unfocusAll()
+    }
+
+    fun updateAreaPropertiesValues(width: Float, depth: Float, pos: Vector3) {
+        // Only update text fields if the user IS NOT currently typing in them
+        if (stage.keyboardFocus != areaWidthField) areaWidthField.text = width.toInt().toString()
+        if (stage.keyboardFocus != areaDepthField) areaDepthField.text = depth.toInt().toString()
+
+        if (stage.keyboardFocus != areaXField) areaXField.text = String.format("%.1f", pos.x)
+        if (stage.keyboardFocus != areaYField) areaYField.text = String.format("%.1f", pos.y)
+        if (stage.keyboardFocus != areaZField) areaZField.text = String.format("%.1f", pos.z)
     }
 
     fun updateToolDisplay() {

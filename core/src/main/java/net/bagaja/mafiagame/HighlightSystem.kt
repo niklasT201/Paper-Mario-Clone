@@ -147,6 +147,7 @@ class HighlightSystem(private val game: MafiaGame, private val blockSize: Float)
             UIManager.Tool.PARTICLE -> updateParticleHighlight(ray, particleSystem)
             UIManager.Tool.TRIGGER -> updateTriggerHighlight(ray)
             UIManager.Tool.AUDIO_EMITTER -> updateAudioEmitterHighlight(ray)
+            UIManager.Tool.AREA -> hideHighlight()
         }
         if (uiManager.selectedTool != UIManager.Tool.INTERIOR) {
             interiorSystem.hidePreview()
