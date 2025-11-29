@@ -288,6 +288,105 @@ class InputHandler(
                                 }
                             }
 
+                            if (game.isEditorMode && (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT) || Gdx.input.isKeyPressed(Input.Keys.SHIFT_RIGHT))) {
+                                val ray = cameraManager.camera.getPickRay(screenX.toFloat(), screenY.toFloat())
+
+                                // Check Objects
+                                val hitObj = game.raycastSystem.getObjectAtRay(ray, sceneManager.activeObjects)
+                                // Also check preview objects if in mission mode
+                                    ?: game.raycastSystem.getObjectAtRay(ray, sceneManager.activeMissionPreviewObjects)
+
+                                if (hitObj != null) {
+                                    uiManager.showTextInputDialog("Interaction Text", hitObj.customInteractionText ?: "") { newText ->
+                                        val text = if (newText.isBlank()) null else newText
+                                        hitObj.customInteractionText = text
+                                        uiManager.showTemporaryMessage("Text Updated")
+                                        syncMissionEventText(hitObj.id, text) // <--- ADD THIS
+                                    }
+                                    return true
+                                }
+
+                                // Check Items
+                                val hitItem = itemSystem.raycastSystem.getItemAtRay(ray, sceneManager.activeItems)
+                                    ?: itemSystem.raycastSystem.getItemAtRay(ray, sceneManager.activeMissionPreviewItems)
+
+                                if (hitItem != null) {
+                                    uiManager.showTextInputDialog("Interaction Text", hitItem.customInteractionText ?: "") { newText ->
+                                        val text = if (newText.isBlank()) null else newText
+                                        hitItem.customInteractionText = text
+                                        uiManager.showTemporaryMessage("Text Updated")
+                                        syncMissionEventText(hitItem.id, text) // <--- ADD THIS
+                                    }
+                                    return true
+                                }
+
+                                // Check Cars
+                                val hitCar = carSystem.raycastSystem.getCarAtRay(ray, sceneManager.activeCars)
+                                    ?: carSystem.raycastSystem.getCarAtRay(ray, sceneManager.activeMissionPreviewCars)
+
+                                if (hitCar != null) {
+                                    uiManager.showTextInputDialog("Interaction Text", hitCar.customInteractionText ?: "") { newText ->
+                                        val text = if (newText.isBlank()) null else newText
+                                        hitCar.customInteractionText = text
+                                        uiManager.showTemporaryMessage("Car Text Updated")
+                                        syncMissionEventText(hitCar.id, text) // <--- ADD THIS
+                                    }
+                                    return true
+                                }
+
+                                // Check Houses
+                                val hitHouse = houseSystem.raycastSystem.getHouseAtRay(ray, sceneManager.activeHouses)
+                                    ?: houseSystem.raycastSystem.getHouseAtRay(ray, sceneManager.activeMissionPreviewHouses)
+
+                                if (hitHouse != null) {
+                                    uiManager.showTextInputDialog("Interaction Text", hitHouse.customInteractionText ?: "") { newText ->
+                                        val text = if (newText.isBlank()) null else newText
+                                        hitHouse.customInteractionText = text
+                                        uiManager.showTemporaryMessage("House Text Updated")
+                                        syncMissionEventText(hitHouse.id, text) // <--- ADD THIS
+                                    }
+                                    return true
+                                }
+
+                                // Check Enemies
+                                val hitEnemy = enemySystem.raycastSystem.getEnemyAtRay(ray, sceneManager.activeEnemies)
+                                    ?: enemySystem.raycastSystem.getEnemyAtRay(ray, sceneManager.activeMissionPreviewEnemies)
+
+                                if (hitEnemy != null) {
+                                    uiManager.showTextInputDialog("Interaction Text", hitEnemy.customInteractionText ?: "") { newText ->
+                                        val text = if (newText.isBlank()) null else newText
+                                        hitEnemy.customInteractionText = text
+                                        uiManager.showTemporaryMessage("Enemy Text Updated")
+                                        syncMissionEventText(hitEnemy.id, text) // <--- ADD THIS
+                                    }
+                                    return true
+                                }
+
+                                // Check NPCs
+                                val hitNpc = npcSystem.raycastSystem.getNPCAtRay(ray, sceneManager.activeNPCs)
+                                    ?: npcSystem.raycastSystem.getNPCAtRay(ray, sceneManager.activeMissionPreviewNPCs)
+
+                                if (hitNpc != null) {
+                                    uiManager.showTextInputDialog("Interaction Text", hitNpc.customInteractionText ?: "") { newText ->
+                                        val text = if (newText.isBlank()) null else newText
+                                        hitNpc.customInteractionText = text
+                                        uiManager.showTemporaryMessage("NPC Text Updated")
+                                        syncMissionEventText(hitNpc.id, text) // <--- ADD THIS
+                                    }
+                                    return true
+                                }
+
+                                // Check Interiors (Furniture, Doors, Barrels)
+                                val hitInterior = interiorSystem.raycastSystem.getInteriorAtRay(ray, sceneManager.activeInteriors)
+                                if (hitInterior != null) {
+                                    uiManager.showTextInputDialog("Interaction Text", hitInterior.customInteractionText ?: "") { newText ->
+                                        hitInterior.customInteractionText = if (newText.isBlank()) null else newText
+                                        uiManager.showTemporaryMessage("Interior Text Updated")
+                                    }
+                                    return true
+                                }
+                            }
+
                             // 1. Raycast for an emitter just ONCE using its position property.
                             val hitEmitter = audioEmitterSystem.activeEmitters.find { emitter ->
                                 // Create a temporary bounding box in world space for the check
@@ -1382,6 +1481,32 @@ class InputHandler(
         }
 
         return false
+    }
+
+    private fun syncMissionEventText(targetId: String, newText: String?) {
+        // Only run this logic if we are editing a mission
+        if (uiManager.currentEditorMode == EditorMode.MISSION) {
+            val mission = uiManager.selectedMissionForEditing ?: return
+
+            // Find the event that spawned this entity
+            // We search both lists (Start and Complete) just in case
+            val eventIndexStart = mission.eventsOnStart.indexOfFirst { it.targetId == targetId }
+            if (eventIndexStart != -1) {
+                val oldEvent = mission.eventsOnStart[eventIndexStart]
+                mission.eventsOnStart[eventIndexStart] = oldEvent.copy(customInteractionText = newText)
+                game.missionSystem.saveMission(mission)
+                println("Synced text update to Mission Event (Start): $newText")
+                return
+            }
+
+            val eventIndexComplete = mission.eventsOnComplete.indexOfFirst { it.targetId == targetId }
+            if (eventIndexComplete != -1) {
+                val oldEvent = mission.eventsOnComplete[eventIndexComplete]
+                mission.eventsOnComplete[eventIndexComplete] = oldEvent.copy(customInteractionText = newText)
+                game.missionSystem.saveMission(mission)
+                println("Synced text update to Mission Event (Complete): $newText")
+            }
+        }
     }
 
     fun isTimeSpeedUpActive(): Boolean = isTimeSpeedUpPressed

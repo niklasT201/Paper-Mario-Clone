@@ -139,7 +139,8 @@ data class GameNPC(
     var canBePulledFromCar: Boolean = true,
     @Transient var baseTexture: Texture? = null,
     @Transient var carProvocation: Float = 0f,
-    val personality: NPCPersonality = NPCPersonality.CIVILIAN
+    val personality: NPCPersonality = NPCPersonality.CIVILIAN,
+    var customInteractionText: String? = null
 ) {
     @Transient var carToChaseId: String? = null
     @Transient var chaseTimer: Float = 0f
@@ -547,7 +548,8 @@ class NPCSystem : IFinePositionable {
             isHonest = config.isHonest,
             pathFollowingStyle = config.pathFollowingStyle,
             assignedPathId = config.assignedPathId,
-            standaloneDialog = config.standaloneDialog
+            standaloneDialog = config.standaloneDialog,
+            customInteractionText = config.customInteractionText
         )
 
         newNpc.baseTexture = npcTextures[config.npcType]

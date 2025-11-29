@@ -126,7 +126,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     c.areHeadlightsOn,
                     c.assignedLockedSoundId,
                     c.assignedOpenSoundId,
-                    c.assignedCloseSoundId
+                    c.assignedCloseSoundId,
+                    c.customInteractionText
                 ))
             }
             sm.activeEnemies.filter { it.missionId == null }.forEach { e ->
@@ -139,7 +140,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     e.currentState, e.currentMagazineCount, e.provocationLevel,
                     e.standaloneDialog,
                     e.standaloneDialogCompleted,
-                    e.canBePulledFromCar
+                    e.canBePulledFromCar,
+                    e.customInteractionText
                 ))
             }
             sm.activeNPCs.filter { it.missionId == null }.forEach { n ->
@@ -154,16 +156,37 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     n.pathFollowingStyle,
                     n.standaloneDialog,
                     n.standaloneDialogCompleted,
-                    n.canBePulledFromCar
+                    n.canBePulledFromCar,
+                    n.customInteractionText
                 ))
             }
-            sm.activeItems.filter { it.missionId == null }.forEach { i -> world.items.add(ItemData(i.id, i.itemType, i.position, i.ammo, i.value)) }
+            sm.activeItems.filter { it.missionId == null }.forEach { i ->
+                world.items.add(ItemData(
+                    i.id, i.itemType, i.position, i.ammo, i.value,
+                    i.customInteractionText
+                ))
+            }
             sm.activeObjects.filter { it.missionId == null }.forEach { o ->
                 if (o.objectType == ObjectType.FIRE_SPREAD) return@forEach
 
                 world.objects.add(ObjectData(
                     o.id, o.objectType, o.position, o.associatedLightId,
-                    o.isBroken
+                    o.isBroken,
+                    o.customInteractionText
+                ))
+            }
+            sm.activeInteriors.filter { it.missionId == null }.forEach { i ->
+                world.interiors.add(InteriorData(
+                    id = i.id,
+                    interiorType = i.interiorType,
+                    position = i.position,
+                    rotation = i.rotation,
+                    scale = i.scale,
+                    isDestructible = i.isDestructible,
+                    health = i.health,
+                    lootMode = i.lootMode,
+                    customInteractionText = i.customInteractionText,
+                    missionId = i.missionId
                 ))
             }
             sm.activeHouses.filter { it.missionId == null }.forEach { h ->
@@ -175,7 +198,8 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     h.rotationY,
                     h.entryPointId,
                     h.assignedRoomTemplateId,
-                    h.exitDoorId
+                    h.exitDoorId,
+                    h.customInteractionText
                 ))
             }
             sm.activeEntryPoints.forEach { ep -> world.entryPoints.add(EntryPointData(ep.id, ep.houseId, ep.position)) } // Entry points are not mission-only
@@ -386,6 +410,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     it.currentState = data.currentState
                     it.currentMagazineCount = data.currentMagazineCount
                     it.provocationLevel = data.provocationLevel
+                    it.customInteractionText = data.customInteractionText
 
                     game.enemySystem.updateEnemyTexture(it)
                     sm.activeEnemies.add(it)
@@ -417,6 +442,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     it.pathFollowingStyle = data.pathFollowingStyle
 
                     it.standaloneDialogCompleted = data.standaloneDialogCompleted
+                    it.customInteractionText = data.customInteractionText
                     sm.activeNPCs.add(it)
                     npcMap[it.id] = it
                 }
@@ -438,23 +464,28 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     car.assignedLockedSoundId = data.assignedLockedSoundId
                     car.assignedOpenSoundId = data.assignedOpenSoundId
                     car.assignedCloseSoundId = data.assignedCloseSoundId
+                    car.customInteractionText = data.customInteractionText
 
                     data.driverId?.let { driverId ->
                         enemyMap[driverId]?.enterCar(car) ?: npcMap[driverId]?.enterCar(car)
                     }
                 }
             }
-            state.worldState.items.forEach { data -> game.itemSystem.createItem(data.position, data.itemType)?.let {
-                it.id = data.id
-                it.ammo = data.ammo
-                it.value = data.value
-                sm.activeItems.add(it)
-            } }
+            state.worldState.items.forEach { data ->
+                game.itemSystem.createItem(data.position, data.itemType)?.let {
+                    it.id = data.id
+                    it.ammo = data.ammo
+                    it.value = data.value
+                    it.customInteractionText = data.customInteractionText
+                    sm.activeItems.add(it)
+                }
+            }
             state.worldState.objects.forEach { data ->
                 game.objectSystem.createGameObjectWithLight(data.objectType, data.position, game.lightingManager)?.let { obj ->
                     obj.id = data.id
                     obj.associatedLightId = data.associatedLightId
                     obj.isBroken = data.isBroken
+                    obj.customInteractionText = data.customInteractionText
 
                     // Also check if the light needs to be disabled for a broken object
                     if (obj.isBroken) {
@@ -469,6 +500,25 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     sm.activeObjects.add(obj)
                 }
             }
+            state.worldState.interiors.forEach { data ->
+                game.interiorSystem.createInteriorInstance(data.interiorType)?.let { interior ->
+                    interior.id = data.id
+                    interior.position.set(data.position)
+                    interior.rotation = data.rotation
+                    interior.scale.set(data.scale)
+
+                    interior.isDestructible = data.isDestructible
+                    interior.health = data.health
+                    interior.lootMode = data.lootMode
+
+                    // Restore the custom text
+                    interior.customInteractionText = data.customInteractionText
+                    interior.missionId = data.missionId
+
+                    interior.updateTransform()
+                    sm.activeInteriors.add(interior)
+                }
+            }
             state.worldState.houses.forEach { data ->
                 game.houseSystem.currentRotation = data.rotationY
                 val newHouse = game.houseSystem.addHouse(data.position.x, data.position.y, data.position.z, data.houseType, data.isLocked)
@@ -477,6 +527,7 @@ class SaveLoadSystem(private val game: MafiaGame) {
                     newHouse.entryPointId = data.entryPointId
                     newHouse.assignedRoomTemplateId = data.assignedRoomTemplateId
                     newHouse.exitDoorId = data.exitDoorId
+                    newHouse.customInteractionText = data.customInteractionText
                 }
             }
             state.worldState.entryPoints.forEach { data ->

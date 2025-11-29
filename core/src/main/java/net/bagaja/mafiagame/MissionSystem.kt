@@ -1244,7 +1244,8 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         canCollectItems = event.canCollectItems ?: true,
                         canBePulledFromCar = event.canBePulledFromCar ?: true,
                         enemyInitialMoney = event.enemyInitialMoney ?: 0,
-                        standaloneDialog = event.standaloneDialog
+                        standaloneDialog = event.standaloneDialog,
+                        customInteractionText = event.customInteractionText
                     )
                     game.enemySystem.createEnemy(config)?.let { newEnemy ->
                         newEnemy.missionId = missionId
@@ -1263,7 +1264,8 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         id = event.targetId,
                         canBePulledFromCar = event.canBePulledFromCar ?: true,
                         pathFollowingStyle = event.pathFollowingStyle ?: PathFollowingStyle.CONTINUOUS,
-                        standaloneDialog = event.standaloneDialog
+                        standaloneDialog = event.standaloneDialog,
+                        customInteractionText = event.customInteractionText
                     )
                     game.npcSystem.createNPC(config, event.npcRotation ?: 0f)?.let { newNpc ->
                         newNpc.missionId = missionId
@@ -1285,6 +1287,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         missionId = missionId
                     )
                     event.targetId?.let { newCar.id = it }
+                    newCar.customInteractionText = event.customInteractionText
 
                     var driver: Any? = null
 
@@ -1332,6 +1335,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         newItem.missionId = missionId
                         if (event.type == GameEventType.SPAWN_MONEY_STACK) newItem.value = event.itemValue
                         event.targetId?.let { newItem.id = it }
+                        newItem.customInteractionText = event.customInteractionText
                         addEntityToScene(newItem, game.sceneManager.activeItems, { game.sceneManager.worldState?.items }) {
                             game.sceneManager.interiorStates[it]?.items
                         }
@@ -1385,6 +1389,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     if (newHouse != null) {
                         newHouse.missionId = missionId
                         event.targetId?.let { newHouse.id = it }
+                        newHouse.customInteractionText = event.customInteractionText
                         addEntityToScene(newHouse, game.sceneManager.activeHouses, { game.sceneManager.worldState?.houses }, { null })
                     }
                 }

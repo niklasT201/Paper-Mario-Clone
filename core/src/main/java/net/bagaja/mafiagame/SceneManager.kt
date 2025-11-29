@@ -1170,6 +1170,7 @@ class SceneManager(
                             // This is for regular, non-light-source objects
                             objectSystem.createGameObjectWithLight(objectType, element.position.cpy(), game.lightingManager)?.let { gameObject ->
                                 element.targetId?.let { gameObject.id = it }
+                                gameObject.customInteractionText = element.customInteractionText
                                 newObjects.add(gameObject)
                             }
                         }
@@ -1208,6 +1209,7 @@ class SceneManager(
                     element.itemType?.let { itemType ->
                         itemSystem.createItem(element.position.cpy(), itemType)?.let { gameItem ->
                             element.targetId?.let { gameItem.id = it }
+                            gameItem.customInteractionText = element.customInteractionText
                             newItems.add(gameItem)
                         }
                     }
@@ -1246,6 +1248,7 @@ class SceneManager(
                                 gameInterior.position.set(element.position)
                                 gameInterior.rotation = element.rotation
                                 gameInterior.scale.set(element.scale)
+                                gameInterior.customInteractionText = element.customInteractionText
 
                                 element.isDestructible?.let { gameInterior.isDestructible = it }
                                 element.health?.let { gameInterior.health = it }
@@ -1277,7 +1280,8 @@ class SceneManager(
                             weaponCollectionPolicy = element.weaponCollectionPolicy ?: WeaponCollectionPolicy.CANNOT_COLLECT,
                             canCollectItems = element.canCollectItems ?: true,
                             enemyInitialMoney = element.enemyInitialMoney ?: 0,
-                            standaloneDialog = element.standaloneDialog
+                            standaloneDialog = element.standaloneDialog,
+                            customInteractionText = element.customInteractionText
                         )
                         enemySystem.createEnemy(config)?.let { gameEnemy ->
                             // Add initial money if it was saved in the template
@@ -1300,7 +1304,8 @@ class SceneManager(
                             isHonest = element.npcIsHonest ?: true, // Provide defaults
                             canCollectItems = element.npcCanCollectItems ?: true,
                             pathFollowingStyle = element.pathFollowingStyle ?: PathFollowingStyle.CONTINUOUS,
-                            standaloneDialog = element.standaloneDialog
+                            standaloneDialog = element.standaloneDialog,
+                            customInteractionText = element.customInteractionText
                         )
                         npcSystem.createNPC(config, element.npcRotation)?.let { gameNPC ->
                             // Load the NPC's starting inventory from the template
@@ -1565,7 +1570,8 @@ class SceneManager(
                     elementType = RoomElementType.OBJECT,
                     objectType = obj.objectType,
                     targetId = obj.id,
-                    rotation = 0f // Assuming objects don't rotate for now
+                    rotation = 0f, // Assuming objects don't rotate for now
+                    customInteractionText = obj.customInteractionText
                 ))
             }
         }
@@ -1576,7 +1582,8 @@ class SceneManager(
                 position = item.position.cpy(),
                 elementType = RoomElementType.ITEM,
                 itemType = item.itemType,
-                targetId = item.id
+                targetId = item.id,
+                customInteractionText = item.customInteractionText
             ))
         }
 
@@ -1590,7 +1597,8 @@ class SceneManager(
                 scale = interior.scale.cpy(),
                 isDestructible = interior.isDestructible,
                 lootMode = interior.lootMode,
-                specificLoot = interior.specificLoot.toList()
+                specificLoot = interior.specificLoot.toList(),
+                customInteractionText = interior.customInteractionText
             ))
         }
 
@@ -1616,7 +1624,8 @@ class SceneManager(
                 weaponCollectionPolicy = enemy.weaponCollectionPolicy,
                 canCollectItems = enemy.canCollectItems,
                 enemyInitialMoney = startingMoney,
-                standaloneDialog = enemy.standaloneDialog
+                standaloneDialog = enemy.standaloneDialog,
+                customInteractionText = enemy.customInteractionText
             ))
         }
 
@@ -1638,7 +1647,8 @@ class SceneManager(
                 npcIsHonest = npc.isHonest,
                 npcCanCollectItems = npc.canCollectItems,
                 npcInventory = inventoryData,
-                standaloneDialog = npc.standaloneDialog
+                standaloneDialog = npc.standaloneDialog,
+                customInteractionText = npc.customInteractionText
             ))
         }
 

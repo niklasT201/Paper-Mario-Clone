@@ -498,7 +498,11 @@ class MafiaGame : ApplicationAdapter() {
             // CHANGE: Only show prompt if unlocked OR occupied (carjackable)
             val isOccupied = closestCar.seats.firstOrNull()?.occupant != null
 
-            if (dist < 8f) {
+            if (closestCar.customInteractionText != null && dist < 10f) {
+                checkCandidate(dist, "Press ${fmtKey("E")} to ${closestCar.customInteractionText}")
+            }
+            // PRIORITY 2: Default Logic
+            else if (dist < 8f) {
                 if (isOccupied) {
                     // Carjacking is always an option, even if "locked" (you break in)
                     checkCandidate(dist, "Press ${fmtKey("E")} to Carjack")
@@ -566,6 +570,41 @@ class MafiaGame : ApplicationAdapter() {
                 if (exitDoor != null && isPlayerNearDoor(playerPos, exitDoor)) {
                     checkCandidate(0f, "Press ${fmtKey("E")} to Exit")
                 }
+            }
+        }
+
+        // 8. Check Objects (Furniture, Books, etc)
+        val closestObject = sceneManager.activeObjects.minByOrNull { it.position.dst2(playerPos) }
+        if (closestObject != null) {
+            val dist = playerPos.dst(closestObject.position)
+            // Standard interaction range
+            if (dist < 3.5f) {
+                // CASE A: Custom Text exists (e.g. "Read Secret Diary")
+                if (closestObject.customInteractionText != null) {
+                    checkCandidate(dist, "Press ${fmtKey("E")} to ${closestObject.customInteractionText}")
+                }
+                // CASE B: It is a mission objective target (e.g. "Destroy Crate")
+                else {
+                    val objective = missionSystem.activeMission?.getCurrentObjective()
+                    if (objective != null &&
+                        objective.completionCondition.targetId == closestObject.id &&
+                        objective.completionCondition.type == ConditionType.INTERACT_WITH_OBJECT) {
+                        checkCandidate(dist, "Press ${fmtKey("E")} to Interact")
+                    }
+                }
+            }
+        }
+
+        // 9. Check Items (Pickups)
+        val closestItem = sceneManager.activeItems
+            .filter { !it.isCollected }
+            .minByOrNull { it.position.dst2(playerPos) }
+
+        if (closestItem != null) {
+            val dist = playerPos.dst(closestItem.position)
+            if (dist < 2.5f && closestItem.customInteractionText != null) {
+                // E.g. "Press E to Steal Keys" instead of just picking it up silently
+                checkCandidate(dist, "Press ${fmtKey("E")} to ${closestItem.customInteractionText}")
             }
         }
 

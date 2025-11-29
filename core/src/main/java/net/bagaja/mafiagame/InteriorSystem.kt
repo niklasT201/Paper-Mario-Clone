@@ -172,7 +172,7 @@ class InteriorSystem : IFinePositionable {
     private val rotationStep = 90f
 
     lateinit var sceneManager: SceneManager
-    private lateinit var raycastSystem: RaycastSystem
+    lateinit var raycastSystem: RaycastSystem
     private val floorPlane = com.badlogic.gdx.math.Plane(Vector3.Y, 0f)
     private val tempVec3 = Vector3()
 
@@ -453,12 +453,13 @@ data class GameInterior(
     val position: Vector3 = Vector3(),
     var rotation: Float = 0f,
     val scale: Vector3,
-    val id: String = UUID.randomUUID().toString(),
+    var id: String = UUID.randomUUID().toString(),
     var missionId: String? = null,
     var isDestructible: Boolean = false,
     var health: Float = if (isDestructible) 30f else 100f,
     var lootMode: LootMode = if (isDestructible) LootMode.RANDOM else LootMode.NONE, // Barrels default to RANDOM
-    val specificLoot: MutableList<LootDrop> = mutableListOf()
+    val specificLoot: MutableList<LootDrop> = mutableListOf(),
+    var customInteractionText: String? = null
 ) {
     // For 3D collision detection (same as GameHouse)
     private val mesh = instance.model?.meshes?.firstOrNull()

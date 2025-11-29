@@ -762,7 +762,8 @@ data class GameObject(
     var isBroken: Boolean = false, // For future lantern breaking functionality
     var health: Float = objectType.maxHealth,
     var missionId: String? = null,
-    val washAwayComponent: WashAwayComponent = WashAwayComponent()
+    val washAwayComponent: WashAwayComponent = WashAwayComponent(),
+    var customInteractionText: String? = null
 ) {
     init {
         // Apply initial transform to the model instance(s)

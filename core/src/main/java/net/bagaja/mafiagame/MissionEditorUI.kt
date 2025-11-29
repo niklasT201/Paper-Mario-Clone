@@ -945,6 +945,11 @@ class MissionEditorUI(
         val canBePulledCheckbox = CheckBox(" Can be pulled from car", skin).apply {
             isChecked = existingEvent?.canBePulledFromCar ?: true
         }
+        val customTextField = TextField(existingEvent?.customInteractionText ?: "", skin)
+        customTextField.messageText = "Custom Label (Optional)"
+        val commonSettingsTable = Table(skin)
+        commonSettingsTable.add("Target ID:"); commonSettingsTable.add(targetIdField).growX().row()
+        commonSettingsTable.add("Label Text:"); commonSettingsTable.add(customTextField).growX().row()
 
         // --- Layout Tables ---
         val targetIdTable = Table(skin).apply { add("Target/Spawn ID:"); add(targetIdField).growX() }
@@ -1229,7 +1234,8 @@ class MissionEditorUI(
                         canCollectItems = enemyCanCollectItemsCheckbox.isChecked,
                         canBePulledFromCar = canBePulledCheckbox.isChecked,
                         enemyInitialMoney = enemyInitialMoneyField.text.toIntOrNull(),
-                        standaloneDialog = dialogInfo
+                        standaloneDialog = dialogInfo,
+                        customInteractionText = customTextField.text.ifBlank { null }
                     )
                     GameEventType.SPAWN_NPC -> baseEvent.copy(
                         npcType = NPCType.entries.find { it.displayName == npcTypeSelect.selected },
@@ -1237,27 +1243,32 @@ class MissionEditorUI(
                         npcRotation = npcRotationField.text.toFloatOrNull() ?: 0f,
                         pathFollowingStyle = PathFollowingStyle.entries.find { it.displayName == npcPathFollowingStyleSelectBox.selected },
                         canBePulledFromCar = canBePulledCheckbox.isChecked,
-                        standaloneDialog = dialogInfo
+                        standaloneDialog = dialogInfo,
+                        customInteractionText = customTextField.text.ifBlank { null }
                     )
                     GameEventType.SPAWN_CAR -> baseEvent.copy(
                         carType = CarType.entries.find { it.displayName == carTypeSelect.selected },
                         carIsLocked = carLockedCheckbox.isChecked,
                         carDriverType = carDriverTypeSelect.selected,
                         carEnemyDriverType = EnemyType.entries.find { it.displayName == carEnemyDriverTypeSelect.selected },
-                        carNpcDriverType = NPCType.entries.find { it.displayName == carNpcDriverTypeSelect.selected }
+                        carNpcDriverType = NPCType.entries.find { it.displayName == carNpcDriverTypeSelect.selected },
+                        customInteractionText = customTextField.text.ifBlank { null }
                     )
                     GameEventType.SPAWN_ITEM -> baseEvent.copy(
                         itemType = ItemType.entries.find { it.displayName == itemTypeSelect.selected },
-                        itemValue = if (ItemType.entries.find { it.displayName == itemTypeSelect.selected } == ItemType.MONEY_STACK) itemValueField.text.toIntOrNull() ?: 100 else 0
+                        itemValue = if (ItemType.entries.find { it.displayName == itemTypeSelect.selected } == ItemType.MONEY_STACK) itemValueField.text.toIntOrNull() ?: 100 else 0,
+                        customInteractionText = customTextField.text.ifBlank { null }
                     )
                     GameEventType.SPAWN_MONEY_STACK -> baseEvent.copy(
                         itemType = ItemType.MONEY_STACK,
-                        itemValue = moneyValueField.text.toIntOrNull() ?: 100
+                        itemValue = moneyValueField.text.toIntOrNull() ?: 100,
+                        customInteractionText = customTextField.text.ifBlank { null }
                     )
                     GameEventType.SPAWN_HOUSE -> baseEvent.copy(
                         houseType = HouseType.entries.find { it.displayName == houseTypeSelect.selected },
                         houseRotationY = houseRotationYField.text.toFloatOrNull(),
-                        houseIsLocked = houseLockedCheckbox.isChecked
+                        houseIsLocked = houseLockedCheckbox.isChecked,
+                        customInteractionText = customTextField.text.ifBlank { null }
                     )
                     GameEventType.SPAWN_OBJECT -> baseEvent.copy(
                         objectType = ObjectType.entries.find { it.displayName == objectTypeSelect.selected },
@@ -1266,7 +1277,8 @@ class MissionEditorUI(
                         lightRange = lightRangeField.text.toFloatOrNull(),
                         flickerMode = if (ObjectType.entries.find { it.displayName == objectTypeSelect.selected } == ObjectType.LIGHT_SOURCE) FlickerMode.valueOf(lightFlickerSelect.selected) else null,
                         loopOnDuration = loopOnDurationField.text.toFloatOrNull(),
-                        loopOffDuration = loopOffDurationField.text.toFloatOrNull()
+                        loopOffDuration = loopOffDurationField.text.toFloatOrNull(),
+                        customInteractionText = customTextField.text.ifBlank { null }
                     )
                     GameEventType.SPAWN_BLOCK -> baseEvent.copy(
                         blockType = BlockType.entries.find { it.displayName == blockTypeSelect.selected },

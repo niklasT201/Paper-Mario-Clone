@@ -432,7 +432,8 @@ data class GameEvent(
     val falloffMode: EmitterFalloffMode? = null,
     val soundId: String? = null,
     val soundVolume: Float? = null,
-    val soundPitch: Float? = null
+    val soundPitch: Float? = null,
+    val customInteractionText: String? = null
 )
 
 // --- Game State (For Saving/Loading Progress) ---

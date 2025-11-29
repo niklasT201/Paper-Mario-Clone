@@ -357,7 +357,8 @@ data class GameHouse(
     var rotationY: Float = 0f,
     var id: String = UUID.randomUUID().toString(),
     var entryPointId: String? = null,
-    var missionId: String? = null
+    var missionId: String? = null,
+    var customInteractionText: String? = null
 ) {
     // Data for Mesh Collision
     private val mesh = modelInstance.model.meshes.first() // Get the first mesh from the model

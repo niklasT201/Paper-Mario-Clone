@@ -495,7 +495,8 @@ data class GameItem(
     var pickupDelay: Float = 0f,
     var id: String = UUID.randomUUID().toString(),
     var missionId: String? = null,
-    var soundVariationId: String? = null
+    var soundVariationId: String? = null,
+    var customInteractionText: String? = null
 ) {
     init {
         // Random bobbing offset so items don't all bob in sync

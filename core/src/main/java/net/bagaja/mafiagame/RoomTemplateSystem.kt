@@ -119,7 +119,8 @@ data class RoomElement(
     val isDestructible: Boolean? = null,
     val health: Float? = null,
     val lootMode: LootMode? = null,
-    val specificLoot: List<LootDrop>? = null
+    val specificLoot: List<LootDrop>? = null,
+    val customInteractionText: String? = null
 )
 
 enum class RoomElementType {

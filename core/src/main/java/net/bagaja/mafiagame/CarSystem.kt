@@ -526,7 +526,8 @@ data class GameCar(
     var assignedOpenSoundId: String? = null,
     var assignedCloseSoundId: String? = null,
     @Transient var drivingSoundId: Long? = null,
-    @Transient var enginePitch: Float = 0.7f
+    @Transient var enginePitch: Float = 0.7f,
+    var customInteractionText: String? = null
 ) : ISoundEmitter {
     companion object {
         const val WRECKED_DURATION = 25f

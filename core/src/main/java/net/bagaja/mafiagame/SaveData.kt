@@ -84,9 +84,23 @@ data class AudioEmitterData(
     var missionId: String? = null
 )
 
+data class InteriorData(
+    var id: String = "",
+    var interiorType: InteriorType = InteriorType.BAR, // Default
+    var position: Vector3 = Vector3(),
+    var rotation: Float = 0f,
+    var scale: Vector3 = Vector3(1f, 1f, 1f),
+    var isDestructible: Boolean = false,
+    var health: Float = 100f,
+    var lootMode: LootMode = LootMode.NONE,
+    var customInteractionText: String? = null,
+    var missionId: String? = null
+)
+
 data class WorldStateData(
     var blocks: GdxArray<BlockData> = GdxArray(),
     var cars: GdxArray<CarData> = GdxArray(),
+    var interiors: GdxArray<InteriorData> = GdxArray(),
     var enemies: GdxArray<EnemyData> = GdxArray(),
     var npcs: GdxArray<NpcData> = GdxArray(),
     var items: GdxArray<ItemData> = GdxArray(),
@@ -140,7 +154,8 @@ data class CarData(
     var areHeadlightsOn: Boolean = false,
     var assignedLockedSoundId: String? = null,
     var assignedOpenSoundId: String? = null,
-    var assignedCloseSoundId: String? = null
+    var assignedCloseSoundId: String? = null,
+    var customInteractionText: String? = null
 )
 
 data class EnemyData(
@@ -158,7 +173,8 @@ data class EnemyData(
     var provocationLevel: Float = 0f,
     var standaloneDialog: StandaloneDialog? = null,
     var standaloneDialogCompleted: Boolean = false,
-    var canBePulledFromCar: Boolean = true
+    var canBePulledFromCar: Boolean = true,
+    var customInteractionText: String? = null
 )
 
 data class NpcData(
@@ -176,7 +192,8 @@ data class NpcData(
     var pathFollowingStyle: PathFollowingStyle = PathFollowingStyle.CONTINUOUS,
     var standaloneDialog: StandaloneDialog? = null,
     var standaloneDialogCompleted: Boolean = false,
-    var canBePulledFromCar: Boolean = true
+    var canBePulledFromCar: Boolean = true,
+    var customInteractionText: String? = null
 )
 
 data class ItemData(
@@ -184,7 +201,8 @@ data class ItemData(
     var itemType: ItemType = ItemType.MONEY_STACK,
     var position: Vector3 = Vector3(),
     var ammo: Int = 0,
-    var value: Int = 0
+    var value: Int = 0,
+    var customInteractionText: String? = null
 )
 
 data class ObjectData(
@@ -192,7 +210,8 @@ data class ObjectData(
     var objectType: ObjectType = ObjectType.TREE,
     var position: Vector3 = Vector3(),
     var associatedLightId: Int? = null,
-    var isBroken: Boolean = false
+    var isBroken: Boolean = false,
+    var customInteractionText: String? = null
 )
 
 data class HouseData(
@@ -203,7 +222,8 @@ data class HouseData(
     var rotationY: Float = 0f,
     var entryPointId: String? = null,
     var assignedRoomTemplateId: String? = null,
-    var exitDoorId: String? = null
+    var exitDoorId: String? = null,
+    var customInteractionText: String? = null
 )
 
 data class LightData(

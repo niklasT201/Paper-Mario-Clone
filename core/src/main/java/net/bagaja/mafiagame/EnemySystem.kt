@@ -82,7 +82,8 @@ data class GameEnemy(
     var scheduledForDespawn: Boolean = false,
     var canBePulledFromCar: Boolean = true,
     @Transient var baseTexture: Texture? = null,
-    @Transient var carProvocation: Float = 0f
+    @Transient var carProvocation: Float = 0f,
+    var customInteractionText: String? = null
 ) {
     fun isInteractive(): Boolean {
         return standaloneDialog?.outcome?.type != DialogOutcomeType.NONE
@@ -490,7 +491,8 @@ class EnemySystem : IFinePositionable {
             canCollectItems = config.canCollectItems,
             equippedWeapon = config.initialWeapon,
             assignedPathId = config.assignedPathId,
-            standaloneDialog = config.standaloneDialog
+            standaloneDialog = config.standaloneDialog,
+            customInteractionText = config.customInteractionText
         )
         // Set current behavior from the config
         enemy.currentBehavior = config.behavior
