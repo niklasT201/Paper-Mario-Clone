@@ -127,6 +127,8 @@ class UIManager(
     private lateinit var areaXField: TextField
     private lateinit var areaYField: TextField
     private lateinit var areaZField: TextField
+    private val areaNotificationQueue = java.util.LinkedList<String>()
+    private var isShowingAreaNotification = false
 
     private lateinit var startMenuTable: Table
     private lateinit var startMenuOverlay: Image
@@ -929,15 +931,50 @@ class UIManager(
     }
 
     private fun setupAreaNotification() {
-        areaNotificationLabel = Label("", skin, "title") // Reusing your fancy style
+        areaNotificationLabel = Label("", skin, "title")
+        areaNotificationLabel.setFontScale(2.0f)
+        areaNotificationLabel.color = Color.GOLD
         areaNotificationLabel.setAlignment(Align.center)
         areaNotificationLabel.isVisible = false
 
         val container = Table()
         container.setFillParent(true)
-        container.top().padTop(120f) // Below compass/top bar
-        container.add(areaNotificationLabel)
+        container.top().padTop(100f)
+        container.add(areaNotificationLabel) // Add label directly, no Stack
         stage.addActor(container)
+    }
+
+    fun queueAreaNotification(text: String) {
+        areaNotificationQueue.add(text)
+        processAreaNotificationQueue()
+    }
+
+    private fun processAreaNotificationQueue() {
+        if (isShowingAreaNotification || areaNotificationQueue.isEmpty()) return
+
+        val text = areaNotificationQueue.poll()
+        isShowingAreaNotification = true
+
+        areaNotificationLabel.setText(text)
+        // No shadow update code here anymore
+
+        val duration = 3.0f
+
+        val sequence = Actions.sequence(
+            Actions.fadeIn(0.5f, Interpolation.pow2Out),
+            Actions.delay(duration),
+            Actions.fadeOut(0.5f, Interpolation.pow2In),
+            Actions.run {
+                isShowingAreaNotification = false
+                areaNotificationLabel.isVisible = false
+                processAreaNotificationQueue()
+            }
+        )
+
+        areaNotificationLabel.clearActions()
+        areaNotificationLabel.color.a = 0f
+        areaNotificationLabel.isVisible = true
+        areaNotificationLabel.addAction(sequence)
     }
 
     fun showAreaNotification(text: String) {
@@ -1014,7 +1051,22 @@ class UIManager(
         posTable.add(areaZField).width(50f)
         content.add(posTable).colspan(2).row()
 
-        val confirmButton = TextButton("Confirm (Enter)", skin)
+        val moveButton = TextButton("Move Position", skin, "toggle")
+        moveButton.addListener(object : ClickListener() {
+            override fun clicked(event: InputEvent?, x: Float, y: Float) {
+                game.areaSystem.toggleMovingMode()
+                if (game.areaSystem.isMovingArea) {
+                    moveButton.isChecked = true
+                    moveButton.setText("Place (Click)")
+                } else {
+                    moveButton.isChecked = false
+                    moveButton.setText("Move Position")
+                }
+            }
+        })
+        content.add(moveButton).colspan(2).fillX().padTop(5f).row()
+
+        val confirmButton = TextButton("Confirm & Save", skin)
         confirmButton.addListener(object : ClickListener() {
             override fun clicked(event: InputEvent?, x: Float, y: Float) {
                 game.areaSystem.confirmPlacement()

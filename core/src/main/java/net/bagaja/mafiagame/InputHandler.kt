@@ -238,11 +238,15 @@ class InputHandler(
                                 Tool.AREA -> {
                                     // If we have a preview, confirm it. If not, start new one.
                                     if (areaSystem.previewArea != null) {
-                                        areaSystem.confirmPlacement()
-                                        areaSystem.cancelPlacement() // Clear preview
-                                        uiManager.updatePlacementInfo("Area Created")
-                                        // Prompt for next one immediately? Or reset tool?
-                                        // Let's reset to allow movement, user presses N/Tool again to start new one.
+                                        if (areaSystem.isMovingArea) {
+                                            // If moving, click just stamps it down (stops moving)
+                                            areaSystem.isMovingArea = false
+                                            // Update UI button state if possible, or let user click "Confirm" in UI
+                                            uiManager.updatePlacementInfo("Position Set. Adjust Size or Confirm.")
+                                        } else {
+                                            areaSystem.confirmPlacement()
+                                            areaSystem.cancelPlacement()
+                                        }
                                     } else {
                                         // Start creation process
                                         uiManager.showAreaNameDialog { name ->
@@ -642,19 +646,23 @@ class InputHandler(
                                 val min = it.position.cpy().sub(it.width/2, 2f, it.depth/2)
                                 val max = it.position.cpy().add(it.width/2, 2f, it.depth/2)
                                 bounds.set(min, max)
-                                com.badlogic.gdx.math.Intersector.intersectRayBounds(ray, bounds, null)
+                                Intersector.intersectRayBounds(ray, bounds, null)
                             }
 
                             if (hitArea != null) {
+
                                 if (Gdx.input.isKeyPressed(Input.Keys.SHIFT_LEFT)) {
-                                    // Edit Name
-                                    uiManager.showTextInputDialog("Edit Area Name", hitArea.name) { newName ->
-                                        hitArea.name = newName
-                                    }
-                                } else {
-                                    // Remove
+                                    // DELETE (Shift + Right Click)
                                     game.areaSystem.activeAreas.removeValue(hitArea, true)
                                     uiManager.showTemporaryMessage("Removed Area: ${hitArea.name}")
+                                } else {
+                                    // Switch tool to AREA automatically
+                                    uiManager.selectedTool = Tool.AREA
+                                    uiManager.updateToolDisplay()
+
+                                    // Start editing
+                                    game.areaSystem.startEditing(hitArea)
+                                    uiManager.updatePlacementInfo("Editing Area: ${hitArea.name}")
                                 }
                                 return true
                             }

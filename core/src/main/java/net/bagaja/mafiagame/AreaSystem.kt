@@ -44,6 +44,7 @@ data class GameArea(
 class AreaSystem(private val game: MafiaGame) : Disposable {
     val activeAreas = Array<GameArea>()
     private var lastActiveArea: GameArea? = null // To track enter/leave events
+    var isMovingArea = false
 
     // Rendering
     private val modelBatch = ModelBatch()
@@ -53,6 +54,10 @@ class AreaSystem(private val game: MafiaGame) : Disposable {
     var currentPreviewWidth: Float = 10f
     var currentPreviewDepth: Float = 10f
     var previewPosition: Vector3 = Vector3()
+    private var editingArea: GameArea? = null
+    private var areaTransitionCooldown = 0f
+    private val COOLDOWN_DURATION = 3.0f // Minimum seconds between notifications for same area
+    private var pendingArea: GameArea? = null
 
     fun initialize() {
         val modelBuilder = ModelBuilder()
@@ -66,24 +71,47 @@ class AreaSystem(private val game: MafiaGame) : Disposable {
     }
 
     fun update(deltaTime: Float) {
-        // Don't check triggers in editor mode to avoid spam
         if (game.isEditorMode) return
+        if (game.sceneManager.currentScene != SceneType.WORLD) return
 
         val playerPos = game.playerSystem.getPosition()
-
-        // Find the area the player is currently inside (prioritize smaller/nested areas if needed, here just takes first)
         val currentArea = activeAreas.find { it.contains(playerPos) }
 
+        // Timer update
+        if (areaTransitionCooldown > 0f) {
+            areaTransitionCooldown -= deltaTime
+        }
+
+        // Logic:
+        // 1. If we are truly in a NEW area (different from last confirmed active area)
         if (currentArea != lastActiveArea) {
-            // State changed!
+
+            // Case A: We are just "flickering" back and forth rapidly
+            if (areaTransitionCooldown > 0f) {
+                // Do nothing. We ignore rapid changes.
+                // Effectively, the system thinks you never left the lastActiveArea.
+                return
+            }
+
+            // Case B: This is a legitimate, sustained transition
+
+            // 1. Notify leaving old area
             if (lastActiveArea != null) {
-                game.uiManager.showFloatingText("Leaving ${lastActiveArea!!.name}", Color.ORANGE, playerPos.cpy().add(0f, 2f, 0f))
+                // Only show "Leaving" if we are actually entering "Null" (Wilderness)
+                // If we are moving from Area A -> Area B directly, just show "Entering B"
+                if (currentArea == null) {
+                    game.uiManager.queueAreaNotification("Leaving ${lastActiveArea!!.name}")
+                }
             }
 
+            // 2. Notify entering new area
             if (currentArea != null) {
-                game.uiManager.showAreaNotification("Entering ${currentArea.name}")
+                game.uiManager.queueAreaNotification("Entering ${currentArea.name}")
+                // Start cooldown to prevent "Leaving" spam if player steps back out immediately
+                areaTransitionCooldown = COOLDOWN_DURATION
             }
 
+            // 3. Commit state
             lastActiveArea = currentArea
         }
     }
@@ -96,13 +124,19 @@ class AreaSystem(private val game: MafiaGame) : Disposable {
         // Default start position (e.g., where player is looking, or 0,0,0)
         previewArea = GameArea(name = name, position = Vector3(), width = 10f, depth = 10f, debugInstance = instance)
 
-        // NEW: Open the Properties Window immediately
+        isMovingArea = true // New areas always start in moving mode
         game.uiManager.showAreaPropertiesWindow()
     }
 
     fun updatePreviewPosition(position: Vector3) {
+        if (!isMovingArea) return // Ignore mouse if not in moving mode
+
         previewPosition.set(position.x, position.y + 2f, position.z)
         syncPreview()
+    }
+
+    fun toggleMovingMode() {
+        isMovingArea = !isMovingArea
     }
 
     fun manualUpdate(width: Float, depth: Float, x: Float, y: Float, z: Float) {
@@ -143,21 +177,62 @@ class AreaSystem(private val game: MafiaGame) : Disposable {
         game.uiManager.updateAreaPropertiesValues(currentPreviewWidth, currentPreviewDepth, previewPosition)
     }
 
+    fun startEditing(area: GameArea) {
+        editingArea = area
+        isMovingArea = false // Editing starts LOCKED in place
+
+        // Load values into temp variables
+        currentPreviewName = area.name
+        currentPreviewWidth = area.width
+        currentPreviewDepth = area.depth
+        previewPosition.set(area.position)
+
+        // "Hide" the original visual while editing by shrinking it or moving it away
+        // (or just let the preview overlay it, which is simpler)
+
+        // Set the preview visual to match
+        previewArea = GameArea(
+            name = area.name,
+            position = area.position.cpy(),
+            width = area.width,
+            depth = area.depth,
+            debugInstance = ModelInstance(debugBoxModel)
+        )
+        previewArea!!.updateDebugVisuals()
+
+        // Open UI with current values
+        game.uiManager.showAreaPropertiesWindow()
+    }
+
     fun confirmPlacement() {
         previewArea?.let { preview ->
-            val newInstance = ModelInstance(debugBoxModel)
-            val newArea = GameArea(
-                name = preview.name,
-                position = preview.position.cpy(), // Use current position
-                width = preview.width,
-                depth = preview.depth,
-                debugInstance = newInstance
-            )
-            newArea.updateDebugVisuals()
-            activeAreas.add(newArea)
-            println("Created Area: ${newArea.name}")
+            if (editingArea != null) {
+                // UPDATE EXISTING
+                editingArea!!.name = preview.name
+                editingArea!!.position.set(preview.position)
+                editingArea!!.width = preview.width
+                editingArea!!.depth = preview.depth
+                editingArea!!.updateDebugVisuals()
+                println("Updated Area: ${editingArea!!.name}")
+            } else {
+                // CREATE NEW
+                val newInstance = ModelInstance(debugBoxModel)
+                val newArea = GameArea(
+                    name = preview.name,
+                    position = preview.position.cpy(),
+                    width = preview.width,
+                    depth = preview.depth,
+                    debugInstance = newInstance
+                )
+                newArea.updateDebugVisuals()
+                activeAreas.add(newArea)
+                println("Created Area: ${newArea.name}")
+            }
         }
-        game.uiManager.hideAreaPropertiesWindow() // Close window
+        // Cleanup
+        editingArea = null
+        previewArea = null
+        game.uiManager.hideAreaPropertiesWindow()
     }
 
     fun cancelPlacement() {
