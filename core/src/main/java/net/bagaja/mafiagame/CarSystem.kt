@@ -538,6 +538,7 @@ data class GameCar(
     private var targetRotationY = 0f // Target visual rotation
     private val rotationSpeed = 360f // Degrees per second
     private var lastHorizontalDirection = if (initialVisualRotation == 180f) -1f else 1f
+    private var chainReactionTimer: Float = -1f
 
     // Animation System for the Car
     private val animationSystem = AnimationSystem()
@@ -782,8 +783,25 @@ data class GameCar(
 
         if (state == CarState.DRIVABLE && health > 0) {
             health -= damage
-            this.lastDamageType = type // Remember the last damage source
+            this.lastDamageType = type
             println("${this.carType.displayName} took $damage $type damage. HP: ${this.health.toInt()}")
+
+            // CHAIN REACTION
+            if (health > 0 && type == DamageType.EXPLOSIVE && chainReactionTimer < 0f) {
+                val chainChance = (damage / 200f).coerceIn(0f, 0.9f)
+
+                if (Random.nextFloat() < chainChance) {
+                    // Success! This car will explode soon.
+                    chainReactionTimer = Random.nextFloat() * 0.5f + 0.1f
+                    println("${this.carType.displayName} caught in CHAIN REACTION! Exploding in ${"%.2f".format(chainReactionTimer)}s")
+
+                    // Optional: Spawn a little smoke immediately to show it's "critical"
+                    sceneManager.game.particleSystem.spawnEffect(
+                        ParticleEffectType.SMOKE_FRAME_1,
+                        this.position.cpy().add(0f, 1f, 0f)
+                    )
+                }
+            }
         }
     }
 
@@ -1056,6 +1074,16 @@ data class GameCar(
 
     fun update(deltaTime: Float) {
         updateVisualRotation(deltaTime)
+
+        if (chainReactionTimer > 0f) {
+            chainReactionTimer -= deltaTime
+            if (chainReactionTimer <= 0f) {
+                // Boom! Time is up.
+                health = 0f
+                chainReactionTimer = -1f
+                println("$id succumbed to chain reaction.")
+            }
+        }
 
         when (state) {
             CarState.DRIVABLE -> {
