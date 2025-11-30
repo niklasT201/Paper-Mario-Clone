@@ -246,6 +246,11 @@ class AreaSystem(private val game: MafiaGame) : Disposable {
         // Use reflection or a copy constructor ideally, but for now we can't easily assign val properties
     }
 
+    fun resetTracking() {
+        lastActiveArea = null
+        areaTransitionCooldown = 0f
+    }
+
     fun createDebugInstance(): ModelInstance {
         return ModelInstance(debugBoxModel)
     }

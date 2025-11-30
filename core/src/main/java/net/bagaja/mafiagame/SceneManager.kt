@@ -835,6 +835,27 @@ class SceneManager(
             interiorState = interiorStates[house.id]!!
         }
 
+        // 1. Determine the Room Name
+        var roomName = "Unknown Room"
+
+        val templateId = house.assignedRoomTemplateId
+        if (templateId != null) {
+            val template = roomTemplateManager.getTemplate(templateId)
+            if (template != null) {
+                roomName = template.name
+            } else {
+                roomName = "Empty Room"
+            }
+        } else {
+            roomName = "Empty Room"
+        }
+
+        // 2. Trigger the Notification (Reusing the Area Notification UI)
+        game.uiManager.queueAreaNotification(roomName)
+
+        // 3. Reset AreaSystem so when we leave, the world area triggers again
+        game.areaSystem.resetTracking()
+
         activeChunkManager = interiorCm
         loadInteriorState(interiorState)
 
@@ -899,6 +920,9 @@ class SceneManager(
 
         currentScene = SceneType.WORLD
         currentInteriorId = null
+
+        game.areaSystem.resetTracking()
+        game.areaSystem.update(0.1f)
 
         // Position the player at the saved exit position
         worldState?.let {
