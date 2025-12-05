@@ -84,6 +84,7 @@ class PlayerSystem {
     lateinit var waterPuddleSystem: WaterPuddleSystem
     private var wetFootprintsTimer = 0f
     private val WET_FOOTPRINT_COOLDOWN = 10f
+    var carriedBody: Any? = null
 
     fun isDead(): Boolean = isDead
 
@@ -2087,6 +2088,71 @@ class PlayerSystem {
         }
     }
 
+    fun isCarryingBody(): Boolean = carriedBody != null
+
+    fun pickupBody(body: Any) {
+        if (isDriving) return
+        carriedBody = body
+        println("Player picked up a body.")
+    }
+
+    fun dropBody() {
+        val body = carriedBody ?: return
+
+        val pos = if (body is GameEnemy) body.position else (body as GameNPC).position
+
+        val groundY = sceneManager.findHighestSupportY(pos.x, pos.z, pos.y, 0.1f, blockSize)
+
+        // Use the new tight offset here too
+        val finalY = groundY + 0.015f
+
+        if (body is GameEnemy) {
+            body.currentState = AIState.DEAD_BODY
+            body.position.y = finalY
+            body.updateVisuals()
+        } else if (body is GameNPC) {
+            body.currentState = NPCState.DEAD_BODY
+            body.position.y = finalY
+            body.updateVisuals()
+        }
+
+        carriedBody = null
+        println("Player dropped the body.")
+    }
+
+    private fun updateCarriedBodyPosition(deltaTime: Float) {
+        val body = carriedBody ?: return
+        val offsetDist = 1.5f
+        val dirMultiplier = if (playerCurrentRotationY == 0f) -1f else 1f
+
+        val targetX = getPosition().x + (dirMultiplier * offsetDist)
+        val targetY = getPosition().y - 1.0f // Dragging low to the ground
+        val targetZ = getPosition().z + 0.1f // Slight Z offset
+
+        val targetPos = Vector3(targetX, targetY, targetZ)
+
+        if (body is GameEnemy) {
+            body.position.lerp(targetPos, 10f * deltaTime)
+
+            body.modelInstance.transform.idt()
+            body.modelInstance.transform.setToTranslation(body.position)
+            body.modelInstance.transform.rotate(Vector3.Y, playerCurrentRotationY)
+
+            // CHANGE: -90f to 90f
+            body.modelInstance.transform.rotate(Vector3.Z, 90f)
+
+        } else if (body is GameNPC) {
+            body.position.lerp(targetPos, 10f * deltaTime)
+
+            body.modelInstance.transform.idt()
+            body.modelInstance.transform.setToTranslation(body.position)
+            body.modelInstance.transform.rotate(Vector3.Y, playerCurrentRotationY)
+
+            // CHANGE: -90f to 90f
+            body.modelInstance.transform.rotate(Vector3.Z, 90f)
+        }
+    }
+
     fun update(deltaTime: Float, sceneManager: SceneManager, weatherSystem: WeatherSystem, isInInterior: Boolean) {
         if (respawnProtectionTimer > 0f) {
             respawnProtectionTimer -= deltaTime
@@ -2553,6 +2619,7 @@ class PlayerSystem {
         }
 
         updatePlayerTransform()
+        updateCarriedBodyPosition(deltaTime)
     }
 
     private fun checkBloodPoolCollision(sceneManager: SceneManager) {

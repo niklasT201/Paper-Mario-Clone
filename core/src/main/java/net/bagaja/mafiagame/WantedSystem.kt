@@ -61,6 +61,7 @@ class WantedSystem(
     private val surrenderDuration = 2.0f // Player must be surrendering for this long
     private val arrestRespawnPoint = Vector3(50f, 2f, 50f) // Example: Police station location
     val confiscatedWeapons = mutableListOf<ConfiscatedWeapon>()
+    private var bodyCheckTimer = 0f
 
     // --- Public API ---
 
@@ -241,6 +242,67 @@ class WantedSystem(
         // 6. Attempt Blockade (New Logic)
         if (currentWantedLevel >= 3) {
             attemptSpawnBlockade()
+        }
+
+        // 7. Check for Dead Bodies (Ultra Violence Mode)
+        if (sceneManager.game.uiManager.getViolenceLevel() == ViolenceLevel.ULTRA_VIOLENCE && currentWantedLevel < 5) {
+            bodyCheckTimer -= deltaTime
+            if (bodyCheckTimer <= 0f) {
+                checkForDeadBodyDiscovery()
+                bodyCheckTimer = 0.5f // Check twice per second
+            }
+        }
+    }
+
+    private fun checkForDeadBodyDiscovery() {
+        val playerPos = playerSystem.getPosition()
+
+        // 1. Gather all dead bodies
+        val deadBodies = mutableListOf<Vector3>()
+        sceneManager.activeEnemies.filter { it.currentState == AIState.DEAD_BODY }.forEach { deadBodies.add(it.position) }
+        sceneManager.activeNPCs.filter { it.currentState == NPCState.DEAD_BODY }.forEach { deadBodies.add(it.position) }
+
+        if (deadBodies.isEmpty()) return
+
+        // 2. Check if police see them
+        for (police in activePolice) {
+            if (police.health <= 0 || police.isInCar) continue
+
+            for (bodyPos in deadBodies) {
+                // Police must be close to body (visual range)
+                if (police.position.dst(bodyPos) < 20f) {
+
+                    // Player must be close to body (incriminating range)
+                    if (playerPos.dst(bodyPos) < 8f) {
+
+                        // Condition: Is anyone else nearby?
+                        val witnessNear = sceneManager.activeNPCs.any {
+                            it.currentState != NPCState.DEAD_BODY && it.currentState != NPCState.DYING &&
+                                it.position.dst(bodyPos) < 10f
+                        }
+
+                        // Condition: Player is armed?
+                        val playerArmed = playerSystem.equippedWeapon != WeaponType.UNARMED
+
+                        // IF (No Witnesses OR Player Armed) -> Guilty!
+                        if (!witnessNear || playerArmed) {
+                            println("POLICE: Found body, player implicated! (Armed: $playerArmed, Witness: $witnessNear)")
+
+                            // Instant 2 Stars if below
+                            if (currentWantedLevel < 2) {
+                                // Force progress high enough to trigger level up next frame
+                                reportCrimeByPolice(CrimeType.KILL_CIVILIAN)
+                                reportCrimeByPolice(CrimeType.KILL_CIVILIAN)
+                            } else {
+                                reportCrimeByPolice(CrimeType.KILL_CIVILIAN)
+                            }
+
+                            police.currentState = AIState.CHASING
+                            return
+                        }
+                    }
+                }
+            }
         }
     }
 

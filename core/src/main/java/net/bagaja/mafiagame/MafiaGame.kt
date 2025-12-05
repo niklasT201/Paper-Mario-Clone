@@ -825,6 +825,37 @@ class MafiaGame : ApplicationAdapter() {
         }
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.E)) {
+            // 1. Drop Body if carrying
+            if (playerSystem.isCarryingBody()) {
+                playerSystem.dropBody()
+                return
+            }
+
+            val playerPos = playerSystem.getPosition()
+
+            // 2. Pick up Body (Only in Ultra Violence)
+            if (uiManager.getViolenceLevel() == ViolenceLevel.ULTRA_VIOLENCE) {
+                // Check Enemies
+                val deadEnemy = sceneManager.activeEnemies.find {
+                    it.currentState == AIState.DEAD_BODY && it.position.dst(playerPos) < 3.5f
+                }
+                if (deadEnemy != null) {
+                    deadEnemy.currentState = AIState.CARRIED
+                    playerSystem.pickupBody(deadEnemy)
+                    return
+                }
+
+                // Check NPCs
+                val deadNPC = sceneManager.activeNPCs.find {
+                    it.currentState == NPCState.DEAD_BODY && it.position.dst(playerPos) < 3.5f
+                }
+                if (deadNPC != null) {
+                    deadNPC.currentState = NPCState.CARRIED
+                    playerSystem.pickupBody(deadNPC)
+                    return
+                }
+            }
+
             // If the player is currently driving
             if (playerSystem.isDriving) {
 
@@ -858,7 +889,6 @@ class MafiaGame : ApplicationAdapter() {
 
             when (sceneManager.currentScene) {
                 SceneType.WORLD -> {
-                    val playerPos = playerSystem.getPosition()
                     val closestCar = sceneManager.activeCars.minByOrNull { it.position.dst2(playerPos) }
 
                     // Check if a car is found and is close enough

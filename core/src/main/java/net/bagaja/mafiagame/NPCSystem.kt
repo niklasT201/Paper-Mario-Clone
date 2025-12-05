@@ -113,7 +113,9 @@ enum class NPCState {
     CHASING_STOLEN_CAR,
     REPORTING_CRIME_SEARCHING, // NPC is looking for a cop
     REPORTING_CRIME_RUNNING,   // NPC is running to a cop
-    REPORTING_CRIME_DELIVERING // NPC has reached the cop and is "talking"
+    REPORTING_CRIME_DELIVERING, // NPC has reached the cop and is "talking"
+    DEAD_BODY,
+    CARRIED
 }
 
 // --- MAIN NPC DATA CLASS ---
@@ -584,9 +586,28 @@ class NPCSystem : IFinePositionable {
     }
 
     fun startDeathSequence(npc: GameNPC, sceneManager: SceneManager) {
-        if (npc.currentState == NPCState.DYING) return
+        // 1. Prevent double-death if already dying, dead on ground, or being carried
+        if (npc.currentState == NPCState.DYING || npc.currentState == NPCState.DEAD_BODY || npc.currentState == NPCState.CARRIED) return
 
+        // 2. Clean up any spawners/emitters linked to this NPC
         destroyLinkedObjects(npc.id)
+
+        // ULTRA VIOLENCE
+        val violenceLevel = sceneManager.game.uiManager.getViolenceLevel()
+        if (violenceLevel == ViolenceLevel.ULTRA_VIOLENCE) {
+            npc.currentState = NPCState.DEAD_BODY
+            npc.health = 0f
+            npc.physics.isMoving = false
+
+            npc.modelInstance.transform.rotate(Vector3.Z, 90f)
+
+            val groundY = sceneManager.findHighestSupportY(npc.position.x, npc.position.z, npc.position.y, 0.1f, sceneManager.game.blockSize)
+            // Tighter offset
+            npc.position.y = groundY + 0.015f
+            npc.updateVisuals()
+            sceneManager.game.playerSystem.bloodPoolSystem.addPool(npc.position.cpy(), sceneManager)
+            return
+        }
 
         npc.currentState = NPCState.DYING
         npc.fadeOutTimer = FADE_OUT_DURATION
@@ -594,6 +615,7 @@ class NPCSystem : IFinePositionable {
 
         println("NPC ${npc.npcType.displayName} is dying from ${npc.lastDamageType}.")
 
+        // Standard gore: Blood + Bones
         if (npc.lastDamageType != DamageType.FIRE) {
             sceneManager.game.playerSystem.bloodPoolSystem.addPool(npc.position.cpy(), sceneManager)
             sceneManager.boneSystem.spawnBones(npc.position.cpy(), npc.facingRotationY, sceneManager)
@@ -709,11 +731,11 @@ class NPCSystem : IFinePositionable {
         }
     }
 
-    fun updateNpcVisuals(npc: GameNPC) {
+    private fun updateNpcVisuals(npc: GameNPC) {
         npc.modelInstance.transform.idt()
         npc.modelInstance.transform.setTranslation(npc.position)
 
-        // For NPCs, we don't have weapon textures yet, so it's simpler
+        // Texture & Scaling Logic
         val baseTex = npc.baseTexture
         if (baseTex != null) {
             val textureToApply = npcTextures[npc.npcType] ?: baseTex
@@ -730,8 +752,13 @@ class NPCSystem : IFinePositionable {
             npc.modelInstance.transform.scale(scaleX, 1f, 1f)
         }
 
-        npc.modelInstance.transform.rotate(Vector3.Y, npc.facingRotationY)
-        npc.modelInstance.transform.rotate(Vector3.Z, npc.wobbleAngle)
+        if (npc.health <= 0f || npc.currentState == NPCState.DEAD_BODY || npc.currentState == NPCState.CARRIED) {
+            npc.modelInstance.transform.rotate(Vector3.Y, npc.facingRotationY)
+            npc.modelInstance.transform.rotate(Vector3.Z, 90f) // Face Sky
+        } else {
+            npc.modelInstance.transform.rotate(Vector3.Y, npc.facingRotationY)
+            npc.modelInstance.transform.rotate(Vector3.Z, npc.wobbleAngle)
+        }
     }
 
     fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float, weatherSystem: WeatherSystem, isInInterior: Boolean) {
@@ -741,6 +768,12 @@ class NPCSystem : IFinePositionable {
 
         while(iterator.hasNext()) {
             val npc = iterator.next()
+
+            if (npc.currentState == NPCState.DEAD_BODY || npc.currentState == NPCState.CARRIED) {
+                updateNpcVisuals(npc)
+                continue
+            }
+
             var currentSpeed = npc.npcType.speed
 
             if (visualRainIntensity > 0.2f && !isInInterior && !npc.isInCar) {

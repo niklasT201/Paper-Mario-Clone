@@ -58,7 +58,9 @@ enum class AIState {
     PATROLLING_IN_CAR,
     INVESTIGATING,
     DRIVING_TO_SCENE,         // For police driving to where a crime was reported
-    PATROLLING_AND_DESPAWNING // For police driving away after a job is done
+    PATROLLING_AND_DESPAWNING, // For police driving away after a job is done
+    DEAD_BODY,
+    CARRIED
 }
 
 data class GameEnemy(
@@ -545,10 +547,28 @@ class EnemySystem : IFinePositionable {
     }
 
     fun startDeathSequence(enemy: GameEnemy, sceneManager: SceneManager) {
-        if (enemy.currentState == AIState.DYING) return // Already dying
+        // Prevent double-death
+        if (enemy.currentState == AIState.DYING || enemy.currentState == AIState.DEAD_BODY || enemy.currentState == AIState.CARRIED) return
 
         dropAllItemsOnDeath(enemy)
 
+        // ULTRA VIOLENCE
+        val violenceLevel = sceneManager.game.uiManager.getViolenceLevel()
+        if (violenceLevel == ViolenceLevel.ULTRA_VIOLENCE) {
+            enemy.currentState = AIState.DEAD_BODY
+            enemy.health = 0f // Ensure health is 0
+            enemy.physics.isMoving = false
+
+            enemy.modelInstance.transform.rotate(Vector3.Z, 90f)
+
+            val groundY = sceneManager.findHighestSupportY(enemy.position.x, enemy.position.z, enemy.position.y, 0.1f, blockSize)
+            enemy.position.y = groundY + 0.015f
+            enemy.updateVisuals()
+            sceneManager.game.playerSystem.bloodPoolSystem.addPool(enemy.position.cpy(), sceneManager)
+            return
+        }
+
+        // Original Logic
         enemy.currentState = AIState.DYING
         enemy.fadeOutTimer = FADE_OUT_DURATION
         enemy.health = 0f // Finalize death
@@ -592,6 +612,7 @@ class EnemySystem : IFinePositionable {
             enemy.modelInstance.transform.idt() // Reset transform
             enemy.modelInstance.transform.setTranslation(enemy.position) // Apply position
 
+            // 3. Apply Scaling (Maintain aspect ratio)
             val baseTex = enemy.baseTexture
             if (baseTex != null) {
                 val baseAspect = baseTex.width.toFloat() / baseTex.height.toFloat()
@@ -601,9 +622,17 @@ class EnemySystem : IFinePositionable {
             }
         }
 
-        // 3. Apply rotation and wobble
-        enemy.modelInstance.transform.rotate(Vector3.Y, enemy.facingRotationY)
-        enemy.modelInstance.transform.rotate(Vector3.Z, enemy.wobbleAngle)
+        // --- 4. APPLY ROTATION (THE FIX) ---
+        if (enemy.health <= 0f || enemy.currentState == AIState.DEAD_BODY || enemy.currentState == AIState.CARRIED) {
+            // 3. Apply rotation and wobble
+            enemy.modelInstance.transform.rotate(Vector3.Y, enemy.facingRotationY)
+            // Face up to the sky
+            enemy.modelInstance.transform.rotate(Vector3.Z, 90f)
+        } else {
+            // Normal Standing
+            enemy.modelInstance.transform.rotate(Vector3.Y, enemy.facingRotationY)
+            enemy.modelInstance.transform.rotate(Vector3.Z, enemy.wobbleAngle)
+        }
     }
 
     fun update(deltaTime: Float, playerSystem: PlayerSystem, sceneManager: SceneManager, blockSize: Float, weatherSystem: WeatherSystem, isInInterior: Boolean) {
@@ -613,6 +642,12 @@ class EnemySystem : IFinePositionable {
 
         while (iterator.hasNext()) {
             val enemy = iterator.next()
+
+            if (enemy.currentState == AIState.DEAD_BODY || enemy.currentState == AIState.CARRIED) {
+                updateEnemyVisuals(enemy)
+                continue
+            }
+
             var currentSpeed = enemy.enemyType.speed
 
             // Only hurry if NOT in combat and NOT inside
@@ -1082,9 +1117,15 @@ class EnemySystem : IFinePositionable {
     fun alertNearbyEnemies(sourceEnemy: GameEnemy, targetPosition: Vector3) {
         val alertRadius = 25f // How far the "shout" travels
 
-        for (ally in sceneManager.activeEnemies) {
+        val enemies = sceneManager.activeEnemies
+        for (i in 0 until enemies.size) {
+            val ally = enemies[i]
+
             // Don't alert self, dead guys, or people already fighting
             if (ally.id == sourceEnemy.id || ally.currentState == AIState.DYING || ally.health <= 0) continue
+
+            // Skip if they are already a dead body (Ultra Violence)
+            if (ally.currentState == AIState.DEAD_BODY || ally.currentState == AIState.CARRIED) continue
 
             // Only alert enemies that are currently doing nothing
             if (ally.currentState != AIState.IDLE && ally.currentState != AIState.PATROLLING_IN_CAR) continue
@@ -1181,6 +1222,14 @@ class EnemySystem : IFinePositionable {
     }
 
     private fun updateAI(enemy: GameEnemy, playerSystem: PlayerSystem, deltaTime: Float, sceneManager: SceneManager) {
+        // If health is 0, or in any death/carried state, STOP THINKING immediately.
+        if (enemy.health <= 0f ||
+            enemy.currentState == AIState.DYING ||
+            enemy.currentState == AIState.DEAD_BODY ||
+            enemy.currentState == AIState.CARRIED) {
+            return
+        }
+
         val playerPos = playerSystem.getPosition() // Get player position once
 
         // --- PROBLEM 2 SOLUTION: CHECK CHASE DISTANCE ---
