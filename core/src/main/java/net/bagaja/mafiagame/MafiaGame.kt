@@ -585,6 +585,20 @@ class MafiaGame : ApplicationAdapter() {
             val dist = playerPos.dst(closestObject.position)
             // Standard interaction range
             if (dist < 3.5f) {
+                // Check for Mission Start Trigger (Hidden Interactions)
+                val missionToStart = triggerSystem.allMissions.values.find {
+                    it.startTrigger.type == TriggerType.ON_INTERACT &&
+                        it.startTrigger.targetNpcId == closestObject.id && // Reusing targetNpcId field for Object ID
+                        !missionSystem.isMissionCompleted(it.id) &&
+                        !missionSystem.isMissionActive(it.id)
+                }
+
+                if (missionToStart != null) {
+                    // START THE INTERACTION
+                    missionSystem.startMission(missionToStart.id)
+                    return
+                }
+
                 // CASE A: Custom Text exists (e.g. "Read Secret Diary")
                 if (closestObject.customInteractionText != null) {
                     checkCandidate(dist, "Press ${fmtKey("E")} to ${closestObject.customInteractionText}")

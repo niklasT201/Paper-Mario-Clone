@@ -185,7 +185,8 @@ enum class TriggerType {
     ON_DESTROY_CAR,
     ON_DESTROY_OBJECT,
     ON_MONEY_BELOW_THRESHOLD,
-    ON_MISSION_FAILED
+    ON_MISSION_FAILED,
+    ON_INTERACT
 }
 
 data class MissionTrigger(
@@ -268,6 +269,7 @@ enum class GameEventType {
     SPAWN_NPC,
     SPAWN_CAR,
     SPAWN_ITEM,
+    REMOVE_ITEM,
     SPAWN_MONEY_STACK,
     DESPAWN_ENTITY,
     START_DIALOG,

@@ -41,7 +41,7 @@ class TriggerSystem(private val game: MafiaGame) : Disposable {
     private var exclamationIconTexture: Texture? = null
 
     // --- State ---
-    private val allMissions = mutableMapOf<String, MissionDefinition>()
+    val allMissions = mutableMapOf<String, MissionDefinition>()
     var selectedMissionIdForEditing: String? = null
     var isEditorVisible = false
 

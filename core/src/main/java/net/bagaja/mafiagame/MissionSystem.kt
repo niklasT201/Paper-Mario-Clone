@@ -207,7 +207,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
     fun update(deltaTime: Float) {
         if (game.uiManager.isPauseMenuVisible()) {
-            return // Stop all mission processing if the game is paused.
+            return // Stop all mission processing if the game is paused
         }
 
         // Pause all mission logic (timers, triggers, checks) if a cutscene is playing
@@ -1366,6 +1366,22 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                         addEntityToScene(newItem, game.sceneManager.activeItems, { game.sceneManager.worldState?.items }) {
                             game.sceneManager.interiorStates[it]?.items
                         }
+                    }
+                }
+            }
+            GameEventType.REMOVE_ITEM -> {
+                // Case 1: Money
+                if (event.itemType == ItemType.MONEY_STACK) {
+                    val amountToRemove = event.itemValue // Reuse itemValue for money amount
+                    game.playerSystem.addMoney(-amountToRemove) // Negative adds removes money
+                    println("Mission Event: Removed $$amountToRemove from player.")
+                }
+                // Case 2: Weapons
+                else if (event.itemType?.correspondingWeapon != null) {
+                    val weaponToRemove = event.itemType.correspondingWeapon
+                    if (game.playerSystem.hasWeapon(weaponToRemove)) {
+                        game.playerSystem.removeWeaponFromInventory(weaponToRemove)
+                        println("Mission Event: Removed ${weaponToRemove.displayName} from player.")
                     }
                 }
             }

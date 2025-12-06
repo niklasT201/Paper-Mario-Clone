@@ -797,6 +797,7 @@ class MissionEditorUI(
             TriggerType.ON_DESTROY_OBJECT -> "Destroy Object with ID: ${trigger.targetNpcId}" // Reusing the NPC ID field
             TriggerType.ON_MONEY_BELOW_THRESHOLD -> "Player money drops below: $${trigger.moneyThreshold}"
             TriggerType.ON_MISSION_FAILED -> "Previous mission failed: ${trigger.targetNpcId}" // Reusing the NPC ID field for the mission ID
+            TriggerType.ON_INTERACT -> "Interact with Object: ${trigger.targetNpcId}"
         }
         container.add(Label("$indent$triggerText", skin, "small")).left().row()
 
@@ -1161,7 +1162,8 @@ class MissionEditorUI(
             enemySettingsTable.isVisible = type == GameEventType.SPAWN_ENEMY
             npcSettingsTable.isVisible = type == GameEventType.SPAWN_NPC
             carSettingsTable.isVisible = type == GameEventType.SPAWN_CAR
-            itemSettingsTable.isVisible = type == GameEventType.SPAWN_ITEM
+            itemSettingsTable.isVisible = type == GameEventType.SPAWN_ITEM || type == GameEventType.REMOVE_ITEM
+            itemValueRow.isVisible = (ItemType.entries.find { it.displayName == itemTypeSelect.selected } == ItemType.MONEY_STACK)
             moneySettingsTable.isVisible = type == GameEventType.SPAWN_MONEY_STACK
             houseSettingsTable.isVisible = type == GameEventType.SPAWN_HOUSE
             objectSettingsTable.isVisible = type == GameEventType.SPAWN_OBJECT
@@ -1277,6 +1279,11 @@ class MissionEditorUI(
                         itemType = ItemType.entries.find { it.displayName == itemTypeSelect.selected },
                         itemValue = if (ItemType.entries.find { it.displayName == itemTypeSelect.selected } == ItemType.MONEY_STACK) itemValueField.text.toIntOrNull() ?: 100 else 0,
                         customInteractionText = customTextField.text.ifBlank { null }
+                    )
+                    GameEventType.REMOVE_ITEM -> baseEvent.copy(
+                        itemType = ItemType.entries.find { it.displayName == itemTypeSelect.selected },
+                        // If money, use the value field. If weapon, value is 0 (ignored)
+                        itemValue = itemValueField.text.toIntOrNull() ?: 0
                     )
                     GameEventType.SPAWN_MONEY_STACK -> baseEvent.copy(
                         itemType = ItemType.MONEY_STACK,
@@ -1394,6 +1401,7 @@ class MissionEditorUI(
             GameEventType.SPAWN_NPC -> "SPAWN ${event.npcType?.displayName} with ID '${event.targetId}'"
             GameEventType.SPAWN_CAR -> "SPAWN ${event.carType?.displayName}"
             GameEventType.SPAWN_ITEM -> "SPAWN ${event.itemType?.displayName}"
+            GameEventType.REMOVE_ITEM -> "REMOVE ITEM: ${event.itemType?.displayName} (Value: ${event.itemValue})"
             GameEventType.SPAWN_MONEY_STACK -> "SPAWN Money Stack ($${event.itemValue})"
             GameEventType.DESPAWN_ENTITY -> "DESPAWN entity with ID '${event.targetId}'"
             GameEventType.START_DIALOG -> "START DIALOG '${event.dialogId}'"

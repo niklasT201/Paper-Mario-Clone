@@ -247,7 +247,7 @@ class TriggerEditorUI(
 
         // Hide all tables if it's the "all enemies eliminated" trigger
         val targetIdLabel = enemySettingsTable.children.first() as Label
-        if (selectedType == TriggerType.ON_DESTROY_OBJECT) {
+        if (selectedType == TriggerType.ON_DESTROY_OBJECT || selectedType == TriggerType.ON_INTERACT) {
             targetIdLabel.setText("Target Object ID:")
             enemySettingsTable.isVisible = true
         } else if (selectedType == TriggerType.ON_HURT_ENEMY) {
