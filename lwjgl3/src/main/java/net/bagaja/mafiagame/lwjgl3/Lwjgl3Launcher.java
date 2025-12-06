@@ -118,7 +118,6 @@ public class Lwjgl3Launcher {
 // minimap for open world mode
 // player can buy businesses (speakeasies, illegal casinos, protection rackets) that generate passive income
 // silent takedowns (melee from behind) and the ability to hide bodies
-// dead enemy flying behind players back
 // bones can be moved by character and explosions
 // add event button automatically adds new event without saving button press
 // fixing enemy reloading bug

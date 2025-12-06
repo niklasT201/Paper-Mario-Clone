@@ -1224,6 +1224,12 @@ class UIManager(
         }
     }
 
+    fun getDisplayableMissions(): List<MissionDefinition> {
+        return game.missionSystem.getAllMissionDefinitions().values
+            .filter { it.category != MissionCategory.HIDDEN } // Filter out secrets
+            .toList()
+    }
+
     private fun setupInteractionPrompt() {
         interactionPromptLabel = Label("", skin, "title") // Use "title" for larger text, or "default"
         interactionPromptLabel.style.font.data.markupEnabled = true // ENABLE COLOR CODES

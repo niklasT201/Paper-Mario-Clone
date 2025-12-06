@@ -809,10 +809,17 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
         val missionDef = allMissions[id] ?: return
 
-        game.wantedSystem.onMissionStart()
+        // Only show the big notification if it is NOT a hidden mission
+        if (missionDef.category != MissionCategory.HIDDEN) {
+            // Trigger UI notification
+            game.uiManager.showMissionStartNotification(missionDef.title)
+            println("--- MISSION STARTED: ${missionDef.title} ---")
+        } else {
+            println("--- HIDDEN SECRET TRIGGERED: ${missionDef.title} ---")
+            // Optional: Play a subtle sound to hint that something started?
+        }
 
-        // Trigger UI notification
-        game.uiManager.showMissionStartNotification(missionDef.title)
+        game.wantedSystem.onMissionStart()
 
         // Take an inventory snapshot if this mission modifies it
         val modifiesInventory = missionDef.eventsOnStart.any {
@@ -950,7 +957,13 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         val endedMissionId = mission.definition.id // Get ID before we null it out
 
         if (completed) {
-            println("--- MISSION COMPLETE: ${mission.definition.title} ---")
+            if (mission.definition.category != MissionCategory.HIDDEN) {
+                println("--- MISSION COMPLETE: ${mission.definition.title} ---")
+            } else {
+                println("--- HIDDEN SECRET FOUND: ${mission.definition.title} ---")
+                // For hidden missions, we usually rely on the Reward to show text (e.g. "You found a secret item!")
+            }
+
             gameState.completedMissionIds.add(mission.definition.id)
 
             // Execute mission-complete events and grant rewards

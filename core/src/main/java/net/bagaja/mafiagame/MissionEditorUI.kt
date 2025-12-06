@@ -52,18 +52,19 @@ class MissionEditorUI(
     private var tempRewards = mutableListOf<MissionReward>()
     private var tempStartEvents = mutableListOf<GameEvent>()
     private var tempCompleteEvents = mutableListOf<GameEvent>()
+    private val categorySelectBox: SelectBox<String>
 
     private val radiusField: TextField
     private val areaXField: TextField
     private val areaYField: TextField
     private val areaZField: TextField
 
-    private lateinit var timeRestrictedCheckbox: CheckBox
-    private lateinit var timeSliderTable: Table
-    private lateinit var startTimeSlider: Slider
-    private lateinit var endTimeSlider: Slider
-    private lateinit var startTimeLabel: Label
-    private lateinit var endTimeLabel: Label
+    private var timeRestrictedCheckbox: CheckBox
+    private var timeSliderTable: Table
+    private var startTimeSlider: Slider
+    private var endTimeSlider: Slider
+    private var startTimeLabel: Label
+    private var endTimeLabel: Label
 
     private val tempCycle = DayNightCycle()
     private fun updateTimeLabels() {
@@ -128,6 +129,10 @@ class MissionEditorUI(
 
         missionIdField = TextField("", skin).apply { isDisabled = true }
         missionTitleField = TextField("", skin)
+
+        categorySelectBox = SelectBox(skin)
+        categorySelectBox.items = GdxArray(MissionCategory.entries.map { it.name }.toTypedArray())
+
         missionDescriptionArea = TextArea("", skin)
         prerequisitesField = TextField("", skin)
         scopeSelectBox = SelectBox(skin); scopeSelectBox.items = GdxArray(MissionScope.entries.map { it.name }.toTypedArray())
@@ -139,6 +144,8 @@ class MissionEditorUI(
 
         editorDetailsTable.add(Label("ID:", skin)).left(); editorDetailsTable.add(missionIdField).growX().row()
         editorDetailsTable.add(Label("Title:", skin)).left(); editorDetailsTable.add(missionTitleField).growX().row()
+        editorDetailsTable.add(Label("Category:", skin)).left()
+        editorDetailsTable.add(categorySelectBox).growX().row()
         editorDetailsTable.add(Label("Description:", skin)).left().top(); editorDetailsTable.add(ScrollPane(missionDescriptionArea, skin)).growX().height(60f).row()
         editorDetailsTable.add(Label("Prerequisites (IDs):", skin)).left(); editorDetailsTable.add(prerequisitesField).growX().row()
         timeRestrictedCheckbox = CheckBox(" Time Restricted", skin)
@@ -380,6 +387,7 @@ class MissionEditorUI(
 
         missionIdField.text = mission.id
         missionTitleField.text = mission.title
+        categorySelectBox.selected = mission.category.name
         missionDescriptionArea.text = mission.description
         prerequisitesField.text = mission.prerequisites.joinToString(", ")
 
@@ -423,6 +431,8 @@ class MissionEditorUI(
         }
 
         mission.scope = MissionScope.valueOf(scopeSelectBox.selected)
+
+        mission.category = MissionCategory.valueOf(categorySelectBox.selected)
 
         missionSystem.saveMission(mission)
     }

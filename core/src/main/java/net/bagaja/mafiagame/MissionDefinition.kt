@@ -57,10 +57,17 @@ data class StandaloneDialog(
 
 // --- Core Mission Definition ---
 
+enum class MissionCategory {
+    MAIN,   // Story missions
+    SIDE,   // Optional quests
+    HIDDEN  // Secrets, Easter eggs, One-time interactions
+}
+
 data class MissionDefinition(
     val id: String = "",
     var title: String = "",
     var description: String = "",
+    var category: MissionCategory = MissionCategory.MAIN,
     var prerequisites: MutableList<String> = mutableListOf(),
     var scope: MissionScope = MissionScope.WORLD_ONLY,
     val eventsOnStart: MutableList<GameEvent> = mutableListOf(),
