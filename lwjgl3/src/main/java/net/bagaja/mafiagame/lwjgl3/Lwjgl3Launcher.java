@@ -110,7 +110,6 @@ public class Lwjgl3Launcher {
 // Persistence & Consequences
 // fire in rooms and mission not being connected right with its light source
 // visual screen for finished mission
-// bullet holes disappear when breaking blocks with them
 // money label showing up at rewards
 // nickelodeons having real short films
 // hardcore gameplay mode: no weapon switching, only fist and one other weapon
@@ -123,7 +122,6 @@ public class Lwjgl3Launcher {
 // fixing enemy reloading bug
 // fixing flickering character image
 // SEQUENCE, LOSE_THE_COPS, INFLUENCE_NPC, CAPTURE_TERRITORY
-// Cutscene System
 // interact with interiors/objectives, cars, characters = give item, lose item, new event will happen
 
 // Automatic/Linear Mode or Open World Mode

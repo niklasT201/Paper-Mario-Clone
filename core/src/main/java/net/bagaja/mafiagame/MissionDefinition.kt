@@ -290,7 +290,11 @@ enum class GameEventType {
     SET_WEATHER,
     SPAWN_AUDIO_EMITTER,
     MODIFY_AUDIO_EMITTER,
-    PLAY_SOUND
+    PLAY_SOUND,
+    START_CUTSCENE,      // Triggered by Mission
+    PLAYER_MOVE_TO_NODE, // Forces player to walk/drive to a path node
+    CAMERA_FOCUS,        // Moves camera to a specific spot
+    WAIT
 }
 
 data class GameEvent(

@@ -1152,6 +1152,11 @@ class NPCSystem : IFinePositionable {
     }
 
     private fun updateAI(npc: GameNPC, playerPos: Vector3, deltaTime: Float, sceneManager: SceneManager) {
+        if (sceneManager.game.cutsceneSystem.isPlaying) {
+            characterPhysicsSystem.update(npc.physics, Vector3.Zero, deltaTime)
+            return
+        }
+
         var desiredMovement = Vector3.Zero  // Default to no movement
 
         // Witness logic

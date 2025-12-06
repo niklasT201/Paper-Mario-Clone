@@ -910,6 +910,15 @@ class InputHandler(
                     return true
                 }
 
+                if (keycode == Input.Keys.F10) {
+                    if (uiManager.cutsceneEditorUI.window.isVisible) {
+                        uiManager.cutsceneEditorUI.hide()
+                    } else {
+                        uiManager.cutsceneEditorUI.show()
+                    }
+                    return true
+                }
+
                 if (keycode == Input.Keys.Z) {
                     if (!game.isEditorMode) {
                         game.targetingIndicatorSystem.toggle()

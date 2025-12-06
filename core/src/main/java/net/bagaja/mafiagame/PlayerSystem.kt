@@ -85,6 +85,11 @@ class PlayerSystem {
     private var wetFootprintsTimer = 0f
     private val WET_FOOTPRINT_COOLDOWN = 10f
     var carriedBody: Any? = null
+    var isCutsceneControlled = false
+        private set
+    private var cutsceneTargetNode: CharacterPathNode? = null
+    private var cutscenePath: java.util.Queue<Vector3> = java.util.LinkedList()
+    private var cutsceneWaypoint: Vector3? = null
 
     fun isDead(): Boolean = isDead
 
@@ -1757,7 +1762,76 @@ class PlayerSystem {
         }
     }
 
+    fun setCutsceneControl(enabled: Boolean) {
+        isCutsceneControlled = enabled
+        // Reset movement state
+        physicsComponent.isMoving = false
+        physicsComponent.velocity.set(0f, 0f, 0f)
+
+        if (!enabled) {
+            cutsceneTargetNode = null
+            cutscenePath.clear()
+        }
+    }
+
+    fun startCutsceneMovement(nodeId: String) {
+        // 1. Find the node
+        val targetNode = sceneManager.game.characterPathSystem.nodes[nodeId]
+        if (targetNode == null) {
+            println("Cutscene Error: Path node '$nodeId' not found for player movement.")
+            return
+        }
+
+        // 2. Calculate Path (Reuse PathfindingSystem)
+        val pathSystem = sceneManager.game.pathfindingSystem
+        val path = pathSystem.findPath(getPosition(), targetNode.position)
+
+        if (path != null) {
+            cutscenePath = path
+            cutsceneWaypoint = cutscenePath.poll()
+            println("Player starting cutscene move to node $nodeId")
+        } else {
+            // Fallback: Direct line if no path found
+            cutsceneWaypoint = targetNode.position
+        }
+    }
+
+    fun updateCutsceneMovement(deltaTime: Float) {
+        if (!isCutsceneControlled || cutsceneWaypoint == null) return
+
+        val target = cutsceneWaypoint!!
+
+        // 1. Move towards waypoint
+        val direction = target.cpy().sub(physicsComponent.position).nor()
+
+        val oldSpeed = physicsComponent.speed
+        physicsComponent.speed = 4.5f
+        characterPhysicsSystem.update(physicsComponent, direction, deltaTime)
+        physicsComponent.speed = oldSpeed
+
+        // 2. Visuals
+        isMoving = true
+        lastMovementDirection = direction.x
+        playerTargetRotationY = if (lastMovementDirection < 0f) 180f else 0f
+        updatePlayerRotation(deltaTime)
+        animationSystem.playAnimation("walking")
+
+        // 3. Check arrival
+        if (physicsComponent.position.dst(target) < 0.5f) {
+            if (cutscenePath.isNotEmpty()) {
+                cutsceneWaypoint = cutscenePath.poll()
+            } else {
+                // Arrived at final destination
+                cutsceneWaypoint = null
+                isMoving = false
+                animationSystem.playAnimation("idle")
+            }
+        }
+    }
+
     private fun handlePlayerOnFootMovement(deltaTime: Float, sceneManager: SceneManager, particleSystem: ParticleSystem): Boolean {
+        if (isCutsceneControlled) return false // Input disabled
+
         // Disable on-foot movement and collision while driving
         if (isDriving) return false
 

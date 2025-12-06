@@ -100,6 +100,7 @@ class UIManager(
     private lateinit var triggerEditorUI: TriggerEditorUI
     private lateinit var dialogueEditorUI: DialogueEditorUI
     private lateinit var audioEmitterUI: AudioEmitterUI
+    lateinit var cutsceneEditorUI: CutsceneEditorUI
     private lateinit var mainTable: Table
     private lateinit var letterboxTable: Table
     private lateinit var cinematicBarsTable: Table
@@ -283,6 +284,7 @@ class UIManager(
         visualSettingsUI = VisualSettingsUI(skin, game.cameraManager, this, game.targetingIndicatorSystem, game.trajectorySystem, game.meleeRangeIndicatorSystem, game.playerSystem)
         audioSettingsUI = AudioSettingsUI(skin, this, game.musicManager, game.soundManager)
         audioEmitterUI = AudioEmitterUI(skin, stage, game.soundManager, audioEmitterSystem)
+        cutsceneEditorUI = CutsceneEditorUI(skin, stage, game.cutsceneSystem, this, game)
         enemyDebugUI = EnemyDebugUI(skin, stage)
 
         // Setup main UI
@@ -1228,6 +1230,23 @@ class UIManager(
         return game.missionSystem.getAllMissionDefinitions().values
             .filter { it.category != MissionCategory.HIDDEN } // Filter out secrets
             .toList()
+    }
+
+    fun setCinematicMode(enabled: Boolean) {
+        if (enabled) {
+            hideAllGameHUDs() // This hides the timer, weapon icon, etc.
+            if (!isCinematicBarsVisible) toggleCinematicBars()
+        } else {
+            // Restore HUDs based on settings
+            if (game.currentGameMode == GameMode.IN_GAME) {
+                // Restore specific HUD based on current style
+                setHudStyle(currentHudStyle)
+            }
+            // Hide bars if they weren't enabled in options
+            if (!PlayerSettingsManager.current.cinematicBars) {
+                if (isCinematicBarsVisible) toggleCinematicBars()
+            }
+        }
     }
 
     private fun setupInteractionPrompt() {

@@ -1148,7 +1148,16 @@ class MissionEditorUI(
             keepAfterMissionCheckbox.isVisible = isSpawn
 
             posTable.isVisible = isSpawn || type == GameEventType.DESPAWN_BLOCK_AT_POS || type == GameEventType.PLAY_SOUND
-            targetIdTable.isVisible = type in listOf(GameEventType.DESPAWN_ENTITY, GameEventType.ENABLE_SPAWNER, GameEventType.DISABLE_SPAWNER, GameEventType.LOCK_HOUSE, GameEventType.UNLOCK_HOUSE, GameEventType.SPAWN_ENEMY, GameEventType.SPAWN_NPC)
+            targetIdTable.isVisible = type in listOf(
+                GameEventType.DESPAWN_ENTITY,
+                GameEventType.ENABLE_SPAWNER,
+                GameEventType.DISABLE_SPAWNER,
+                GameEventType.LOCK_HOUSE,
+                GameEventType.UNLOCK_HOUSE,
+                GameEventType.SPAWN_ENEMY,
+                GameEventType.SPAWN_NPC,
+                GameEventType.START_CUTSCENE
+            )
             enemySettingsTable.isVisible = type == GameEventType.SPAWN_ENEMY
             npcSettingsTable.isVisible = type == GameEventType.SPAWN_NPC
             carSettingsTable.isVisible = type == GameEventType.SPAWN_CAR
@@ -1380,7 +1389,6 @@ class MissionEditorUI(
         val eventCopy = event
         val table = Table()
 
-        // MODIFIED: Added the new event types to the 'when' expression
         val text = when(event.type) {
             GameEventType.SPAWN_ENEMY -> "SPAWN ${event.enemyType?.displayName} with ID '${event.targetId}'"
             GameEventType.SPAWN_NPC -> "SPAWN ${event.npcType?.displayName} with ID '${event.targetId}'"
@@ -1413,6 +1421,10 @@ class MissionEditorUI(
             GameEventType.SPAWN_AUDIO_EMITTER -> "SPAWN Emitter: '${event.targetId}'"
             GameEventType.MODIFY_AUDIO_EMITTER -> "MODIFY Emitter: '${event.targetId}'"
             GameEventType.PLAY_SOUND -> "PLAY SOUND: '${event.soundId}'"
+            GameEventType.START_CUTSCENE -> "START CUTSCENE: '${event.targetId}'"
+            GameEventType.PLAYER_MOVE_TO_NODE -> "CUTSCENE: Player Move to Node '${event.pathNodeId}'"
+            GameEventType.CAMERA_FOCUS -> "CUTSCENE: Camera Focus"
+            GameEventType.WAIT -> "CUTSCENE: Wait"
         }
 
         table.add(Label(text, skin)).growX()

@@ -210,6 +210,11 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             return // Stop all mission processing if the game is paused.
         }
 
+        // Pause all mission logic (timers, triggers, checks) if a cutscene is playing
+        if (game.cutsceneSystem.isPlaying) {
+            return
+        }
+
         // Handle the leave-car timer
         if (leaveCarTimer > 0f) {
             leaveCarTimer -= deltaTime
@@ -1201,6 +1206,10 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         return dialogueManager.getAllDialogueIds()
     }
 
+    fun executeEventPublic(event: GameEvent) {
+        executeEvent(event) // Call the existing internal logic
+    }
+
     private fun executeEvent(event: GameEvent) {
         val missionId = if (event.keepAfterMission) null else activeMission?.definition?.id
         println("Executing mission event: ${event.type} for scene '${event.sceneId ?: "WORLD"}' (Keep after mission: ${event.keepAfterMission}, Assigned missionId: $missionId)")
@@ -1238,6 +1247,11 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         }
 
         when (event.type) {
+            GameEventType.START_CUTSCENE -> {
+                event.targetId?.let { cutsceneId ->
+                    game.cutsceneSystem.startCutscene(cutsceneId)
+                }
+            }
             GameEventType.SPAWN_ENEMY -> {
                 if (event.enemyType != null && event.spawnPosition != null) {
                     val config = EnemySpawnConfig(

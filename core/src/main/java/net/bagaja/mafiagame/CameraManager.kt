@@ -96,6 +96,7 @@ class CameraManager {
     private var freeCameraYaw = 0f
     private var freeCameraPitch = 0f
     private val cameraRotationSpeed = 90f
+    private var cutsceneMode = false
 
     // Orbiting camera mode variables (original)
     private var cameraDistance = 20f
@@ -251,7 +252,23 @@ class CameraManager {
         }
     }
 
+    fun switchToCutsceneMode() {
+        cutsceneMode = true
+    }
+
+    fun updateCutsceneCamera(targetPos: Vector3, lookAtPos: Vector3, speed: Float, deltaTime: Float) {
+        if (!cutsceneMode) return
+
+        // Smooth lerp to position
+        camera.position.lerp(targetPos, speed * deltaTime * 0.5f)
+        camera.lookAt(lookAtPos)
+        camera.update()
+    }
+
     fun switchToPlayerCamera() {
+        cutsceneMode = false
+        currentCameraMode = CameraMode.PLAYER
+
         if (currentCameraMode != CameraMode.FREE) {
             currentCameraMode = CameraMode.PLAYER
             // Initialize the current position to avoid sudden jumps

@@ -51,7 +51,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var sceneManager: SceneManager
     lateinit var enemySystem: EnemySystem
     lateinit var npcSystem: NPCSystem
-    private lateinit var pathfindingSystem: PathfindingSystem
+    lateinit var pathfindingSystem: PathfindingSystem
     private lateinit var roomTemplateManager: RoomTemplateManager
     lateinit var houseSystem: HouseSystem
 
@@ -109,6 +109,7 @@ class MafiaGame : ApplicationAdapter() {
     lateinit var audioEmitterSystem: AudioEmitterSystem
     lateinit var wantedSystem: WantedSystem
     lateinit var areaSystem: AreaSystem
+    lateinit var cutsceneSystem: CutsceneSystem
 
     override fun create() {
         // --- Part 1: Initialize Core Systems ---
@@ -331,6 +332,7 @@ class MafiaGame : ApplicationAdapter() {
         npcSystem.initialize(blockSize, characterPhysicsSystem)
         roomTemplateManager.initialize()
         areaSystem.initialize()
+        cutsceneSystem = CutsceneSystem(this)
         wantedSystem = WantedSystem(sceneManager, playerSystem, enemySystem, uiManager, characterPhysicsSystem, raycastSystem)
         playerSystem.initialize(blockSize, particleSystem, lightingManager, bloodPoolSystem, footprintSystem, characterPhysicsSystem, sceneManager, wantedSystem)
 
@@ -1354,6 +1356,9 @@ class MafiaGame : ApplicationAdapter() {
                     soundManager.update(playerSystem.getControlledEntityPosition())
                     ambientSoundSystem.update(deltaTime)
                     audioEmitterSystem.update(deltaTime)
+
+                    cutsceneSystem.update(deltaTime)
+
                     val isSinCityEffect = shaderEffectManager.isEffectsEnabled && shaderEffectManager.getCurrentEffect() == ShaderEffect.SIN_CITY
 
                     lightingManager.setGrayscaleMode(isSinCityEffect)

@@ -1230,6 +1230,12 @@ class EnemySystem : IFinePositionable {
             return
         }
 
+        if (sceneManager.game.cutsceneSystem.isPlaying) {
+            // Optional: You could force them to play an 'IDLE' animation here if needed
+            characterPhysicsSystem.update(enemy.physics, Vector3.Zero, deltaTime)
+            return
+        }
+
         val playerPos = playerSystem.getPosition() // Get player position once
 
         // --- PROBLEM 2 SOLUTION: CHECK CHASE DISTANCE ---
