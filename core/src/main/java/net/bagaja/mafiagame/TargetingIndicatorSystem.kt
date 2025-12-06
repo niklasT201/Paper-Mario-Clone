@@ -104,6 +104,11 @@ class TargetingIndicatorSystem {
         val shouldBeVisible = equippedWeapon.actionType == WeaponActionType.SHOOTING ||
             equippedWeapon.actionType == WeaponActionType.MELEE
 
+        if (playerSystem.isCutsceneControlled) {
+            isVisible = false
+            return
+        }
+
         // First, check all conditions for the indicator to be visible.
         if (!isEnabledByUser || !shouldBeVisible || playerSystem.isDead() || playerSystem.isDriving) {
             isVisible = false

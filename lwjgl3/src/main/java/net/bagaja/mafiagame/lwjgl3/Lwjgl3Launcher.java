@@ -90,6 +90,8 @@ public class Lwjgl3Launcher {
 
 
 // edge houses
+// timer visible after cutscene
+// shader for missions and cutscenes
 // ambience steps pausing between loop
 // settings ui for keys
 // whosh sound for melee weapons

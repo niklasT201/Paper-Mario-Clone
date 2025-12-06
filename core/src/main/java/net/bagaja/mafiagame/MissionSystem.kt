@@ -17,7 +17,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
     private var playerInventorySnapshot: PlayerStateData? = null
     private var leaveCarTimer = -1f // -1 indicates timer is not active
     private var requiredCarIdForTimer: String? = null
-    private var objectiveTimerStartDelay = -1f
+    var objectiveTimerStartDelay = -1f
 
     private var stayInAreaGraceTimer = -1f // -1 means timer is not active
     private val GRACE_PERIOD_DURATION = 5.0f

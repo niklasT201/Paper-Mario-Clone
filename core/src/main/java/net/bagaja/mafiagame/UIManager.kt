@@ -216,6 +216,8 @@ class UIManager(
         private set
     var objectiveBeingPlaced: MissionObjective? = null
         private set
+    var isInCinematicMode = false
+        private set
 
     enum class Tool {
         BLOCK, PLAYER, OBJECT, ITEM, CAR, HOUSE, BACKGROUND, PARALLAX, INTERIOR, ENEMY, NPC, PARTICLE, TRIGGER, AUDIO_EMITTER, AREA
@@ -1233,18 +1235,59 @@ class UIManager(
     }
 
     fun setCinematicMode(enabled: Boolean) {
+        isInCinematicMode = enabled
+
         if (enabled) {
-            hideAllGameHUDs() // This hides the timer, weapon icon, etc.
+            // Hide everything
+            hideAllGameHUDs()
+            notificationTable.clearActions()
+            notificationTable.isVisible = false
+            areaNotificationLabel.clearActions()
+            areaNotificationLabel.isVisible = false
+
             if (!isCinematicBarsVisible) toggleCinematicBars()
         } else {
-            // Restore HUDs based on settings
-            if (game.currentGameMode == GameMode.IN_GAME) {
-                // Restore specific HUD based on current style
-                setHudStyle(currentHudStyle)
-            }
-            // Hide bars if they weren't enabled in options
+            // 1. Restore Cinematic Bars preference
             if (!PlayerSettingsManager.current.cinematicBars) {
                 if (isCinematicBarsVisible) toggleCinematicBars()
+            }
+
+            // 2. Restore Standard HUD (Health, Ammo)
+            if (game.currentGameMode == GameMode.IN_GAME) {
+                setHudStyle(currentHudStyle)
+            }
+
+            // 3. Restore Mission UI (Timer, Objective, Title)
+            val mission = game.missionSystem.activeMission
+            if (mission != null) {
+                // A. Show Mission Title again (faded in)
+                showMissionStartNotification(mission.definition.title)
+
+                // B. Restore Objective Text
+                val objective = mission.getCurrentObjective()
+                if (objective != null) {
+                    updateMissionObjective(objective.description)
+                }
+
+                // C. Restore Timer (if active)
+                val timer = mission.missionVariables["objective_timer"] as? Float
+                val startDelay = game.missionSystem.objectiveTimerStartDelay
+
+                if (timer != null && timer > 0f) {
+                    updateMissionTimer(timer)
+                } else if (startDelay > 0f) {
+                    // If we are in the delay phase, restore the timer visualization with the total duration
+                    val objective = mission.getCurrentObjective()
+                    if (objective != null) {
+                        updateMissionTimer(objective.timerDuration, isDelay = true)
+                    }
+                }
+
+                // D. Restore Enemies Counter (if active)
+                if (objective?.showEnemiesLeftCounter == true) {
+                    val count = game.sceneManager.activeEnemies.size // Simplified re-count
+                    updateEnemiesLeft(count)
+                }
             }
         }
     }
@@ -2000,8 +2043,11 @@ class UIManager(
         wantedPosterHudTable.isVisible = false
         minimalistHudTable.isVisible = false
 
-        // Clear all elements from the dynamic HUD (top-right info)
-        dynamicHudElements.forEach { it.isVisible = false }
+        // Force hide every dynamic element (Timer, Objective Name, etc.)
+        dynamicHudElements.forEach {
+            it.isVisible = false
+            it.actor.isVisible = false // Ensure the actor itself is hidden
+        }
         refreshDynamicHudTable()
     }
 
@@ -2389,6 +2435,13 @@ class UIManager(
 
         if (!game.isEditorMode && persistentMessageLabel.isVisible) {
             persistentMessageLabel.isVisible = false
+        }
+
+        // If in cutscene, skip all HUD updates entirely.
+        if (isInCinematicMode) {
+            stage.act(Gdx.graphics.deltaTime)
+            stage.draw()
+            return
         }
 
         // --- Guard Clause for all IN_GAME UI updates ---

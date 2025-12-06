@@ -633,6 +633,7 @@ class PlayerSystem {
     private fun handleWeaponInput(deltaTime: Float, sceneManager: SceneManager) {
         if (isDead) return
         if (isDriving) return
+        if (isCutsceneControlled) return
 
         // State tracking for button presses
         val isCurrentlyHoldingShoot = Gdx.input.isButtonPressed(Input.Buttons.LEFT)
@@ -1764,11 +1765,35 @@ class PlayerSystem {
 
     fun setCutsceneControl(enabled: Boolean) {
         isCutsceneControlled = enabled
-        // Reset movement state
-        physicsComponent.isMoving = false
-        physicsComponent.velocity.set(0f, 0f, 0f)
 
-        if (!enabled) {
+        if (enabled) {
+            // 1. Stop Physics
+            physicsComponent.isMoving = false
+            physicsComponent.velocity.set(0f, 0f, 0f)
+
+            // 2. Reset Input Flags (THE FIX)
+            isPressingW = false       // Stop looking backwards
+            isHoldingShootButton = false // Stop holding gun pose
+            wasHoldingShootButton = false
+
+            // 3. Snap Rotation
+            playerCurrentRotationY = playerTargetRotationY
+
+            // 4. Force Idle Animation (Front Facing)
+            state = PlayerState.IDLE
+            isMoving = false
+            lastIsMoving = false
+
+            animationSystem.playAnimation("idle")
+            // Explicitly force the texture update immediately
+            animationSystem.getCurrentTexture()?.let { updatePlayerTexture(it) }
+
+            // 5. Cancel attacks
+            throwChargeTime = 0f
+            attackTimer = 0f
+
+            updatePlayerTransform()
+        } else {
             cutsceneTargetNode = null
             cutscenePath.clear()
         }

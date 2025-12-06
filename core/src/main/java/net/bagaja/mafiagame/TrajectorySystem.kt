@@ -84,6 +84,12 @@ class TrajectorySystem : Disposable {
      * The main update function. It decides whether to show the arc and calculates its path.
      */
     fun update(playerSystem: PlayerSystem, sceneManager: SceneManager) {
+        if (playerSystem.isCutsceneControlled) {
+            isVisible = false
+            isLandingIndicatorVisible = false
+            return
+        }
+
         // Condition to show the arc: Player is charging a throwable weapon
         if (isEnabled && playerSystem.isChargingThrow()) {
             calculateAndBuildArc(playerSystem, sceneManager)

@@ -146,6 +146,12 @@ class MeleeRangeIndicatorSystem {
     }
 
     fun update(playerSystem: PlayerSystem, sceneManager: SceneManager) {
+        // If in cutscene, hide and stop processing
+        if (playerSystem.isCutsceneControlled) {
+            isVisible = false
+            return
+        }
+
         val equippedWeapon = playerSystem.equippedWeapon
 
         if (!playerSystem.isDriving && equippedWeapon.actionType == WeaponActionType.MELEE) {
