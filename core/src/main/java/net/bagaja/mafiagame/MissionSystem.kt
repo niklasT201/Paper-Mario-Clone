@@ -1013,6 +1013,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         game.uiManager.updateMissionObjective("")
         game.uiManager.updateMissionTimer(-1f)
         game.uiManager.updateLeaveCarTimer(-1f)
+        game.shaderEffectManager.setMissionOverride(null)
 
         // Always hide the objective arrow when a mission ends.
         game.objectiveArrowSystem.hide()
@@ -1251,6 +1252,10 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                 event.targetId?.let { cutsceneId ->
                     game.cutsceneSystem.startCutscene(cutsceneId)
                 }
+            }
+            GameEventType.SET_SHADER -> {
+                // This sets the Highest Priority override
+                game.shaderEffectManager.setMissionOverride(event.shaderEffect)
             }
             GameEventType.SPAWN_ENEMY -> {
                 if (event.enemyType != null && event.spawnPosition != null) {

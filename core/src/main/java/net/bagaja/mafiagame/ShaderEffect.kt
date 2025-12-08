@@ -31,6 +31,7 @@ enum class ShaderEffect(val displayName: String) {
 class ShaderEffectManager {
     private var currentEffect = ShaderEffect.NONE
     private var roomShaderOverride: ShaderEffect? = null
+    private var missionShaderOverride: ShaderEffect? = null
     private lateinit var frameBuffer: FrameBuffer
     private lateinit var postProcessBatch: SpriteBatch
     private lateinit var postProcessCamera: OrthographicCamera
@@ -120,12 +121,18 @@ class ShaderEffectManager {
     }
 
     private fun applyPostProcessing() {
-        val activeEffect = if (currentEffect != ShaderEffect.NONE) {
+        val activeEffect = when {
             // If the user has made a choice, it ALWAYS wins.
-            currentEffect
-        } else {
+            missionShaderOverride != null && missionShaderOverride != ShaderEffect.NONE -> missionShaderOverride!!
+
             // Otherwise, use the room's override, or default to NONE if no override is set.
-            roomShaderOverride ?: ShaderEffect.NONE
+            currentEffect != ShaderEffect.NONE -> currentEffect
+
+            // Priority 3: Room Atmosphere (e.g., Spooky cellar default)
+            roomShaderOverride != null -> roomShaderOverride!!
+
+            // Priority 4: Default
+            else -> ShaderEffect.NONE
         }
         val shader = shaders[activeEffect] ?: return
 
@@ -144,15 +151,22 @@ class ShaderEffectManager {
         Gdx.gl.glEnable(GL20.GL_DEPTH_TEST)
     }
 
-    fun setRoomOverride(effect: ShaderEffect) {
+    fun setRoomOverride(effect: ShaderEffect?) {
         // Only set an override if the room actually has a special shader.
-        if (effect != ShaderEffect.NONE) {
-            roomShaderOverride = effect
+        roomShaderOverride = if (effect != ShaderEffect.NONE) {
+            effect
+        } else {
+            null
         }
     }
 
     fun clearRoomOverride() {
         roomShaderOverride = null
+    }
+
+    fun setMissionOverride(effect: ShaderEffect?) {
+        this.missionShaderOverride = if (effect == ShaderEffect.NONE) null else effect
+        println("ShaderEffectManager: Mission Override set to ${this.missionShaderOverride?.displayName ?: "Cleared"}")
     }
 
     fun toggleEffectsEnabled() {

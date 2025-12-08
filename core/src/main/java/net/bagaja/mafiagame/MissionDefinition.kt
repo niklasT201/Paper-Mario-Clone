@@ -265,6 +265,7 @@ data class MissionModifiers(
 // --- Events ---
 
 enum class GameEventType {
+    SET_SHADER,
     SPAWN_ENEMY,
     SPAWN_NPC,
     SPAWN_CAR,
@@ -446,7 +447,8 @@ data class GameEvent(
     val soundId: String? = null,
     val soundVolume: Float? = null,
     val soundPitch: Float? = null,
-    val customInteractionText: String? = null
+    val customInteractionText: String? = null,
+    val shaderEffect: ShaderEffect? = null
 )
 
 // --- Game State (For Saving/Loading Progress) ---

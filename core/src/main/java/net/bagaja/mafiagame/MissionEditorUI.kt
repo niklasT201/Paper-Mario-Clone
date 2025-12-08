@@ -1038,6 +1038,13 @@ class MissionEditorUI(
             add("Rain Intensity (0-1):"); add(rainIntensityField).width(80f).row()
             add("Duration (s):"); add(rainDurationField).width(80f).row()
         }
+        val shaderSettingsTable = Table(skin)
+        val shaderSelectBox = SelectBox<String>(skin).apply {
+            items = GdxArray(ShaderEffect.entries.map { it.displayName }.toTypedArray())
+            selected = existingEvent?.shaderEffect?.displayName ?: ShaderEffect.NONE.displayName
+        }
+        shaderSettingsTable.add(Label("Shader Effect:", skin)).padRight(10f)
+        shaderSettingsTable.add(shaderSelectBox).growX()
 
         // --- ENEMY DIALOG UI (created once) ---
         val enemyInteractionTable = Table(skin).apply { add(Label("--- Standalone Interaction ---", skin, "title")).colspan(2).center().padTop(10f).row() }
@@ -1134,7 +1141,7 @@ class MissionEditorUI(
         playSoundSettingsTable.add("Volume (0-1):").left(); playSoundSettingsTable.add(soundVolumeField).width(80f).row()
         playSoundSettingsTable.add("Pitch (0.5-2):").left(); playSoundSettingsTable.add(soundPitchField).width(80f).row()
 
-        val settingsStack = Stack(enemySettingsTable, npcSettingsTable, carSettingsTable, itemSettingsTable, moneySettingsTable, houseSettingsTable, objectSettingsTable, blockSettingsTable, dialogSettingsTable, weaponSettingsTable, weatherSettingsTable, spawnerSettingsTable, audioEmitterSettingsTable, playSoundSettingsTable)
+        val settingsStack = Stack(enemySettingsTable, npcSettingsTable, carSettingsTable, itemSettingsTable, moneySettingsTable, houseSettingsTable, objectSettingsTable, blockSettingsTable, dialogSettingsTable, weaponSettingsTable, weatherSettingsTable, spawnerSettingsTable, audioEmitterSettingsTable, playSoundSettingsTable, shaderSettingsTable )
 
         content.add("Event Type:"); content.add(typeSelect).row()
         content.add(targetIdTable).colspan(2).growX().row()
@@ -1173,6 +1180,7 @@ class MissionEditorUI(
             weatherSettingsTable.isVisible = type == GameEventType.SET_WEATHER
             spawnerSettingsTable.isVisible = type == GameEventType.SPAWN_SPAWNER
             playSoundSettingsTable.isVisible = type == GameEventType.PLAY_SOUND
+            shaderSettingsTable.isVisible = type == GameEventType.SET_SHADER
 
 
             // Dynamic visibility within panels
@@ -1364,6 +1372,9 @@ class MissionEditorUI(
                         soundVolume = soundVolumeField.text.toFloatOrNull(),
                         soundPitch = soundPitchField.text.toFloatOrNull()
                     )
+                    GameEventType.SET_SHADER -> baseEvent.copy(
+                        shaderEffect = ShaderEffect.entries.find { it.displayName == shaderSelectBox.selected }
+                    )
 
                     else -> baseEvent
                 }
@@ -1433,6 +1444,7 @@ class MissionEditorUI(
             GameEventType.PLAYER_MOVE_TO_NODE -> "CUTSCENE: Player Move to Node '${event.pathNodeId}'"
             GameEventType.CAMERA_FOCUS -> "CUTSCENE: Camera Focus"
             GameEventType.WAIT -> "CUTSCENE: Wait"
+            GameEventType.SET_SHADER -> "SET SHADER: ${event.shaderEffect?.displayName ?: "Clear Override"}"
         }
 
         table.add(Label(text, skin)).growX()
