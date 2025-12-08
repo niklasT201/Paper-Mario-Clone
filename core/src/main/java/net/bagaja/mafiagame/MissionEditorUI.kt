@@ -65,6 +65,7 @@ class MissionEditorUI(
     private var endTimeSlider: Slider
     private var startTimeLabel: Label
     private var endTimeLabel: Label
+    private val useFadeCheckbox = CheckBox(" Use Fade Transition", skin)
 
     private val tempCycle = DayNightCycle()
     private fun updateTimeLabels() {
@@ -150,6 +151,7 @@ class MissionEditorUI(
         editorDetailsTable.add(Label("Prerequisites (IDs):", skin)).left(); editorDetailsTable.add(prerequisitesField).growX().row()
         timeRestrictedCheckbox = CheckBox(" Time Restricted", skin)
         editorDetailsTable.add(timeRestrictedCheckbox).colspan(2).left().padTop(8f).row()
+        editorDetailsTable.add(useFadeCheckbox).colspan(2).left().padTop(5f).row()
 
         timeSliderTable = Table()
         startTimeSlider = Slider(0f, 1f, 0.01f, false, skin)
@@ -390,6 +392,7 @@ class MissionEditorUI(
         categorySelectBox.selected = mission.category.name
         missionDescriptionArea.text = mission.description
         prerequisitesField.text = mission.prerequisites.joinToString(", ")
+        useFadeCheckbox.isChecked = mission.useFadeTransition
 
         timeRestrictedCheckbox.isChecked = mission.availableStartTime != null
         timeSliderTable.isVisible = timeRestrictedCheckbox.isChecked
@@ -421,6 +424,7 @@ class MissionEditorUI(
         // Save the simple text fields
         mission.title = missionTitleField.text.ifBlank { "Untitled Mission" }
         mission.description = missionDescriptionArea.text
+        mission.useFadeTransition = useFadeCheckbox.isChecked
         mission.prerequisites = prerequisitesField.text.split(",").map { it.trim() }.filter { it.isNotEmpty() }.toMutableList()
         if (timeRestrictedCheckbox.isChecked) {
             mission.availableStartTime = startTimeSlider.value

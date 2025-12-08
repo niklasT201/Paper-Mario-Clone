@@ -77,7 +77,8 @@ data class MissionDefinition(
     val startTrigger: MissionTrigger = MissionTrigger(),
     val modifiers: MissionModifiers = MissionModifiers(),
     var availableStartTime: Float? = null, // 0.0 (midnight) to 1.0 (end of day)
-    var availableEndTime: Float? = null    // 0.0 to 1.0
+    var availableEndTime: Float? = null,    // 0.0 to 1.0
+    var useFadeTransition: Boolean = false
 )
 
 // --- Mission State (Runtime Data) ---

@@ -91,8 +91,8 @@ public class Lwjgl3Launcher {
 
 // edge houses
 // timer visible after cutscene
-// shader selecting starting hidden mission
-// mission can start with optional fading in
+// selecting shader starts hidden mission
+// mission can start with optional fading in and out
 // ambience steps pausing between loop
 // settings ui for keys
 // whosh sound for melee weapons

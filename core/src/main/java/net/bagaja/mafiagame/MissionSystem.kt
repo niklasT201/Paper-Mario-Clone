@@ -809,11 +809,31 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
     fun startMission(id: String) {
         if (activeMission != null || gameState.completedMissionIds.contains(id)) {
-            return // Don't start a mission if one is active or it's already done
+            return
         }
 
         val missionDef = allMissions[id] ?: return
 
+        if (missionDef.useFadeTransition) {
+            println("Mission '${missionDef.title}' requested fade transition. Starting fade out.")
+
+            // 1. Hide UI immediately so it doesn't overlap the fade
+            game.uiManager.hideAllGameHUDs()
+
+            // 2. Start Fade Out (To Black)
+            game.transitionSystem.startTransitionToBlack {
+                executeMissionStartLogic(missionDef)
+
+                // 3. Fade Back In (Reveal the new state/cutscene)
+                game.transitionSystem.startTransitionFromBlack()
+            }
+        } else {
+            // Standard instant start
+            executeMissionStartLogic(missionDef)
+        }
+    }
+
+    private fun executeMissionStartLogic(missionDef: MissionDefinition) {
         // Only show the big notification if it is NOT a hidden mission
         if (missionDef.category != MissionCategory.HIDDEN) {
             // Trigger UI notification
@@ -826,7 +846,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
         game.wantedSystem.onMissionStart()
 
-        // Take an inventory snapshot if this mission modifies it
+        // 2. Inventory Snapshot
         val modifiesInventory = missionDef.eventsOnStart.any {
             it.type in listOf(GameEventType.CLEAR_INVENTORY, GameEventType.GIVE_WEAPON, GameEventType.FORCE_EQUIP_WEAPON)
         } || missionDef.modifiers.disableWeaponSwitching
@@ -836,10 +856,9 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
             playerInventorySnapshot = game.playerSystem.createStateDataSnapshot()
         }
 
-        println("--- MISSION STARTED: ${missionDef.title} ---")
         activeMission = MissionState(missionDef)
 
-        // Activate the modifiers for this mission
+        // 3. Activate Modifiers
         activeModifiers = missionDef.modifiers
 
         activeModifiers?.let { mods ->
@@ -875,6 +894,7 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
 
         println("Activating mission modifiers: Invincible=${activeModifiers?.setUnlimitedHealth}")
 
+        // 4. Execute Start Events & Objectives
         missionDef.eventsOnStart.forEach { executeEvent(it) }
 
         // After starting the mission

@@ -65,7 +65,7 @@ class MafiaGame : ApplicationAdapter() {
     private lateinit var occlusionSystem: OcclusionSystem
 
     // Transition System
-    private lateinit var transitionSystem: TransitionSystem
+    lateinit var transitionSystem: TransitionSystem
 
     // 2D Player (but positioned in 3D space)
     lateinit var playerSystem: PlayerSystem

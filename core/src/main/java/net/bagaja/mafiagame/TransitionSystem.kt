@@ -37,6 +37,7 @@ class TransitionSystem {
 
     // Animation mode
     var useSimpleFade = false // Set to true for black fade only, false for door animation
+    private var onFadeOutComplete: (() -> Unit)? = null
 
     enum class TransitionType {
         OUT,    // Leaving current area
@@ -66,6 +67,20 @@ class TransitionSystem {
             doorHalfOpenTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
             doorFullyOpenTexture.setFilter(Texture.TextureFilter.Linear, Texture.TextureFilter.Linear)
         }
+    }
+
+    fun startTransitionToBlack(onComplete: () -> Unit) {
+        // Store the lambda
+        this.onFadeOutComplete = onComplete
+
+        // Start a normal fade out animation.
+        // 1.0f is a good duration for a dramatic fade.
+        startOutTransition(duration = 1.0f)
+    }
+
+    fun startTransitionFromBlack() {
+        // Just fade back in normally.
+        startInTransition(duration = 1.0f)
     }
 
     fun startOutTransition(duration: Float = 2.5f) {
@@ -157,6 +172,23 @@ class TransitionSystem {
             isActive = false
             currentPhase = TransitionPhase.COMPLETE
             progress = duration
+        }
+
+
+        if (transitionType == TransitionType.OUT && onFadeOutComplete != null) {
+            val isScreenBlack = if (useSimpleFade) {
+                normalizedProgress >= 0.25f // Based on your logic: fade reaches full black at 0.25
+            } else {
+                normalizedProgress >= 0.286f // Based on your logic: fade to black phase ends here
+            }
+
+            if (isScreenBlack) {
+                // Run the callback (spawning enemies, moving camera, etc.)
+                onFadeOutComplete?.invoke()
+
+                // Clear it so it only runs once
+                onFadeOutComplete = null
+            }
         }
     }
 
