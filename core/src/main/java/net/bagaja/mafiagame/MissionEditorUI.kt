@@ -67,6 +67,7 @@ class MissionEditorUI(
     private var endTimeLabel: Label
     private val startFadeOutCheckbox = CheckBox(" Fade Out (World -> Black)", skin)
     private val startFadeInCheckbox = CheckBox(" Fade In (Black -> Mission)", skin)
+    private var requiredShaderSelect = SelectBox<String>(skin)
 
     private val tempCycle = DayNightCycle()
     private fun updateTimeLabels() {
@@ -138,6 +139,8 @@ class MissionEditorUI(
         missionDescriptionArea = TextArea("", skin)
         prerequisitesField = TextField("", skin)
         scopeSelectBox = SelectBox(skin); scopeSelectBox.items = GdxArray(MissionScope.entries.map { it.name }.toTypedArray())
+        requiredShaderSelect = SelectBox(skin)
+        requiredShaderSelect.items = GdxArray(arrayOf("None") + ShaderEffect.entries.map { it.displayName })
 
         objectivesContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.left) }
         rewardsContainer = VerticalGroup().apply { space(5f); wrap(false); align(Align.left) }
@@ -150,6 +153,8 @@ class MissionEditorUI(
         editorDetailsTable.add(categorySelectBox).growX().row()
         editorDetailsTable.add(Label("Description:", skin)).left().top(); editorDetailsTable.add(ScrollPane(missionDescriptionArea, skin)).growX().height(60f).row()
         editorDetailsTable.add(Label("Prerequisites (IDs):", skin)).left(); editorDetailsTable.add(prerequisitesField).growX().row()
+        editorDetailsTable.add(Label("Req. Shader:", skin)).left()
+        editorDetailsTable.add(requiredShaderSelect).growX().row()
         timeRestrictedCheckbox = CheckBox(" Time Restricted", skin)
         editorDetailsTable.add(timeRestrictedCheckbox).colspan(2).left().padTop(8f).row()
         editorDetailsTable.add(startFadeOutCheckbox).colspan(2).left().padTop(5f).row()
@@ -407,6 +412,9 @@ class MissionEditorUI(
 
         scopeSelectBox.selected = mission.scope.name
 
+           val shaderName = mission.requiredShader?.displayName ?: "None"
+        requiredShaderSelect.selected = shaderName
+
         refreshObjectiveWidgets()
         refreshRewardWidgets()
         refreshEventWidgets()
@@ -439,6 +447,13 @@ class MissionEditorUI(
         }
 
         mission.scope = MissionScope.valueOf(scopeSelectBox.selected)
+
+        val selectedName = requiredShaderSelect.selected
+        mission.requiredShader = if (selectedName == "None") {
+            null
+        } else {
+            ShaderEffect.entries.find { it.displayName == selectedName }
+        }
 
         mission.category = MissionCategory.valueOf(categorySelectBox.selected)
 

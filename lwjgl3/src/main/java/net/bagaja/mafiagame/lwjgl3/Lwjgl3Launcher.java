@@ -93,7 +93,6 @@ public class Lwjgl3Launcher {
 // timer visible after cutscene
 // test fade out mission
 // update death screen for missions
-// mission can start with optional fading in and out
 // ambience steps pausing between loop
 // settings ui for keys
 // whosh sound for melee weapons

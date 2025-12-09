@@ -262,6 +262,14 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
                     }
                 }
 
+                if (missionDef.requiredShader != null) {
+                    val current = game.shaderEffectManager.getCurrentEffect()
+                    // If the current shader doesn't match the requirement, skip this mission entirely.
+                    if (current != missionDef.requiredShader) {
+                        continue
+                    }
+                }
+
                 val trigger = missionDef.startTrigger
                 var shouldStartMission = false
 

@@ -79,7 +79,8 @@ data class MissionDefinition(
     var availableStartTime: Float? = null, // 0.0 (midnight) to 1.0 (end of day)
     var availableEndTime: Float? = null,    // 0.0 to 1.0
     var startFadeOut: Boolean = false,
-    var startFadeIn: Boolean = false
+    var startFadeIn: Boolean = false,
+    var requiredShader: ShaderEffect? = null
 )
 
 // --- Mission State (Runtime Data) ---
