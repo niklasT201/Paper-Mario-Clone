@@ -42,6 +42,8 @@ class ShaderEffectManager {
     var isEffectsEnabled = true
         private set
 
+    var onShaderChangedListener: ((ShaderEffect) -> Unit)? = null
+
     fun initialize() {
         // Create frame buffer for post-processing
         frameBuffer = FrameBuffer(Pixmap.Format.RGBA8888, Gdx.graphics.width, Gdx.graphics.height, true)
@@ -177,6 +179,7 @@ class ShaderEffectManager {
     fun setEffect(effect: ShaderEffect) {
         currentEffect = effect
         println("Shader effect changed to: ${effect.displayName}")
+        onShaderChangedListener?.invoke(effect)
     }
 
     private fun setEffectInternal(effect: ShaderEffect) {

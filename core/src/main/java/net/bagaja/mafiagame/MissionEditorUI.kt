@@ -806,6 +806,7 @@ class MissionEditorUI(
             TriggerType.ON_MONEY_BELOW_THRESHOLD -> "Player money drops below: $${trigger.moneyThreshold}"
             TriggerType.ON_MISSION_FAILED -> "Previous mission failed: ${trigger.targetNpcId}" // Reusing the NPC ID field for the mission ID
             TriggerType.ON_INTERACT -> "Interact with Object: ${trigger.targetNpcId}"
+            TriggerType.ON_SHADER_CHANGED -> "Change Shader to: ${trigger.targetShader?.displayName}"
         }
         container.add(Label("$indent$triggerText", skin, "small")).left().row()
 

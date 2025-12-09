@@ -188,7 +188,8 @@ enum class TriggerType {
     ON_DESTROY_OBJECT,
     ON_MONEY_BELOW_THRESHOLD,
     ON_MISSION_FAILED,
-    ON_INTERACT
+    ON_INTERACT,
+    ON_SHADER_CHANGED
 }
 
 data class MissionTrigger(
@@ -206,7 +207,8 @@ data class MissionTrigger(
 
     var requiredTimeInArea: Float = 10f,
     var moneyThreshold: Int = 0,
-    var showVisuals: Boolean = true // NEW: Add checkbox for trigger visuals
+    var showVisuals: Boolean = true, // NEW: Add checkbox for trigger visuals
+    var targetShader: ShaderEffect? = null
 )
 
 // --- Mission Modifiers (Special Rules) ---

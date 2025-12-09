@@ -29,6 +29,8 @@ class TriggerEditorUI(
     private val itemCountField: TextField
     private val targetHouseIdField: TextField
     private val targetCarIdField: TextField
+    private val shaderTriggerTable: Table // Create a table for it
+    private val shaderTriggerSelect: SelectBox<String>
 
     // Tables to hold the dynamic settings
     private val areaSettingsTable: Table
@@ -117,7 +119,15 @@ class TriggerEditorUI(
         moneySettingsTable.add(Label("Money Below:", skin)).padRight(10f)
         moneySettingsTable.add(moneyThresholdField).width(100f)
 
-        val settingsStack = Stack(areaSettingsTable, npcSettingsTable, itemSettingsTable, houseSettingsTable, enemySettingsTable, carSettingsTable, stayInAreaTable, moneySettingsTable)
+        // Setup the selector
+        shaderTriggerSelect = SelectBox(skin)
+        shaderTriggerSelect.items = GdxArray(ShaderEffect.entries.map { it.displayName }.toTypedArray())
+
+        shaderTriggerTable = Table()
+        shaderTriggerTable.add(Label("Trigger Shader:", skin)).padRight(10f)
+        shaderTriggerTable.add(shaderTriggerSelect).growX()
+
+        val settingsStack = Stack(areaSettingsTable, npcSettingsTable, itemSettingsTable, houseSettingsTable, enemySettingsTable, carSettingsTable, stayInAreaTable, moneySettingsTable, shaderTriggerTable)
         contentTable.add(settingsStack).colspan(2).growX().padTop(10f).row()
 
         instructions = Label("L-Click to set position, Scroll to resize.", skin, "small")
@@ -188,6 +198,8 @@ class TriggerEditorUI(
 
         moneyThresholdField.text = mission.startTrigger.moneyThreshold.toString()
 
+        shaderTriggerSelect.selected = mission.startTrigger.targetShader?.displayName ?: ShaderEffect.NONE.displayName
+
         showVisualsCheckbox.isChecked = mission.startTrigger.showVisuals // NEW: Load state
         updateVisibleFields()
     }
@@ -206,6 +218,7 @@ class TriggerEditorUI(
         mission.startTrigger.targetHouseId = targetHouseIdField.text.ifBlank { null }
         mission.startTrigger.targetCarId = targetCarIdField.text.ifBlank { null }
         mission.startTrigger.showVisuals = showVisualsCheckbox.isChecked // NEW: Save state
+        mission.startTrigger.targetShader = ShaderEffect.entries.find { it.displayName == shaderTriggerSelect.selected }
 
         missionSystem.saveMission(mission)
         uiManager.showTemporaryMessage("Trigger for '${mission.title}' saved.")
@@ -244,6 +257,8 @@ class TriggerEditorUI(
 
         // Money threshold settings are only for the money trigger.
         moneySettingsTable.isVisible = (selectedType == TriggerType.ON_MONEY_BELOW_THRESHOLD)
+
+        shaderTriggerTable.isVisible = selectedType == TriggerType.ON_SHADER_CHANGED
 
         // Hide all tables if it's the "all enemies eliminated" trigger
         val targetIdLabel = enemySettingsTable.children.first() as Label

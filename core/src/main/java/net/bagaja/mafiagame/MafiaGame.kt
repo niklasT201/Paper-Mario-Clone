@@ -204,6 +204,9 @@ class MafiaGame : ApplicationAdapter() {
         areaSystem = AreaSystem(this)
 
         missionSystem = MissionSystem(this, dialogueManager)
+        shaderEffectManager.onShaderChangedListener = { effect ->
+            missionSystem.onShaderChanged(effect)
+        }
         triggerSystem = TriggerSystem(this)
 
         // SceneManager depends on many systems, so it's created here.
@@ -221,6 +224,7 @@ class MafiaGame : ApplicationAdapter() {
         characterPhysicsSystem = CharacterPhysicsSystem(sceneManager)
         decalSystem = DecalSystem(sceneManager)
         teleporterSystem = TeleporterSystem(objectSystem, uiManager)
+        cutsceneSystem = CutsceneSystem(this)
 
         // --- DEPENDENCY INJECTION FOR UIManager ---
         audioEmitterSystem.game = this

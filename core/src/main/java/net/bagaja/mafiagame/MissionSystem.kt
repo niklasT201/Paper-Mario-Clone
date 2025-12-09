@@ -617,6 +617,24 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
         }
     }
 
+    fun onShaderChanged(newShader: ShaderEffect) {
+        if (activeMission != null) return
+
+        for ((missionId, missionDef) in allMissions) {
+            if (gameState.completedMissionIds.contains(missionId)) continue
+
+            val trigger = missionDef.startTrigger
+
+            // Check trigger type AND if the shader matches
+            if (trigger.type == TriggerType.ON_SHADER_CHANGED && trigger.targetShader == newShader) {
+
+                println("Easter Egg Triggered! Shader '${newShader.displayName}' started mission '${missionDef.title}'.")
+                startMission(missionId)
+                break
+            }
+        }
+    }
+
     private fun isObjectiveComplete(objective: MissionObjective, state: MissionState): Boolean {
         val condition = objective.completionCondition
         when (condition.type) {
