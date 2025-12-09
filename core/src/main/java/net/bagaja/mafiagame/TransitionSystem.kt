@@ -38,6 +38,7 @@ class TransitionSystem {
     // Animation mode
     var useSimpleFade = false // Set to true for black fade only, false for door animation
     private var onFadeOutComplete: (() -> Unit)? = null
+    private var holdAtBlack: Boolean = false // New flag
 
     enum class TransitionType {
         OUT,    // Leaving current area
@@ -69,13 +70,21 @@ class TransitionSystem {
         }
     }
 
-    fun startTransitionToBlack(onComplete: () -> Unit) {
-        // Store the lambda
+    fun startTransitionToBlack(hold: Boolean = false, onComplete: () -> Unit) {
         this.onFadeOutComplete = onComplete
-
-        // Start a normal fade out animation.
-        // 1.0f is a good duration for a dramatic fade.
+        this.holdAtBlack = hold
         startOutTransition(duration = 1.0f)
+    }
+
+    fun setScreenToBlack() {
+        isActive = true
+        // Set visual state to "Full Black"
+        currentPhase = TransitionPhase.FADE_TO_BLACK
+        blackScreenAlpha = 1f
+        doorAlpha = 0f
+
+        duration = 1.0f
+        progress = if (useSimpleFade) 0.25f else 0.286f
     }
 
     fun startTransitionFromBlack() {
@@ -98,6 +107,7 @@ class TransitionSystem {
     }
 
     fun startInTransition(duration: Float = 2.5f) {
+        holdAtBlack = false
         if (isActive) return
 
         this.transitionType = TransitionType.IN
@@ -112,7 +122,12 @@ class TransitionSystem {
     }
 
     fun update(deltaTime: Float) {
-        if (!isActive) return
+        if (!isActive && blackScreenAlpha < 1f) return // Guard clause if inactive and not holding black
+
+        // If we are holding at black, don't update progress!
+        if (holdAtBlack && isActive) {
+            return
+        }
 
         progress += deltaTime
         val normalizedProgress = (progress / duration).coerceIn(0f, 1f)
@@ -176,18 +191,20 @@ class TransitionSystem {
 
 
         if (transitionType == TransitionType.OUT && onFadeOutComplete != null) {
-            val isScreenBlack = if (useSimpleFade) {
-                normalizedProgress >= 0.25f // Based on your logic: fade reaches full black at 0.25
-            } else {
-                normalizedProgress >= 0.286f // Based on your logic: fade to black phase ends here
-            }
+            val isScreenBlack = if (useSimpleFade) normalizedProgress >= 0.25f else normalizedProgress >= 0.286f
 
             if (isScreenBlack) {
-                // Run the callback (spawning enemies, moving camera, etc.)
-                onFadeOutComplete?.invoke()
+                val callback = onFadeOutComplete
+                onFadeOutComplete = null // Clear first to prevent double call
 
-                // Clear it so it only runs once
-                onFadeOutComplete = null
+                callback?.invoke()
+
+                // If requested to hold, stop the animation here.
+                if (holdAtBlack) {
+                    // isActive stays true, but we stop incrementing progress (handled at top of update)
+                    // blackScreenAlpha stays at 1f
+                    return
+                }
             }
         }
     }

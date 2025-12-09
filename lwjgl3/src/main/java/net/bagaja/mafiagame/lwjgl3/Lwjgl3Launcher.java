@@ -91,6 +91,7 @@ public class Lwjgl3Launcher {
 
 // edge houses
 // timer visible after cutscene
+// test fade out mission
 // selecting shader starts hidden mission
 // mission can start with optional fading in and out
 // ambience steps pausing between loop

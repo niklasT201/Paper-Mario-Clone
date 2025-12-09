@@ -78,7 +78,8 @@ data class MissionDefinition(
     val modifiers: MissionModifiers = MissionModifiers(),
     var availableStartTime: Float? = null, // 0.0 (midnight) to 1.0 (end of day)
     var availableEndTime: Float? = null,    // 0.0 to 1.0
-    var useFadeTransition: Boolean = false
+    var startFadeOut: Boolean = false,
+    var startFadeIn: Boolean = false
 )
 
 // --- Mission State (Runtime Data) ---

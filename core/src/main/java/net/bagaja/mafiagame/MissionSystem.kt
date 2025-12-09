@@ -808,28 +808,30 @@ class MissionSystem(val game: MafiaGame, private val dialogueManager: DialogueMa
     }
 
     fun startMission(id: String) {
-        if (activeMission != null || gameState.completedMissionIds.contains(id)) {
-            return
-        }
-
+        if (activeMission != null || gameState.completedMissionIds.contains(id)) return
         val missionDef = allMissions[id] ?: return
 
-        if (missionDef.useFadeTransition) {
-            println("Mission '${missionDef.title}' requested fade transition. Starting fade out.")
 
-            // 1. Hide UI immediately so it doesn't overlap the fade
+        if (missionDef.startFadeOut) {
+            // If Fade In is disabled, we tell the system to HOLD at black.
+            val shouldHold = !missionDef.startFadeIn
+
             game.uiManager.hideAllGameHUDs()
 
-            // 2. Start Fade Out (To Black)
-            game.transitionSystem.startTransitionToBlack {
+            game.transitionSystem.startTransitionToBlack(hold = shouldHold) {
                 executeMissionStartLogic(missionDef)
-
-                // 3. Fade Back In (Reveal the new state/cutscene)
-                game.transitionSystem.startTransitionFromBlack()
             }
         } else {
-            // Standard instant start
-            executeMissionStartLogic(missionDef)
+            if (missionDef.startFadeIn) {
+                // Case 3: Instant Black -> Fade In
+                game.uiManager.hideAllGameHUDs()
+                game.transitionSystem.setScreenToBlack() // Snap to black
+                executeMissionStartLogic(missionDef)
+                game.transitionSystem.startTransitionFromBlack() // Start fade in
+            } else {
+                // Case 4: Instant Start (No transitions)
+                executeMissionStartLogic(missionDef)
+            }
         }
     }
 
