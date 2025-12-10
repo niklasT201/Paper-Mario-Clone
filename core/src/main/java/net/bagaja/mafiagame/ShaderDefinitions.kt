@@ -96,6 +96,119 @@ object ShaderDefinitions {
         }
     """
 
+    const val purePixelShader = """
+        #ifdef GL_ES
+        precision mediump float;
+        #endif
+
+        uniform sampler2D u_texture;
+        uniform vec2 u_resolution;
+        varying vec2 v_texCoord;
+
+        void main() {
+            // Factor determines pixel size. Lower = Bigger pixels.
+            float factor = 120.0;
+
+            // Calculate aspect ratio to keep square pixels
+            vec2 pixelations = vec2(factor, factor * (u_resolution.y / u_resolution.x));
+
+            vec2 coord = floor(v_texCoord * pixelations) / pixelations;
+            gl_FragColor = texture2D(u_texture, coord);
+        }
+    """
+
+    // 2. FLAT / CEL SHADED (Outline + Posterize)
+    const val flatCelShader = """
+        #ifdef GL_ES
+        precision mediump float;
+        #endif
+
+        uniform sampler2D u_texture;
+        uniform vec2 u_resolution;
+        varying vec2 v_texCoord;
+
+        void main() {
+            vec2 offset = 1.0 / u_resolution;
+            vec4 color = texture2D(u_texture, v_texCoord);
+
+            // --- EDGE DETECTION (Sobel) ---
+            vec4 n = texture2D(u_texture, v_texCoord + vec2(0.0, -offset.y));
+            vec4 s = texture2D(u_texture, v_texCoord + vec2(0.0, offset.y));
+            vec4 e = texture2D(u_texture, v_texCoord + vec2(offset.x, 0.0));
+            vec4 w = texture2D(u_texture, v_texCoord + vec2(-offset.x, 0.0));
+
+            // Calculate intensity differences
+            float edge = abs(n.r - s.r) + abs(e.r - w.r) +
+                         abs(n.g - s.g) + abs(e.g - w.g) +
+                         abs(n.b - s.b) + abs(e.b - w.b);
+
+            // If difference is high, it's an edge
+            float isEdge = step(0.15, edge);
+
+            // --- COLOR FLATTENING (Posterization) ---
+            float levels = 4.0; // Low number = Flatter look
+            color.rgb = floor(color.rgb * levels) / levels;
+
+            // Boost saturation slightly to make it look like a cartoon
+            float gray = dot(color.rgb, vec3(0.299, 0.587, 0.114));
+            color.rgb = mix(vec3(gray), color.rgb, 1.2);
+
+            // Apply black outline
+            vec3 finalColor = mix(color.rgb, vec3(0.0, 0.0, 0.0), isEdge);
+
+            gl_FragColor = vec4(finalColor, 1.0);
+        }
+    """
+
+    const val drunkShader = """
+        #ifdef GL_ES
+        precision mediump float;
+        #endif
+
+        uniform sampler2D u_texture;
+        uniform float u_time;
+        uniform vec2 u_resolution;
+        varying vec2 v_texCoord;
+
+        void main() {
+            vec2 uv = v_texCoord;
+
+            // 1. WOBBLE (Gentle Sway)
+            // Reduced amplitude from 0.02 to 0.003 (Very subtle swaying)
+            float wobbleX = sin(uv.y * 3.0 + u_time * 0.8) * 0.003;
+            float wobbleY = cos(uv.x * 3.0 + u_time * 0.7) * 0.003;
+            uv += vec2(wobbleX, wobbleY);
+
+            // 2. CHROMATIC ABERRATION (Color Fringing)
+            // Reduced spread significantly. Just a tiny edge blur.
+            float split = 0.002 * (1.0 + sin(u_time * 2.0));
+
+            vec4 finalColor;
+            finalColor.r = texture2D(u_texture, uv + vec2(split, 0.0)).r;
+            finalColor.g = texture2D(u_texture, uv).g;
+            finalColor.b = texture2D(u_texture, uv - vec2(split, 0.0)).b;
+            finalColor.a = 1.0;
+
+            // 3. GHOSTING (Double Vision)
+            // Instead of a 50/50 split, we only mix in 20% of the ghost image.
+            // This keeps the main image sharp and playable.
+            float ghostOffset = 0.005 + 0.005 * sin(u_time * 1.5);
+            vec4 ghostColor = texture2D(u_texture, uv + vec2(ghostOffset, 0.0));
+
+            finalColor = mix(finalColor, ghostColor, 0.2);
+
+            // 4. VIGNETTE (Tunnel Vision)
+            // Widened the clear area so it doesn't block gameplay visibility.
+            vec2 center = uv - 0.5;
+            float dist = length(center);
+            // Smoothstep changed to be much softer at the edges
+            float vignette = smoothstep(0.85, 0.35, dist);
+            finalColor.rgb *= vignette;
+
+            gl_FragColor = finalColor;
+        }
+    """
+
     const val dreamySoftShader = """
         #ifdef GL_ES
         precision mediump float;

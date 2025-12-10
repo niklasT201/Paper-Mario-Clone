@@ -15,6 +15,8 @@ enum class ShaderEffect(val displayName: String) {
     NONE("Default"),
     BRIGHT_VIBRANT("Bright & Vibrant"),
     RETRO_PIXEL("Retro Pixel"),
+    PIXEL_ART("Pixel Art (Clean)"),
+    FLAT_CEL("Flat / Cel Shaded"),
     DREAMY_SOFT("Dreamy Soft"),
     NEON_GLOW("Neon Glow"),
     OLD_MOVIE("1920s Cartoon"),
@@ -26,12 +28,14 @@ enum class ShaderEffect(val displayName: String) {
     COMIC_BOOK("Comic Book"),
     UNDERWATER("Underwater"),
     NIGHT_VISION("Night Vision"),
+    DRUNK("Drunk / Dizzy")
 }
 
 class ShaderEffectManager {
     private var currentEffect = ShaderEffect.NONE
     private var roomShaderOverride: ShaderEffect? = null
     private var missionShaderOverride: ShaderEffect? = null
+
     private lateinit var frameBuffer: FrameBuffer
     private lateinit var postProcessBatch: SpriteBatch
     private lateinit var postProcessCamera: OrthographicCamera
@@ -85,7 +89,7 @@ class ShaderEffectManager {
         // Default passthrough shader
         shaders[ShaderEffect.NONE] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.passthroughShader)
 
-        // Effect shaders - now using the separated shader definitions
+        // Effect shaders
         shaders[ShaderEffect.BRIGHT_VIBRANT] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.brightVibrantShader)
         shaders[ShaderEffect.RETRO_PIXEL] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.retroPixelShader)
         shaders[ShaderEffect.DREAMY_SOFT] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.dreamySoftShader)
@@ -99,6 +103,9 @@ class ShaderEffectManager {
         shaders[ShaderEffect.COMIC_BOOK] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.comicBookShader)
         shaders[ShaderEffect.UNDERWATER] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.underwaterShader)
         shaders[ShaderEffect.NIGHT_VISION] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.nightVisionShader)
+        shaders[ShaderEffect.PIXEL_ART] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.purePixelShader)
+        shaders[ShaderEffect.FLAT_CEL] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.flatCelShader)
+        shaders[ShaderEffect.DRUNK] = createShader(ShaderDefinitions.vertexShader, ShaderDefinitions.drunkShader)
     }
 
     private fun createShader(vertex: String, fragment: String): ShaderProgram {
@@ -107,7 +114,7 @@ class ShaderEffectManager {
         if (!shader.isCompiled) {
             println("Shader compilation error: ${shader.log}")
         } else {
-            println("Shader compiled successfully")
+            // println("Shader compiled successfully")
         }
         return shader
     }
@@ -130,13 +137,15 @@ class ShaderEffectManager {
             // Otherwise, use the room's override, or default to NONE if no override is set.
             currentEffect != ShaderEffect.NONE -> currentEffect
 
-            // Priority 3: Room Atmosphere (e.g., Spooky cellar default)
+            // Priority 3: Room Atmosphere
             roomShaderOverride != null -> roomShaderOverride!!
 
             // Priority 4: Default
             else -> ShaderEffect.NONE
         }
-        val shader = shaders[activeEffect] ?: return
+
+        // Safety check if shader exists
+        val shader = shaders[activeEffect] ?: shaders[ShaderEffect.NONE]!!
 
         Gdx.gl.glDisable(GL20.GL_DEPTH_TEST)
         Gdx.gl.glDisable(GL20.GL_CULL_FACE)
@@ -155,11 +164,7 @@ class ShaderEffectManager {
 
     fun setRoomOverride(effect: ShaderEffect?) {
         // Only set an override if the room actually has a special shader.
-        roomShaderOverride = if (effect != ShaderEffect.NONE) {
-            effect
-        } else {
-            null
-        }
+        roomShaderOverride = if (effect != ShaderEffect.NONE) effect else null
     }
 
     fun clearRoomOverride() {
@@ -168,7 +173,9 @@ class ShaderEffectManager {
 
     fun setMissionOverride(effect: ShaderEffect?) {
         this.missionShaderOverride = if (effect == ShaderEffect.NONE) null else effect
-        println("ShaderEffectManager: Mission Override set to ${this.missionShaderOverride?.displayName ?: "Cleared"}")
+        if (missionShaderOverride != null) {
+            println("Shader Manager: Mission Override set to ${missionShaderOverride?.displayName}")
+        }
     }
 
     fun toggleEffectsEnabled() {
@@ -203,10 +210,7 @@ class ShaderEffectManager {
     }
 
     fun resize(width: Int, height: Int) {
-        if (width == 0 || height == 0) {
-            println("ShaderEffectManager: Ignoring resize to 0x0")
-            return
-        }
+        if (width == 0 || height == 0) return
 
         // Dispose the old one before creating a new one
         if (::frameBuffer.isInitialized) {
